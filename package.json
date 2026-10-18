@@ -1,0 +1,38 @@
+{
+  "name": "kadro",
+  "productName": "Kadro",
+  "version": "0.1.0",
+  "description": "Kadro — бесплатный видеоредактор с ИИ-функциями, работающими локально",
+  "license": "GPL-3.0-or-later",
+  "author": "yaposspall",
+  "main": "dist/main/main.js",
+  "private": true,
+  "scripts": {
+    "build:main": "node scripts/build-main.mjs",
+    "build:renderer": "vite build",
+    "build": "npm run build:main && npm run build:renderer",
+    "start": "electron .",
+    "dev": "npm run build && electron .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:int": "vitest run tests/integration",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "react": "19.2",
+    "react-dom": "19.2",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^44.9.0",
+    "esbuild": "^0.25.12",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7",
+    "vitest": "^3.2.7"
+  }
+}

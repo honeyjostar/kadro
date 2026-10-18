@@ -1,0 +1,8 @@
+node_modules/
+dist/
+release/
+out/
+*.log
+.vite/
+test-results/
+playwright-report/
