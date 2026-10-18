@@ -41,6 +41,7 @@ export class PreviewEngine {
   private media = new Map<string, Entry>();
   private ac: AudioContext | null = null;
   private master: GainNode | null = null;
+  private muted = false;
   private project: Project | null = null;
   private raf = 0;
   private playing = false;
@@ -118,6 +119,12 @@ export class PreviewEngine {
     void this.ac?.close();
   }
 
+  /** Заглушить звук превью (во время записи голоса — чтобы не попадал в микрофон). */
+  setMuted(b: boolean): void {
+    this.muted = b;
+    if (this.master) this.master.gain.value = b ? 0 : 1;
+  }
+
   /** Текущий кадр как картинка (для тестов и стоп-кадра). */
   snapshot(): string { return this.canvas.toDataURL('image/png'); }
 
@@ -126,6 +133,7 @@ export class PreviewEngine {
     if (this.ac) return;
     this.ac = new AudioContext({ latencyHint: 'playback' });
     this.master = this.ac.createGain();
+    this.master.gain.value = this.muted ? 0 : 1;
     this.master.connect(this.ac.destination);
     for (const e of this.media.values()) this.connect(e);
   }

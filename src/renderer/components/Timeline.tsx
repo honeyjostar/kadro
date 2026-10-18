@@ -1,5 +1,5 @@
 import {
-  Activity, AudioLines, Blend, Copy, Eye, EyeOff, Film, Layers, Maximize2, Plus, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
+  Activity, AudioLines, Blend, Copy, Eye, EyeOff, Film, Layers, Maximize2, Mic, Plus, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -8,8 +8,9 @@ import {
   addFree, addToMain, beatTimes, clipDuration, clipEnd, findClip, mainToOverlay, moveClip, projectDuration, reorderMain, setTrackFlag, trimClip,
 } from '../../shared/timeline';
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
-import { alignToBeats, deleteSelection, duplicateSelection, freezeFrame, importPaths, removePauses, retimeClip, splitAtPlayhead } from '../actions';
+import { alignToBeats, deleteSelection, duplicateSelection, freezeFrame, importPaths, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
 import { useSelected } from '../hooks';
+import { recPrefs } from '../recorder';
 import { keyTimesOnTimeline } from '../animEdit';
 import { api, getState, useStore } from '../store';
 import { fmtDur, peakLevel } from '../util';
@@ -524,6 +525,7 @@ export function Timeline() {
   }) : [];
 
   const selClip = sel?.clip.type === 'media' ? (sel.clip as MediaClip) : null;
+  const recording = useStore((s) => s.recording);
   const hasBeats = project.assets.some((a) => a.beats?.length);
   const canPauses = !!selClip && !!sel?.asset?.hasAudio;
   const zoomVal = Math.log(pps / MIN_PPS) / Math.log(MAX_PPS / MIN_PPS);
@@ -543,6 +545,8 @@ export function Timeline() {
         <button className="icon-btn" title="Стоп-кадр у курсора" onClick={() => void freezeFrame()} disabled={noClips} data-testid="tl-freeze"><Snowflake size={17} /></button>
         <button className={`icon-btn ${selClip?.retime?.reverse ? 'on' : ''}`} title="Реверс выделенного клипа" disabled={!selClip || sel?.asset?.kind === 'image'}
           onClick={() => selClip && void retimeClip(selClip.id, { reverse: !selClip.retime?.reverse })} data-testid="tl-reverse"><Rewind size={17} /></button>
+        <button className={`icon-btn ${recording ? 'rec-on' : ''}`} title={recording ? 'Остановить запись голоса' : 'Записать голос с микрофона от курсора'} data-testid="tl-rec"
+          onClick={() => { if (recording) void stopRecording(); else { getState().setLeftTab('audio'); void startRecording(recPrefs.mic, recPrefs.mute); } }}><Mic size={17} /></button>
         <span className="sep" />
         <button className="btn ghost small" title="Вырезать тишину между фразами в выделенном клипе" disabled={!canPauses}
           onClick={() => selClip && void removePauses(selClip.id)}><Wand2 size={15} />Убрать паузы</button>

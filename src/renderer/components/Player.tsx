@@ -43,6 +43,7 @@ export function Player() {
   const playing = useStore((s) => s.playing);
   const playhead = useStore((s) => s.playhead);
   const selection = useStore((s) => s.selection);
+  const recording = useStore((s) => s.recording);
   const areaRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -71,6 +72,7 @@ export function Player() {
         } else eng.pause();
       }
       if (s.playhead !== prev.playhead && Math.abs(s.playhead - eng.time) > 1e-3) eng.seek(s.playhead);
+      if (s.recording !== prev.recording) eng.setMuted(!!s.recording?.muted);
     });
     document.fonts.addEventListener('loadingdone', () => { setFontsTick((n) => n + 1); eng.setProject(getState().project); });
     return () => { unsub(); eng.destroy(); };
@@ -221,6 +223,7 @@ export function Player() {
           )}
         </div>
         {pending && <div className="stage-chip">Готовлю превью для тяжёлого видео…</div>}
+        {recording && <div className="stage-chip rec" data-testid="rec-chip"><span className="rec-dot blink" />Идёт запись голоса{recording.muted ? ' · звук проекта выключен' : ''}</div>}
       </div>
       <div className="transport">
         <div className="timecode" data-testid="timecode"><b>{fmtTime(playhead, fps, true)}</b> / {fmtTime(duration, fps, true)}</div>

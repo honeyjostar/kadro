@@ -403,3 +403,22 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .ramp-editor circle:hover { fill: var(--accent); }
 .row-btns { display: flex; gap: 8px; margin-top: 8px; }
 .row-btns .btn { flex: 1; justify-content: center; }
+
+/* запись голоса */
+.rec-box { padding: 12px; margin-bottom: 14px; background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius-m); }
+.rec-box.live { border-color: rgba(255, 77, 77, 0.55); background: linear-gradient(180deg, rgba(255, 77, 77, 0.08), var(--raised)); }
+.rec-title { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+.rec-box select.input { width: 100%; margin-bottom: 4px; }
+.rec-btn { margin-top: 8px; justify-content: center; gap: 9px; background: var(--panel); border-color: var(--line); font-weight: 600; }
+.rec-btn:hover:not(:disabled) { border-color: #ff4d4d; }
+.rec-dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: #ff4d4d; box-shadow: 0 0 0 3px rgba(255, 77, 77, 0.2); flex: none; }
+.rec-dot.blink { animation: rec-blink 1s steps(2, start) infinite; }
+@keyframes rec-blink { to { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .rec-dot.blink { animation: none; } }
+.rec-live { display: flex; align-items: center; gap: 10px; font-variant-numeric: tabular-nums; }
+.rec-live b { font-size: 15px; min-width: 52px; }
+.rec-meter { flex: 1; height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden; }
+.rec-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--ok) 0 70%, #ffd25a 70% 88%, #ff4d4d 88%); background-size: 100% 100%; transition: width 60ms linear; }
+.icon-btn.rec-on { color: #ff4d4d; }
+.stage-chip.rec { display: flex; align-items: center; gap: 8px; color: var(--text); border-color: rgba(255, 77, 77, 0.5); }
+.stage-chip.rec .rec-dot { width: 9px; height: 9px; }

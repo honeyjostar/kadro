@@ -74,6 +74,8 @@ export interface KadroApi {
   models(): Promise<ModelInfo[]>;
   ttsVoices(): Promise<VoiceInfo[]>;
   runAi(job: AiJob): Promise<AiResponse>;
+  /** Запись с микрофона (webm/opus) → FLAC в папке данных. */
+  saveRecording(data: ArrayBuffer): Promise<string>;
   cancelAi(jobId: string): void;
   onAiProgress(cb: (jobId: string, p: number, stage?: string) => void): () => void;
   showInFolder(path: string): void;

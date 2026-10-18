@@ -31,6 +31,8 @@ interface State {
   toasts: Toast[];
   exportOpen: boolean;
   tlHeight: number;
+  /** Идёт запись голоса: с какого места таймлайна и заглушён ли звук проекта. */
+  recording: { startT: number; muted: boolean } | null;
 
   commit: (fn: (p: Project) => Project, key?: string) => void;
   replace: (p: Project, path?: string | null) => void;
@@ -47,6 +49,7 @@ interface State {
   setExportOpen: (b: boolean) => void;
   markSaved: (path: string) => void;
   setTlHeight: (h: number) => void;
+  setRecording: (r: { startT: number; muted: boolean } | null) => void;
 }
 
 const HISTORY = 120;
@@ -83,6 +86,7 @@ export const useStore = create<State>((set, get) => ({
   toasts: [],
   exportOpen: false,
   tlHeight: 300,
+  recording: null,
 
   commit: (fn, key) => {
     const s = get();
@@ -150,6 +154,7 @@ export const useStore = create<State>((set, get) => ({
   }),
   setExportOpen: (b) => set({ exportOpen: b }),
   markSaved: (path) => set({ projectPath: path, dirty: false, savedAt: Date.now() }),
+  setRecording: (r) => set({ recording: r }),
   setTlHeight: (h) => set({ tlHeight: Math.min(560, Math.max(180, h)) }),
 }));
 

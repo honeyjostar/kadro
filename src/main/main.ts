@@ -10,6 +10,7 @@ import { denoise } from './ai/denoise';
 import { processVoice } from './ai/voice';
 import { stabilize } from './ai/stab';
 import { freezeFrame, retime } from './retime';
+import { runFfmpeg } from './ffrun';
 import { cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
 import { exportProject, exportSpeechAudio, hasNvenc } from './exporter';
 import { analyze, makePeaks, makeProxy, makeThumbs } from './media';
@@ -401,6 +402,19 @@ function registerIpc(): void {
   ipcMain.handle('ai:voices', async (): Promise<VoiceInfo[]> =>
     Object.values(TTS_VOICES).map((v) => ({ id: v.id, label: v.label, sizeMb: v.sizeMb, ready: ttsVoiceReady(v.id) })));
   ipcMain.handle('ai:run', (_e, job: AiJob) => runAi(job));
+  ipcMain.handle('rec:save', async (_e, data: ArrayBuffer) => {
+    const dir = cacheDir('recordings');
+    const stem = `voice_${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}_${Math.random().toString(36).slice(2, 6)}`;
+    const raw = path.join(dir, `${stem}.webm`);
+    const out = path.join(dir, `${stem}.flac`);
+    fs.writeFileSync(raw, Buffer.from(data));
+    try {
+      await runFfmpeg(['-hide_banner', '-y', '-i', raw, '-vn', '-ac', '1', '-ar', '48000', '-c:a', 'flac', out]);
+    } finally {
+      fs.rmSync(raw, { force: true });
+    }
+    return out;
+  });
   ipcMain.on('ai:cancel', (_e, jobId: string) => {
     aiAborts.get(jobId)?.abort();
     for (const w of workers.values()) w.postMessage({ cancel: jobId });
@@ -409,6 +423,11 @@ function registerIpc(): void {
   ipcMain.on('win:title', (_e, t: string) => win?.setTitle(t));
 }
 
+// автотесты: ненастоящий микрофон без запроса разрешения
+if (process.env.KADRO_FAKE_MEDIA) {
+  app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+  app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
+}
 // автотесты на машине без видеокарты: программная видеокарта (SwiftShader), чтобы проверить WebGL-хромакей
 if (process.env.KADRO_SWIFTSHADER) {
   app.commandLine.appendSwitch('use-angle', 'swiftshader');

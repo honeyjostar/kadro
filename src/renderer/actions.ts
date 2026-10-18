@@ -11,6 +11,7 @@ import {
 import type { MediaAsset, MediaClip, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
 import { api, getState, takeEarlyPatches } from './store';
 import { uidShort } from './util';
+import { VoiceRecorder } from './recorder';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -360,6 +361,73 @@ export async function freezeFrame(dur = 2): Promise<void> {
   takeEarlyPatches([asset.id]);
   if (id) getState().select([id]);
   getState().toast('Стоп-кадр добавлен', 'ok');
+}
+
+// ---------- запись голоса ----------
+let recorder: VoiceRecorder | null = null;
+export function voiceLevel(): number { return recorder?.level() ?? 0; }
+
+/** Начать запись с микрофона: с текущего места, таймлайн играет, звук проекта по желанию заглушён. */
+export async function startRecording(deviceId?: string, muteProject = true): Promise<boolean> {
+  const s = getState();
+  if (recorder || s.recording) return false;
+  const r = new VoiceRecorder();
+  try {
+    await r.start(deviceId);
+  } catch (e) {
+    r.cancel();
+    const name = (e as { name?: string }).name;
+    s.toast(name === 'NotAllowedError' || name === 'SecurityError'
+      ? 'Нет доступа к микрофону. В Windows: Параметры → Конфиденциальность → Микрофон → разрешить классическим приложениям.'
+      : name === 'NotFoundError' ? 'Микрофон не найден — подключи его и попробуй снова.'
+        : `Микрофон не включился: ${e instanceof Error ? e.message : String(e)}`, 'err');
+    return false;
+  }
+  recorder = r;
+  getState().setRecording({ startT: getState().playhead, muted: muteProject });
+  if (projectDuration(getState().project) > getState().playhead + 0.05) getState().setPlaying(true);
+  return true;
+}
+
+/** Закончить запись и положить её на аудиодорожку с того места, где начали. */
+export async function stopRecording(): Promise<string | null> {
+  const s = getState();
+  const r = recorder;
+  const rec = s.recording;
+  if (!r || !rec) return null;
+  recorder = null;
+  s.setPlaying(false);
+  s.setRecording(null);
+  const jobId = `rec_${uidShort()}`;
+  s.setJob({ id: jobId, label: 'Сохраняю запись', progress: 0.5, cancellable: false });
+  try {
+    const blob = await r.stop();
+    if (blob.size < 200) { getState().toast('Запись пустая — микрофон ничего не передал', 'err'); return null; }
+    const path = await api.saveRecording(await blob.arrayBuffer());
+    const imp = await api.importMedia([path]);
+    const asset = imp.assets[0];
+    if (!asset) { getState().toast(`Запись не добавилась: ${imp.errors[0]?.message ?? ''}`, 'err'); return null; }
+    const n = getState().project.assets.filter((a) => a.name.startsWith('Голос ')).length + 1;
+    asset.name = `Голос ${n}`;
+    let clipId = '';
+    getState().commit((p) => { const res = addFree(addAsset(p, asset), asset.id, rec.startT); clipId = res.clipId; return res.project; });
+    takeEarlyPatches([asset.id]);
+    getState().select([clipId]);
+    getState().toast(`Запись добавлена: ${asset.duration.toFixed(1)} с`, 'ok');
+    return clipId;
+  } catch (e) {
+    getState().toast(`Запись не сохранилась: ${e instanceof Error ? e.message : String(e)}`, 'err');
+    return null;
+  } finally {
+    getState().setJob(null, jobId);
+  }
+}
+
+export function cancelRecording(): void {
+  recorder?.cancel();
+  recorder = null;
+  getState().setPlaying(false);
+  getState().setRecording(null);
 }
 
 // ---------- озвучка текста ----------

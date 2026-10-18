@@ -1,4 +1,5 @@
 // Сквозные тесты: настоящее окно Kadro, мышь и клавиатура, плеер и экспорт через интерфейс.
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
@@ -540,6 +541,40 @@ test('реверс, кривая скорости и стоп-кадр — че�
   p = await project(win);
   c = p.tracks[0].clips.find((x: any) => x.id === id) as any;
   expect(p.assets.find((a) => a.id === c.assetId)!.derived).toBeFalsy();
+});
+
+test('запись голоса с микрофона: от курсора, на аудиодорожку', async () => {
+  await reset(win);
+  await importAt(win, [colorsVideo()]);
+  await seekAndSettle(win, 1);
+  await win.getByTestId('tab-audio').click();
+  await win.getByTestId('rec-start').click();
+  await expect(win.getByTestId('rec-chip')).toBeVisible();
+  expect(await state(win, '(s) => s.playing')).toBe(true); // таймлайн играет во время записи
+  await win.waitForTimeout(2200);
+  await win.getByTestId('rec-stop').click();
+  await win.waitForFunction(() => (window as any).__kadro.useStore.getState().project.tracks.some((t: any) => t.kind === 'audio' && t.clips.length), undefined, { timeout: 30_000 });
+  await waitAssetsReady(win);
+  const p = await project(win);
+  const tr = p.tracks.find((t) => t.kind === 'audio')!;
+  const c = tr.clips[0] as any;
+  const a = p.assets.find((x) => x.id === c.assetId)!;
+  expect(a.name).toBe('Голос 1');
+  expect(a.path.endsWith('.flac')).toBe(true);
+  expect(Math.abs(c.start - 1)).toBeLessThan(0.05);
+  expect(a.duration).toBeGreaterThan(1.6);
+  expect(a.duration).toBeLessThan(3.5);
+  expect(probe(a.path).hasAudio).toBe(true);
+  // тестовый микрофон Chromium пищит раз в секунду — запись не тишина
+  const r = spawnSync('ffmpeg', ['-hide_banner', '-i', a.path, '-af', 'volumedetect', '-f', 'null', '-'], { encoding: 'utf8' });
+  const max = Number(/max_volume:\s*(-?[\d.]+)/.exec(r.stderr)?.[1] ?? -99);
+  expect(max).toBeGreaterThan(-40);
+  await expect(win.getByTestId('rec-chip')).toHaveCount(0);
+  // отмена ничего не добавляет
+  await win.getByTestId('rec-start').click();
+  await win.waitForTimeout(500);
+  await win.getByTestId('rec-cancel').click();
+  expect((await project(win)).tracks.filter((t) => t.kind === 'audio').flatMap((t) => t.clips)).toHaveLength(1);
 });
 
 test('голос, озвучка, ритм — через интерфейс', async () => {

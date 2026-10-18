@@ -14,8 +14,9 @@ import { EFFECTS } from '../../shared/effects';
 import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
-  setVoiceEffect, stabilizeClip,
+  setVoiceEffect, stabilizeClip, startRecording, stopRecording, cancelRecording, voiceLevel,
 } from '../actions';
+import { listMics, recPrefs, type MicInfo } from '../recorder';
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore, type LeftTab } from '../store';
 import { fmtDur, fmtTime, peakLevel } from '../util';
@@ -162,6 +163,7 @@ function AudioPanel() {
     <>
       <div className="panel-head">Аудио</div>
       <div className="panel-body">
+        <RecordBox />
         <DropZone accept="audio" compact={assets.length > 0} />
         {assets.length > 0 ? (
           <div className="audio-list">
@@ -183,6 +185,62 @@ function AudioPanel() {
         )}
       </div>
     </>
+  );
+}
+
+function RecordBox() {
+  const rec = useStore((s) => s.recording);
+  const playhead = useStore((s) => s.playhead);
+  const saving = useJobRunning('rec_');
+  const [mics, setMics] = useState<MicInfo[]>([]);
+  const [mic, setMic] = useState(recPrefs.mic);
+  const [mute, setMute] = useState(recPrefs.mute);
+  const [level, setLevel] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => { recPrefs.mic = mic; recPrefs.mute = mute; }, [mic, mute]);
+  useEffect(() => {
+    const load = () => void listMics().then(setMics);
+    load();
+    navigator.mediaDevices?.addEventListener?.('devicechange', load);
+    return () => navigator.mediaDevices?.removeEventListener?.('devicechange', load);
+  }, [rec]);
+  useEffect(() => {
+    if (!rec) { setLevel(0); setElapsed(0); return; }
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = () => { setLevel(voiceLevel()); setElapsed((performance.now() - t0) / 1000); raf = requestAnimationFrame(tick); };
+    tick();
+    return () => cancelAnimationFrame(raf);
+  }, [rec]);
+  return (
+    <div className={`rec-box ${rec ? 'live' : ''}`} data-testid="rec-box">
+      <div className="rec-title"><Mic size={15} />Запись голоса</div>
+      {!rec ? (
+        <>
+          {mics.length > 1 && (
+            <select className="input" value={mic} onChange={(e) => setMic(e.target.value)} data-testid="rec-mic">
+              {mics.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+          )}
+          <Toggle label="Заглушить звук проекта на время записи" on={mute} onChange={setMute} hint="Чтобы звук из колонок не попал в микрофон" />
+          <button className="btn rec-btn block" disabled={saving} onClick={() => void startRecording(mic, mute)} data-testid="rec-start">
+            <span className="rec-dot" />Записать с {fmtTime(playhead)}
+          </button>
+        </>
+      ) : (
+        <>
+          <div className="rec-live">
+            <span className="rec-dot blink" />
+            <b data-testid="rec-time">{fmtTime(elapsed)}</b>
+            <div className="rec-meter"><i style={{ width: `${Math.round(level * 100)}%` }} /></div>
+          </div>
+          <div className="row-btns">
+            <button className="btn primary" onClick={() => void stopRecording()} data-testid="rec-stop">Готово</button>
+            <button className="btn" onClick={cancelRecording} data-testid="rec-cancel">Отмена</button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
