@@ -103,7 +103,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   const tabs: { id: MTab; label: string }[] = isAudio
     ? [{ id: 'audio', label: 'Звук' }, { id: 'speed', label: 'Скорость' }]
     : [
-      { id: 'basic', label: 'Основное' }, { id: 'color', label: 'Цвет' }, { id: 'mask', label: 'Маска' },
+      { id: 'basic', label: 'Кадр' }, { id: 'color', label: 'Цвет' }, { id: 'mask', label: 'Маска' },
       ...(!isImage ? [{ id: 'speed' as MTab, label: 'Скорость' }] : []),
       ...(asset?.hasAudio ? [{ id: 'audio' as MTab, label: 'Звук' }] : []),
       ...(!isImage ? [{ id: 'ai' as MTab, label: 'ИИ' }] : []),

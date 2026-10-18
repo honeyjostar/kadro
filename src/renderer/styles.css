@@ -194,8 +194,9 @@ button { cursor: pointer; }
 
 /* ---------- инспектор ---------- */
 .inspector { background: var(--panel); border-left: 1px solid var(--line-soft); display: flex; flex-direction: column; min-height: 0; }
-.tabs { display: flex; gap: 2px; padding: 8px 10px 0; border-bottom: 1px solid var(--line-soft); }
-.tabs button { border: 0; background: transparent; color: var(--muted); padding: 7px 8px 9px; font-size: 12.5px; border-bottom: 2px solid transparent; }
+.tabs { display: flex; gap: 0; padding: 8px 8px 0; border-bottom: 1px solid var(--line-soft); overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { border: 0; background: transparent; color: var(--muted); padding: 7px 7px 9px; font-size: 12.5px; border-bottom: 2px solid transparent; white-space: nowrap; flex-shrink: 0; }
 .tabs button:hover { color: var(--text); }
 .tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
 .ellipsis { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
@@ -367,7 +368,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .beat-marks i { position: absolute; top: 0; width: 2px; height: 6px; margin-left: -1px; background: #ffe14d; border-radius: 1px; }
 
 /* ---------- маски ---------- */
-.mask-shapes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 4px 0 6px; }
+.mask-shapes { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 6px; margin: 4px 0 6px; }
 .mask-tile { padding: 6px 2px; align-items: center; gap: 4px; }
 .mask-tile .label { font-size: 10.5px; text-align: center; }
 .mask-icon { width: 34px; height: 24px; }
