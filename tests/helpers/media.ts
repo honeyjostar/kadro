@@ -4,8 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { buildGraph, fullArgs, type BuildOpts, type Quality } from '../../src/shared/exportGraph';
-import type { Mask, MediaAsset, Project } from '../../src/shared/types';
-import { maskBytes } from '../../src/shared/mask';
+import type { MediaAsset, Project } from '../../src/shared/types';
 import { grayPng } from '../../src/main/png';
 
 export const FFMPEG = process.env.KADRO_FFMPEG || 'ffmpeg';
@@ -114,13 +113,13 @@ export function runExport(p: Project, out: string, opts: Partial<BuildOpts> & { 
   const W = opts.width ?? 540;
   const H = opts.height ?? 960;
   const F = opts.fps ?? 30;
-  let maskN = 0;
-  const maskFile = (_id: string, mask: Mask, w: number, h: number) => {
-    const file = `${out}.mask${maskN++}.png`;
-    fs.writeFileSync(file, grayPng(maskBytes(mask, w, h), w, h));
+  let grayN = 0;
+  const grayFile = (_name: string, bytes: Uint8Array, w: number, h: number) => {
+    const file = `${out}.gray${grayN++}.png`;
+    fs.writeFileSync(file, grayPng(bytes, w, h));
     return file;
   };
-  const g = buildGraph(p, { width: W, height: H, fps: F, textLayers: opts.textLayers ?? [], maskFile });
+  const g = buildGraph(p, { width: W, height: H, fps: F, textLayers: opts.textLayers ?? [], grayFile });
   const filterFile = out + '.filter.txt';
   fs.writeFileSync(filterFile, g.filter);
   const args = fullArgs(g, filterFile, ffmpegMajor(), 'x264', opts.quality ?? 'normal', F, out)

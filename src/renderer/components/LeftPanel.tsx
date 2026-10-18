@@ -1,5 +1,5 @@
 import {
-  ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
+  Zap, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
   Sparkles, Trash2, Type, Upload, Wand2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
@@ -10,7 +10,8 @@ import type { ModelInfo } from '../../shared/ipc';
 import {
   addText, animAllCaptions, findClip, mainTrack, removeAsset, setTransition, styleAllCaptions, updateClip,
 } from '../../shared/timeline';
-import type { MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
+import { EFFECTS } from '../../shared/effects';
+import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
   setVoiceEffect, stabilizeClip,
@@ -26,6 +27,7 @@ const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'audio', label: 'Аудио', icon: <Music size={19} /> },
   { id: 'text', label: 'Текст', icon: <Type size={19} /> },
   { id: 'captions', label: 'Субтитры', icon: <Captions size={19} /> },
+  { id: 'effects', label: 'Эффекты', icon: <Zap size={19} /> },
   { id: 'transitions', label: 'Переходы', icon: <Blend size={19} /> },
   { id: 'filters', label: 'Фильтры', icon: <Palette size={19} /> },
   { id: 'ai', label: 'ИИ', icon: <Sparkles size={19} /> },
@@ -53,6 +55,7 @@ export function LeftPanel() {
       {tab === 'audio' && <AudioPanel />}
       {tab === 'text' && <TextPanel />}
       {tab === 'captions' && <CaptionsPanel />}
+      {tab === 'effects' && <EffectsPanel />}
       {tab === 'transitions' && <TransitionsPanel />}
       {tab === 'filters' && <FiltersPanel />}
       {tab === 'ai' && <AiPanel />}
@@ -362,6 +365,54 @@ function CaptionsPanel() {
             </div>
           </>
         )}
+      </div>
+    </>
+  );
+}
+
+// ---------- Эффекты ----------
+const FX_SWATCH: Record<EffectType, string> = {
+  shake: 'linear-gradient(100deg,#4a6da6 40%,#6f95d1 40% 46%,#4a6da6 46%)',
+  pulse: 'radial-gradient(circle,#ff3d7f 0 22%,#4a6da6 23% 34%,#2b3f63 35%)',
+  flash: 'linear-gradient(90deg,#fff 0%,#f6f6f6 35%,#4a6da6 100%)',
+  glitch: 'linear-gradient(180deg,#4a6da6 0 30%,#ff3d7f 30% 38%,#4a6da6 38% 62%,#46e0d0 62% 70%,#4a6da6 70%)',
+  rgbsplit: 'linear-gradient(90deg,#ff2d55 0 30%,#4a6da6 30% 70%,#2d8cff 70%)',
+  vhs: 'repeating-linear-gradient(180deg,#5f6f8a 0 3px,#3d4a60 3px 5px)',
+  grain: 'radial-gradient(circle at 30% 30%,#8a8a8a 1px,transparent 1.5px) 0 0/5px 5px,#555',
+  vignette: 'radial-gradient(circle,#d9963a 30%,#2a1a08 85%)',
+  blur: 'radial-gradient(circle,#d9963a 10%,#4a6da6 70%)',
+  pixelate: 'conic-gradient(#4a6da6 25%,#d9963a 0 50%,#4a6da6 0 75%,#d9963a 0) 0 0/12px 12px',
+  mirror: 'linear-gradient(90deg,#d9963a 0 25%,#4a6da6 25% 50%,#4a6da6 50% 75%,#d9963a 75%)',
+  invert: 'linear-gradient(90deg,#d9963a 50%,#2669c5 50%)',
+  rainbow: 'linear-gradient(90deg,#ff3d3d,#ffb23d,#e8ff3d,#3dff8a,#3dc5ff,#8a3dff,#ff3dd2)',
+};
+
+function EffectsPanel() {
+  const sel = useSelected();
+  const commit = useStore((s) => s.commit);
+  const clip = sel?.clip.type === 'media' && sel.asset?.kind !== 'audio' ? (sel.clip as MediaClip) : null;
+  const toggle = (type: EffectType) => {
+    if (!clip) { getState().toast('Выдели видео или фото на таймлайне'); return; }
+    const has = clip.effects?.some((e) => e.type === type);
+    const effects = has ? clip.effects!.filter((e) => e.type !== type) : [...(clip.effects ?? []), { type, amount: 0.5 }];
+    commit((p) => updateClip(p, clip.id, { effects: effects.length ? effects : undefined }));
+  };
+  return (
+    <>
+      <div className="panel-head">Эффекты</div>
+      <div className="panel-body">
+        <p className="hint">{clip ? 'Нажми на эффект, чтобы добавить или убрать. Силу — во вкладке «Эффекты» справа.' : 'Выдели клип на таймлайне — эффекты применяются к нему.'}</p>
+        <div className="tile-grid fx-grid" style={{ marginTop: 10 }}>
+          {EFFECTS.map((e) => {
+            const on = !!clip?.effects?.some((x) => x.type === e.type);
+            return (
+              <button key={e.type} className={`tile ${on ? 'active' : ''}`} onClick={() => toggle(e.type)} title={e.hint} data-testid={`fx-${e.type}`}>
+                <div className={`swatch fx-swatch fx-${e.type}`} style={{ background: FX_SWATCH[e.type] }} />
+                <span className="label">{e.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </>
   );

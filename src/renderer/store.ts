@@ -7,7 +7,7 @@ import type { MediaAsset, Project } from '../shared/types';
 
 export const api: KadroApi = (window as unknown as { kadro: KadroApi }).kadro;
 
-export type LeftTab = 'media' | 'audio' | 'text' | 'captions' | 'transitions' | 'filters' | 'ai';
+export type LeftTab = 'media' | 'audio' | 'text' | 'captions' | 'effects' | 'transitions' | 'filters' | 'templates' | 'ai';
 
 export interface Job { id: string; label: string; progress: number; stage?: string; clipId?: string; cancellable: boolean }
 export interface Toast { id: number; text: string; kind: 'info' | 'ok' | 'err' }

@@ -378,3 +378,6 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .voice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
 .voice-grid .btn { padding: 0 4px; font-size: 11.5px; }
 .btn.on { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+
+.fx-grid { grid-template-columns: repeat(3, 1fr); }
+.fx-swatch { height: 40px; }

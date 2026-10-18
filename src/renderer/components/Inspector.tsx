@@ -1,7 +1,8 @@
-import { Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
+import { X, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
 import { alignToBeats, findBeats, speakText } from '../actions';
 import { DEFAULT_MASK } from '../../shared/mask';
+import { EFFECTS } from '../../shared/effects';
 import { useEffect, useRef, useState } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
 import { ASPECTS, DEFAULT_CHROMA, DEFAULT_COLOR, DEFAULT_TRANSFORM, FONTS, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
@@ -94,7 +95,7 @@ function ProjectInspector({ multi }: { multi: number }) {
 }
 
 // ---------- видео, фото, звук ----------
-type MTab = 'basic' | 'color' | 'mask' | 'speed' | 'audio' | 'ai';
+type MTab = 'basic' | 'color' | 'mask' | 'fx' | 'speed' | 'audio' | 'ai';
 
 function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: MediaAsset; trackKind: string }) {
   const commit = useStore((s) => s.commit);
@@ -104,6 +105,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
     ? [{ id: 'audio', label: 'Звук' }, { id: 'speed', label: 'Скорость' }]
     : [
       { id: 'basic', label: 'Кадр' }, { id: 'color', label: 'Цвет' }, { id: 'mask', label: 'Маска' },
+      ...(clip.effects?.length ? [{ id: 'fx' as MTab, label: 'Эффекты' }] : []),
       ...(!isImage ? [{ id: 'speed' as MTab, label: 'Скорость' }] : []),
       ...(asset?.hasAudio ? [{ id: 'audio' as MTab, label: 'Звук' }] : []),
       ...(!isImage ? [{ id: 'ai' as MTab, label: 'ИИ' }] : []),
@@ -142,6 +144,18 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
           </>
         )}
         {cur === 'mask' && <MaskTab clip={clip} />}
+        {cur === 'fx' && (
+          <>
+            {(clip.effects ?? []).map((e) => (
+              <Slider key={e.type} label={EFFECTS.find((x) => x.type === e.type)?.label ?? e.type} min={0} max={1} step={0.01} value={e.amount} format={pct}
+                testId={`fxamt-${e.type}`}
+                extra={<button className="icon-btn" style={{ width: 22, height: 22 }} title="Убрать эффект"
+                  onClick={() => up({ effects: clip.effects!.filter((x) => x.type !== e.type) }, 'fxdel')}><X size={13} /></button>}
+                onChange={(v) => up({ effects: clip.effects!.map((x) => (x.type === e.type ? { ...x, amount: v } : x)) }, `fx-${e.type}`)} />
+            ))}
+            <p className="hint small">Новые эффекты — в разделе «Эффекты» слева.</p>
+          </>
+        )}
         {cur === 'color' && (
           <>
             <Field label="Фильтр">

@@ -4,7 +4,10 @@ import { hasAnim, kfExpr, maxScale, valueAt } from './anim';
 import { effectiveColor, ffmpegColorFilter } from './color';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geometry';
 import { clipDuration, mainTrack, projectDuration } from './timeline';
-import type { BlendMode, MediaAsset, MediaClip, Mask, Project } from './types';
+import type { BlendMode, MediaAsset, MediaClip, Project } from './types';
+import { maskBytes } from './mask';
+import { blurSigma, flashDuration, fxGeometryExpr, fxMaxScale, fxMoves, hueMatrix, pixelBlock, rainbowAngle, rgbShiftAt, scanlineStep, sortedEffects, vignetteBytes } from './effects';
+import { saturateMatrix } from './color';
 
 export interface BuildOpts {
   width: number;
@@ -17,8 +20,8 @@ export interface BuildOpts {
   audioOnly?: boolean;
   /** Брать ли клипы с аудиодорожек (музыку). По умолчанию да. */
   includeMusic?: boolean;
-  /** Создаёт PNG-маску клипа размера w × h и возвращает путь (нужен, если в проекте есть маски). */
-  maskFile?: (clipId: string, mask: Mask, w: number, h: number) => string;
+  /** Сохраняет картинку в оттенках серого (маска, виньетка) w × h и возвращает путь к PNG. */
+  grayFile?: (name: string, bytes: Uint8Array, w: number, h: number) => string;
 }
 
 export interface BuiltGraph {
@@ -146,8 +149,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     };
     // 3) маска — в рамке клипа нужного размера (умножаем на уже имеющуюся прозрачность)
     const applyMask = (w: number, h: number) => {
-      if (!c.mask || !o.maskFile) return;
-      const file = o.maskFile(c.id, c.mask, w, h);
+      if (!c.mask || !o.grayFile) return;
+      const file = o.grayFile(`mask_${c.id}`, maskBytes(c.mask, w, h), w, h);
       const idx = addInput(['-loop', '1', '-framerate', String(F), '-i', file]);
       parts.push(`fps=${F}`);
       flush();
@@ -162,12 +165,91 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       cur = out;
     };
 
-    const moving = (['x', 'y', 'scale', 'rotation'] as const).some((pr) => (c.keyframes?.[pr]?.length ?? 0) > 0);
+    // 4) видеоэффекты — на слое нужного размера
+    const applyEffects = (w: number, h: number) => {
+      const list = sortedEffects(c.effects);
+      if (!list.length) return;
+      const frames = Math.ceil(D * F);
+      const fx = (t: string) => list.find((e) => e.type === t);
+      for (const e of list) {
+        const a = e.amount;
+        switch (e.type) {
+          case 'mirror': {
+            const half = Math.floor(w / 2);
+            flush();
+            const [x1, x2, l, r, out] = [L('fx'), L('fx'), L('fx'), L('fx'), L('fx')];
+            chains.push(`[${cur}]split=2[${x1}][${x2}]`);
+            chains.push(`[${x1}]crop=${half}:${h}:0:0[${l}]`);
+            chains.push(`[${x2}]crop=${w - half}:${h}:0:0,hflip[${r}]`);
+            chains.push(`[${l}][${r}]hstack=inputs=2[${out}]`);
+            cur = out;
+            break;
+          }
+          case 'pixelate': { const b = pixelBlock(w, a); parts.push(`pixelize=width=${b}:height=${b}:mode=avg`); break; }
+          case 'blur': { const sg = blurSigma(w, a); if (sg > 0.1) parts.push(`gblur=sigma=${fmt(sg)}`); break; }
+          case 'invert': { const ex = `'val+(255-2*val)*${fmt(a)}'`; parts.push(`lutrgb=r=${ex}:g=${ex}:b=${ex}`); break; }
+          case 'rainbow': {
+            const name = `colorchannelmixer@hue${labelN++}`;
+            const cmds: string[] = [];
+            for (let i = 0; i < frames; i++) {
+              const m = hueMatrix(rainbowAngle(e, i / F));
+              const keys = ['rr', 'rg', 'rb', 'gr', 'gg', 'gb', 'br', 'bg', 'bb'];
+              const vals = [m[0][0], m[0][1], m[0][2], m[1][0], m[1][1], m[1][2], m[2][0], m[2][1], m[2][2]];
+              cmds.push(`${fmt(i === 0 ? 0 : (i - 0.5) / F)} ${keys.map((k2, j) => `${name} ${k2} ${fmt(vals[j])}`).join(', ')}`);
+            }
+            parts.push(`sendcmd=c='${cmds.join(';')}'`, `${name}=rr=1`);
+            break;
+          }
+          case 'vhs': {
+            const m = saturateMatrix(1 - 0.35 * a);
+            parts.push(`colorchannelmixer=rr=${fmt(m[0][0])}:rg=${fmt(m[0][1])}:rb=${fmt(m[0][2])}:gr=${fmt(m[1][0])}:gg=${fmt(m[1][1])}:gb=${fmt(m[1][2])}:br=${fmt(m[2][0])}:bg=${fmt(m[2][1])}:bb=${fmt(m[2][2])}`);
+            const d = Math.max(1, Math.round(w * 0.004 * (0.5 + a)));
+            parts.push(`rgbashift=rh=${-d}:bh=${d}:edge=smear`);
+            parts.push(`drawgrid=w=iw:h=${scanlineStep(h)}:t=1:color=black@${fmt(0.3 * a)}`);
+            break;
+          }
+          case 'rgbsplit':
+          case 'glitch': {
+            if (e.type === 'rgbsplit' && fx('glitch')) break; // вместе — одним фильтром на месте глитча
+            if (!fx('glitch')) { const s0 = rgbShiftAt(c.effects, w, 0); parts.push(`rgbashift=rh=${s0.rh}:bh=${s0.bh}:edge=smear`); break; }
+            const name = `rgbashift@gl${labelN++}`;
+            const cmds: string[] = [];
+            let prev = '';
+            for (let i = 0; i < frames; i++) {
+              const sft = rgbShiftAt(c.effects, w, Math.floor((i / F) * 30 + 1e-6));
+              const key = `${sft.rh}|${sft.bh}|${sft.gv}`;
+              if (key === prev) continue;
+              prev = key;
+              cmds.push(`${fmt(i === 0 ? 0 : (i - 0.5) / F)} ${name} rh ${sft.rh}, ${name} bh ${sft.bh}, ${name} gv ${sft.gv}`);
+            }
+            parts.push(`sendcmd=c='${cmds.join(';')}'`, `${name}=edge=smear`);
+            break;
+          }
+          case 'vignette': {
+            if (!o.grayFile) break;
+            const file = o.grayFile(`vig_${c.id}_${w}x${h}`, vignetteBytes(w, h, a), w, h);
+            const idx = addInput(['-loop', '1', '-framerate', String(F), '-i', file]);
+            parts.push('format=gbrap');
+            flush();
+            const [v, out] = [L('fx'), L('fx')];
+            chains.push(`[${idx}:v]format=gbrap,setsar=1[${v}]`);
+            chains.push(`[${cur}][${v}]blend=all_mode=multiply:shortest=1,format=rgba[${out}]`);
+            cur = out;
+            break;
+          }
+          case 'grain': { const st = Math.max(1, Math.round(18 * a)); parts.push(`noise=c0s=${st}:c1s=${st}:c2s=${st}:c0f=t+u:c1f=t+u:c2f=t+u`); break; }
+          case 'flash': parts.push(`fade=t=in:st=0:d=${fmt(flashDuration(a))}:color=white`); break;
+        }
+      }
+    };
+
+    const moving = (['x', 'y', 'scale', 'rotation'] as const).some((pr) => (c.keyframes?.[pr]?.length ?? 0) > 0) || fxMoves(c.effects);
     if (!moving) {
       const pl = placeOnCanvas(W, H, o2.w, o2.h, c.fit, c.transform);
       const sw = Math.max(1, Math.round(pl.w));
       const sh = Math.max(1, Math.round(pl.h));
       parts.push(`scale=${sw}:${sh}:flags=bicubic`);
+      applyEffects(sw, sh);
       applyMask(sw, sh);
       let ow = sw;
       let oh = sh;
@@ -185,9 +267,9 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     }
 
     // ---- ключевые кадры: слой в наибольшем масштабе, дальше — перспектива по кадрам ----
-    const k = c.keyframes!;
+    const k = c.keyframes ?? {};
     const pl1 = placeOnCanvas(W, H, o2.w, o2.h, c.fit, { x: 0, y: 0, rotation: 0, scale: 1 });
-    const sm = Math.min(maxScale(c), (3 * Math.max(W, H)) / Math.max(1, pl1.w, pl1.h)); // не раздуваем слой больше 3 холстов
+    const sm = Math.min(maxScale(c) * fxMaxScale(c.effects), (3 * Math.max(W, H)) / Math.max(1, pl1.w, pl1.h)); // не раздуваем слой больше 3 холстов
     const plM = placeOnCanvas(W, H, o2.w, o2.h, c.fit, { x: 0, y: 0, rotation: 0, scale: sm });
     const wm = Math.max(2, Math.round(plM.w));
     const hm = Math.max(2, Math.round(plM.h));
@@ -197,10 +279,11 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const T = `((in-1)/${F})`; // in у perspective считается с единицы
     const loc = (t: number) => (t - c.in) / c.speed; // время ключа → время от начала клипа
     const ex = (prop: 'x' | 'y' | 'scale' | 'rotation', base: number) => kfExpr(k[prop], base, T, loc);
-    const kk = `((${ex('scale', c.transform.scale)})/${fmt(sm)})`;
-    const X = `(${fmt(W / 2)}+(${ex('x', c.transform.x)})*${W})`;
-    const Y = `(${fmt(H / 2)}+(${ex('y', c.transform.y)})*${H})`;
-    const R = `((${ex('rotation', c.transform.rotation)})*PI/180)`;
+    const g = fxGeometryExpr(c.effects, T);
+    const kk = `((${ex('scale', c.transform.scale)})*${g.scale}/${fmt(sm)})`;
+    const X = `(${fmt(W / 2)}+(${ex('x', c.transform.x)}+${g.dx})*${W})`;
+    const Y = `(${fmt(H / 2)}+(${ex('y', c.transform.y)}+${g.dy})*${H})`;
+    const R = `((${ex('rotation', c.transform.rotation)}+${g.drot})*PI/180)`;
     const corner = (u: number, v: number) => {
       const du = `(${fmt(u - m - wm / 2)}*${kk})`;
       const dv = `(${fmt(v - m - hm / 2)}*${kk})`;
@@ -211,6 +294,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const [x2, y2] = corner(0, PH);
     const [x3, y3] = corner(PW, PH);
     parts.push(`scale=${wm}:${hm}:flags=bicubic`);
+    applyEffects(wm, hm);
     applyMask(wm, hm);
     parts.push(
       `pad=${wm + 2 * m}:${hm + 2 * m}:${m}:${m}:color=black@0`,

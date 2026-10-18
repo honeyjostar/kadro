@@ -98,6 +98,9 @@ export interface ChromaKey {
   smoothness: number; // 0..0.3 (мягкость края)
 }
 
+export type EffectType = 'shake' | 'pulse' | 'flash' | 'glitch' | 'rgbsplit' | 'vhs' | 'grain' | 'vignette' | 'blur' | 'pixelate' | 'mirror' | 'invert' | 'rainbow';
+export interface Effect { type: EffectType; amount: number } // amount 0..1
+
 export type VoiceEffect = 'none' | 'chipmunk' | 'deep' | 'robot' | 'echo' | 'hall' | 'radio' | 'phone' | 'megaphone';
 
 /** Результат ИИ-обработки фрагмента исходника [range0, range1] (сек исходника). */
@@ -135,6 +138,7 @@ export interface MediaClip {
   chroma?: ChromaKey;
   stab?: AiResult;              // стабилизированная копия фрагмента
   voice?: AiResult & { effect?: VoiceEffect; withDenoise?: boolean }; // обработанный звук с эффектом голоса
+  effects?: Effect[];           // видеоэффекты (тряска, глитч, виньетка…)
 }
 
 export interface TextStyle {

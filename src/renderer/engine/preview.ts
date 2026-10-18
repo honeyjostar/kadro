@@ -3,6 +3,8 @@
 import { aiSource, audioSource, videoSource } from '../../shared/ai';
 import { mediaPropsAt } from '../../shared/anim';
 import { maskBytes } from '../../shared/mask';
+import { fxGeometry, sortedEffects } from '../../shared/effects';
+import { applyPixelEffects } from './effectsPreview';
 import { ChromaKeyer } from './chroma';
 import { effectiveColor, isIdentity, svgFilterMarkup } from '../../shared/color';
 import { BLUR_SIGMA_1080, placeOnCanvas, unitScale } from '../../shared/geometry';
@@ -374,7 +376,9 @@ export class PreviewEngine {
     if (!src) return;
     const mp = mediaPropsAt(c, t);
     if (mp.opacity <= 0.001) return;
-    const pl = placeOnCanvas(W, H, asset.width, asset.height, c.fit, { x: mp.x, y: mp.y, scale: mp.scale, rotation: mp.rotation });
+    const local = t - c.start;
+    const g = fxGeometry(c.effects, local);
+    const pl = placeOnCanvas(W, H, asset.width, asset.height, c.fit, { x: mp.x + g.dx, y: mp.y + g.dy, scale: mp.scale * g.scale, rotation: mp.rotation + g.drot });
     let img: CanvasImageSource = src.el;
     if (c.chroma) {
       const sc = Math.min(1, 1920 / Math.max(src.w, src.h));
@@ -387,21 +391,27 @@ export class PreviewEngine {
     c2d.translate(pl.cx, pl.cy);
     if (pl.rotation) c2d.rotate((pl.rotation * Math.PI) / 180);
     c2d.imageSmoothingQuality = 'high';
-    if (c.mask) {
-      // слой нужного размера: цвет → маска (destination-in) → на холст
+    const fx = sortedEffects(c.effects);
+    if (c.mask || fx.length) {
+      // слой нужного размера: цвет → эффекты → маска (destination-in) → на холст
       const w = Math.max(1, Math.round(pl.w));
       const h = Math.max(1, Math.round(pl.h));
       const layer = this.canvasFor(`${c.id}:layer`, w, h);
-      const lc = layer.getContext('2d')!;
+      const lc = layer.getContext('2d', { willReadFrequently: true })!;
       lc.save();
       lc.globalCompositeOperation = 'copy';
       lc.filter = colorFilter;
       lc.imageSmoothingQuality = 'high';
       lc.drawImage(img, 0, 0, w, h);
       lc.filter = 'none';
-      lc.globalCompositeOperation = 'destination-in';
-      lc.drawImage(this.maskCanvas(c.id, c.mask, w, h), 0, 0, w, h);
       lc.restore();
+      if (fx.length) applyPixelEffects(layer, c, local);
+      if (c.mask) {
+        lc.save();
+        lc.globalCompositeOperation = 'destination-in';
+        lc.drawImage(this.maskCanvas(c.id, c.mask, w, h), 0, 0, w, h);
+        lc.restore();
+      }
       c2d.drawImage(layer, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
     } else {
       c2d.filter = colorFilter;

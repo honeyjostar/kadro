@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newProject } from '../../src/shared/defaults';
 import { addAsset, addFree, addToMain, mainTrack, setKeyframe, updateClip } from '../../src/shared/timeline';
 import type { MediaClip, Project } from '../../src/shared/types';
-import { FFMPEG, assetFromFile, ff, makeSolid, runExport, tmpDir } from '../helpers/media';
+import { FFMPEG, assetFromFile, ff, makeSolid, probe, runExport, tmpDir } from '../helpers/media';
 
 const D = tmpDir('anim');
 const f = (n: string) => path.join(D, n);
@@ -172,3 +172,91 @@ describe('маски, хромакей, режимы наложения в эк�
     expect(b[j]).toBeGreaterThan(240);
   });
 });
+
+describe('видеоэффекты в экспорте', () => {
+  const fx = async () => import('../../src/shared/effects');
+  function lrImage(): string {
+    if (!fs.existsSync(f('lr.png'))) ff(['-f', 'lavfi', '-i', 'color=c=red:s=100x200,format=rgb24', '-f', 'lavfi', '-i', 'color=c=blue:s=100x200,format=rgb24', '-filter_complex', '[0][1]hstack', '-frames:v', '1', f('lr.png')]);
+    return f('lr.png');
+  }
+  function onMain(effects: { type: string; amount: number }[], file = lrImage()): Project {
+    let p = newProject('fx', '1:1');
+    p = addAsset(p, assetFromFile('lr', file, 'image'));
+    p = addToMain(p, 'lr', 0).project;
+    return updateClip(p, mainTrack(p).clips[0].id, { effects: effects as never });
+  }
+  const px = (buf: Buffer, w: number, x: number, y: number) => [...buf.subarray((y * w + x) * 3, (y * w + x) * 3 + 3)];
+
+  it('зеркало, негатив, RGB-сдвиг, вспышка', async () => {
+    runExport(onMain([{ type: 'mirror', amount: 1 }]), f('fx_mirror.mp4'), { width: 400, height: 400 });
+    let b = frame2(f('fx_mirror.mp4'), 1, 400, 400);
+    // картинка 200×200 растянута до 400×400: справа теперь отражение левой (красной) половины
+    expect(px(b, 400, 350, 200)[0]).toBeGreaterThan(200);
+    expect(px(b, 400, 350, 200)[2]).toBeLessThan(50);
+    runExport(onMain([{ type: 'invert', amount: 1 }]), f('fx_inv.mp4'), { width: 400, height: 400 });
+    b = frame2(f('fx_inv.mp4'), 1, 400, 400);
+    expect(px(b, 400, 50, 200)[1]).toBeGreaterThan(200); // красный → голубой
+    expect(px(b, 400, 50, 200)[0]).toBeLessThan(50);
+    runExport(onMain([{ type: 'flash', amount: 1 }]), f('fx_flash.mp4'), { width: 400, height: 400 });
+    expect(px(frame2(f('fx_flash.mp4'), 0, 400, 400), 400, 50, 200).every((v) => v > 240)).toBe(true);
+    expect(px(frame2(f('fx_flash.mp4'), 1, 400, 400), 400, 50, 200)[1]).toBeLessThan(40);
+    const { rgbShiftAt } = await fx();
+    runExport(onMain([{ type: 'rgbsplit', amount: 1 }]), f('fx_rgb.mp4'), { width: 400, height: 400 });
+    b = frame2(f('fx_rgb.mp4'), 1, 400, 400);
+    const s = rgbShiftAt([{ type: 'rgbsplit', amount: 1 }], 400, 0);
+    // красный уезжает влево, синий вправо: на стыке (x=200) открывается тёмная щель шириной 2·d
+    expect(s.rh).toBe(-8);
+    expect(Math.max(...px(b, 400, 200, 200))).toBeLessThan(50);
+    expect(px(b, 400, 180, 200)[0]).toBeGreaterThan(200);
+    expect(px(b, 400, 220, 200)[2]).toBeGreaterThan(200);
+  });
+
+  it('виньетка по той же формуле, что в превью', async () => {
+    if (!fs.existsSync(f('white2.png'))) ff(['-f', 'lavfi', '-i', 'color=c=white:s=200x200,format=rgb24', '-frames:v', '1', f('white2.png')]);
+    const { vignetteBytes } = await fx();
+    runExport(onMain([{ type: 'vignette', amount: 0.8 }], f('white2.png')), f('fx_vig.mp4'), { width: 400, height: 400 });
+    const b = frame2(f('fx_vig.mp4'), 1, 400, 400);
+    const v = vignetteBytes(400, 400, 0.8);
+    for (const [x, y] of [[200, 200], [40, 40], [100, 300], [380, 200], [10, 390]]) {
+      expect(Math.abs(px(b, 400, x, y)[0] - v[y * 400 + x]), `(${x},${y})`).toBeLessThan(8);
+    }
+  });
+
+  it('тряска и пульс: смещение по той же формуле', async () => {
+    const { fxGeometry } = await fx();
+    let p = newProject('sh', '9:16');
+    p = addAsset(p, assetFromFile('blk', f('black.mp4'), 'video'));
+    p = addAsset(p, assetFromFile('rect', f('rect.png'), 'image'));
+    p = addToMain(p, 'blk', 0).project;
+    p = addFree(p, 'rect', 0).project;
+    const id = overlayId(p);
+    const effects = [{ type: 'shake' as const, amount: 1 }, { type: 'pulse' as const, amount: 1 }];
+    p = updateClip(p, id, { effects, transform: { scale: 0.3, x: 0, y: 0, rotation: 0 } });
+    runExport(p, f('fx_shake.mp4'), { width: W, height: H });
+    for (const t of [0.1, 0.5, 1.2, 2.3]) {
+      const g = fxGeometry(effects, Math.round(t * 30) / 30);
+      const b = redBox(frame(f('fx_shake.mp4'), t));
+      expect(Math.abs(b.cx - (W / 2 + g.dx * W)), `t=${t} x`).toBeLessThan(3);
+      expect(Math.abs(b.cy - (H / 2 + g.dy * H)), `t=${t} y`).toBeLessThan(3);
+    }
+  });
+
+  it('радуга и глитч по кадрам', async () => {
+    const { hueMatrix, rainbowAngle } = await fx();
+    runExport(onMain([{ type: 'rainbow', amount: 0.5 }]), f('fx_rb.mp4'), { width: 400, height: 400, fps: 30 });
+    for (const t of [0.5, 1.5]) {
+      const m = hueMatrix(rainbowAngle({ type: 'rainbow', amount: 0.5 }, t));
+      const exp = [0, 1, 2].map((i) => Math.min(255, Math.max(0, m[i][0] * 254)));
+      const got = px(frame2(f('fx_rb.mp4'), t, 400, 400), 400, 50, 200);
+      for (let i = 0; i < 3; i++) expect(Math.abs(got[i] - exp[i]), `t=${t} ${got} vs ${exp}`).toBeLessThan(12);
+    }
+    runExport(onMain([{ type: 'glitch', amount: 1 }, { type: 'pixelate', amount: 0.3 }, { type: 'vhs', amount: 0.5 }, { type: 'grain', amount: 0.3 }, { type: 'blur', amount: 0.3 }]), f('fx_mix.mp4'), { width: 400, height: 400 });
+    expect(probe(f('fx_mix.mp4')).duration).toBeGreaterThan(2.9);
+  });
+});
+
+function frame2(file: string, t: number, w: number, h: number): Buffer {
+  const r = spawnSync(FFMPEG, ['-v', 'error', '-ss', String(t), '-i', file, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { maxBuffer: 64 << 20 });
+  if (r.status !== 0 || r.stdout.length < w * h * 3) throw new Error(String(r.stderr));
+  return r.stdout;
+}

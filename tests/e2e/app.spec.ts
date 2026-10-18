@@ -6,7 +6,7 @@ import { applyColorToPixel, effectiveColor } from '../../src/shared/color';
 import { DEFAULT_COLOR } from '../../src/shared/defaults';
 import {
   beatMp3, greenVideo, shakyVideo, walkVideo, RGB, act, clipIds, colorsVideo, frameDiff, grayImage, importAt, launch, MEDIA, near, personVideo, PHRASES, previewPixel, probe,
-  project, rawFrame, reset, rotatedVideo, seekAndSettle, solidVideo, state, store, talkVideo, toneMp3, waitAssetsReady, type Kadro,
+  project, rawFrame, reset, rotatedVideo, seekAndSettle, setSlider, solidVideo, state, store, talkVideo, toneMp3, waitAssetsReady, type Kadro,
 } from './kadro';
 
 let K: Kadro;
@@ -437,6 +437,36 @@ test('маска, хромакей и режим наложения: плеер 
   const png = await parity(1.5, 'mask');
   const out = await exportViaUi('720p');
   compareAt(png, out, 1.5, 5);
+});
+
+test('видеоэффекты: плитки, сила, экспорт совпадает с плеером', async () => {
+  await reset(win);
+  await importAt(win, [colorsVideo()]);
+  const [main] = await clipIds(win, 'main');
+  await store(win, 'select', [main]);
+  await win.getByTestId('tab-effects').click();
+  for (const t of ['mirror', 'vignette', 'glitch', 'vhs']) await win.getByTestId(`fx-${t}`).click();
+  await expect(win.getByTestId('fx-vignette')).toHaveClass(/active/);
+  await win.getByTestId('itab-fx').click();
+  await setSlider(win, 'fxamt-vignette', 0.9);
+  // картинка поверх: тряска, пульс, негатив, размытие
+  const [img] = await act(win, 'importPaths', [grayImage()]);
+  await act(win, 'addAssetToTimeline', img, 'overlay', 0);
+  const [ov] = await clipIds(win, 'video');
+  await store(win, 'select', [ov]);
+  for (const t of ['shake', 'pulse', 'invert', 'blur']) await win.getByTestId(`fx-${t}`).click();
+  // повторное нажатие убирает эффект
+  await win.getByTestId('fx-blur').click();
+  const p = await project(win);
+  const m = p.tracks[0].clips[0] as any;
+  const o = p.tracks.find((t) => t.kind === 'video')!.clips[0] as any;
+  expect(m.effects.map((e: any) => e.type)).toEqual(['mirror', 'vignette', 'glitch', 'vhs']);
+  expect(m.effects[1].amount).toBeCloseTo(0.9, 1);
+  expect(o.effects.map((e: any) => e.type)).toEqual(['shake', 'pulse', 'invert']);
+  const pngs = [await parity(1.2, 'fx12'), await parity(2.3, 'fx23')];
+  const out = await exportViaUi('720p');
+  compareAt(pngs[0], out, 1.2, 6);
+  compareAt(pngs[1], out, 2.3, 6);
 });
 
 test('голос, озвучка, ритм — через интерфейс', async () => {

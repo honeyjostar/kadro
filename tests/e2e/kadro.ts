@@ -212,3 +212,15 @@ export function frameDiff(a: Buffer, b: Buffer): { mean: number; p98: number } {
   d.sort((x, y) => x - y);
   return { mean: sum / d.length, p98: d[Math.floor(d.length * 0.98)] };
 }
+
+/** Ставит значение ползунка (input type=range) так, как это сделал бы пользователь — React получает событие. */
+export async function setSlider(win: Page, testId: string, value: number): Promise<void> {
+  await win.getByTestId(testId).evaluate((el, v) => {
+    const input = el as HTMLInputElement;
+    const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    set.call(input, String(v));
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    input.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+  }, value);
+}
