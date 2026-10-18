@@ -11,6 +11,10 @@ export interface BuildOpts {
   fps: number;
   /** Слои текста: файлы-списки concat (PNG-кадры W×H, покрывают весь ролик с 0). */
   textLayers: string[];
+  /** Только звук (для распознавания речи): видео-цепочки не строятся. */
+  audioOnly?: boolean;
+  /** Брать ли клипы с аудиодорожек (музыку). По умолчанию да. */
+  includeMusic?: boolean;
 }
 
 export interface BuiltGraph {
@@ -124,121 +128,124 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
   // ---------- основная дорожка ----------
   const main = mainTrack(p);
   const groups = main.hidden ? [] : groupMain(p);
-  const segLabels: string[] = [];
-  for (const g of groups) {
-    const c0 = g.clips[0];
-    const D = g.duration;
-    let srcLabel: string;
-    const bgr = aiSource(c0, 'removeBg');
-    if (g.asset.kind === 'image') {
-      const idx = addInput(['-loop', '1', '-framerate', String(F), '-t', fmt(D + 1), '-i', g.asset.path]);
-      srcLabel = L('src');
-      chains.push(`[${idx}:v]fps=${F},trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${srcLabel}]`);
-    } else {
-      const path = bgr ? bgr.path : g.asset.path;
-      const offset = bgr ? bgr.offset : 0;
-      const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(g.in - offset), '-t', fmt(g.out - g.in + 0.5), '-i', path]);
-      srcLabel = L('src');
-      const half = 0.5 / F;
-      const sel = g.clips
-        .map((c) => `between(t\\,${fmt(c.in - g.in - half)}\\,${fmt(c.out - g.in - half)})`)
-        .join('+');
-      const sp = c0.speed;
-      chains.push(
-        `[${idx}:v]setpts=PTS-STARTPTS,fps=${F},select='${sel}',setpts=N/(${F}*${fmt(sp)})/TB,fps=${F},` +
-        `tpad=stop_mode=clone:stop_duration=2,trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${srcLabel}]`,
-      );
-    }
-    // фон под картинкой: цвет проекта или размытая копия
-    const bgLabel = L('bg');
-    const bgColor = p.settings.background === 'white' ? 'white' : 'black';
-    let fgSrc = srcLabel;
-    if (p.settings.background === 'blur' && !bgr) {
-      const a = L('s');
-      const b = L('s');
-      chains.push(`[${srcLabel}]split=2[${a}][${b}]`);
-      const o2 = orientedSize(g.asset.width, g.asset.height, 0);
-      const cov = Math.max(W / o2.w, H / o2.h);
-      const cw = Math.ceil(o2.w * cov / 2) * 2;
-      const ch = Math.ceil(o2.h * cov / 2) * 2;
-      chains.push(`[${a}]scale=${cw}:${ch},crop=${W}:${H},gblur=sigma=${fmt(BLUR_SIGMA_1080 * k)},format=yuv420p[${bgLabel}]`);
-      fgSrc = b;
-    } else {
-      chains.push(`color=c=${bgColor}:s=${W}x${H}:r=${F}:d=${fmt(D)},format=yuv420p[${bgLabel}]`);
-    }
-    const fg = visualChain(fgSrc, c0, g.asset, !!bgr);
-    const seg = L('seg');
-    chains.push(`[${bgLabel}][${fg.label}]overlay=x=${fg.x}:y=${fg.y}:eof_action=repeat:shortest=1,format=yuv420p,setsar=1[${seg}]`);
-    segLabels.push(seg);
-  }
-
-  let mainOut: string | null = null;
-  if (segLabels.length) {
-    let acc = segLabels[0];
-    let accDur = groups[0].duration;
-    for (let i = 1; i < segLabels.length; i++) {
-      const tr = groups[i - 1].clips[groups[i - 1].clips.length - 1].transitionOut;
-      const nl = L('m');
-      if (tr && tr.duration > 0) {
-        chains.push(`[${acc}][${segLabels[i]}]xfade=transition=${tr.type}:duration=${fmt(tr.duration)}:offset=${fmt(accDur - tr.duration)}[${nl}]`);
-        accDur += groups[i].duration - tr.duration;
+  if (!o.audioOnly) {
+    const segLabels: string[] = [];
+    for (const g of groups) {
+      const c0 = g.clips[0];
+      const D = g.duration;
+      let srcLabel: string;
+      const bgr = aiSource(c0, 'removeBg');
+      if (g.asset.kind === 'image') {
+        const idx = addInput(['-loop', '1', '-framerate', String(F), '-t', fmt(D + 1), '-i', g.asset.path]);
+        srcLabel = L('src');
+        chains.push(`[${idx}:v]fps=${F},trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${srcLabel}]`);
       } else {
-        chains.push(`[${acc}][${segLabels[i]}]concat=n=2:v=1:a=0[${nl}]`);
-        accDur += groups[i].duration;
+        const path = bgr ? bgr.path : g.asset.path;
+        const offset = bgr ? bgr.offset : 0;
+        const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(g.in - offset), '-t', fmt(g.out - g.in + 0.5), '-i', path]);
+        srcLabel = L('src');
+        const half = 0.5 / F;
+        const sel = g.clips
+          .map((c) => `between(t\\,${fmt(c.in - g.in - half)}\\,${fmt(c.out - g.in - half)})`)
+          .join('+');
+        const sp = c0.speed;
+        chains.push(
+          `[${idx}:v]setpts=PTS-STARTPTS,fps=${F},select='${sel}',setpts=N/(${F}*${fmt(sp)})/TB,fps=${F},` +
+          `tpad=stop_mode=clone:stop_duration=2,trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${srcLabel}]`,
+        );
       }
-      acc = nl;
-    }
-    mainOut = acc;
-  }
-
-  let v = L('v');
-  chains.push(`color=c=black:s=${W}x${H}:r=${F}:d=${fmt(total)},format=yuv420p[${v}]`);
-  if (mainOut) {
-    const nv = L('v');
-    chains.push(`[${v}][${mainOut}]overlay=x=0:y=0:eof_action=pass[${nv}]`);
-    v = nv;
-  }
-
-  // ---------- наложения (картинка в картинке) ----------
-  for (const track of p.tracks) {
-    if (track.kind !== 'video' || track.hidden) continue;
-    for (const c of track.clips) {
-      if (c.type !== 'media') continue;
-      const asset = assetOf(c);
-      if (!asset || asset.kind === 'audio') continue;
-      const D = clipDuration(c);
-      let src: string;
-      if (asset.kind === 'image') {
-        const idx = addInput(['-loop', '1', '-framerate', String(F), '-t', fmt(D + 1), '-i', asset.path]);
-        src = L('o');
-        chains.push(`[${idx}:v]fps=${F},trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${src}]`);
+      // фон под картинкой: цвет проекта или размытая копия
+      const bgLabel = L('bg');
+      const bgColor = p.settings.background === 'white' ? 'white' : 'black';
+      let fgSrc = srcLabel;
+      if (p.settings.background === 'blur' && !bgr) {
+        const a = L('s');
+        const b = L('s');
+        chains.push(`[${srcLabel}]split=2[${a}][${b}]`);
+        const o2 = orientedSize(g.asset.width, g.asset.height, 0);
+        const cov = Math.max(W / o2.w, H / o2.h);
+        const cw = Math.ceil(o2.w * cov / 2) * 2;
+        const ch = Math.ceil(o2.h * cov / 2) * 2;
+        chains.push(`[${a}]scale=${cw}:${ch},crop=${W}:${H},gblur=sigma=${fmt(BLUR_SIGMA_1080 * k)},format=yuv420p[${bgLabel}]`);
+        fgSrc = b;
       } else {
-        const bgr = aiSource(c, 'removeBg');
-        const path = bgr ? bgr.path : asset.path;
-        const off = bgr ? bgr.offset : 0;
-        const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
-        src = L('o');
-        chains.push(`[${idx}:v]setpts=(PTS-STARTPTS)/${fmt(c.speed)},fps=${F},tpad=stop_mode=clone:stop_duration=2,trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${src}]`);
+        chains.push(`color=c=${bgColor}:s=${W}x${H}:r=${F}:d=${fmt(D)},format=yuv420p[${bgLabel}]`);
       }
-      const fg = visualChain(src, c, asset, true);
-      const shifted = L('sh');
-      chains.push(`[${fg.label}]setpts=PTS-STARTPTS+${fmt(c.start)}/TB[${shifted}]`);
+      const fg = visualChain(fgSrc, c0, g.asset, !!bgr);
+      const seg = L('seg');
+      chains.push(`[${bgLabel}][${fg.label}]overlay=x=${fg.x}:y=${fg.y}:eof_action=repeat:shortest=1,format=yuv420p,setsar=1[${seg}]`);
+      segLabels.push(seg);
+    }
+
+    let mainOut: string | null = null;
+    if (segLabels.length) {
+      let acc = segLabels[0];
+      let accDur = groups[0].duration;
+      for (let i = 1; i < segLabels.length; i++) {
+        const tr = groups[i - 1].clips[groups[i - 1].clips.length - 1].transitionOut;
+        const nl = L('m');
+        if (tr && tr.duration > 0) {
+          chains.push(`[${acc}][${segLabels[i]}]xfade=transition=${tr.type}:duration=${fmt(tr.duration)}:offset=${fmt(accDur - tr.duration)}[${nl}]`);
+          accDur += groups[i].duration - tr.duration;
+        } else {
+          chains.push(`[${acc}][${segLabels[i]}]concat=n=2:v=1:a=0[${nl}]`);
+          accDur += groups[i].duration;
+        }
+        acc = nl;
+      }
+      mainOut = acc;
+    }
+
+    let v = L('v');
+    chains.push(`color=c=black:s=${W}x${H}:r=${F}:d=${fmt(total)},format=yuv420p[${v}]`);
+    if (mainOut) {
       const nv = L('v');
-      chains.push(`[${v}][${shifted}]overlay=x=${fg.x}:y=${fg.y}:eof_action=pass:enable='between(t\\,${fmt(c.start)}\\,${fmt(c.start + D)})'[${nv}]`);
+      chains.push(`[${v}][${mainOut}]overlay=x=0:y=0:eof_action=pass[${nv}]`);
       v = nv;
     }
-  }
 
-  // ---------- текст и субтитры ----------
-  for (const list of o.textLayers) {
-    const idx = addInput(['-f', 'concat', '-safe', '0', '-i', list]);
-    const t = L('t');
-    chains.push(`[${idx}:v]fps=${F},format=rgba[${t}]`);
-    const nv = L('v');
-    chains.push(`[${v}][${t}]overlay=x=0:y=0:eof_action=pass[${nv}]`);
-    v = nv;
+    // ---------- наложения (картинка в картинке) ----------
+    for (const track of p.tracks) {
+      if (track.kind !== 'video' || track.hidden) continue;
+      for (const c of track.clips) {
+        if (c.type !== 'media') continue;
+        const asset = assetOf(c);
+        if (!asset || asset.kind === 'audio') continue;
+        const D = clipDuration(c);
+        let src: string;
+        if (asset.kind === 'image') {
+          const idx = addInput(['-loop', '1', '-framerate', String(F), '-t', fmt(D + 1), '-i', asset.path]);
+          src = L('o');
+          chains.push(`[${idx}:v]fps=${F},trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${src}]`);
+        } else {
+          const bgr = aiSource(c, 'removeBg');
+          const path = bgr ? bgr.path : asset.path;
+          const off = bgr ? bgr.offset : 0;
+          const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
+          src = L('o');
+          chains.push(`[${idx}:v]setpts=(PTS-STARTPTS)/${fmt(c.speed)},fps=${F},tpad=stop_mode=clone:stop_duration=2,trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${src}]`);
+        }
+        const fg = visualChain(src, c, asset, true);
+        const shifted = L('sh');
+        chains.push(`[${fg.label}]setpts=PTS-STARTPTS+${fmt(c.start)}/TB[${shifted}]`);
+        const nv = L('v');
+        chains.push(`[${v}][${shifted}]overlay=x=${fg.x}:y=${fg.y}:eof_action=pass:enable='between(t\\,${fmt(c.start)}\\,${fmt(c.start + D)})'[${nv}]`);
+        v = nv;
+      }
+    }
+
+    // ---------- текст и субтитры ----------
+    for (const list of o.textLayers) {
+      const idx = addInput(['-f', 'concat', '-safe', '0', '-i', list]);
+      const t = L('t');
+      chains.push(`[${idx}:v]fps=${F},format=rgba[${t}]`);
+      const nv = L('v');
+      chains.push(`[${v}][${t}]overlay=x=0:y=0:eof_action=pass[${nv}]`);
+      v = nv;
+    }
+    chains.push(`[${v}]format=yuv420p,trim=duration=${fmt(total)},setpts=PTS-STARTPTS[vout]`);
+
   }
-  chains.push(`[${v}]format=yuv420p,trim=duration=${fmt(total)},setpts=PTS-STARTPTS[vout]`);
 
   // ---------- звук ----------
   const aLabels: string[] = [];
@@ -276,6 +283,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
   }
   for (const track of p.tracks) {
     if ((track.kind !== 'video' && track.kind !== 'audio') || track.muted) continue;
+    if (track.kind === 'audio' && o.includeMusic === false) continue;
     for (const c of track.clips) {
       if (c.type !== 'media' || c.muted || c.volume <= 0) continue;
       const asset = assetOf(c);
@@ -297,7 +305,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
   }
 
   void q;
-  return { inputs, filter: chains.join(';\n'), vOut: '[vout]', aOut: '[aout]', duration: total };
+  return { inputs, filter: chains.join(';\n'), vOut: o.audioOnly ? '' : '[vout]', aOut: '[aout]', duration: total };
 }
 
 export type Quality = 'normal' | 'high' | 'max';

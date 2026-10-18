@@ -1,0 +1,76 @@
+// Запуск ffmpeg с прогрессом и отменой.
+import { spawn, type ChildProcess } from 'node:child_process';
+import { ffmpegPath } from './bins';
+
+export interface RunOpts {
+  duration?: number;                       // для расчёта процентов
+  onProgress?: (p: number) => void;        // 0..1
+  signal?: AbortSignal;
+  cwd?: string;
+}
+
+export class FfmpegError extends Error {
+  constructor(message: string, public stderr: string) { super(message); }
+}
+
+/** Запускает ffmpeg. Аргументы должны включать '-progress pipe:1', если нужен прогресс. */
+export function runFfmpeg(args: string[], o: RunOpts = {}): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let proc: ChildProcess;
+    try {
+      proc = spawn(ffmpegPath(), args, { windowsHide: true, cwd: o.cwd });
+    } catch (e) {
+      reject(e);
+      return;
+    }
+    let err = '';
+    let outBuf = '';
+    proc.stderr?.on('data', (d: Buffer) => {
+      err += d.toString();
+      if (err.length > 200_000) err = err.slice(-100_000);
+    });
+    proc.stdout?.on('data', (d: Buffer) => {
+      if (!o.onProgress || !o.duration) return;
+      outBuf += d.toString();
+      const lines = outBuf.split(/\r?\n/);
+      outBuf = lines.pop() ?? '';
+      for (const line of lines) {
+        const m = /^out_time_(?:us|ms)=(\d+)/.exec(line);
+        if (m) o.onProgress(Math.min(1, Number(m[1]) / 1e6 / o.duration));
+      }
+    });
+    const onAbort = () => { try { proc.kill('SIGKILL'); } catch { /* уже завершён */ } };
+    o.signal?.addEventListener('abort', onAbort, { once: true });
+    proc.on('error', (e) => reject(new FfmpegError(`Не удалось запустить ffmpeg: ${e.message}`, err)));
+    proc.on('close', (code) => {
+      o.signal?.removeEventListener('abort', onAbort);
+      if (o.signal?.aborted) reject(new FfmpegError('Отменено', err));
+      else if (code === 0) resolve();
+      else reject(new FfmpegError(lastErrorLine(err) || `ffmpeg завершился с кодом ${code}`, err));
+    });
+  });
+}
+
+function lastErrorLine(stderr: string): string {
+  const lines = stderr.trim().split(/\r?\n/).filter((l) => l.trim() && !/^\s*(frame|size|time|bitrate|speed)=/.test(l));
+  return lines.slice(-3).join('\n');
+}
+
+/** Читает весь stdout ffmpeg как Buffer (для PCM, сырых кадров). */
+export function ffmpegToBuffer(args: string[], signal?: AbortSignal): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(ffmpegPath(), args, { windowsHide: true });
+    const chunks: Buffer[] = [];
+    let err = '';
+    proc.stdout.on('data', (d: Buffer) => chunks.push(d));
+    proc.stderr.on('data', (d: Buffer) => { err += d.toString(); if (err.length > 100_000) err = err.slice(-50_000); });
+    const onAbort = () => proc.kill('SIGKILL');
+    signal?.addEventListener('abort', onAbort, { once: true });
+    proc.on('error', (e) => reject(e));
+    proc.on('close', (code) => {
+      signal?.removeEventListener('abort', onAbort);
+      if (code === 0) resolve(Buffer.concat(chunks));
+      else reject(new FfmpegError(lastErrorLine(err) || `ffmpeg: код ${code}`, err));
+    });
+  });
+}
