@@ -1,5 +1,5 @@
 // Построение графа FFmpeg для экспорта проекта. Чистая функция — тестируется без Electron.
-import { aiSource } from './ai';
+import { aiSource, audioSource, videoSource } from './ai';
 import { hasAnim, kfExpr, maxScale, valueAt } from './anim';
 import { effectiveColor, ffmpegColorFilter } from './color';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geometry';
@@ -65,8 +65,8 @@ function sameLook(a: MediaClip, b: MediaClip): boolean {
     JSON.stringify(a.transform) === JSON.stringify(b.transform) &&
     JSON.stringify(a.color) === JSON.stringify(b.color) &&
     a.volume === b.volume && a.muted === b.muted &&
-    (aiSource(a, 'removeBg')?.path ?? '') === (aiSource(b, 'removeBg')?.path ?? '') &&
-    (aiSource(a, 'denoise')?.path ?? '') === (aiSource(b, 'denoise')?.path ?? '');
+    (videoSource(a)?.path ?? '') === (videoSource(b)?.path ?? '') &&
+    (audioSource(a)?.path ?? '') === (audioSource(b)?.path ?? '');
 }
 
 /** Объединяет соседние куски одного файла (после вырезания пауз) в группы с одним входом FFmpeg. */
@@ -254,14 +254,15 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       const c0 = g.clips[0];
       const D = g.duration;
       let srcLabel: string;
-      const bgr = aiSource(c0, 'removeBg');
+      const vsrc = videoSource(c0);
+      const bgr = vsrc?.alpha ? vsrc : null;
       if (g.asset.kind === 'image') {
         const idx = addInput(['-loop', '1', '-framerate', String(F), '-t', fmt(D + 1), '-i', g.asset.path]);
         srcLabel = L('src');
         chains.push(`[${idx}:v]fps=${F},trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${srcLabel}]`);
       } else {
-        const path = bgr ? bgr.path : g.asset.path;
-        const offset = bgr ? bgr.offset : 0;
+        const path = vsrc ? vsrc.path : g.asset.path;
+        const offset = vsrc ? vsrc.offset : 0;
         const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(g.in - offset), '-t', fmt(g.out - g.in + 0.5), '-i', path]);
         srcLabel = L('src');
         const half = 0.5 / F;
@@ -351,10 +352,10 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
           src = L('o');
           chains.push(`[${idx}:v]fps=${F},trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${src}]`);
         } else {
-          const bgr = aiSource(c, 'removeBg');
-          const path = bgr ? bgr.path : asset.path;
-          const off = bgr ? bgr.offset : 0;
-          const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
+          const vs = videoSource(c);
+          const path = vs ? vs.path : asset.path;
+          const off = vs ? vs.offset : 0;
+          const idx = addInput([...thr, ...(vs?.alpha ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
           src = L('o');
           chains.push(`[${idx}:v]setpts=(PTS-STARTPTS)/${fmt(c.speed)},fps=${F},tpad=stop_mode=clone:stop_duration=2,trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${src}]`);
         }
@@ -398,7 +399,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     groups.forEach((g, gi) => {
       const c0 = g.clips[0];
       if (c0.muted || c0.volume <= 0) return;
-      const den = aiSource(c0, 'denoise');
+      const den = audioSource(c0);
       if (!den && !g.asset.hasAudio) return;
       const path = den ? den.path : g.asset.path;
       const off = den ? den.offset : 0;
@@ -418,7 +419,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       if (c.type !== 'media' || c.muted || c.volume <= 0) continue;
       const asset = assetOf(c);
       if (!asset || asset.kind === 'image') continue;
-      const den = aiSource(c, 'denoise');
+      const den = audioSource(c);
       if (!den && !asset.hasAudio) continue;
       const path = den ? den.path : asset.path;
       const off = den ? den.offset : 0;

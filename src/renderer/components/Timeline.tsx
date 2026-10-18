@@ -1,14 +1,14 @@
 import {
-  AudioLines, Blend, Copy, Eye, EyeOff, Film, Layers, Maximize2, Plus, Redo2, Scissors, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
+  Activity, AudioLines, Blend, Copy, Eye, EyeOff, Film, Layers, Maximize2, Plus, Redo2, Scissors, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
 import {
-  addFree, addToMain, clipDuration, clipEnd, findClip, mainToOverlay, moveClip, projectDuration, reorderMain, setTrackFlag, trimClip,
+  addFree, addToMain, beatTimes, clipDuration, clipEnd, findClip, mainToOverlay, moveClip, projectDuration, reorderMain, setTrackFlag, trimClip,
 } from '../../shared/timeline';
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
-import { deleteSelection, duplicateSelection, importPaths, removePauses, splitAtPlayhead } from '../actions';
+import { alignToBeats, deleteSelection, duplicateSelection, importPaths, removePauses, splitAtPlayhead } from '../actions';
 import { useSelected } from '../hooks';
 import { keyTimesOnTimeline } from '../animEdit';
 import { api, getState, useStore } from '../store';
@@ -47,7 +47,7 @@ function displayRows(p: Project): Row[] {
 }
 
 function snapPoints(p: Project, excludeId: string, playhead: number): number[] {
-  const pts = [0, playhead];
+  const pts = [0, playhead, ...beatTimes(p)];
   for (const t of p.tracks) for (const c of t.clips) {
     if (c.id === excludeId) continue;
     pts.push(c.start, clipEnd(c));
@@ -205,7 +205,14 @@ const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selecte
         </>
       );
     } else if (asset && isAudio) {
-      content = <Wave asset={asset} clip={clip} pps={pps} clipLeft={left} clipWidth={width} view={view} height={rowH - 8} color="#5fe0c9" />;
+      const beats = (asset.beats ?? []).filter((b) => b >= clip.in && b <= clip.out).map((b) => (b - clip.in) / clip.speed * pps)
+        .filter((x) => x >= view.left - left - 4 && x <= view.left + view.width - left + 4);
+      content = (
+        <>
+          <Wave asset={asset} clip={clip} pps={pps} clipLeft={left} clipWidth={width} view={view} height={rowH - 8} color="#5fe0c9" />
+          {beats.length > 0 && <div className="beat-marks">{beats.map((x, i) => <i key={i} style={{ left: x }} />)}</div>}
+        </>
+      );
       label = <><AudioLines size={11} className="clip-icon" />{label}</>;
     }
   }
@@ -517,6 +524,7 @@ export function Timeline() {
   }) : [];
 
   const selClip = sel?.clip.type === 'media' ? (sel.clip as MediaClip) : null;
+  const hasBeats = project.assets.some((a) => a.beats?.length);
   const canPauses = !!selClip && !!sel?.asset?.hasAudio;
   const zoomVal = Math.log(pps / MIN_PPS) / Math.log(MAX_PPS / MIN_PPS);
   const noClips = project.tracks.every((t) => t.clips.length === 0);
@@ -535,6 +543,8 @@ export function Timeline() {
         <span className="sep" />
         <button className="btn ghost small" title="Вырезать тишину между фразами в выделенном клипе" disabled={!canPauses}
           onClick={() => selClip && void removePauses(selClip.id)}><Wand2 size={15} />Убрать паузы</button>
+        <button className="btn ghost small" title="Подогнать склейки основной дорожки под доли такта музыки" disabled={!hasBeats}
+          onClick={() => alignToBeats()} data-testid="tl-beats"><Activity size={15} />Под бит</button>
         <button className="btn ghost small" title="Переход на выбранный стык" disabled={!junction && !(selClip && sel?.track.kind === 'main')}
           onClick={() => getState().setLeftTab('transitions')}><Blend size={15} />Переход</button>
         <div className="grow" />

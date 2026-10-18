@@ -1,4 +1,6 @@
-import { AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw } from 'lucide-react';
+import { Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
+import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
+import { alignToBeats, findBeats, speakText } from '../actions';
 import { DEFAULT_MASK } from '../../shared/mask';
 import { useEffect, useRef, useState } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
@@ -7,8 +9,8 @@ import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, st
 import type { BlendMode, ChromaKey, Mask, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
 import { retimeWords } from '../../shared/captions';
 import { hasKeyHere, isAnimated, keyTimesOnTimeline, propValue, toggleKey, writeProps } from '../animEdit';
-import { useSelected } from '../hooks';
-import { getState, useStore } from '../store';
+import { useJobRunning, useSelected } from '../hooks';
+import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
 import { ColorField, Field, KeyButton, Seg, Slider, Toggle } from './controls';
 import { AiTools, textPreviewStyle } from './LeftPanel';
@@ -182,7 +184,8 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
               onChange={(v) => up({ fadeIn: v }, 'fi')} onReset={() => up({ fadeIn: 0 }, 'fi')} />
             <Slider label="Плавное затухание" min={0} max={Math.min(10, dur / 2)} step={0.05} value={clip.fadeOut} format={(v) => `${v.toFixed(1)} с`}
               onChange={(v) => up({ fadeOut: v }, 'fo')} onReset={() => up({ fadeOut: 0 }, 'fo')} />
-            {!isAudio && <p className="hint small">Шум и паузы — во вкладке «ИИ».</p>}
+            {!isAudio && <p className="hint small">Шум, паузы и эффекты голоса — во вкладке «ИИ».</p>}
+            {isAudio && asset && <BeatBox asset={asset} />}
             {isAudio && <AiTools compact />}
           </>
         )}
@@ -272,6 +275,47 @@ function MaskIcon({ shape }: { shape: Mask['shape'] | 'none' }) {
   );
 }
 let lastTextTab: 'text' | 'style' | 'anim' = 'text';
+let lastVoice: TtsVoiceId = 'irina';
+let lastSpeed = 1;
+
+function SpeakBox({ clip }: { clip: TextClip }) {
+  const [voices, setVoices] = useState<VoiceInfo[]>([]);
+  const [voice, setVoice] = useState<TtsVoiceId>(lastVoice);
+  const [speed, setSpeed] = useState(lastSpeed);
+  const ttsRunning = useJobRunning('tts');
+  const dlRunning = useJobRunning('tdl_');
+  const busy = ttsRunning || dlRunning;
+  useEffect(() => { void api.ttsVoices().then(setVoices); }, [busy]);
+  useEffect(() => { lastVoice = voice; lastSpeed = speed; }, [voice, speed]);
+  const v = voices.find((x) => x.id === voice);
+  return (
+    <div className="ai-card" style={{ marginTop: 14 }}>
+      <h4><Volume2 size={15} />Озвучить текст</h4>
+      <p className="hint">Голос прочитает текст — звук ляжет на аудиодорожку, длина текста подстроится.</p>
+      <select className="input" value={voice} onChange={(e) => setVoice(e.target.value as TtsVoiceId)} data-testid="tts-voice">
+        {voices.map((x) => <option key={x.id} value={x.id}>{x.label}{x.ready ? '' : ` · скачается ${x.sizeMb} МБ`}</option>)}
+      </select>
+      <Slider label="Темп" min={0.6} max={1.6} step={0.05} value={speed} format={(x) => `${x.toFixed(2)}×`} onChange={setSpeed} onReset={() => setSpeed(1)} />
+      <button className="btn block" disabled={busy || !clip.text.trim()} onClick={() => void speakText(clip.id, voice, speed)} data-testid="tts-run">
+        {busy ? 'Озвучиваю…' : v && !v.ready ? 'Скачать голос и озвучить' : 'Озвучить'}
+      </button>
+    </div>
+  );
+}
+
+function BeatBox({ asset }: { asset: MediaAsset }) {
+  const busy = useJobRunning('bt_');
+  return (
+    <div className="ai-card">
+      <h4><Activity size={15} />Ритм</h4>
+      <p className="hint">{asset.beats?.length ? `${Math.round(asset.bpm ?? 0)} ударов в минуту, ${asset.beats.length} долей — отмечены жёлтым на клипе. Склейки прилипают к долям.` : 'Найду доли такта: к ним прилипают склейки, а кнопка «Под бит» подгонит клипы.'}</p>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button className="btn small" disabled={busy} onClick={() => void findBeats(asset.id)} data-testid="find-beats">{asset.beats?.length ? 'Найти заново' : 'Найти ритм'}</button>
+        {!!asset.beats?.length && <button className="btn small" onClick={() => alignToBeats()} data-testid="align-beats">Подогнать склейки</button>}
+      </div>
+    </div>
+  );
+}
 
 function AnimPick({ label, kind, clip }: { label: string; kind: 'in' | 'out'; clip: TextClip }) {
   const commit = useStore((s) => s.commit);
@@ -410,6 +454,7 @@ function TextInspector({ clip }: { clip: TextClip }) {
                 Применить стиль ко всем субтитрам
               </button>
             )}
+            <SpeakBox clip={clip} />
           </>
         )}
         {tab === 'style' && (

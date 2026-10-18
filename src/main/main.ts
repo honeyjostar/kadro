@@ -3,10 +3,12 @@ import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell, utilityProce
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import type { AiJob, AiResponse, ExportReq, ModelInfo } from '../shared/ipc';
+import type { AiJob, AiResponse, ExportReq, ModelInfo, VoiceInfo } from '../shared/ipc';
 import type { MediaAsset, Project } from '../shared/types';
-import { ASR_MODELS, asrModelReady } from './ai/models';
+import { ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady } from './ai/models';
 import { denoise } from './ai/denoise';
+import { processVoice } from './ai/voice';
+import { stabilize } from './ai/stab';
 import { cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
 import { exportProject, exportSpeechAudio, hasNvenc } from './exporter';
 import { analyze, makePeaks, makeProxy, makeThumbs } from './media';
@@ -133,7 +135,7 @@ function aiWorker(lane: Lane): UtilityProcess {
 }
 
 function workerCall<T>(id: string, msg: Record<string, unknown>): Promise<T> {
-  const lane: Lane = msg.kind === 'removeBg' ? 'vision' : 'speech';
+  const lane: Lane = msg.kind === 'removeBg' || msg.kind === 'reframe' ? 'vision' : 'speech';
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject, lane });
     aiWorker(lane).postMessage({ id, ...msg });
@@ -178,7 +180,40 @@ async function runAi(job: AiJob): Promise<AiResponse> {
     if (job.kind === 'removeBg') {
       const out = path.join(cacheDir('ai'), `nobg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.webm`);
       await workerCall(id, { kind: 'removeBg', path: job.path, in: job.in, out: job.out, width: job.width, height: job.height, fps: job.fps, outPath: out });
-      return { ok: true, output: { kind: 'removeBg', path: out, range: [job.in, job.out] } };
+      const off = job.offset ?? 0; // источник — стабилизированная копия: её время 0 = off в исходнике
+      return { ok: true, output: { kind: 'removeBg', path: out, range: [job.in + off, job.out + off] } };
+    }
+    if (job.kind === 'voice') {
+      const ac = new AbortController();
+      aiAborts.set(id, ac);
+      const out = path.join(cacheDir('ai'), `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.flac`);
+      await processVoice(job.path, job.in, job.out - job.in, job.effect, job.denoise, out, (p) => send(p, 'Меняю голос'), ac.signal);
+      return { ok: true, output: { kind: 'voice', path: out, range: [job.in, job.out] } };
+    }
+    if (job.kind === 'stab') {
+      const ac = new AbortController();
+      aiAborts.set(id, ac);
+      const out = path.join(cacheDir('ai'), `stab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.mp4`);
+      await stabilize(job.path, job.in, job.out - job.in, job.strength, out, (p) => send(p, 'Стабилизирую'), ac.signal);
+      return { ok: true, output: { kind: 'stab', path: out, range: [job.in, job.out] } };
+    }
+    if (job.kind === 'ttsDownload') {
+      await workerCall(id, { kind: 'ttsDownload', voice: job.voice });
+      return { ok: true, output: { kind: 'download' } };
+    }
+    if (job.kind === 'tts') {
+      if (!ttsVoiceReady(job.voice)) return { ok: false, error: 'Голос не скачан' };
+      const out = path.join(cacheDir('tts'), `tts_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.wav`);
+      const r = await workerCall<{ duration: number }>(id, { kind: 'tts', text: job.text, voice: job.voice, speed: job.speed, outPath: out });
+      return { ok: true, output: { kind: 'tts', path: out, duration: r.duration } };
+    }
+    if (job.kind === 'beats') {
+      const r = await workerCall<{ beats: number[]; bpm: number }>(id, { kind: 'beats', path: job.path });
+      return { ok: true, output: { kind: 'beats', beats: r.beats, bpm: r.bpm } };
+    }
+    if (job.kind === 'reframe') {
+      const r = await workerCall<{ points: { t: number; x: number; y: number; found: boolean }[] }>(id, { kind: 'reframe', path: job.path, in: job.in, out: job.out, width: job.width, height: job.height });
+      return { ok: true, output: { kind: 'reframe', points: r.points } };
     }
     return { ok: false, error: 'Неизвестная задача' };
   } catch (e) {
@@ -247,9 +282,9 @@ async function refreshProject(project: Project): Promise<Project> {
   }
   for (const t of project.tracks) for (const c of t.clips) {
     if (c.type !== 'media') continue;
-    for (const k of ['removeBg', 'denoise'] as const) {
+    for (const k of ['removeBg', 'denoise', 'stab', 'voice'] as const) {
       const r = c[k];
-      if (r.status === 'ready' && (!r.path || !fs.existsSync(r.path))) c[k] = { enabled: r.enabled, status: 'none' };
+      if (r && r.status === 'ready' && (!r.path || !fs.existsSync(r.path))) c[k] = { ...r, enabled: r.enabled, status: 'none', path: undefined };
     }
   }
   // обновления уйдут в окно, когда оно уже подхватит проект
@@ -352,6 +387,8 @@ function registerIpc(): void {
   ipcMain.on('export:cancel', () => exportAbort?.abort());
   ipcMain.handle('ai:models', async (): Promise<ModelInfo[]> =>
     Object.values(ASR_MODELS).map((m) => ({ id: m.id, label: m.label, note: m.note, sizeMb: m.sizeMb, ready: asrModelReady(m.id) })));
+  ipcMain.handle('ai:voices', async (): Promise<VoiceInfo[]> =>
+    Object.values(TTS_VOICES).map((v) => ({ id: v.id, label: v.label, sizeMb: v.sizeMb, ready: ttsVoiceReady(v.id) })));
   ipcMain.handle('ai:run', (_e, job: AiJob) => runAi(job));
   ipcMain.on('ai:cancel', (_e, jobId: string) => {
     aiAborts.get(jobId)?.abort();

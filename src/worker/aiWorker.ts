@@ -4,13 +4,17 @@
 // своя onnxruntime.dll, а Windows загружает в процесс только одну DLL с таким именем.
 // Поэтому модули подключаются лениво — только тот, что нужен этому процессу.
 import fs from 'node:fs';
-import type { AsrModelId } from '../main/ai/models';
+import type { AsrModelId, TtsVoiceId } from '../main/ai/models';
 
 type Msg =
   | { id: string; kind: 'transcribe'; wav: string; model: AsrModelId }
   | { id: string; kind: 'silence'; path: string; in: number; out: number }
   | { id: string; kind: 'removeBg'; path: string; in: number; out: number; width: number; height: number; fps: number; outPath: string }
   | { id: string; kind: 'download'; model: AsrModelId }
+  | { id: string; kind: 'ttsDownload'; voice: TtsVoiceId }
+  | { id: string; kind: 'tts'; text: string; voice: TtsVoiceId; speed: number; outPath: string }
+  | { id: string; kind: 'beats'; path: string }
+  | { id: string; kind: 'reframe'; path: string; in: number; out: number; width: number; height: number }
   | { cancel: string };
 
 interface Port { on(ev: 'message', cb: (e: { data: Msg }) => void): void; postMessage(m: unknown): void }
@@ -54,6 +58,27 @@ port.on('message', async (e) => {
       const { downloadAsrModel } = await import('../main/ai/models');
       await downloadAsrModel(m.model, (p, stage) => progress(stage === 'download' ? p * 0.85 : 0.85 + p * 0.15, stage === 'download' ? 'Скачиваю модель' : 'Распаковываю'), ac.signal);
       result = {};
+    }
+    else if (m.kind === 'ttsDownload') {
+      const { downloadTtsVoice } = await import('../main/ai/models');
+      await downloadTtsVoice(m.voice, (p, stage) => progress(stage === 'download' ? p * 0.85 : 0.85 + p * 0.15, stage === 'download' ? 'Скачиваю голос' : 'Распаковываю'), ac.signal);
+      result = {};
+    } else if (m.kind === 'tts') {
+      const { synthesize } = await import('../main/ai/tts');
+      progress(0.1, 'Озвучиваю');
+      result = { duration: synthesize(m.text, m.voice, m.speed, m.outPath) };
+    } else if (m.kind === 'beats') {
+      const { ffmpegToBuffer } = await import('../main/ffrun');
+      const { detectBeats } = await import('../shared/beats');
+      progress(0.1, 'Слушаю ритм');
+      const sr = 22050;
+      const buf = await ffmpegToBuffer(['-v', 'error', '-i', m.path, '-vn', '-ac', '1', '-ar', String(sr), '-f', 'f32le', '-'], ac.signal);
+      const pcm = new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + Math.floor(buf.length / 4) * 4));
+      progress(0.5, 'Ищу доли такта');
+      result = detectBeats(pcm, sr);
+    } else if (m.kind === 'reframe') {
+      const { trackPerson } = await import('../main/ai/matting');
+      result = { points: await trackPerson({ src: m.path, ss: m.in, dur: m.out - m.in, width: m.width, height: m.height, onProgress: (p) => progress(p, 'Слежу за человеком'), signal: ac.signal }) };
     }
     send({ id: m.id, type: 'done', result });
   } catch (err) {

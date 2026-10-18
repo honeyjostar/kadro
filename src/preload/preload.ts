@@ -23,6 +23,7 @@ const api: KadroApi = {
   cancelExport: () => ipcRenderer.send('export:cancel'),
   onExportProgress: (cb) => on('export:progress', cb),
   models: () => ipcRenderer.invoke('ai:models'),
+  ttsVoices: () => ipcRenderer.invoke('ai:voices'),
   runAi: (job) => ipcRenderer.invoke('ai:run', job),
   cancelAi: (id) => ipcRenderer.send('ai:cancel', id),
   onAiProgress: (cb) => on('ai:progress', cb),

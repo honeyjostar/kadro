@@ -474,6 +474,43 @@ export function setTrackFlag(p: Project, trackId: string, patch: Partial<Pick<Tr
   });
 }
 
+// ---------- ритм ----------
+/** Доли такта всех музыкальных клипов в шкале таймлайна. */
+export function beatTimes(p: Project): number[] {
+  const out: number[] = [];
+  for (const t of p.tracks) {
+    if (t.kind !== 'audio') continue;
+    for (const c of t.clips) {
+      if (c.type !== 'media') continue;
+      const a = assetOf(p, c);
+      for (const b of a?.beats ?? []) if (b >= c.in && b <= c.out) out.push(round(c.start + (b - c.in) / c.speed));
+    }
+  }
+  return [...new Set(out)].sort((x, y) => x - y);
+}
+
+/** Подогнать склейки основной дорожки к долям такта: конец каждого клипа — на ближайшую долю. */
+export function alignMainToBeats(p: Project, beats: number[], minClip = 0.3): Project {
+  if (!beats.length) return p;
+  let d = p;
+  const n = mainTrack(d).clips.length;
+  for (let i = 0; i < n; i++) {
+    const c = mainTrack(d).clips[i];
+    if (c.type !== 'media') continue;
+    const end = clipEnd(c);
+    const a = assetOf(d, c);
+    const maxEnd = a && a.kind !== 'image' ? c.start + (a.duration - c.in) / c.speed : end + 10;
+    let best: number | null = null;
+    for (const b of beats) {
+      if (b < c.start + minClip || b > maxEnd + 1e-6) continue;
+      if (best === null || Math.abs(b - end) < Math.abs(best - end)) best = b;
+    }
+    if (best === null || Math.abs(best - end) < 1 / (2 * d.settings.fps)) continue;
+    d = trimClip(d, c.id, 'end', best);
+  }
+  return d;
+}
+
 // ---------- ИИ-операции над таймлайном ----------
 /** Оставить в клипе только указанные отрезки исходника (вырезание пауз). */
 export function keepSourceRanges(p: Project, clipId: string, ranges: [number, number][]): Project {

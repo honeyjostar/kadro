@@ -62,15 +62,15 @@ export const VAD_MODEL = () => bundledModel('silero_vad.onnx');
 export const MATTING_MODEL = () => bundledModel('rvm_mobilenetv3_fp32.onnx');
 export const RNNOISE_MODEL = () => bundledModel('std.rnnn');
 
-/** Скачивает и распаковывает модель распознавания. onProgress: 0..1 (скачивание), затем распаковка. */
-export async function downloadAsrModel(id: AsrModelId, onProgress: (p: number, stage: 'download' | 'unpack') => void, signal?: AbortSignal): Promise<void> {
-  if (asrModelReady(id)) return;
-  const m = ASR_MODELS[id];
+/** Скачивает архив .tar.bz2 и распаковывает в modelsDir()/dirName. onProgress: скачивание, затем распаковка. */
+async function downloadArchive(url: string, dirName: string, sizeMb: number, ready: () => boolean,
+  onProgress: (p: number, stage: 'download' | 'unpack') => void, signal?: AbortSignal): Promise<void> {
+  if (ready()) return;
   const dir = modelsDir();
-  const tmp = path.join(dir, `${m.dir}.tar.bz2.part`);
-  const res = await fetch(m.url, { signal, redirect: 'follow' });
+  const tmp = path.join(dir, `${dirName}.tar.bz2.part`);
+  const res = await fetch(url, { signal, redirect: 'follow' });
   if (!res.ok || !res.body) throw new Error(`Не удалось скачать модель (HTTP ${res.status}). Проверь интернет или VPN.`);
-  const total = Number(res.headers.get('content-length') || m.sizeMb * 1e6);
+  const total = Number(res.headers.get('content-length') || sizeMb * 1e6);
   let got = 0;
   const out = fs.createWriteStream(tmp);
   const reader = res.body.getReader();
@@ -87,7 +87,7 @@ export async function downloadAsrModel(id: AsrModelId, onProgress: (p: number, s
   }
   if (signal?.aborted) throw new Error('Отменено');
   onProgress(0, 'unpack');
-  const extractTo = path.join(dir, `${m.dir}.unpack`);
+  const extractTo = path.join(dir, `${dirName}.unpack`);
   fs.rmSync(extractTo, { recursive: true, force: true });
   fs.mkdirSync(extractTo, { recursive: true });
   const size = fs.statSync(tmp).size;
@@ -95,13 +95,43 @@ export async function downloadAsrModel(id: AsrModelId, onProgress: (p: number, s
   const src = fs.createReadStream(tmp);
   src.on('data', (d) => { read += (d as Buffer).length; onProgress(Math.min(0.999, read / size), 'unpack'); });
   await pipeline(src, bz2(), tar.x({ cwd: extractTo }) as unknown as NodeJS.WritableStream);
-  const inner = path.join(extractTo, m.dir);
-  const finalDir = path.join(dir, m.dir);
+  const inner = path.join(extractTo, dirName);
+  const finalDir = path.join(dir, dirName);
   fs.rmSync(finalDir, { recursive: true, force: true });
   fs.renameSync(fs.existsSync(inner) ? inner : extractTo, finalDir);
   fs.rmSync(extractTo, { recursive: true, force: true });
   fs.rmSync(tmp, { force: true });
-  if (!asrModelReady(id)) throw new Error('Модель скачалась не полностью. Попробуй ещё раз.');
+  if (!ready()) throw new Error('Модель скачалась не полностью. Попробуй ещё раз.');
   onProgress(1, 'unpack');
   void Readable;
+}
+
+/** Скачивает и распаковывает модель распознавания. */
+export async function downloadAsrModel(id: AsrModelId, onProgress: (p: number, stage: 'download' | 'unpack') => void, signal?: AbortSignal): Promise<void> {
+  const m = ASR_MODELS[id];
+  await downloadArchive(m.url, m.dir, m.sizeMb, () => asrModelReady(id), onProgress, signal);
+}
+
+// ---------- голоса для озвучки текста (Piper) ----------
+export type TtsVoiceId = 'irina' | 'dmitri' | 'denis' | 'ruslan' | 'amy' | 'ryan';
+export interface TtsVoice { id: TtsVoiceId; label: string; name: string; sizeMb: number }
+export const TTS_VOICES: Record<TtsVoiceId, TtsVoice> = {
+  irina: { id: 'irina', label: 'Ирина — русский, женский', name: 'ru_RU-irina-medium', sizeMb: 64 },
+  dmitri: { id: 'dmitri', label: 'Дмитрий — русский, мужской', name: 'ru_RU-dmitri-medium', sizeMb: 64 },
+  denis: { id: 'denis', label: 'Денис — русский, мужской', name: 'ru_RU-denis-medium', sizeMb: 64 },
+  ruslan: { id: 'ruslan', label: 'Руслан — русский, мужской', name: 'ru_RU-ruslan-medium', sizeMb: 64 },
+  amy: { id: 'amy', label: 'Amy — английский, женский', name: 'en_US-amy-low', sizeMb: 64 },
+  ryan: { id: 'ryan', label: 'Ryan — английский, мужской', name: 'en_US-ryan-medium', sizeMb: 64 },
+};
+const TTS_GH = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models';
+export function ttsVoiceDir(id: TtsVoiceId): string {
+  return path.join(modelsDir(), `vits-piper-${TTS_VOICES[id].name}`);
+}
+export function ttsVoiceReady(id: TtsVoiceId): boolean {
+  const d = ttsVoiceDir(id);
+  return fs.existsSync(path.join(d, `${TTS_VOICES[id].name}.onnx`)) && fs.existsSync(path.join(d, 'tokens.txt')) && fs.existsSync(path.join(d, 'espeak-ng-data'));
+}
+export async function downloadTtsVoice(id: TtsVoiceId, onProgress: (p: number, stage: 'download' | 'unpack') => void, signal?: AbortSignal): Promise<void> {
+  const v = TTS_VOICES[id];
+  await downloadArchive(`${TTS_GH}/vits-piper-${v.name}.tar.bz2`, `vits-piper-${v.name}`, v.sizeMb, () => ttsVoiceReady(id), onProgress, signal);
 }

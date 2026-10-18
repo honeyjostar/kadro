@@ -1,10 +1,10 @@
 import {
-  ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, Blend, Captions, Film, Image as ImageIcon, Layers, Music, Palette, Plus,
+  ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
   Sparkles, Trash2, Type, Upload, Wand2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FILTER_PRESETS, effectiveColor, svgFilterMarkup } from '../../shared/color';
-import { DEFAULT_COLOR, FONTS, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS, TRANSITIONS } from '../../shared/defaults';
+import { DEFAULT_COLOR, FONTS, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS, TRANSITIONS, VOICE_FX } from '../../shared/defaults';
 import { retimeWords } from '../../shared/captions';
 import type { ModelInfo } from '../../shared/ipc';
 import {
@@ -12,7 +12,8 @@ import {
 } from '../../shared/timeline';
 import type { MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
 import {
-  addAssetToTimeline, disableDenoise, disableRemoveBg, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
+  addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
+  setVoiceEffect, stabilizeClip,
 } from '../actions';
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore, type LeftTab } from '../store';
@@ -512,6 +513,7 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
   const setTab = useStore((s) => s.setLeftTab);
   const isVideo = asset?.kind === 'video';
   const hasAudio = !!asset?.hasAudio;
+  const [stabStrength, setStabStrength] = useState(0.5);
   return (
     <>
       {!compact && (
@@ -553,6 +555,54 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
               </div>
             </>
           ) : <button className="btn block" disabled={busy} onClick={() => void enhanceVoice(clip.id)} data-testid="ai-denoise">Очистить голос</button>
+        ) : <div className="hint small">Нужен клип со звуком</div>}
+      </div>
+
+      {asset?.kind !== 'audio' && (
+        <div className={`ai-card ${!clip || !isVideo ? 'off' : ''}`}>
+          <h4><Move size={15} />Стабилизация</h4>
+          <p className="hint">Убирает тряску камеры. Края слегка обрезаются, чтобы не было чёрных полос.</p>
+          {clip && isVideo ? (
+            clip.stab?.enabled ? (
+              <>
+                {aiCovers(clip.stab, clip.in, clip.out)
+                  ? <div className="status-line ok">Готово — уже в превью и экспорте</div>
+                  : <div className="status-line err">Клип обрезали после обработки — запусти заново</div>}
+                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  {!aiCovers(clip.stab, clip.in, clip.out) && <button className="btn small" disabled={busy} onClick={() => void stabilizeClip(clip.id, stabStrength)}>Заново</button>}
+                  <button className="btn small" onClick={() => disableStab(clip.id)}>Выключить</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <Slider label="Сила" min={0} max={1} step={0.05} value={stabStrength} format={(v) => `${Math.round(v * 100)}%`} onChange={setStabStrength} />
+                <button className="btn block" disabled={busy} onClick={() => void stabilizeClip(clip.id, stabStrength)} data-testid="ai-stab">Стабилизировать</button>
+              </>
+            )
+          ) : <div className="hint small">Нужен видеоклип</div>}
+        </div>
+      )}
+
+      {asset?.kind !== 'audio' && (
+        <div className={`ai-card ${!clip || !isVideo ? 'off' : ''}`}>
+          <h4><Crop size={15} />Автокадрирование</h4>
+          <p className="hint">Для вертикального ролика из горизонтального видео: кадр сам следует за человеком.</p>
+          {clip && isVideo
+            ? <button className="btn block" disabled={busy} onClick={() => void autoReframe(clip.id)} data-testid="ai-reframe">Следить за человеком</button>
+            : <div className="hint small">Нужен видеоклип</div>}
+        </div>
+      )}
+
+      <div className={`ai-card ${!clip || !hasAudio ? 'off' : ''}`}>
+        <h4><Mic size={15} />Изменить голос</h4>
+        <p className="hint">Эффект для звука клипа. Чистка шума сохраняется.</p>
+        {clip && hasAudio ? (
+          <div className="voice-grid">
+            {VOICE_FX.map((v) => (
+              <button key={v.id} className={`btn small ${(clip.voice?.effect ?? 'none') === v.id && (v.id === 'none' || aiCovers(clip.voice, clip.in, clip.out)) ? 'on' : ''}`}
+                disabled={busy} onClick={() => void setVoiceEffect(clip.id, v.id)} data-testid={`voice-${v.id}`}>{v.label}</button>
+            ))}
+          </div>
         ) : <div className="hint small">Нужен клип со звуком</div>}
       </div>
 

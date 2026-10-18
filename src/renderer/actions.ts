@@ -1,12 +1,13 @@
 // Действия редактора, которые вызываются из разных мест интерфейса.
-import { aiStale } from '../shared/ai';
+import { aiCovers, aiSource, aiStale } from '../shared/ai';
+import { reframeKeyframes } from '../shared/reframe';
 import { CAPTION_STYLE, newProject } from '../shared/defaults';
-import type { AiJob, AiResponse } from '../shared/ipc';
+import type { AiJob, AiResponse, TtsVoiceId } from '../shared/ipc';
 import {
-  addAsset, addFree, addToMain, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
-  splitClip, updateClip, clipEnd,
+  addAsset, addFree, addToMain, alignMainToBeats, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
+  splitClip, updateAsset, updateClip, clipEnd,
 } from '../shared/timeline';
-import type { MediaClip, Project } from '../shared/types';
+import type { MediaClip, Project, VoiceEffect } from '../shared/types';
 import { api, getState, takeEarlyPatches } from './store';
 import { uidShort } from './util';
 
@@ -130,7 +131,9 @@ export async function removeBackground(clipId: string): Promise<void> {
   if (!m) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
   if (!a || a.kind !== 'video') { getState().toast('Удаление фона работает с видео'); return; }
-  const r = await runJob('Удаляю фон', { kind: 'removeBg', jobId: `bg_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, width: a.width, height: a.height, fps: Math.min(60, a.fps || 30) }, clipId);
+  const st = aiSource(m.clip, 'stab');
+  const src = st ? { path: st.path, off: st.offset } : { path: a.path, off: 0 };
+  const r = await runJob('Удаляю фон', { kind: 'removeBg', jobId: `bg_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, offset: src.off, width: a.width, height: a.height, fps: Math.min(60, a.fps || 30) }, clipId);
   if (!r.ok || r.output?.kind !== 'removeBg') { if (r.error !== 'Отменено') getState().toast(`Фон убрать не удалось: ${r.error}`, 'err'); return; }
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { removeBg: { enabled: true, status: 'ready', path: out.path, range: out.range } }));
@@ -155,6 +158,7 @@ export async function enhanceVoice(clipId: string): Promise<void> {
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { denoise: { enabled: true, status: 'ready', path: out.path, range: out.range } }));
   getState().toast('Голос очищен от шума', 'ok');
+  await refreshVoice(clipId);
 }
 
 export function disableDenoise(clipId: string): void {
@@ -163,6 +167,127 @@ export function disableDenoise(clipId: string): void {
     if (!f || f.clip.type !== 'media') return p;
     return updateClip(p, clipId, { denoise: { ...f.clip.denoise, enabled: false } });
   });
+  void refreshVoice(clipId);
+}
+
+// ---------- голос: эффекты ----------
+/** Включить эффект голоса (обрабатывает звук фрагмента; чистка шума учитывается). */
+export async function setVoiceEffect(clipId: string, effect: VoiceEffect): Promise<void> {
+  const m = mediaClip(clipId);
+  if (!m) return;
+  if (effect === 'none') {
+    getState().commit((p) => updateClip(p, clipId, { voice: { enabled: false, status: 'none', effect: 'none' } }));
+    return;
+  }
+  const a = m.p.assets.find((x) => x.id === m.clip.assetId);
+  if (!a || !a.hasAudio) { getState().toast('В этом клипе нет звука'); return; }
+  const withDenoise = m.clip.denoise.enabled;
+  const r = await runJob('Меняю голос', { kind: 'voice', jobId: `vo_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, effect, denoise: withDenoise }, clipId);
+  if (!r.ok || r.output?.kind !== 'voice') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  const out = r.output;
+  getState().commit((p) => updateClip(p, clipId, { voice: { enabled: true, status: 'ready', path: out.path, range: out.range, effect, withDenoise } }));
+}
+
+/** Эффект голоса пересчитывается, если поменялась чистка шума. */
+async function refreshVoice(clipId: string): Promise<void> {
+  const m = mediaClip(clipId);
+  const fx = m?.clip.voice?.effect;
+  if (!m || !fx || fx === 'none') return;
+  if (m.clip.voice?.withDenoise === m.clip.denoise.enabled && aiCovers(m.clip.voice, m.clip.in, m.clip.out)) return;
+  await setVoiceEffect(clipId, fx);
+}
+
+// ---------- стабилизация ----------
+export async function stabilizeClip(clipId: string, strength = 0.5): Promise<void> {
+  const m = mediaClip(clipId);
+  if (!m) return;
+  const a = m.p.assets.find((x) => x.id === m.clip.assetId);
+  if (!a || a.kind !== 'video') { getState().toast('Стабилизация работает с видео'); return; }
+  const r = await runJob('Стабилизирую', { kind: 'stab', jobId: `st_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, strength }, clipId);
+  if (!r.ok || r.output?.kind !== 'stab') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  const out = r.output;
+  getState().commit((p) => updateClip(p, clipId, { stab: { enabled: true, status: 'ready', path: out.path, range: out.range } }));
+  getState().toast('Видео стабилизировано', 'ok');
+}
+export function disableStab(clipId: string): void {
+  getState().commit((p) => {
+    const f = findClip(p, clipId);
+    if (!f || f.clip.type !== 'media' || !f.clip.stab) return p;
+    return updateClip(p, clipId, { stab: { ...f.clip.stab, enabled: false } });
+  });
+}
+
+// ---------- ритм ----------
+export async function findBeats(assetId: string): Promise<boolean> {
+  const a = getState().project.assets.find((x) => x.id === assetId);
+  if (!a || !a.hasAudio) { getState().toast('В этом файле нет звука'); return false; }
+  const r = await runJob('Ищу ритм', { kind: 'beats', jobId: `bt_${uidShort()}`, path: a.path });
+  if (!r.ok || r.output?.kind !== 'beats') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return false; }
+  const { beats, bpm } = r.output;
+  if (!beats.length) { getState().toast('Ритм не найден — слишком тихо или нет ударных'); return false; }
+  getState().commit((p) => updateAsset(p, assetId, { beats, bpm }));
+  getState().toast(`Ритм найден: ${Math.round(bpm)} ударов в минуту, ${beats.length} долей`, 'ok');
+  return true;
+}
+export function alignToBeats(): void {
+  const s = getState();
+  const beats = beatTimes(s.project);
+  if (!beats.length) { s.toast('Сначала найди ритм у музыки: выдели музыку и нажми «Ритм»'); return; }
+  s.commit((p) => alignMainToBeats(p, beats));
+  s.toast('Склейки подогнаны под доли такта', 'ok');
+}
+
+// ---------- автокадрирование ----------
+export async function autoReframe(clipId: string): Promise<void> {
+  const m = mediaClip(clipId);
+  if (!m) return;
+  const a = m.p.assets.find((x) => x.id === m.clip.assetId);
+  if (!a || a.kind !== 'video') { getState().toast('Автокадрирование работает с видео'); return; }
+  const st = aiSource(m.clip, 'stab');
+  const src = st ? { path: st.path, off: st.offset } : { path: a.path, off: 0 };
+  const r = await runJob('Автокадрирование', { kind: 'reframe', jobId: `rf_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, width: a.width, height: a.height }, clipId);
+  if (!r.ok || r.output?.kind !== 'reframe') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  const pts = r.output.points.map((q) => ({ ...q, t: q.t + src.off }));
+  if (!pts.some((q) => q.found)) { getState().toast('Человек в кадре не найден — кадр оставлен по центру'); return; }
+  const { width: W, height: H } = getState().project.settings;
+  const scale = Math.max(1, m.clip.transform.scale);
+  const k = reframeKeyframes(pts, a.width, a.height, W, H, scale);
+  getState().commit((p) => updateClip(p, clipId, {
+    fit: 'cover',
+    transform: { ...m.clip.transform, scale, x: 0, y: 0 },
+    keyframes: { ...m.clip.keyframes, x: k.x.length ? k.x : undefined, y: k.y.length ? k.y : undefined },
+  }));
+  getState().toast('Кадр следует за человеком', 'ok');
+}
+
+// ---------- озвучка текста ----------
+export async function ensureVoice(voice: TtsVoiceId): Promise<boolean> {
+  const list = await api.ttsVoices();
+  if (list.find((v) => v.id === voice)?.ready) return true;
+  const r = await runJob('Скачиваю голос', { kind: 'ttsDownload', jobId: `tdl_${uidShort()}`, voice });
+  if (!r.ok) { if (r.error !== 'Отменено') getState().toast(`Голос не скачался: ${r.error}`, 'err'); return false; }
+  return true;
+}
+export async function speakText(clipId: string, voice: TtsVoiceId, speed: number): Promise<void> {
+  const f = findClip(getState().project, clipId);
+  if (!f || f.clip.type !== 'text' || !f.clip.text.trim()) { getState().toast('Сначала напиши текст'); return; }
+  const text = f.clip.text;
+  if (!(await ensureVoice(voice))) return;
+  const r = await runJob('Озвучиваю текст', { kind: 'tts', jobId: `tts_${uidShort()}`, text, voice, speed }, clipId);
+  if (!r.ok || r.output?.kind !== 'tts') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  const out = r.output;
+  const imp = await api.importMedia([out.path]);
+  const asset = imp.assets[0];
+  if (!asset) { getState().toast('Не получилось добавить озвучку', 'err'); return; }
+  const start = (findClip(getState().project, clipId)?.clip.start) ?? 0;
+  asset.name = `Озвучка: ${text.slice(0, 24)}${text.length > 24 ? '…' : ''}`;
+  getState().commit((p) => {
+    let q = addAsset(p, asset);
+    q = addFree(q, asset.id, start).project;
+    return updateClip(q, clipId, { duration: Math.max(0.5, Math.round(out.duration * 100) / 100 + 0.2) });
+  });
+  takeEarlyPatches([asset.id]);
+  getState().toast('Текст озвучен — звук на аудиодорожке', 'ok');
 }
 
 export async function removePauses(clipId: string): Promise<void> {
@@ -208,7 +333,7 @@ export async function makeCaptions(model: 'multi' | 'ru', includeMusic: boolean)
 export function staleAiClips(p: Project): string[] {
   const out: string[] = [];
   for (const t of p.tracks) for (const c of t.clips) {
-    if (c.type === 'media' && (aiStale(c, 'removeBg') || aiStale(c, 'denoise'))) out.push(c.id);
+    if (c.type === 'media' && (aiStale(c, 'removeBg') || aiStale(c, 'denoise') || aiStale(c, 'stab') || aiStale(c, 'voice'))) out.push(c.id);
   }
   return out;
 }

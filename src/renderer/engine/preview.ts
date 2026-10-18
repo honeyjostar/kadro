@@ -1,6 +1,6 @@
 // Движок превью: синхронное воспроизведение всех дорожек и сборка кадра на canvas.
 // Геометрия, цвет, переходы и текст — те же функции/формулы, что и в экспорте.
-import { aiSource } from '../../shared/ai';
+import { aiSource, audioSource, videoSource } from '../../shared/ai';
 import { mediaPropsAt } from '../../shared/anim';
 import { maskBytes } from '../../shared/mask';
 import { ChromaKeyer } from './chroma';
@@ -194,12 +194,16 @@ export class PreviewEngine {
         const a = p.assets.find((x) => x.id === c.assetId);
         if (!a) continue;
         if (a.kind === 'image') { want.set(`${c.id}:v`, { kind: 'image', path: a.previewPath || a.path, offset: 0 }); continue; }
-        if (a.kind === 'audio') { want.set(`${c.id}:a`, { kind: 'audio', path: a.previewPath || a.path, offset: 0 }); continue; }
-        const bg = aiSource(c, 'removeBg');
-        want.set(`${c.id}:v`, { kind: 'video', path: bg ? bg.path : a.previewPath || a.path, offset: bg ? bg.offset : 0 });
-        const den = aiSource(c, 'denoise');
-        if (den) want.set(`${c.id}:a`, { kind: 'audio', path: den.path, offset: den.offset });
-        else if (bg && a.hasAudio) want.set(`${c.id}:a`, { kind: 'audio', path: a.previewPath || a.path, offset: 0 });
+        if (a.kind === 'audio') {
+          const as = audioSource(c);
+          want.set(`${c.id}:a`, { kind: 'audio', path: as ? as.path : a.previewPath || a.path, offset: as ? as.offset : 0 });
+          continue;
+        }
+        const vs = videoSource(c);
+        want.set(`${c.id}:v`, { kind: 'video', path: vs ? vs.path : a.previewPath || a.path, offset: vs ? vs.offset : 0 });
+        const as = audioSource(c);
+        if (as) want.set(`${c.id}:a`, { kind: 'audio', path: as.path, offset: as.offset });
+        else if (vs && a.hasAudio) want.set(`${c.id}:a`, { kind: 'audio', path: a.previewPath || a.path, offset: 0 });
       }
     }
     return want;

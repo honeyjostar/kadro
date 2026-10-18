@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { applyColorToPixel, effectiveColor } from '../../src/shared/color';
 import { DEFAULT_COLOR } from '../../src/shared/defaults';
 import {
-  greenVideo, RGB, act, clipIds, colorsVideo, frameDiff, grayImage, importAt, launch, MEDIA, near, personVideo, PHRASES, previewPixel, probe,
+  beatMp3, greenVideo, shakyVideo, walkVideo, RGB, act, clipIds, colorsVideo, frameDiff, grayImage, importAt, launch, MEDIA, near, personVideo, PHRASES, previewPixel, probe,
   project, rawFrame, reset, rotatedVideo, seekAndSettle, solidVideo, state, store, talkVideo, toneMp3, waitAssetsReady, type Kadro,
 } from './kadro';
 
@@ -437,6 +437,86 @@ test('маска, хромакей и режим наложения: плеер 
   const png = await parity(1.5, 'mask');
   const out = await exportViaUi('720p');
   compareAt(png, out, 1.5, 5);
+});
+
+test('голос, озвучка, ритм — через интерфейс', async () => {
+  await reset(win);
+  await importAt(win, [talkVideo()]);
+  const [id] = await clipIds(win, 'main');
+  await store(win, 'select', [id]);
+  await win.getByTestId('tab-ai').click();
+  await win.locator('aside.panel').getByTestId('voice-chipmunk').click();
+  await win.waitForFunction((cid) => (window as any).__kadro.useStore.getState().project.tracks[0].clips.find((c: any) => c.id === cid)?.voice?.status === 'ready', id, { timeout: 60_000 });
+  let c = (await project(win)).tracks[0].clips[0] as any;
+  expect(c.voice.effect).toBe('chipmunk');
+  expect(await win.evaluate((cid) => (window as any).__kadroEngine.media.get(`${cid}:a`)?.src.includes('fx_'), id)).toBe(true);
+  // чистка шума поверх эффекта — эффект пересчитывается с чисткой
+  await win.locator('aside.panel').getByTestId('ai-denoise').click();
+  await win.waitForFunction((cid) => (window as any).__kadro.useStore.getState().project.tracks[0].clips.find((x: any) => x.id === cid)?.voice?.withDenoise === true, id, { timeout: 60_000 });
+  c = (await project(win)).tracks[0].clips[0] as any;
+  expect(c.denoise.status).toBe('ready');
+  // озвучка текста
+  await seekAndSettle(win, 0.5);
+  await win.getByTestId('tab-text').click();
+  await win.getByTestId('add-text').click();
+  await win.getByTestId('itab-text').click();
+  await win.getByTestId('text-input').fill('Это озвучка текста');
+  await win.getByTestId('tts-voice').selectOption('irina');
+  await win.getByTestId('tts-run').click();
+  await win.waitForFunction(() => (window as any).__kadro.useStore.getState().project.tracks.some((t: any) => t.kind === 'audio' && t.clips.length), undefined, { timeout: 90_000 });
+  const p = await project(win);
+  const audio = p.tracks.find((t) => t.kind === 'audio')!.clips[0] as any;
+  expect(audio.start).toBeCloseTo(0.5, 2);
+  const txt = p.tracks.find((t) => t.kind === 'text')!.clips[0] as any;
+  expect(Math.abs(txt.duration - (audio.out - audio.in) - 0.2)).toBeLessThan(0.05);
+  // ритм у музыки и склейки под бит
+  await reset(win);
+  await importAt(win, [solidVideo('red3.mp4', 'red', 3), solidVideo('blue3.mp4', 'blue', 3)]);
+  const [m] = await act(win, 'importPaths', [beatMp3()]);
+  await act(win, 'addAssetToTimeline', m, 'auto', 0);
+  const [mid] = await clipIds(win, 'audio');
+  await store(win, 'select', [mid]);
+  await win.getByTestId('itab-audio').click().catch(() => undefined);
+  await win.getByTestId('find-beats').click();
+  await win.waitForFunction(() => (window as any).__kadro.useStore.getState().project.assets.some((a: any) => a.beats?.length), undefined, { timeout: 60_000 });
+  await expect(win.locator(`[data-clip="${mid}"] .beat-marks i`).first()).toBeAttached();
+  await win.getByTestId('tl-beats').click();
+  const q = await project(win);
+  const P = 60 / 128;
+  const cut = q.tracks[0].clips[0].start + ((q.tracks[0].clips[0] as any).out - (q.tracks[0].clips[0] as any).in);
+  const ph = ((cut - 0.25) / P) % 1;
+  expect(Math.min(ph, 1 - ph) * P, `склейка на ${cut}`).toBeLessThan(0.05);
+});
+
+test('стабилизация и автокадрирование — через интерфейс', async () => {
+  const shaky = shakyVideo();
+  const walk = walkVideo();
+  test.skip(!shaky || !walk, 'нет тестового фото человека');
+  await reset(win);
+  await importAt(win, [shaky!]);
+  const [id] = await clipIds(win, 'main');
+  await store(win, 'select', [id]);
+  await win.getByTestId('tab-ai').click();
+  await win.locator('aside.panel').getByTestId('ai-stab').click();
+  await win.waitForFunction((cid) => (window as any).__kadro.useStore.getState().project.tracks[0].clips.find((c: any) => c.id === cid)?.stab?.status === 'ready', id, { timeout: 90_000 });
+  await seekAndSettle(win, 1);
+  expect(await win.evaluate((cid) => (window as any).__kadroEngine.media.get(`${cid}:v`)?.src.includes('stab_'), id)).toBe(true);
+  const png1 = await parity(1, 'stab');
+  const out1 = await exportViaUi('720p');
+  compareAt(png1, out1, 1, 6);
+  // автокадрирование: горизонтальное видео в вертикальном проекте
+  await reset(win);
+  await importAt(win, [walk!]);
+  const [wid] = await clipIds(win, 'main');
+  await store(win, 'select', [wid]);
+  await win.locator('aside.panel').getByTestId('ai-reframe').click();
+  await win.waitForFunction((cid) => (window as any).__kadro.useStore.getState().project.tracks[0].clips.find((c: any) => c.id === cid)?.keyframes?.x?.length > 2, wid, { timeout: 90_000 });
+  const c = (await project(win)).tracks[0].clips[0] as any;
+  expect(c.fit).toBe('cover');
+  expect(c.keyframes.x[0].v).toBeGreaterThan(c.keyframes.x[c.keyframes.x.length - 1].v); // человек идёт вправо — кадр сдвигается влево
+  const png2 = await parity(1.5, 'reframe');
+  const out2 = await exportViaUi('720p');
+  compareAt(png2, out2, 1.5, 6);
 });
 
 test('автосубтитры из интерфейса: распознаются и правятся', async () => {

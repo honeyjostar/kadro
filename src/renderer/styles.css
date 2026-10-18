@@ -373,3 +373,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .mask-icon { width: 34px; height: 24px; }
 .mask-icon .frame { fill: none; stroke: var(--muted); stroke-width: 1.5; }
 .mask-icon .fill { fill: var(--accent); opacity: 0.85; }
+
+.voice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.voice-grid .btn { padding: 0 4px; font-size: 11.5px; }
+.btn.on { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
