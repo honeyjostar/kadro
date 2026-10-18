@@ -11,7 +11,14 @@ export function TopBar() {
   const setExportOpen = useStore((s) => s.setExportOpen);
   return (
     <header className="topbar">
-      <div className="logo"><span className="logo-mark" />Kadro</div>
+      <div className="logo">
+        <svg className="logo-mark" viewBox="0 0 64 64" aria-hidden>
+          <rect x="2" y="2" width="60" height="60" rx="14" fill="var(--accent)" />
+          <rect x="12" y="12" width="40" height="4.5" rx="2.25" fill="var(--bg)" />
+          <rect x="12" y="47.5" width="40" height="4.5" rx="2.25" fill="var(--bg)" />
+          <path d="M26 23.5v17l16-8.5z" fill="var(--bg)" />
+        </svg>Kadro
+      </div>
       <input
         className="project-name" value={name} aria-label="Название проекта" data-testid="project-name"
         onChange={(e) => commit((p) => renameProject(p, e.target.value), 'rename')}

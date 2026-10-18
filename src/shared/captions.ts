@@ -48,26 +48,59 @@ export interface CueOptions {
 
 export const CUE_DEFAULTS: CueOptions = { maxChars: 32, maxWords: 6, maxDuration: 3.2, pauseSplit: 0.45 };
 
-export function wordsToCues(words: Word[], o: CueOptions = CUE_DEFAULTS): Cue[] {
-  const cues: Cue[] = [];
-  let buf: Word[] = [];
-  const flush = () => {
-    if (!buf.length) return;
-    cues.push({ start: buf[0].start, end: buf[buf.length - 1].end, text: buf.map((w) => w.text).join(' ') });
-    buf = [];
+const textOf = (ws: Word[]) => ws.map((w) => w.text).join(' ');
+
+function fits(ws: Word[], o: CueOptions): boolean {
+  return ws.length <= o.maxWords && textOf(ws).length <= o.maxChars && ws[ws.length - 1].end - ws[0].start <= o.maxDuration;
+}
+
+/** Длинную фразу делим на минимальное число ровных кусков (по длине текста), предпочитая место после запятой. */
+function splitBalanced(ws: Word[], o: CueOptions): Word[][] {
+  if (ws.length <= 1 || fits(ws, o)) return [ws];
+  const n = ws.length;
+  const cost = (i: number, j: number): number => { // слова i..j-1
+    const g = ws.slice(i, j);
+    if (!fits(g, o) && g.length > 1) return Infinity;
+    const len = textOf(g).length;
+    return len * len - (/[,;:—–-]$/.test(g[g.length - 1].text) && j < n ? 120 : 0);
   };
+  for (let k = 2; k <= n; k++) {
+    const dp: number[][] = Array.from({ length: k + 1 }, () => new Array(n + 1).fill(Infinity));
+    const from: number[][] = Array.from({ length: k + 1 }, () => new Array(n + 1).fill(-1));
+    dp[0][0] = 0;
+    for (let g = 1; g <= k; g++) {
+      for (let j = g; j <= n; j++) {
+        for (let i = g - 1; i < j; i++) {
+          if (!Number.isFinite(dp[g - 1][i])) continue;
+          const c = dp[g - 1][i] + cost(i, j);
+          if (c < dp[g][j]) { dp[g][j] = c; from[g][j] = i; }
+        }
+      }
+    }
+    if (Number.isFinite(dp[k][n])) {
+      const parts: Word[][] = [];
+      let j = n;
+      for (let g = k; g >= 1; g--) { const i = from[g][j]; parts.unshift(ws.slice(i, j)); j = i; }
+      return parts;
+    }
+  }
+  return ws.map((w) => [w]);
+}
+
+export function wordsToCues(words: Word[], o: CueOptions = CUE_DEFAULTS): Cue[] {
+  // 1) фразы: граница — пауза в речи или конец предложения
+  const phrases: Word[][] = [];
+  let buf: Word[] = [];
   for (const w of words) {
     if (buf.length) {
       const last = buf[buf.length - 1];
-      const text = buf.map((x) => x.text).join(' ') + ' ' + w.text;
-      const tooLong = text.length > o.maxChars || buf.length >= o.maxWords || w.end - buf[0].start > o.maxDuration;
-      const pause = w.start - last.end > o.pauseSplit;
-      const sentenceEnd = /[.!?…]$/.test(last.text);
-      if (tooLong || pause || sentenceEnd) flush();
+      if (w.start - last.end > o.pauseSplit || /[.!?…]$/.test(last.text)) { phrases.push(buf); buf = []; }
     }
     buf.push(w);
   }
-  flush();
+  if (buf.length) phrases.push(buf);
+  // 2) длинные фразы — на ровные куски
+  const cues: Cue[] = phrases.flatMap((ph) => splitBalanced(ph, o)).map((g) => ({ start: g[0].start, end: g[g.length - 1].end, text: textOf(g) }));
   // небольшой «хвост», чтобы субтитр не исчезал раньше голоса, но без наложения на следующий
   for (const c of cues) c.start = Math.max(0, c.start - 0.05);
   for (let i = 0; i < cues.length; i++) {

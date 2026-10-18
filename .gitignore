@@ -6,4 +6,3 @@ out/
 .vite/
 test-results/
 playwright-report/
-test-results/

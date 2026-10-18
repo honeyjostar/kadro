@@ -1,5 +1,5 @@
 // Экспорт проекта в MP4: слои текста → списки concat, граф FFmpeg, кодирование с прогрессом.
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildGraph, fullArgs } from '../shared/exportGraph';
@@ -9,18 +9,21 @@ import { projectDuration } from '../shared/timeline';
 import { cacheDir, ffmpegMajor, ffmpegPath } from './bins';
 import { runFfmpeg } from './ffrun';
 
-let nvencCache: boolean | undefined;
+let nvencCache: Promise<boolean> | undefined;
 
-/** Проверка, работает ли аппаратный кодер NVIDIA (пробное кодирование 0.1 с). */
-export function hasNvenc(): boolean {
-  if (nvencCache !== undefined) return nvencCache;
-  try {
-    const r = spawnSync(ffmpegPath(), ['-hide_banner', '-v', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=256x256:d=0.2',
-      '-c:v', 'h264_nvenc', '-f', 'null', '-'], { windowsHide: true, timeout: 20000 });
-    nvencCache = r.status === 0;
-  } catch {
-    nvencCache = false;
-  }
+/** Проверка, работает ли аппаратный кодер NVIDIA (пробное кодирование 0.2 с). Не блокирует окно. */
+export function hasNvenc(): Promise<boolean> {
+  nvencCache ??= new Promise<boolean>((resolve) => {
+    try {
+      const p = spawn(ffmpegPath(), ['-hide_banner', '-v', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=256x256:d=0.2',
+        '-c:v', 'h264_nvenc', '-f', 'null', '-'], { windowsHide: true, stdio: 'ignore' });
+      const t = setTimeout(() => { p.kill(); resolve(false); }, 20000);
+      p.on('error', () => { clearTimeout(t); resolve(false); });
+      p.on('exit', (code) => { clearTimeout(t); resolve(code === 0); });
+    } catch {
+      resolve(false);
+    }
+  });
   return nvencCache;
 }
 
@@ -69,7 +72,7 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     fs.writeFileSync(filterFile, graph.filter);
     fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });
     const tmpOut = path.join(path.dirname(opts.outPath), `.${path.basename(opts.outPath, '.mp4')}.kadro-part.mp4`);
-    const wantNv = opts.encoder === 'nvenc' || (opts.encoder === 'auto' && hasNvenc());
+    const wantNv = opts.encoder === 'nvenc' || (opts.encoder === 'auto' && (await hasNvenc()));
     const encoders: ('nvenc' | 'x264')[] = wantNv ? ['nvenc', 'x264'] : ['x264'];
     let lastErr: unknown;
     for (const enc of encoders) {

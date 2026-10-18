@@ -1,10 +1,10 @@
 // Отдельный процесс для тяжёлого ИИ (распознавание речи, удаление фона, скачивание моделей),
 // чтобы интерфейс не подвисал. Общается с главным процессом сообщениями.
+// Речь (sherpa-onnx) и удаление фона (onnxruntime-node) идут в РАЗНЫХ процессах: у каждой библиотеки
+// своя onnxruntime.dll, а Windows загружает в процесс только одну DLL с таким именем.
+// Поэтому модули подключаются лениво — только тот, что нужен этому процессу.
 import fs from 'node:fs';
-import { downloadAsrModel, type AsrModelId } from '../main/ai/models';
-import { removeBackground } from '../main/ai/matting';
-import { findSpeechRanges } from '../main/ai/audioFx';
-import { readPcm16k, transcribe } from '../main/ai/speech';
+import type { AsrModelId } from '../main/ai/models';
 
 type Msg =
   | { id: string; kind: 'transcribe'; wav: string; model: AsrModelId }
@@ -32,15 +32,18 @@ port.on('message', async (e) => {
   try {
     let result: unknown;
     if (m.kind === 'transcribe') {
+      const { readPcm16k, transcribe } = await import('../main/ai/speech');
       progress(0.02, 'Читаю звук');
       const pcm = await readPcm16k(m.wav, undefined, undefined, ac.signal);
       progress(0.05, 'Распознаю речь');
       const r = transcribe(pcm, m.model, (p) => progress(0.05 + p * 0.95, 'Распознаю речь'), undefined, () => ac.signal.aborted);
       result = { cues: r.cues, text: r.text };
     } else if (m.kind === 'silence') {
+      const { findSpeechRanges } = await import('../main/ai/audioFx');
       progress(0.1, 'Ищу паузы');
       result = { ranges: await findSpeechRanges(m.path, m.in, m.out, ac.signal) };
     } else if (m.kind === 'removeBg') {
+      const { removeBackground } = await import('../main/ai/matting');
       fs.rmSync(m.outPath, { force: true });
       await removeBackground({
         src: m.path, ss: m.in, dur: m.out - m.in, fps: m.fps, width: m.width, height: m.height, out: m.outPath,
@@ -48,6 +51,7 @@ port.on('message', async (e) => {
       });
       result = { path: m.outPath };
     } else if (m.kind === 'download') {
+      const { downloadAsrModel } = await import('../main/ai/models');
       await downloadAsrModel(m.model, (p, stage) => progress(stage === 'download' ? p * 0.85 : 0.85 + p * 0.15, stage === 'download' ? 'Скачиваю модель' : 'Распаковываю'), ac.signal);
       result = {};
     }

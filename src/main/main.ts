@@ -71,7 +71,7 @@ function createWindow(): void {
     show: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     titleBarOverlay: process.platform === 'win32' ? { color: '#15131a', symbolColor: '#d9d3e3', height: 40 } : false,
-    icon: path.join(__dirname, '..', '..', 'resources', 'icon.png'),
+    icon: app.isPackaged ? path.join(process.resourcesPath, 'icon.png') : path.join(__dirname, '..', '..', 'resources', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'preload.js'),
       contextIsolation: true,
@@ -91,13 +91,16 @@ function createWindow(): void {
 }
 
 // ---------- ИИ-процесс ----------
-let worker: UtilityProcess | null = null;
-const pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
+type Lane = 'speech' | 'vision';
+const workers = new Map<Lane, UtilityProcess>();
+const pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; lane: Lane }>();
 
-function aiWorker(): UtilityProcess {
-  if (worker) return worker;
-  worker = utilityProcess.fork(path.join(__dirname, '..', 'worker', 'aiWorker.js'), [], {
-    serviceName: 'Kadro AI',
+/** ИИ-процесс: «speech» — речь и паузы (sherpa-onnx), «vision» — удаление фона (onnxruntime). */
+function aiWorker(lane: Lane): UtilityProcess {
+  const existing = workers.get(lane);
+  if (existing) return existing;
+  const w = utilityProcess.fork(path.join(__dirname, '..', 'worker', 'aiWorker.js'), [], {
+    serviceName: lane === 'speech' ? 'Kadro Speech' : 'Kadro Vision',
     env: {
       ...process.env,
       KADRO_RESOURCES: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', '..', 'resources'),
@@ -108,27 +111,32 @@ function aiWorker(): UtilityProcess {
     },
     stdio: 'pipe',
   });
-  worker.stdout?.on('data', (d) => log('ai:', d.toString().trim()));
-  worker.stderr?.on('data', (d) => log('ai err:', d.toString().trim()));
-  worker.on('message', (m: { id?: string; type: string; p?: number; stage?: string; result?: unknown; message?: string }) => {
+  workers.set(lane, w);
+  w.stdout?.on('data', (d) => log(`ai ${lane}:`, d.toString().trim()));
+  w.stderr?.on('data', (d) => log(`ai ${lane} err:`, d.toString().trim()));
+  w.on('message', (m: { id?: string; type: string; p?: number; stage?: string; result?: unknown; message?: string }) => {
     if (!m.id) return;
     if (m.type === 'progress') win?.webContents.send('ai:progress', m.id, m.p, m.stage);
     else if (m.type === 'done') { pending.get(m.id)?.resolve(m.result); pending.delete(m.id); }
     else if (m.type === 'error') { pending.get(m.id)?.reject(new Error(m.message)); pending.delete(m.id); }
   });
-  worker.on('exit', (code) => {
-    log('ai worker exit', code);
-    worker = null;
-    for (const [, p] of pending) p.reject(new Error('ИИ-процесс неожиданно завершился. Попробуй ещё раз.'));
-    pending.clear();
+  w.on('exit', (code) => {
+    log(`ai ${lane} exit`, code);
+    if (workers.get(lane) === w) workers.delete(lane);
+    for (const [id, p] of pending) {
+      if (p.lane !== lane) continue;
+      p.reject(new Error('ИИ-процесс неожиданно завершился. Попробуй ещё раз.'));
+      pending.delete(id);
+    }
   });
-  return worker;
+  return w;
 }
 
 function workerCall<T>(id: string, msg: Record<string, unknown>): Promise<T> {
+  const lane: Lane = msg.kind === 'removeBg' ? 'vision' : 'speech';
   return new Promise<T>((resolve, reject) => {
-    pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
-    aiWorker().postMessage({ id, ...msg });
+    pending.set(id, { resolve: resolve as (v: unknown) => void, reject, lane });
+    aiWorker(lane).postMessage({ id, ...msg });
   });
 }
 
@@ -269,7 +277,7 @@ let exportAbort: AbortController | null = null;
 
 function registerIpc(): void {
   ipcMain.handle('app:info', async () => ({
-    version: app.getVersion(), platform: process.platform, nvenc: hasNvenc(), dataDir: dataDir(),
+    version: app.getVersion(), platform: process.platform, nvenc: await hasNvenc(), dataDir: dataDir(),
   }));
   ipcMain.handle('dialog:media', async () => {
     if (process.env.KADRO_TEST_PICK) return process.env.KADRO_TEST_PICK.split('|'); // автотесты: без системного окна
@@ -347,7 +355,7 @@ function registerIpc(): void {
   ipcMain.handle('ai:run', (_e, job: AiJob) => runAi(job));
   ipcMain.on('ai:cancel', (_e, jobId: string) => {
     aiAborts.get(jobId)?.abort();
-    worker?.postMessage({ cancel: jobId });
+    for (const w of workers.values()) w.postMessage({ cancel: jobId });
   });
   ipcMain.on('shell:show', (_e, p: string) => shell.showItemInFolder(p));
   ipcMain.on('win:title', (_e, t: string) => win?.setTitle(t));
@@ -366,7 +374,7 @@ if (!lock) {
     log('Kadro started', app.getVersion(), process.platform, 'ffmpeg:', ffmpegPath());
   });
   app.on('window-all-closed', () => {
-    worker?.kill();
+    for (const w of workers.values()) w.kill();
     app.quit();
   });
 }

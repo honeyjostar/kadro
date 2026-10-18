@@ -24,8 +24,15 @@ describe('субтитры', () => {
   it('строки субтитров: ограничение длины, паузы, точки', () => {
     const words = 'раз два три четыре пять шесть семь восемь'.split(' ').map((t, i) => ({ text: t, start: i * 0.3, end: i * 0.3 + 0.25 }));
     const cues = wordsToCues(words, { maxChars: 100, maxWords: 3, maxDuration: 10, pauseSplit: 1 });
-    expect(cues.map((c) => c.text)).toEqual(['раз два три', 'четыре пять шесть', 'семь восемь']);
+    expect(cues).toHaveLength(3);
+    expect(cues.every((c) => c.text.split(' ').length <= 3)).toBe(true);
+    expect(cues.map((c) => c.text).join(' ')).toBe('раз два три четыре пять шесть семь восемь');
     for (let i = 0; i < cues.length - 1; i++) expect(cues[i].end).toBeLessThanOrEqual(cues[i + 1].start + 1e-9);
+
+    // длинная фраза делится ровно, без «висячего» одного слова
+    const w3 = 'Привет это тестовый ролик для видеоредактора'.split(' ').map((t, i) => ({ text: t, start: i * 0.4, end: i * 0.4 + 0.35 }));
+    const c3 = wordsToCues(w3).map((c) => c.text);
+    expect(c3).toEqual(['Привет это тестовый', 'ролик для видеоредактора']);
 
     const w2 = [{ text: 'Привет.', start: 0, end: 0.4 }, { text: 'Как', start: 0.5, end: 0.6 }, { text: 'дела', start: 2, end: 2.3 }];
     expect(wordsToCues(w2).map((c) => c.text)).toEqual(['Привет.', 'Как', 'дела']);
