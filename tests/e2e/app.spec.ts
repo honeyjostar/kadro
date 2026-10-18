@@ -332,6 +332,81 @@ test('отмена экспорта не оставляет файла', async (
   await win.getByRole('button', { name: 'Закрыть' }).last().click();
 });
 
+async function parity(t: number, label: string, maxMean = 4) {
+  await seekAndSettle(win, t);
+  await win.evaluate(() => document.fonts.ready);
+  await win.waitForTimeout(300);
+  const snap: string = await win.evaluate(() => (window as any).__kadroEngine.snapshot());
+  const png = path.join(MEDIA, `prev_${label}.png`);
+  fs.writeFileSync(png, Buffer.from(snap.split(',')[1], 'base64'));
+  return png;
+}
+function compareAt(png: string, out: string, t: number, maxMean = 4) {
+  const a = rawFrame(['-i', png], 180, 320);
+  const b = rawFrame(['-ss', String(t), '-i', out], 180, 320);
+  const d = frameDiff(a, b);
+  expect(d.mean, `${png}: средняя разница ${d.mean.toFixed(2)}, p98 ${d.p98.toFixed(1)}`).toBeLessThan(maxMean);
+  expect(d.p98).toBeLessThan(40);
+}
+
+test('ключевые кадры: ромбик и перетаскивание в превью, экспорт совпадает с плеером', async () => {
+  await reset(win);
+  await importAt(win, [colorsVideo()]);
+  const [img] = await act(win, 'importPaths', [grayImage()]);
+  await act(win, 'addAssetToTimeline', img, 'overlay', 0);
+  const [ov] = await clipIds(win, 'video');
+  await store(win, 'select', [ov]);
+  await seekAndSettle(win, 0.5);
+  await win.getByTestId('itab-basic').click();
+  await win.getByTestId('key-x').click();
+  await win.getByTestId('key-scale').click();
+  let c = (await project(win)).tracks.find((t) => t.kind === 'video')!.clips[0] as any;
+  expect(c.keyframes.x).toHaveLength(1);
+  // на 2.5 с тянем картинку вправо и увеличиваем — ставятся новые ключи
+  await seekAndSettle(win, 2.5);
+  const box = (await win.getByTestId('sel-box').boundingBox())!;
+  await drag(box.x + box.width / 2, box.y + box.height / 2, box.x + box.width / 2 + 70, box.y + box.height / 2 - 40);
+  const b2 = (await win.getByTestId('sel-box').boundingBox())!;
+  await drag(b2.x + b2.width + 1, b2.y + b2.height + 1, b2.x + b2.width * 1.3, b2.y + b2.height * 1.3);
+  c = (await project(win)).tracks.find((t) => t.kind === 'video')!.clips[0] as any;
+  expect(c.keyframes.x).toHaveLength(2);
+  expect(c.keyframes.y).toBeUndefined(); // y не анимировали — поменялось обычное значение
+  expect(c.keyframes.scale).toHaveLength(2);
+  expect(c.keyframes.scale[1].v).toBeGreaterThan(c.keyframes.scale[0].v);
+  await expect(win.locator(`[data-clip="${ov}"] .kf-marks i`)).toHaveCount(2);
+  // прозрачность ползунком: без ключей — обычное значение
+  const pngs = [await parity(1.5, 'kf15'), await parity(2.9, 'kf29')];
+  const out = await exportViaUi('720p');
+  compareAt(pngs[0], out, 1.5);
+  compareAt(pngs[1], out, 2.9);
+});
+
+test('анимация текста и подсветка слов: экспорт совпадает с плеером', async () => {
+  await reset(win);
+  await importAt(win, [colorsVideo()]);
+  await seekAndSettle(win, 0);
+  await win.getByTestId('tab-text').click();
+  await win.getByTestId('add-text').click();
+  await win.getByTestId('itab-text').click();
+  await win.getByTestId('text-input').fill('Выскакивающий заголовок');
+  await win.getByTestId('itab-anim').click();
+  await win.getByTestId('anim-in').selectOption('pop');
+  await win.getByTestId('anim-out').selectOption('typewriter');
+  // субтитры со словами (как после распознавания) и подсветка «караоке»
+  await commit(`(tl, p) => tl.setCaptions(p, [{ start: 1, end: 3, text: 'раз два три четыре', words: [
+    { text: 'раз', start: 1, end: 1.4 }, { text: 'два', start: 1.5, end: 1.9 }, { text: 'три', start: 2, end: 2.4 }, { text: 'четыре', start: 2.5, end: 2.9 }] }],
+    { ...tl.findClip(p, p.tracks.find((t) => t.kind === 'text').clips[0].id).clip.style, size: 64, strokeWidth: 7, color: '#ffffff' }, 0.72)`);
+  await commit(`(tl, p) => tl.styleAllCaptions(p, { highlight: { mode: 'karaoke', color: '#ffe14d' } })`);
+  const p = await project(win);
+  const cap = p.tracks.flatMap((t) => t.clips).find((c: any) => c.role === 'caption') as any;
+  expect(cap.words).toHaveLength(4);
+  const pngs = [await parity(0.25, 'pop'), await parity(1.7, 'kar'), await parity(2.75, 'type')];
+  const out = await exportViaUi('720p');
+  compareAt(pngs[0], out, 0.25);
+  compareAt(pngs[1], out, 1.7);
+  compareAt(pngs[2], out, 2.75);
+});
+
 test('автосубтитры из интерфейса: распознаются и правятся', async () => {
   await reset(win);
   await importAt(win, [talkVideo()]);

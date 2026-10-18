@@ -1,6 +1,7 @@
 // Операции над таймлайном. Все функции чистые: принимают проект и возвращают новый.
 import { IMAGE_DEFAULT_DURATION, newMediaClip, newTextClip, newTrack, uid } from './defaults';
-import type { Clip, MediaAsset, MediaClip, Project, TextClip, TextStyle, Track, TrackKind, Transition } from './types';
+import { dropKeyframe, putKeyframe } from './anim';
+import type { AnimProp, Clip, Keyframes, MediaAsset, MediaClip, Project, TextClip, TextStyle, Track, TrackKind, Transition } from './types';
 
 export const MIN_CLIP = 0.1;      // минимальная длина клипа на таймлайне, сек
 export const NEW_TRACK = 'new';   // цель перемещения: создать новую дорожку
@@ -203,6 +204,7 @@ export function updateClip(p: Project, clipId: string, patch: Partial<MediaClip>
 
 function sanitizeMedia(d: Project, c: MediaClip): void {
   c.speed = Math.min(4, Math.max(0.25, c.speed));
+  if (c.opacity !== undefined) c.opacity = Math.min(1, Math.max(0, c.opacity));
   c.volume = Math.min(2, Math.max(0, c.volume));
   const limit = sourceLimit(d, c);
   c.in = Math.max(0, c.in);
@@ -261,9 +263,22 @@ export function splitClip(p: Project, clipId: string, t: number): AddResult {
       c.fadeOut = 0;
       delete c.transitionOut; // переход остаётся у правой части
     } else if (c.type === 'text' && right.type === 'text') {
-      c.duration = round(t - c.start);
+      const cut = t - c.start;
+      c.duration = round(cut);
       right.start = round(t);
       right.duration = round(right.duration - c.duration);
+      // субтитр со словами делим и по тексту: слова до разреза — левой части, после — правой
+      const toks = c.text.split(/\s+/).filter(Boolean);
+      const byWords = !!c.words?.length && toks.length === c.words.length;
+      shiftText(right, -cut);
+      if (c.words) c.words = c.words.filter((w) => w.start < cut - 1e-6).map((w) => ({ ...w, end: Math.min(w.end, cut) }));
+      if (right.words) right.words = right.words.filter((w) => w.start >= -1e-6);
+      if (byWords && c.words!.length && right.words!.length) {
+        c.text = toks.slice(0, c.words!.length).join(' ');
+        right.text = toks.slice(c.words!.length).join(' ');
+      }
+      if (c.anim?.out) c.anim = { ...c.anim, out: undefined };
+      if (right.anim?.in) right.anim = { ...right.anim, in: undefined };
     }
     f.track.clips.splice(f.index + 1, 0, right);
   });
@@ -281,6 +296,7 @@ export function trimClip(p: Project, clipId: string, edge: 'start' | 'end', time
       const end = clipEnd(c);
       if (edge === 'start') {
         const ns = Math.max(0, Math.min(time, end - MIN_CLIP));
+        shiftText(c, c.start - ns);
         c.duration = round(end - ns);
         c.start = round(ns);
       } else {
@@ -311,6 +327,49 @@ export function trimClip(p: Project, clipId: string, edge: 'start' | 'end', time
         if (!isMain) c.start = round(Math.max(0, c.start + realDelta));
       }
     }
+  });
+}
+
+/** Сдвиг внутренних времён текста (ключи, слова) — при обрезке слева и разрезании. */
+function shiftText(c: TextClip, delta: number): void {
+  if (c.keyframes) {
+    const k: Keyframes = {};
+    for (const [prop, list] of Object.entries(c.keyframes) as [AnimProp, Keyframes[AnimProp]][]) {
+      if (list) k[prop] = list.map((x) => ({ ...x, t: round(x.t + delta) }));
+    }
+    c.keyframes = k;
+  }
+  if (c.words) c.words = c.words.map((w) => ({ ...w, start: round(w.start + delta), end: round(w.end + delta) }));
+}
+
+// ---------- ключевые кадры ----------
+/** Поставить ключ свойства (t — время ключа: исходника для видео, от начала клипа для текста). */
+export function setKeyframe(p: Project, clipId: string, prop: AnimProp, t: number, v: number, eps = 1 / 120): Project {
+  return edit(p, (d) => {
+    const f = findClip(d, clipId);
+    if (!f) return;
+    const c = f.clip;
+    c.keyframes = { ...c.keyframes, [prop]: putKeyframe(c.keyframes?.[prop], t, v, eps) };
+  });
+}
+export function removeKeyframe(p: Project, clipId: string, prop: AnimProp, t: number, eps = 1 / 120): Project {
+  return edit(p, (d) => {
+    const f = findClip(d, clipId);
+    if (!f || !f.clip.keyframes) return;
+    const list = dropKeyframe(f.clip.keyframes[prop], t, eps);
+    const k = { ...f.clip.keyframes, [prop]: list };
+    if (!list.length) delete k[prop];
+    f.clip.keyframes = Object.keys(k).length ? k : undefined;
+  });
+}
+export function clearKeyframes(p: Project, clipId: string, props?: AnimProp[]): Project {
+  return edit(p, (d) => {
+    const f = findClip(d, clipId);
+    if (!f || !f.clip.keyframes) return;
+    if (!props) { f.clip.keyframes = undefined; return; }
+    const k = { ...f.clip.keyframes };
+    for (const pr of props) delete k[pr];
+    f.clip.keyframes = Object.keys(k).length ? k : undefined;
   });
 }
 
@@ -452,7 +511,7 @@ export function keepSourceRanges(p: Project, clipId: string, ranges: [number, nu
   });
 }
 
-export interface Cue { start: number; end: number; text: string }
+export interface Cue { start: number; end: number; text: string; words?: { text: string; start: number; end: number }[] }
 
 /** Создать (или заменить) дорожку субтитров. */
 export function setCaptions(p: Project, cues: Cue[], style: TextStyle, y = 0.72): Project {
@@ -463,10 +522,20 @@ export function setCaptions(p: Project, cues: Cue[], style: TextStyle, y = 0.72)
     for (const q of cues) {
       const c = newTextClip(round(q.start), q.text, style, 'caption');
       c.duration = round(Math.max(MIN_CLIP, q.end - q.start));
+      if (q.words?.length) c.words = q.words.map((w) => ({ text: w.text, start: round(Math.max(0, w.start - c.start)), end: round(Math.max(0, w.end - c.start)) }));
       c.y = y;
       t.clips.push(c);
     }
     insertTrack(d, t);
+  });
+}
+
+/** Анимация появления для всех субтитров. */
+export function animAllCaptions(p: Project, a: import('./types').TextAnim | undefined): Project {
+  return edit(p, (d) => {
+    for (const t of d.tracks) for (const c of t.clips) {
+      if (c.type === 'text' && c.role === 'caption') c.anim = { ...c.anim, in: a ? { ...a, dur: Math.min(a.dur, c.duration * 0.5) } : undefined };
+    }
   });
 }
 

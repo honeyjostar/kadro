@@ -1,7 +1,8 @@
 // Из токенов распознавания (с таймкодами) — слова, из слов — строки субтитров.
 import type { Cue } from './timeline';
 
-export interface Word { text: string; start: number; end: number }
+import type { Word } from './types';
+export type { Word };
 
 /**
  * tokens/timestamps — как отдаёт sherpa-onnx (символы GigaAM или BPE-кусочки Parakeet,
@@ -100,7 +101,7 @@ export function wordsToCues(words: Word[], o: CueOptions = CUE_DEFAULTS): Cue[] 
   }
   if (buf.length) phrases.push(buf);
   // 2) длинные фразы — на ровные куски
-  const cues: Cue[] = phrases.flatMap((ph) => splitBalanced(ph, o)).map((g) => ({ start: g[0].start, end: g[g.length - 1].end, text: textOf(g) }));
+  const cues: Cue[] = phrases.flatMap((ph) => splitBalanced(ph, o)).map((g) => ({ start: g[0].start, end: g[g.length - 1].end, text: textOf(g), words: g.map((w) => ({ ...w })) }));
   // небольшой «хвост», чтобы субтитр не исчезал раньше голоса, но без наложения на следующий
   for (const c of cues) c.start = Math.max(0, c.start - 0.05);
   for (let i = 0; i < cues.length; i++) {
@@ -133,4 +134,25 @@ export function speechToKeepRanges(
     else out.push([...r] as [number, number]);
   }
   return out;
+}
+
+/**
+ * Тексту субтитра — слова со временем. Если число слов не изменилось — сохраняем тайминги,
+ * иначе распределяем время по длине слов в тех же границах.
+ */
+export function retimeWords(text: string, old: Word[] | undefined): Word[] | undefined {
+  if (!old?.length) return old;
+  const toks = text.split(/\s+/).filter(Boolean);
+  if (!toks.length) return [];
+  if (toks.length === old.length) return old.map((w, i) => ({ ...w, text: toks[i] }));
+  const a = old[0].start;
+  const b = old[old.length - 1].end;
+  const total = toks.reduce((n, t) => n + t.length + 1, 0);
+  let pos = a;
+  return toks.map((t) => {
+    const d = ((t.length + 1) / total) * (b - a);
+    const w = { text: t, start: Math.round(pos * 1e6) / 1e6, end: Math.round((pos + d) * 1e6) / 1e6 };
+    pos += d;
+    return w;
+  });
 }

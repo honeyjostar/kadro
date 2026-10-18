@@ -1,5 +1,6 @@
 // Построение графа FFmpeg для экспорта проекта. Чистая функция — тестируется без Electron.
 import { aiSource } from './ai';
+import { hasAnim, kfExpr, maxScale, valueAt } from './anim';
 import { effectiveColor, ffmpegColorFilter } from './color';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geometry';
 import { clipDuration, mainTrack, projectDuration } from './timeline';
@@ -54,6 +55,10 @@ interface Group {
 }
 
 function sameLook(a: MediaClip, b: MediaClip): boolean {
+  // анимация привязана ко времени клипа — такие куски не склеиваем в одну группу
+  if (hasAnim(a.keyframes) || hasAnim(b.keyframes)) return false;
+  const extra = (c: MediaClip) => JSON.stringify([c.opacity ?? 1, c.mask ?? null, c.blend ?? 'normal', c.chroma ?? null, c.stab?.path ?? '', c.voice?.path ?? '']);
+  if (extra(a) !== extra(b)) return false;
   return a.assetId === b.assetId && a.speed === b.speed && a.fit === b.fit &&
     JSON.stringify(a.transform) === JSON.stringify(b.transform) &&
     JSON.stringify(a.color) === JSON.stringify(b.color) &&
@@ -102,28 +107,90 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
 
   const assetOf = (c: MediaClip) => p.assets.find((a) => a.id === c.assetId) as MediaAsset;
 
-  /** Видеопоток клипа/группы: возвращает метку потока RGBA с картинкой, уже отмасштабированной под холст. */
+  /** Видеопоток клипа/группы: возвращает метку потока RGBA, уже размещённого на холсте (или картинку и место для overlay). */
   function visualChain(src: string, c: MediaClip, asset: MediaAsset, withAlpha: boolean): { label: string; x: number; y: number } {
+    void withAlpha;
     const o2 = orientedSize(asset.width, asset.height, 0);
-    const pl = placeOnCanvas(W, H, o2.w, o2.h, c.fit, c.transform);
-    const sw = Math.max(1, Math.round(pl.w));
-    const sh = Math.max(1, Math.round(pl.h));
     const parts: string[] = ['format=rgba'];
     const col = ffmpegColorFilter(effectiveColor(c.color));
     if (col) parts.push(col);
-    parts.push(`scale=${sw}:${sh}:flags=bicubic`);
-    let ow = sw;
-    let oh = sh;
-    if (Math.abs(c.transform.rotation) > 0.01) {
-      const r = (c.transform.rotation * Math.PI) / 180;
-      ow = Math.ceil(Math.abs(sw * Math.cos(r)) + Math.abs(sh * Math.sin(r)));
-      oh = Math.ceil(Math.abs(sw * Math.sin(r)) + Math.abs(sh * Math.cos(r)));
-      parts.push(`rotate=a=${fmt(r)}:c=none:ow=${ow}:oh=${oh}`);
-    }
-    void withAlpha;
     const label = L('fg');
+    const D = clipDuration(c);
+    const opKfs = c.keyframes?.opacity;
+    const opacityPart = () => {
+      if (opKfs?.length) {
+        // прозрачность меняется во времени: команды фильтру на каждый кадр анимации
+        const name = `colorchannelmixer@op${labelN++}`;
+        const cmds: string[] = [];
+        let prev = NaN;
+        const n = Math.ceil(D * F);
+        for (let i = 0; i < n; i++) {
+          const v = Math.min(1, Math.max(0, valueAt(opKfs, c.opacity ?? 1, c.in + (i / F) * c.speed)));
+          if (Math.abs(v - prev) < 0.002) continue;
+          prev = v;
+          cmds.push(`${fmt(i === 0 ? 0 : (i - 0.5) / F)} ${name} aa ${fmt(v)}`);
+        }
+        parts.push(`sendcmd=c='${cmds.join(';')}'`, `${name}=aa=1`);
+      } else if ((c.opacity ?? 1) < 0.999) {
+        parts.push(`colorchannelmixer=aa=${fmt(c.opacity ?? 1)}`);
+      }
+    };
+
+    const moving = (['x', 'y', 'scale', 'rotation'] as const).some((pr) => (c.keyframes?.[pr]?.length ?? 0) > 0);
+    if (!moving) {
+      const pl = placeOnCanvas(W, H, o2.w, o2.h, c.fit, c.transform);
+      const sw = Math.max(1, Math.round(pl.w));
+      const sh = Math.max(1, Math.round(pl.h));
+      parts.push(`scale=${sw}:${sh}:flags=bicubic`);
+      let ow = sw;
+      let oh = sh;
+      if (Math.abs(c.transform.rotation) > 0.01) {
+        const r = (c.transform.rotation * Math.PI) / 180;
+        ow = Math.ceil(Math.abs(sw * Math.cos(r)) + Math.abs(sh * Math.sin(r)));
+        oh = Math.ceil(Math.abs(sw * Math.sin(r)) + Math.abs(sh * Math.cos(r)));
+        parts.push(`rotate=a=${fmt(r)}:c=none:ow=${ow}:oh=${oh}`);
+      }
+      opacityPart();
+      chains.push(`[${src}]${parts.join(',')}[${label}]`);
+      return { label, x: Math.round(pl.cx - ow / 2), y: Math.round(pl.cy - oh / 2) };
+    }
+
+    // ---- ключевые кадры: слой в наибольшем масштабе, дальше — перспектива по кадрам ----
+    const k = c.keyframes!;
+    const pl1 = placeOnCanvas(W, H, o2.w, o2.h, c.fit, { x: 0, y: 0, rotation: 0, scale: 1 });
+    const sm = Math.min(maxScale(c), (3 * Math.max(W, H)) / Math.max(1, pl1.w, pl1.h)); // не раздуваем слой больше 3 холстов
+    const plM = placeOnCanvas(W, H, o2.w, o2.h, c.fit, { x: 0, y: 0, rotation: 0, scale: sm });
+    const wm = Math.max(2, Math.round(plM.w));
+    const hm = Math.max(2, Math.round(plM.h));
+    const m = 2;
+    const PW = Math.max(W, wm + 2 * m);
+    const PH = Math.max(H, hm + 2 * m);
+    const T = `((in-1)/${F})`; // in у perspective считается с единицы
+    const loc = (t: number) => (t - c.in) / c.speed; // время ключа → время от начала клипа
+    const ex = (prop: 'x' | 'y' | 'scale' | 'rotation', base: number) => kfExpr(k[prop], base, T, loc);
+    const kk = `((${ex('scale', c.transform.scale)})/${fmt(sm)})`;
+    const X = `(${fmt(W / 2)}+(${ex('x', c.transform.x)})*${W})`;
+    const Y = `(${fmt(H / 2)}+(${ex('y', c.transform.y)})*${H})`;
+    const R = `((${ex('rotation', c.transform.rotation)})*PI/180)`;
+    const corner = (u: number, v: number) => {
+      const du = `(${fmt(u - m - wm / 2)}*${kk})`;
+      const dv = `(${fmt(v - m - hm / 2)}*${kk})`;
+      return [`${X}+${du}*cos(${R})-${dv}*sin(${R})`, `${Y}+${du}*sin(${R})+${dv}*cos(${R})`];
+    };
+    const [x0, y0] = corner(0, 0);
+    const [x1, y1] = corner(PW, 0);
+    const [x2, y2] = corner(0, PH);
+    const [x3, y3] = corner(PW, PH);
+    parts.push(
+      `scale=${wm}:${hm}:flags=bicubic`,
+      `pad=${wm + 2 * m}:${hm + 2 * m}:${m}:${m}:color=black@0`,
+      `pad=${PW}:${PH}:0:0:color=black@0`,
+      `perspective=sense=destination:eval=frame:interpolation=linear:x0='${x0}':y0='${y0}':x1='${x1}':y1='${y1}':x2='${x2}':y2='${y2}':x3='${x3}':y3='${y3}'`,
+      `crop=${W}:${H}:0:0`,
+    );
+    opacityPart();
     chains.push(`[${src}]${parts.join(',')}[${label}]`);
-    return { label, x: Math.round(pl.cx - ow / 2), y: Math.round(pl.cy - oh / 2) };
+    return { label, x: 0, y: 0 };
   }
 
   // ---------- основная дорожка ----------

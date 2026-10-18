@@ -2,7 +2,9 @@ import { Maximize2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-re
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
 import { placeOnCanvas } from '../../shared/geometry';
+import { mediaPropsAt } from '../../shared/anim';
 import { textBounds } from '../../shared/textRender';
+import { propValue, writeProps } from '../animEdit';
 import { activeClipsAt, projectDuration, setSettings, updateClip } from '../../shared/timeline';
 import type { AspectKey, Clip, MediaClip, Project, TextClip } from '../../shared/types';
 import { pickAndImport } from '../actions';
@@ -14,15 +16,16 @@ interface Box { id: string; cx: number; cy: number; w: number; h: number; rot: n
 
 const measure = document.createElement('canvas').getContext('2d')!;
 
-/** Рамка клипа в координатах окна просмотра (без учёта поворота для текста). */
-function boxOf(p: Project, c: Clip, W: number, H: number): Box | null {
+/** Рамка клипа в координатах окна просмотра в момент t (с учётом анимации). */
+function boxOf(p: Project, c: Clip, W: number, H: number, t: number): Box | null {
   if (c.type === 'text') {
-    const b = textBounds(measure, c, W, H);
-    return { id: c.id, cx: b.x + b.w / 2, cy: b.y + b.h / 2, w: b.w, h: b.h, rot: 0, kind: 'text' };
+    const b = textBounds(measure, c, W, H, t - c.start);
+    return { id: c.id, cx: b.cx, cy: b.cy, w: b.w, h: b.h, rot: b.rotation, kind: 'text' };
   }
   const a = p.assets.find((x) => x.id === c.assetId);
   if (!a || a.kind === 'audio') return null;
-  const pl = placeOnCanvas(W, H, a.width, a.height, c.fit, c.transform);
+  const mp = mediaPropsAt(c, t);
+  const pl = placeOnCanvas(W, H, a.width, a.height, c.fit, { x: mp.x, y: mp.y, scale: mp.scale, rotation: mp.rotation });
   return { id: c.id, cx: pl.cx, cy: pl.cy, w: pl.w, h: pl.h, rot: pl.rotation, kind: 'media' };
 }
 
@@ -103,7 +106,7 @@ export function Player() {
     if (selection.length !== 1 || !dispW) return null;
     const act = activeClipsAt(project, playhead).find((x) => x.clip.id === selection[0]);
     if (!act || act.track.kind === 'audio') return null;
-    return boxOf(project, act.clip, dispW, dispH);
+    return boxOf(project, act.clip, dispW, dispH, playhead);
   }, [project, playhead, selection, dispW, dispH, fontsTick]);
 
   const selectAt = (x: number, y: number) => {
@@ -112,7 +115,7 @@ export function Player() {
     const ordered = [...act].filter((a) => a.track.kind !== 'audio' && !a.track.hidden)
       .sort((a, b) => p.tracks.indexOf(b.track) - p.tracks.indexOf(a.track));
     for (const a of ordered) {
-      const b = boxOf(p, a.clip, dispW, dispH);
+      const b = boxOf(p, a.clip, dispW, dispH, getState().playhead);
       if (b && inside(b, x, y)) { getState().select([a.clip.id]); return a.clip; }
     }
     getState().select([]);
@@ -129,7 +132,8 @@ export function Player() {
     e.preventDefault();
     getState().setPlaying(false);
     const rect = wrapRef.current!.getBoundingClientRect();
-    const b0 = boxOf(p0, f, dispW, dispH);
+    const ph = getState().playhead;
+    const b0 = boxOf(p0, f, dispW, dispH, ph);
     if (!b0) return;
     const x0 = e.clientX - rect.left;
     const y0 = e.clientY - rect.top;
@@ -143,38 +147,31 @@ export function Player() {
       if (!moved && Math.hypot(x - x0, y - y0) < 2) return;
       moved = true;
       if (mode === 'move') {
-        let dx = (x - x0) / dispW;
-        let dy = (y - y0) / dispH;
-        let cx = (b0.cx / dispW) + dx;
-        let cy = (b0.cy / dispH) + dy;
+        let cx = (b0.cx + (x - x0)) / dispW;
+        let cy = (b0.cy + (y - y0)) / dispH;
         const snapV = Math.abs(cx - 0.5) < 0.012;
         const snapH = Math.abs(cy - 0.5) < 0.012;
-        if (snapV) { dx += 0.5 - cx; cx = 0.5; }
-        if (snapH) { dy += 0.5 - cy; cy = 0.5; }
+        if (snapV) cx = 0.5;
+        if (snapH) cy = 0.5;
         setGuides({ v: snapV, h: snapH });
-        if (f.type === 'text') {
-          getState().commit((p) => updateClip(p, id, { x: cx, y: cy } as Partial<TextClip>), key);
-        } else {
-          const t = (f as MediaClip).transform;
-          getState().commit((p) => updateClip(p, id, { transform: { ...t, x: t.x + dx, y: t.y + dy } } as Partial<MediaClip>), key);
-        }
+        // у текста x, y — центр в долях холста, у видео — смещение центра от середины
+        const vals = f.type === 'text' ? { x: cx, y: cy } : { x: cx - 0.5, y: cy - 0.5 };
+        getState().commit((p) => writeProps(p, f, vals, ph), key);
       } else if (mode === 'scale') {
         const r = Math.hypot(x - b0.cx, y - b0.cy) / d0;
-        if (f.type === 'text') {
+        if (f.type === 'text' && !(f.keyframes?.scale?.length)) {
           const size = Math.round(Math.min(400, Math.max(8, f.style.size * r)));
           getState().commit((p) => updateClip(p, id, { style: { ...f.style, size } } as Partial<TextClip>), key);
         } else {
-          const t = (f as MediaClip).transform;
-          const scale = Math.min(10, Math.max(0.05, t.scale * r));
-          getState().commit((p) => updateClip(p, id, { transform: { ...t, scale: Math.round(scale * 1000) / 1000 } } as Partial<MediaClip>), key);
+          const scale = Math.min(10, Math.max(0.05, propValue(f, 'scale', ph) * r));
+          getState().commit((p) => writeProps(p, f, { scale: Math.round(scale * 1000) / 1000 }, ph), key);
         }
-      } else if (mode === 'rotate' && f.type === 'media') {
-        const t = f.transform;
-        let deg = t.rotation + ((Math.atan2(y - b0.cy, x - b0.cx) - a0) * 180) / Math.PI;
+      } else if (mode === 'rotate') {
+        let deg = propValue(f, 'rotation', ph) + ((Math.atan2(y - b0.cy, x - b0.cx) - a0) * 180) / Math.PI;
         deg = ((deg + 540) % 360) - 180;
         const near = Math.round(deg / 90) * 90;
         if (Math.abs(deg - near) < 4) deg = near;
-        getState().commit((p) => updateClip(p, id, { transform: { ...t, rotation: Math.round(deg * 10) / 10 } } as Partial<MediaClip>), key);
+        getState().commit((p) => writeProps(p, f, { rotation: Math.round(deg * 10) / 10 }, ph), key);
       }
     };
     const up = () => {
@@ -212,7 +209,7 @@ export function Player() {
               {(['nw', 'ne', 'sw', 'se'] as const).map((c) => (
                 <div key={c} className={`sel-handle ${c}`} onPointerDown={(e) => startDrag(e, 'scale')} title="Тяни, чтобы изменить размер" />
               ))}
-              {box.kind === 'media' && <div className="sel-rotate" onPointerDown={(e) => startDrag(e, 'rotate')} title="Тяни, чтобы повернуть" />}
+              <div className="sel-rotate" onPointerDown={(e) => startDrag(e, 'rotate')} title="Тяни, чтобы повернуть" />
             </div>
           )}
           {empty && (

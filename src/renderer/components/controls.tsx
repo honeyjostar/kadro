@@ -2,14 +2,14 @@ import { useState, type ReactNode } from 'react';
 
 export function Slider(props: {
   label: string; value: number; min: number; max: number; step?: number;
-  format?: (v: number) => string; onChange: (v: number) => void; onReset?: () => void; testId?: string;
+  format?: (v: number) => string; onChange: (v: number) => void; onReset?: () => void; testId?: string; extra?: ReactNode;
 }) {
-  const { label, value, min, max, step = 0.01, format, onChange, onReset, testId } = props;
+  const { label, value, min, max, step = 0.01, format, onChange, onReset, testId, extra } = props;
   return (
     <div className="field">
       <div className="field-row">
         <label onDoubleClick={onReset} title={onReset ? 'Двойной клик — сбросить' : undefined}>{label}</label>
-        <span className="value">{format ? format(value) : value.toFixed(2)}</span>
+        <span className="value-wrap"><span className="value">{format ? format(value) : value.toFixed(2)}</span>{extra}</span>
       </div>
       <input
         className="slider" type="range" min={min} max={max} step={step} value={value} data-testid={testId}
@@ -69,4 +69,14 @@ export function Progress({ value }: { value: number }) {
 export function useLocal<T>(initial: T): [T, (v: T) => void] {
   const [v, set] = useState(initial);
   return [v, set];
+}
+
+/** Ромбик ключевого кадра: пустой — свойство не анимировано, контур — анимировано, залитый — ключ в этом моменте. */
+export function KeyButton({ state, onClick, testId }: { state: 'none' | 'animated' | 'here'; onClick: () => void; testId?: string }) {
+  const title = state === 'here' ? 'Убрать ключ в этом моменте' : 'Поставить ключ — свойство начнёт меняться во времени';
+  return (
+    <button className={`key-btn ${state}`} onClick={onClick} title={title} data-testid={testId} aria-label={title}>
+      <svg viewBox="0 0 12 12" aria-hidden><path d="M6 1 11 6 6 11 1 6Z" /></svg>
+    </button>
+  );
 }

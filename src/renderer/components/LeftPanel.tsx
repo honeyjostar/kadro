@@ -4,19 +4,20 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FILTER_PRESETS, effectiveColor, svgFilterMarkup } from '../../shared/color';
-import { DEFAULT_COLOR, FONTS, TEXT_PRESETS, TRANSITIONS } from '../../shared/defaults';
+import { DEFAULT_COLOR, FONTS, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS, TRANSITIONS } from '../../shared/defaults';
+import { retimeWords } from '../../shared/captions';
 import type { ModelInfo } from '../../shared/ipc';
 import {
-  addText, findClip, mainTrack, removeAsset, setTransition, styleAllCaptions, updateClip,
+  addText, animAllCaptions, findClip, mainTrack, removeAsset, setTransition, styleAllCaptions, updateClip,
 } from '../../shared/timeline';
-import type { MediaAsset, MediaClip, TextClip, TextStyle, TransitionType } from '../../shared/types';
+import type { MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
 import {
   addAssetToTimeline, disableDenoise, disableRemoveBg, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
 } from '../actions';
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore, type LeftTab } from '../store';
 import { fmtDur, fmtTime, peakLevel } from '../util';
-import { Progress, Seg, Slider, Toggle } from './controls';
+import { ColorField, Progress, Seg, Slider, Toggle } from './controls';
 import { aiCovers } from '../../shared/ai';
 
 const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
@@ -321,6 +322,25 @@ function CaptionsPanel() {
               onChange={(v) => commit((p) => styleAllCaptions(p, {}, v), 'capy')}
               onReset={() => commit((p) => styleAllCaptions(p, {}, vertical ? 0.72 : 0.86))} />
             <Toggle label="Заглавными буквами" on={first.style.uppercase} onChange={(v) => commit((p) => styleAllCaptions(p, { uppercase: v }))} />
+            <div className="field">
+              <div className="field-row"><label>Подсветка произносимого слова</label></div>
+              <select className="input" value={first.style.highlight?.mode ?? 'none'} data-testid="cap-highlight"
+                onChange={(e) => commit((p) => styleAllCaptions(p, { highlight: { color: first.style.highlight?.color ?? '#ffe14d', mode: e.target.value as WordHighlight['mode'] } }))}>
+                {HIGHLIGHTS.map((h) => <option key={h.mode} value={h.mode}>{h.label}</option>)}
+              </select>
+            </div>
+            {first.style.highlight && first.style.highlight.mode !== 'none' && (
+              <ColorField label="Цвет подсветки" value={first.style.highlight.color}
+                onChange={(v) => commit((p) => styleAllCaptions(p, { highlight: { ...first.style.highlight!, color: v } }), 'hlc')} />
+            )}
+            <div className="field">
+              <div className="field-row"><label>Появление каждого субтитра</label></div>
+              <select className="input" value={first.anim?.in?.type ?? 'none'} data-testid="cap-anim"
+                onChange={(e) => commit((p) => animAllCaptions(p, e.target.value === 'none' ? undefined : { type: e.target.value as TextAnimType, dur: 0.2 }))}>
+                <option value="none">Нет</option>
+                {TEXT_ANIMS.map((a) => <option key={a.type} value={a.type}>{a.in}</option>)}
+              </select>
+            </div>
 
             <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Текст ({captions.length})</span>
@@ -334,7 +354,7 @@ function CaptionsPanel() {
                   <textarea
                     className="cue-text" rows={1} value={c.text} data-testid="cue-text"
                     onFocus={() => { getState().select([c.id]); getState().setPlaying(false); getState().setPlayhead(c.start + 0.01); }}
-                    onChange={(e) => commit((p) => updateClip(p, c.id, { text: e.target.value }), `cue-${c.id}`)}
+                    onChange={(e) => commit((p) => updateClip(p, c.id, { text: e.target.value, words: retimeWords(e.target.value, c.words) }), `cue-${c.id}`)}
                   />
                 </div>
               ))}

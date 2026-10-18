@@ -63,7 +63,7 @@ export function ExportDialog() {
     started.current = Date.now();
     try {
       setStage('Готовлю текст');
-      const { layers, blank } = await renderTextLayers(project, size.w, size.h);
+      const { layers, blank } = await renderTextLayers(project, size.w, size.h, opts.fps, (p) => setProgress(p * 0.05));
       setStage('Сохраняю видео');
       const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: layers, blankPng: blank });
       setResult(r);

@@ -1,13 +1,15 @@
-import { AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, Italic, RotateCcw } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
-import { ASPECTS, DEFAULT_COLOR, DEFAULT_TRANSFORM, FONTS, TEXT_PRESETS } from '../../shared/defaults';
-import { clipDuration, projectDuration, setSettings, styleAllCaptions, updateClip } from '../../shared/timeline';
-import type { AspectKey, MediaAsset, MediaClip, ProjectSettings, TextClip, TextStyle } from '../../shared/types';
+import { ASPECTS, DEFAULT_COLOR, DEFAULT_TRANSFORM, FONTS, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
+import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, styleAllCaptions, updateClip } from '../../shared/timeline';
+import type { AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
+import { retimeWords } from '../../shared/captions';
+import { hasKeyHere, isAnimated, keyTimesOnTimeline, propValue, toggleKey, writeProps } from '../animEdit';
 import { useSelected } from '../hooks';
 import { getState, useStore } from '../store';
 import { fmtDur } from '../util';
-import { ColorField, Field, Seg, Slider, Toggle } from './controls';
+import { ColorField, Field, KeyButton, Seg, Slider, Toggle } from './controls';
 import { AiTools, textPreviewStyle } from './LeftPanel';
 
 export function Inspector() {
@@ -107,7 +109,6 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   useEffect(() => { lastMediaTab = tab; }, [tab]);
   const cur = tabs.some((t) => t.id === tab) ? tab : tabs[0].id;
   const up = (patch: Partial<MediaClip>, key: string) => commit((p) => updateClip(p, clip.id, patch), `${key}-${clip.id}`);
-  const t = clip.transform;
   const c = clip.color;
   const dur = clipDuration(clip);
   return (
@@ -120,20 +121,13 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
             <Field label="Вписать в кадр">
               <Seg value={clip.fit} onChange={(v) => up({ fit: v }, 'fit')} options={[{ value: 'contain', label: 'Целиком' }, { value: 'cover', label: 'Заполнить' }]} />
             </Field>
-            <Slider label="Масштаб" min={0.1} max={3} step={0.01} value={t.scale} format={pct} testId="scale"
-              onChange={(v) => up({ transform: { ...t, scale: v } }, 'scale')} onReset={() => up({ transform: { ...t, scale: 1 } }, 'scale')} />
-            <Slider label="Сдвиг по горизонтали" min={-1} max={1} step={0.005} value={t.x} format={signedPct}
-              onChange={(v) => up({ transform: { ...t, x: v } }, 'tx')} onReset={() => up({ transform: { ...t, x: 0 } }, 'tx')} />
-            <Slider label="Сдвиг по вертикали" min={-1} max={1} step={0.005} value={t.y} format={signedPct}
-              onChange={(v) => up({ transform: { ...t, y: v } }, 'ty')} onReset={() => up({ transform: { ...t, y: 0 } }, 'ty')} />
-            <Slider label="Поворот" min={-180} max={180} step={1} value={t.rotation} format={(v) => `${Math.round(v)}°`}
-              onChange={(v) => up({ transform: { ...t, rotation: v } }, 'rot')} onReset={() => up({ transform: { ...t, rotation: 0 } }, 'rot')} />
+            <AnimFields clip={clip} defs={MEDIA_ANIM} />
             {isImage && (
               <Slider label="Длительность" min={0.5} max={30} step={0.1} value={dur} format={(v) => `${v.toFixed(1)} с`}
                 onChange={(v) => up({ out: clip.in + v * clip.speed }, 'idur')} />
             )}
-            <button className="btn block" onClick={() => up({ transform: { ...DEFAULT_TRANSFORM, scale: trackKind === 'main' ? 1 : 0.6 } }, 'reset')}>
-              <RotateCcw size={14} />Сбросить положение
+            <button className="btn block" onClick={() => commit((p) => clearKeyframes(updateClip(p, clip.id, { transform: { ...DEFAULT_TRANSFORM, scale: trackKind === 'main' ? 1 : 0.6 }, opacity: 1 }), clip.id), `reset-${clip.id}`)}>
+              <RotateCcw size={14} />Сбросить положение и анимацию
             </button>
           </>
         )}
@@ -189,11 +183,102 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   );
 }
 let lastMediaTab: MTab | null = null;
+let lastTextTab: 'text' | 'style' | 'anim' = 'text';
+
+function AnimPick({ label, kind, clip }: { label: string; kind: 'in' | 'out'; clip: TextClip }) {
+  const commit = useStore((s) => s.commit);
+  const cur = clip.anim?.[kind];
+  const set = (a: TextAnim | undefined) => commit((p) => updateClip(p, clip.id, { anim: { ...clip.anim, [kind]: a } }), `anim${kind}-${clip.id}`);
+  const maxDur = Math.max(0.2, Math.min(3, clip.duration * 0.9));
+  return (
+    <>
+      <Field label={label}>
+        <select className="input" value={cur?.type ?? 'none'} data-testid={`anim-${kind}`}
+          onChange={(e) => set(e.target.value === 'none' ? undefined : { type: e.target.value as TextAnimType, dur: cur?.dur ?? Math.min(0.5, maxDur) })}>
+          <option value="none">Нет</option>
+          {TEXT_ANIMS.map((a) => <option key={a.type} value={a.type}>{kind === 'in' ? a.in : a.out}</option>)}
+        </select>
+      </Field>
+      {cur && (
+        <Slider label="Длительность" min={0.1} max={maxDur} step={0.05} value={Math.min(cur.dur, maxDur)} format={(v) => `${v.toFixed(2)} с`}
+          onChange={(v) => set({ ...cur, dur: v })} />
+      )}
+    </>
+  );
+}
+
+function HighlightPick({ clip }: { clip: TextClip }) {
+  const commit = useStore((s) => s.commit);
+  const hl = clip.style.highlight ?? { mode: 'none', color: '#ffe14d' };
+  const setAll = (h: WordHighlight) => commit((p) => styleAllCaptions(p, { highlight: h }), 'hl');
+  return (
+    <>
+      <Field label="Подсветка слова (для всех субтитров)">
+        <select className="input" value={hl.mode} onChange={(e) => setAll({ ...hl, mode: e.target.value as WordHighlight['mode'] })} data-testid="highlight-mode">
+          {HIGHLIGHTS.map((h) => <option key={h.mode} value={h.mode}>{h.label}</option>)}
+        </select>
+      </Field>
+      {hl.mode !== 'none' && <ColorField label="Цвет подсветки" value={hl.color} onChange={(v) => setAll({ ...hl, color: v })} />}
+      {!clip.words?.length && <p className="hint small">У этого субтитра нет разметки слов — пересоздай субтитры, чтобы подсветка заработала.</p>}
+    </>
+  );
+}
+
+// ---------- анимируемые свойства (ключевые кадры) ----------
+interface AnimDef { prop: AnimProp; label: string; min: number; max: number; step: number; format: (v: number) => string; reset: number }
+const deg = (v: number) => `${Math.round(v)}°`;
+const MEDIA_ANIM: AnimDef[] = [
+  { prop: 'scale', label: 'Масштаб', min: 0.1, max: 3, step: 0.01, format: pct, reset: 1 },
+  { prop: 'x', label: 'Сдвиг по горизонтали', min: -1, max: 1, step: 0.005, format: signedPct, reset: 0 },
+  { prop: 'y', label: 'Сдвиг по вертикали', min: -1, max: 1, step: 0.005, format: signedPct, reset: 0 },
+  { prop: 'rotation', label: 'Поворот', min: -180, max: 180, step: 1, format: deg, reset: 0 },
+  { prop: 'opacity', label: 'Непрозрачность', min: 0, max: 1, step: 0.01, format: pct, reset: 1 },
+];
+const TEXT_ANIM: AnimDef[] = [
+  { prop: 'x', label: 'По горизонтали', min: 0, max: 1, step: 0.005, format: pct, reset: 0.5 },
+  { prop: 'y', label: 'По вертикали', min: 0, max: 1, step: 0.005, format: pct, reset: 0.5 },
+  { prop: 'scale', label: 'Масштаб', min: 0.2, max: 4, step: 0.01, format: pct, reset: 1 },
+  { prop: 'rotation', label: 'Поворот', min: -180, max: 180, step: 1, format: deg, reset: 0 },
+  { prop: 'opacity', label: 'Непрозрачность', min: 0, max: 1, step: 0.01, format: pct, reset: 1 },
+];
+
+function AnimFields({ clip, defs }: { clip: Clip; defs: AnimDef[] }) {
+  const playhead = useStore((s) => s.playhead);
+  const commit = useStore((s) => s.commit);
+  const times = keyTimesOnTimeline(clip);
+  const animated = times.length > 0;
+  const prev = [...times].reverse().find((t) => t < playhead - 1e-3);
+  const next = times.find((t) => t > playhead + 1e-3);
+  const inClip = playhead >= clip.start - 1e-6 && playhead <= clipEnd(clip) + 1e-6;
+  const go = (t: number) => { getState().setPlaying(false); getState().setPlayhead(t); };
+  return (
+    <>
+      <div className="key-nav">
+        <button className="icon-btn" style={{ width: 24, height: 24 }} disabled={prev === undefined} onClick={() => go(prev!)} title="К предыдущему ключу"><ChevronLeft size={15} /></button>
+        <span className="grow">{animated ? `Ключей: ${times.length}` : 'Ромбик — анимация во времени'}</span>
+        <button className="icon-btn" style={{ width: 24, height: 24 }} disabled={next === undefined} onClick={() => go(next!)} title="К следующему ключу"><ChevronRight size={15} /></button>
+        {animated && <button className="btn ghost small" onClick={() => commit((p) => clearKeyframes(p, clip.id))} title="Убрать все ключи клипа">Убрать</button>}
+      </div>
+      {!inClip && animated && <p className="hint small">Поставь курсор на клип, чтобы менять ключи.</p>}
+      {defs.map((d) => {
+        const st = hasKeyHere(clip, d.prop, playhead) ? 'here' : isAnimated(clip, d.prop) ? 'animated' : 'none';
+        return (
+          <Slider key={d.prop} label={d.label} min={d.min} max={d.max} step={d.step} value={propValue(clip, d.prop, playhead)} format={d.format}
+            testId={`anim-${d.prop}`}
+            extra={<KeyButton state={st} testId={`key-${d.prop}`} onClick={() => { if (inClip) commit((p) => toggleKey(p, clip, d.prop, playhead)); else getState().toast('Поставь курсор на клип'); }} />}
+            onChange={(v) => commit((p) => writeProps(p, clip, { [d.prop]: v }, playhead), `anim-${d.prop}-${clip.id}`)}
+            onReset={() => commit((p) => writeProps(p, clip, { [d.prop]: d.reset }, playhead), `anim-${d.prop}-${clip.id}`)} />
+        );
+      })}
+    </>
+  );
+}
 
 // ---------- текст и субтитры ----------
 function TextInspector({ clip }: { clip: TextClip }) {
   const commit = useStore((s) => s.commit);
-  const [tab, setTab] = useState<'text' | 'style'>('text');
+  const [tab, setTab] = useState<'text' | 'style' | 'anim'>(() => lastTextTab);
+  useEffect(() => { lastTextTab = tab; }, [tab]);
   const area = useRef<HTMLTextAreaElement>(null);
   const s = clip.style;
   const up = (patch: Partial<TextClip>, key: string) => commit((p) => updateClip(p, clip.id, patch), `${key}-${clip.id}`);
@@ -207,12 +292,12 @@ function TextInspector({ clip }: { clip: TextClip }) {
   return (
     <>
       <div className="panel-head">{isCaption ? 'Субтитр' : 'Текст'}</div>
-      <Tabs value={tab} tabs={[{ id: 'text', label: 'Текст' }, { id: 'style', label: 'Оформление' }]} onChange={setTab} />
+      <Tabs value={tab} tabs={[{ id: 'text', label: 'Текст' }, { id: 'style', label: 'Оформление' }, { id: 'anim', label: 'Анимация' }]} onChange={setTab} />
       <div className="panel-body">
         {tab === 'text' && (
           <>
             <textarea ref={area} className="input" value={clip.text} rows={3} data-testid="text-input"
-              onChange={(e) => up({ text: e.target.value }, 'text')} placeholder="Напиши текст" />
+              onChange={(e) => up({ text: e.target.value, words: retimeWords(e.target.value, clip.words) }, 'text')} placeholder="Напиши текст" />
             <Field label="Шрифт">
               <select className="input" value={s.font} onChange={(e) => st({ font: e.target.value }, 'font')} style={{ fontFamily: `'${s.font}'` }}>
                 {FONTS.map((f) => <option key={f.family} value={f.family} style={{ fontFamily: `'${f.family}'` }}>{f.label}</option>)}
@@ -257,14 +342,19 @@ function TextInspector({ clip }: { clip: TextClip }) {
             <div className="section-title">Плашка</div>
             <ColorField label="Цвет плашки" value={s.bgColor} onChange={(v) => st({ bgColor: v, bgOpacity: s.bgOpacity || 0.7 }, 'bgc')} />
             <Slider label="Плотность" min={0} max={1} value={s.bgOpacity} format={pct} onChange={(v) => st({ bgOpacity: v }, 'bgo')} />
-            <div className="section-title">Расположение</div>
-            <Slider label="По горизонтали" min={0} max={1} step={0.005} value={clip.x} format={pct}
-              onChange={(v) => up({ x: v }, 'x')} onReset={() => up({ x: 0.5 }, 'x')} />
-            <Slider label="По вертикали" min={0} max={1} step={0.005} value={clip.y} format={pct}
-              onChange={(v) => up({ y: v }, 'y')} onReset={() => up({ y: 0.5 }, 'y')} />
+            <div className="section-title">Строка</div>
             <Slider label="Ширина строки" min={0.3} max={1} step={0.01} value={s.maxWidth} format={pct}
               onChange={(v) => st({ maxWidth: v }, 'mw')} />
-            <p className="hint small">Текст можно двигать и растягивать прямо в окне просмотра.</p>
+            <p className="hint small">Текст можно двигать, растягивать и поворачивать прямо в окне просмотра.</p>
+          </>
+        )}
+        {tab === 'anim' && (
+          <>
+            <AnimPick label="Появление" kind="in" clip={clip} />
+            <AnimPick label="Исчезновение" kind="out" clip={clip} />
+            {isCaption && <HighlightPick clip={clip} />}
+            <div className="section-title">Движение по ключам</div>
+            <AnimFields clip={clip} defs={TEXT_ANIM} />
           </>
         )}
       </div>

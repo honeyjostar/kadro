@@ -1,5 +1,5 @@
 import type {
-  AspectKey, ColorAdjust, MediaAsset, MediaClip, Project, ProjectSettings, TextClip, TextStyle, Track, TrackKind, Transform, TransitionType,
+  TextAnimType, WordHighlight, AspectKey, ColorAdjust, MediaAsset, MediaClip, Project, ProjectSettings, TextClip, TextStyle, Track, TrackKind, Transform, TransitionType,
 } from './types';
 
 let counter = 0;
@@ -144,4 +144,26 @@ export const TEXT_PRESETS: { id: string; label: string; style: Partial<TextStyle
   { id: 'boxwhite', label: 'Белая плашка', style: { color: '#111111', strokeWidth: 0, shadow: false, bgColor: '#ffffff', bgOpacity: 0.95 } },
   { id: 'neon', label: 'Неон', style: { color: '#ff4fd8', strokeColor: '#2a0033', strokeWidth: 5, shadow: true, bgOpacity: 0 } },
   { id: 'blood', label: 'Готика', style: { color: '#e01e37', strokeColor: '#000000', strokeWidth: 6, shadow: true, bgOpacity: 0, font: 'Russo One' } },
+];
+
+export const TEXT_ANIMS: { type: TextAnimType; in: string; out: string }[] = [
+  { type: 'fade', in: 'Проявление', out: 'Растворение' },
+  { type: 'slideUp', in: 'Выезд снизу', out: 'Уход вниз' },
+  { type: 'slideDown', in: 'Выезд сверху', out: 'Уход вверх' },
+  { type: 'slideLeft', in: 'Выезд справа', out: 'Уход вправо' },
+  { type: 'slideRight', in: 'Выезд слева', out: 'Уход влево' },
+  { type: 'pop', in: 'Выскок', out: 'Схлопывание' },
+  { type: 'zoom', in: 'Наезд', out: 'Отъезд' },
+  { type: 'typewriter', in: 'Печатная машинка', out: 'Стирание' },
+  { type: 'blur', in: 'Из размытия', out: 'В размытие' },
+  { type: 'wipe', in: 'Шторка', out: 'Шторка' },
+];
+
+export const HIGHLIGHTS: { mode: WordHighlight['mode']; label: string }[] = [
+  { mode: 'none', label: 'Нет' },
+  { mode: 'color', label: 'Цвет произносимого слова' },
+  { mode: 'karaoke', label: 'Караоке — сказанное закрашивается' },
+  { mode: 'box', label: 'Плашка под словом' },
+  { mode: 'pop', label: 'Слово выскакивает' },
+  { mode: 'reveal', label: 'Слово за словом' },
 ];

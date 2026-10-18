@@ -1,6 +1,7 @@
 // Движок превью: синхронное воспроизведение всех дорожек и сборка кадра на canvas.
 // Геометрия, цвет, переходы и текст — те же функции/формулы, что и в экспорте.
 import { aiSource } from '../../shared/ai';
+import { mediaPropsAt } from '../../shared/anim';
 import { effectiveColor, isIdentity, svgFilterMarkup } from '../../shared/color';
 import { BLUR_SIGMA_1080, placeOnCanvas, unitScale } from '../../shared/geometry';
 import { drawText } from '../../shared/textRender';
@@ -340,7 +341,7 @@ export class PreviewEngine {
     return { el: v, w: v.videoWidth, h: v.videoHeight };
   }
 
-  private drawLayer(c2d: CanvasRenderingContext2D, c: MediaClip, asset: MediaAsset, isMain: boolean): void {
+  private drawLayer(c2d: CanvasRenderingContext2D, c: MediaClip, asset: MediaAsset, isMain: boolean, t: number): void {
     const { W, H } = this;
     const src = this.source(c.id);
     const bgRemoved = !!aiSource(c, 'removeBg');
@@ -361,8 +362,11 @@ export class PreviewEngine {
       c2d.restore();
     }
     if (!src) return;
-    const pl = placeOnCanvas(W, H, asset.width, asset.height, c.fit, c.transform);
+    const mp = mediaPropsAt(c, t);
+    if (mp.opacity <= 0.001) return;
+    const pl = placeOnCanvas(W, H, asset.width, asset.height, c.fit, { x: mp.x, y: mp.y, scale: mp.scale, rotation: mp.rotation });
     c2d.save();
+    c2d.globalAlpha = Math.min(1, mp.opacity);
     c2d.translate(pl.cx, pl.cy);
     if (pl.rotation) c2d.rotate((pl.rotation * Math.PI) / 180);
     const e = effectiveColor(c.color);
@@ -392,24 +396,24 @@ export class PreviewEngine {
         const aB = assetOf(B);
         const ca = this.layerA.getContext('2d')!;
         const cb = this.layerB.getContext('2d')!;
-        if (aA) this.drawLayer(ca, A, aA, true);
-        if (aB) this.drawLayer(cb, B, aB, true);
+        if (aA) this.drawLayer(ca, A, aA, true, t);
+        if (aB) this.drawLayer(cb, B, aB, true, t);
         if (tr) drawTransition(ctx, tr.type, (t - B.start) / tr.duration, this.layerA, this.layerB, W, H, this.scratch);
         else ctx.drawImage(this.layerB, 0, 0);
       } else if (act.length === 1) {
         const c = main.clips[act[0]] as MediaClip;
         const a = assetOf(c);
-        if (a) this.drawLayer(ctx, c, a, true);
+        if (a) this.drawLayer(ctx, c, a, true, t);
       }
     }
     for (const track of p.tracks) {
       if (track.hidden || track.kind === 'main' || track.kind === 'audio') continue;
       for (const c of track.clips) {
         if (t < c.start - EPS || t >= clipEnd(c) - EPS) continue;
-        if (c.type === 'text') drawText(ctx, c, W, H);
+        if (c.type === 'text') drawText(ctx, c, W, H, t - c.start);
         else {
           const a = assetOf(c);
-          if (a && a.kind !== 'audio') this.drawLayer(ctx, c, a, false);
+          if (a && a.kind !== 'audio') this.drawLayer(ctx, c, a, false, t);
         }
       }
     }

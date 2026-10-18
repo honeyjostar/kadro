@@ -10,6 +10,7 @@ import {
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
 import { deleteSelection, duplicateSelection, importPaths, removePauses, splitAtPlayhead } from '../actions';
 import { useSelected } from '../hooks';
+import { keyTimesOnTimeline } from '../animEdit';
 import { api, getState, useStore } from '../store';
 import { fmtDur, peakLevel } from '../util';
 
@@ -211,11 +212,15 @@ const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selecte
   if (selected) cls += ' selected';
   if (ghost) cls += ' ghost';
   if (track.hidden) cls += ' dim';
+  const kfs = keyTimesOnTimeline(clip);
   return (
     <div className={cls} style={{ left, width }} data-testid="clip" data-clip={clip.id}
       onPointerDown={(e) => onDown(e, clip, track, 'body')}>
       {content}
       <div className="clip-label">{label}</div>
+      {kfs.length > 0 && (
+        <div className="kf-marks">{kfs.map((t) => <i key={t} style={{ left: (t - clip.start) * pps }} />)}</div>
+      )}
       {!ghost && <div className="trim l" onPointerDown={(e) => onDown(e, clip, track, 'l')} />}
       {!ghost && <div className="trim r" onPointerDown={(e) => onDown(e, clip, track, 'r')} />}
     </div>

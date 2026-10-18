@@ -67,6 +67,37 @@ export interface Transition {
 
 export type AiStatus = 'none' | 'processing' | 'ready' | 'error';
 
+/** Анимируемые свойства. x, y — как в Transform (видео) или доли холста 0..1 (текст); rotation — градусы. */
+export type AnimProp = 'x' | 'y' | 'scale' | 'rotation' | 'opacity';
+export interface Keyframe {
+  t: number;                 // видео/фото: время ИСХОДНИКА (анимация привязана к содержимому); текст: от начала клипа
+  v: number;
+  ease?: 'linear' | 'smooth';
+}
+export type Keyframes = Partial<Record<AnimProp, Keyframe[]>>;
+
+/** Маска клипа — в долях рамки клипа (до поворота). */
+export interface Mask {
+  shape: 'linear' | 'mirror' | 'circle' | 'rect';
+  x: number;          // центр, смещение от центра рамки (доля ширины)
+  y: number;
+  w: number;          // размер (доля ширины/высоты рамки) — для circle/rect; для mirror — ширина полосы
+  h: number;
+  rotation: number;   // градусы
+  feather: number;    // растушёвка 0..1 (доля от меньшей стороны рамки)
+  invert: boolean;
+}
+
+export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' | 'lighten' | 'add';
+
+export interface ChromaKey {
+  color: string;      // #rrggbb
+  similarity: number; // 0.01..0.5
+  smoothness: number; // 0..0.3 (мягкость края)
+}
+
+export type VoiceEffect = 'none' | 'chipmunk' | 'deep' | 'robot' | 'echo' | 'hall' | 'radio' | 'phone' | 'megaphone';
+
 /** Результат ИИ-обработки фрагмента исходника [range0, range1] (сек исходника). */
 export interface AiResult {
   enabled: boolean;
@@ -95,6 +126,13 @@ export interface MediaClip {
   transitionOut?: Transition;   // переход к следующему клипу основной дорожки
   removeBg: AiResult;
   denoise: AiResult;
+  opacity?: number;             // 0..1 (по умолчанию 1)
+  keyframes?: Keyframes;
+  mask?: Mask;
+  blend?: BlendMode;            // только для наложений
+  chroma?: ChromaKey;
+  stab?: AiResult;              // стабилизированная копия фрагмента
+  voice?: AiResult & { effect?: VoiceEffect; withDenoise?: boolean }; // обработанный звук с эффектом голоса
 }
 
 export interface TextStyle {
@@ -111,7 +149,17 @@ export interface TextStyle {
   bgColor: string;
   bgOpacity: number;     // 0..1, 0 = без плашки
   maxWidth: number;      // доля ширины холста для переноса строк
+  highlight?: WordHighlight; // подсветка произносимого слова (субтитры)
 }
+
+export interface WordHighlight {
+  mode: 'none' | 'color' | 'box' | 'karaoke' | 'reveal' | 'pop';
+  color: string;
+}
+
+export type TextAnimType = 'fade' | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight' | 'pop' | 'zoom' | 'typewriter' | 'blur' | 'wipe';
+export interface TextAnim { type: TextAnimType; dur: number }
+export interface Word { text: string; start: number; end: number }
 
 export interface TextClip {
   id: Id;
@@ -123,6 +171,12 @@ export interface TextClip {
   x: number;  // центр, доля ширины 0..1
   y: number;  // центр, доля высоты 0..1
   role: 'title' | 'caption';
+  scale?: number;      // 1 по умолчанию
+  rotation?: number;   // градусы
+  opacity?: number;
+  keyframes?: Keyframes;
+  anim?: { in?: TextAnim; out?: TextAnim };
+  words?: Word[];      // слова со временем от начала клипа (для подсветки)
 }
 
 export type Clip = MediaClip | TextClip;

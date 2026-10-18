@@ -1,6 +1,6 @@
 // Готовит слои текста для экспорта: каждый текстовый клип — PNG размера экспорта
 // (рисуется той же функцией, что и в плеере).
-import { drawText, fontString } from '../../shared/textRender';
+import { drawText, fontString, isTextAnimated, textStateAt, textStateKey } from '../../shared/textRender';
 import type { TextLayerReq } from '../../shared/ipc';
 import type { Project, TextClip } from '../../shared/types';
 
@@ -21,7 +21,7 @@ export async function loadProjectFonts(p: Project): Promise<void> {
   await document.fonts.ready;
 }
 
-export async function renderTextLayers(p: Project, W: number, H: number, onProgress?: (p: number) => void): Promise<{ layers: TextLayerReq[]; blank: Uint8Array }> {
+export async function renderTextLayers(p: Project, W: number, H: number, fps = 30, onProgress?: (p: number) => void): Promise<{ layers: TextLayerReq[]; blank: Uint8Array }> {
   await loadProjectFonts(p);
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -35,9 +35,34 @@ export async function renderTextLayers(p: Project, W: number, H: number, onProgr
   for (const t of tracks) {
     const clips: TextLayerReq['clips'] = [];
     for (const c of t.clips as TextClip[]) {
-      ctx.clearRect(0, 0, W, H);
-      drawText(ctx, c, W, H);
-      clips.push({ start: c.start, duration: c.duration, png: await toPng(canvas) });
+      if (!isTextAnimated(c)) {
+        ctx.clearRect(0, 0, W, H);
+        drawText(ctx, c, W, H);
+        clips.push({ start: c.start, duration: c.duration, png: await toPng(canvas) });
+      } else {
+        // анимированный текст — по кадрам экспорта; одинаковые соседние кадры объединяем
+        const end = c.start + c.duration;
+        const n0 = Math.ceil(c.start * fps - 1e-6);
+        let cur: { start: number; end: number; key: string; local: number } | null = null;
+        const flush = async () => {
+          if (!cur) return;
+          ctx.clearRect(0, 0, W, H);
+          drawText(ctx, c, W, H, cur.local);
+          clips.push({ start: cur.start, duration: cur.end - cur.start, png: await toPng(canvas) });
+          cur = null;
+        };
+        for (let n = n0; n / fps < end - 1e-6; n++) {
+          const T = n / fps;
+          const local = Math.max(0, T - c.start);
+          const segStart = n === n0 ? c.start : T;
+          const segEnd = Math.min(end, (n + 1) / fps);
+          const key = textStateKey(textStateAt(c, local));
+          if (cur && cur.key === key) { cur.end = segEnd; continue; }
+          await flush();
+          cur = { start: segStart, end: segEnd, key, local };
+        }
+        await flush();
+      }
       done++;
       onProgress?.(done / total);
     }
