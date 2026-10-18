@@ -469,6 +469,79 @@ test('видеоэффекты: плитки, сила, экспорт совп�
   compareAt(pngs[1], out, 2.3, 6);
 });
 
+test('реверс, кривая скорости и стоп-кадр — через интерфейс, экспорт совпадает', async () => {
+  await reset(win);
+  await importAt(win, [colorsVideo()]);
+  const [id] = await clipIds(win, 'main');
+  await store(win, 'select', [id]);
+  await win.getByTestId('itab-speed').click();
+  // реверс: в начале ролика — последняя секунда исходника (жёлтая)
+  await win.getByTestId('reverse').click();
+  await win.waitForFunction((cid) => {
+    const p = (window as any).__kadro.useStore.getState().project;
+    const c = p.tracks[0].clips.find((x: any) => x.id === cid);
+    return c?.retime?.reverse && !Object.keys((window as any).__kadro.useStore.getState().jobs).length;
+  }, id, { timeout: 60_000 });
+  await waitAssetsReady(win);
+  let p = await project(win);
+  let c = p.tracks[0].clips[0] as any;
+  const derived = p.assets.find((a) => a.id === c.assetId)!;
+  expect(derived.derived).toBe(true);
+  expect(Math.abs(derived.duration - 4)).toBeLessThan(0.05);
+  await win.getByTestId('tab-media').click();
+  await expect(win.getByTestId('media-item')).toHaveCount(1); // служебная копия в медиатеке не видна
+  await seekAndSettle(win, 0.5);
+  expect(near(await previewPixel(win, 0.5, 0.5), RGB.yellow, 40)).toBe(true);
+  await seekAndSettle(win, 3.5);
+  expect(near(await previewPixel(win, 0.5, 0.5), RGB.red, 40)).toBe(true);
+  // кривая «Пуля» поверх реверса
+  await store(win, 'select', [id]);
+  await win.getByTestId('itab-speed').click();
+  await win.getByTestId('ramp-bullet').click();
+  await win.waitForFunction((cid) => {
+    const s = (window as any).__kadro.useStore.getState();
+    const c = s.project.tracks[0].clips.find((x: any) => x.id === cid);
+    return c?.retime?.preset === 'bullet' && !Object.keys(s.jobs).length;
+  }, id, { timeout: 60_000 });
+  await waitAssetsReady(win);
+  p = await project(win);
+  c = p.tracks[0].clips[0] as any;
+  expect(c.retime.reverse).toBe(true);
+  const dur = c.out - c.in;
+  expect(dur).toBeGreaterThan(1.5); // быстро—медленно—быстро: в сумме короче исходных 4 с
+  expect(dur).toBeLessThan(3);
+  expect(p.assets.filter((a) => a.derived)).toHaveLength(1); // старая копия убрана
+  await expect(win.getByTestId('ramp-editor')).toBeVisible();
+  // стоп-кадр в середине
+  const mid = Math.round((dur / 2) * 30) / 30;
+  await seekAndSettle(win, mid);
+  const before = await previewPixel(win, 0.5, 0.5);
+  await win.getByTestId('tl-freeze').click();
+  await win.waitForFunction(() => (window as any).__kadro.useStore.getState().project.tracks[0].clips.length === 3, undefined, { timeout: 30_000 });
+  await waitAssetsReady(win);
+  p = await project(win);
+  const kinds = p.tracks[0].clips.map((x: any) => p.assets.find((a) => a.id === x.assetId)!.kind);
+  expect(kinds).toEqual(['video', 'image', 'video']);
+  expect((p.tracks[0].clips[1] as any).start).toBeCloseTo(mid, 3);
+  await seekAndSettle(win, mid + 1);
+  expect(near(await previewPixel(win, 0.5, 0.5), before, 30)).toBe(true);
+  const pngs = [await parity(0.4, 'rt04'), await parity(mid + 1, 'rtfz'), await parity(mid + 2.6, 'rt_after')];
+  const out = await exportViaUi('720p');
+  compareAt(pngs[0], out, 0.4);
+  compareAt(pngs[1], out, mid + 1);
+  compareAt(pngs[2], out, mid + 2.6);
+  // убрать кривую и реверс — клип снова из исходника
+  await store(win, 'select', [id]);
+  await win.getByTestId('itab-speed').click();
+  await win.getByTestId('ramp-none').click();
+  await win.waitForFunction((cid) => !(window as any).__kadro.useStore.getState().project.tracks[0].clips.find((x: any) => x.id === cid)?.retime?.ramp, id, { timeout: 60_000 });
+  await win.getByTestId('reverse').click();
+  await win.waitForFunction((cid) => !(window as any).__kadro.useStore.getState().project.tracks[0].clips.find((x: any) => x.id === cid)?.retime, id, { timeout: 60_000 });
+  p = await project(win);
+  c = p.tracks[0].clips.find((x: any) => x.id === id) as any;
+  expect(p.assets.find((a) => a.id === c.assetId)!.derived).toBeFalsy();
+});
+
 test('голос, озвучка, ритм — через интерфейс', async () => {
   await reset(win);
   await importAt(win, [talkVideo()]);

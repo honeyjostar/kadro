@@ -1,13 +1,14 @@
 // Действия редактора, которые вызываются из разных мест интерфейса.
-import { aiCovers, aiSource, aiStale } from '../shared/ai';
+import { aiCovers, aiSource, aiStale, videoSource } from '../shared/ai';
+import { normalizeRamp, originalRange } from '../shared/retime';
 import { reframeKeyframes } from '../shared/reframe';
 import { CAPTION_STYLE, newProject } from '../shared/defaults';
 import type { AiJob, AiResponse, TtsVoiceId } from '../shared/ipc';
 import {
   addAsset, addFree, addToMain, alignMainToBeats, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
-  splitClip, updateAsset, updateClip, clipEnd,
+  splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime,
 } from '../shared/timeline';
-import type { MediaClip, Project, VoiceEffect } from '../shared/types';
+import type { MediaAsset, MediaClip, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
 import { api, getState, takeEarlyPatches } from './store';
 import { uidShort } from './util';
 
@@ -260,6 +261,107 @@ export async function autoReframe(clipId: string): Promise<void> {
   getState().toast('Кадр следует за человеком', 'ok');
 }
 
+// ---------- реверс и кривая скорости ----------
+/**
+ * Меняет реверс и/или кривую скорости клипа. ramp: undefined — оставить как есть, null — убрать.
+ * Копия фрагмента строится из исходника заново; без реверса и кривой клип возвращается к исходнику.
+ */
+export async function retimeClip(clipId: string, opts: { reverse?: boolean; ramp?: RampPoint[] | null; preset?: string }): Promise<void> {
+  const m = mediaClip(clipId);
+  if (!m) return;
+  const c = m.clip;
+  const orig = originalRange(c);
+  const src = m.p.assets.find((a) => a.id === orig.assetId);
+  if (!src || src.kind === 'image') { getState().toast('Реверс и кривая скорости работают с видео и звуком'); return; }
+  if (src.missing) { getState().toast(`Файл «${src.name}» не найден на диске`, 'err'); return; }
+  const reverse = opts.reverse ?? c.retime?.reverse ?? false;
+  const ramp = opts.ramp === undefined ? c.retime?.ramp : opts.ramp ?? undefined;
+  const preset = opts.ramp === undefined ? c.retime?.preset : opts.ramp ? opts.preset ?? 'custom' : undefined;
+  const same = (q: Project) => {
+    const f = findClip(q, clipId);
+    if (!f || f.clip.type !== 'media') return false;
+    const o = originalRange(f.clip);
+    return o.assetId === orig.assetId && Math.abs(o.in - orig.in) < 1e-3 && Math.abs(o.out - orig.out) < 1e-3;
+  };
+  if (!reverse && !ramp) {
+    getState().commit((p) => setRetime(p, clipId, undefined, orig.assetId, orig.in, orig.out));
+    await reprocessAi(clipId);
+    return;
+  }
+  const r: Retime = { assetId: orig.assetId, in: orig.in, out: orig.out, reverse, ramp: ramp && normalizeRamp(ramp), preset };
+  const res = await runJob(reverse && !ramp ? 'Переворачиваю клип' : 'Меняю скорость', {
+    kind: 'retime', jobId: `rt_${uidShort()}`, path: src.path, in: r.in, out: r.out, reverse, ramp: r.ramp,
+    hasVideo: src.hasVideo, hasAudio: src.hasAudio, width: src.width, height: src.height, fps: src.fps || getState().project.settings.fps,
+  }, clipId);
+  if (!res.ok || res.output?.kind !== 'retime') { if (res.error !== 'Отменено') getState().toast(`Не получилось: ${res.error}`, 'err'); return; }
+  const out = res.output;
+  const asset = await importDerived(out.path, `${src.name} · ${reverse && ramp ? 'реверс, кривая' : reverse ? 'реверс' : 'кривая скорости'}`);
+  if (!asset) return;
+  if (!same(getState().project)) { getState().toast('Клип изменился, пока шла обработка — повтори действие'); return; }
+  getState().commit((p) => setRetime(addAsset(p, asset), clipId, r, asset.id, 0, Math.min(asset.duration || out.duration, out.duration)));
+  takeEarlyPatches([asset.id]);
+  await reprocessAi(clipId);
+}
+
+/** Добавляет служебный файл (копию, кадр) как скрытый ресурс проекта. */
+async function importDerived(path: string, name: string): Promise<MediaAsset | null> {
+  const imp = await api.importMedia([path]);
+  const asset = imp.assets[0];
+  if (!asset) { getState().toast(`Не получилось добавить результат: ${imp.errors[0]?.message ?? ''}`, 'err'); return null; }
+  asset.name = name;
+  asset.derived = true;
+  return asset;
+}
+
+/** После смены источника клипа — повторить включённую ИИ-обработку. */
+async function reprocessAi(clipId: string): Promise<void> {
+  const m = mediaClip(clipId);
+  if (!m) return;
+  if (m.clip.stab?.enabled && aiStale(m.clip, 'stab')) await stabilizeClip(clipId);
+  if (mediaClip(clipId)?.clip.removeBg.enabled && aiStale(mediaClip(clipId)!.clip, 'removeBg')) await removeBackground(clipId);
+  if (mediaClip(clipId)?.clip.denoise.enabled && aiStale(mediaClip(clipId)!.clip, 'denoise')) await enhanceVoice(clipId);
+  else await refreshVoice(clipId);
+}
+
+// ---------- стоп-кадр ----------
+/** Клип для стоп-кадра: выделенный (если под курсором) или клип основной дорожки под курсором. */
+function freezeTarget(): MediaClip | null {
+  const s = getState();
+  const t = s.playhead;
+  const ok = (c: unknown): c is MediaClip => {
+    const x = c as MediaClip;
+    if (!x || x.type !== 'media' || t < x.start - 1e-6 || t > clipEnd(x) + 1e-6) return false;
+    const a = s.project.assets.find((q) => q.id === x.assetId);
+    return !!a && a.kind === 'video';
+  };
+  if (s.selection.length === 1) {
+    const f = findClip(s.project, s.selection[0]);
+    if (f && ok(f.clip)) return f.clip;
+  }
+  const main = s.project.tracks.find((tr) => tr.kind === 'main')!;
+  return main.clips.find(ok) ?? null;
+}
+
+export async function freezeFrame(dur = 2): Promise<void> {
+  const c = freezeTarget();
+  if (!c) { getState().toast('Поставь курсор на видео, из которого нужен стоп-кадр'); return; }
+  const p = getState().project;
+  const a = p.assets.find((x) => x.id === c.assetId)!;
+  const t = getState().playhead;
+  const fps = a.fps || p.settings.fps;
+  const s = Math.min(c.out - 0.5 / fps, Math.max(c.in, c.in + (t - c.start) * c.speed));
+  const vs = videoSource(c);
+  const res = await runJob('Делаю стоп-кадр', { kind: 'freeze', jobId: `fz_${uidShort()}`, path: vs?.path ?? a.path, t: s - (vs?.offset ?? 0), fps, alpha: !!vs?.alpha }, c.id, false);
+  if (!res.ok || res.output?.kind !== 'freeze') { getState().toast(`Не получилось: ${res.error}`, 'err'); return; }
+  const asset = await importDerived(res.output.path, `Стоп-кадр · ${a.name}`);
+  if (!asset) return;
+  let id = '';
+  getState().commit((q) => { const r = insertFreeze(addAsset(q, asset), c.id, t, asset.id, dur); id = r.clipId; return r.project; });
+  takeEarlyPatches([asset.id]);
+  if (id) getState().select([id]);
+  getState().toast('Стоп-кадр добавлен', 'ok');
+}
+
 // ---------- озвучка текста ----------
 export async function ensureVoice(voice: TtsVoiceId): Promise<boolean> {
   const list = await api.ttsVoices();
@@ -357,7 +459,19 @@ export async function openProject(): Promise<void> {
 
 /** Предупредить о файлах, которых нет на диске. */
 export function reportMissing(p: Project): void {
-  const lost = p.assets.filter((a) => a.missing);
+  // пропавшие служебные копии (реверс, кривая) пересобираем из исходника, если он на месте
+  const rebuild: string[] = [];
+  const rebuilt = new Set<string>();
+  for (const t of p.tracks) {
+    for (const c of t.clips) {
+      if (c.type !== 'media' || !c.retime) continue;
+      const a = p.assets.find((x) => x.id === c.assetId);
+      const o = p.assets.find((x) => x.id === c.retime!.assetId);
+      if (a?.missing && o && !o.missing) { rebuild.push(c.id); rebuilt.add(a.id); }
+    }
+  }
+  if (rebuild.length) void (async () => { for (const id of rebuild) await retimeClip(id, {}); })();
+  const lost = p.assets.filter((a) => a.missing && !rebuilt.has(a.id));
   if (!lost.length) return;
   getState().toast(lost.length === 1
     ? `Не найден файл «${lost[0].name}». Верни его на место — иначе клип не попадёт в видео.`

@@ -1,16 +1,17 @@
-import { X, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
+import { X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
-import { alignToBeats, findBeats, speakText } from '../actions';
+import { alignToBeats, findBeats, freezeFrame, retimeClip, speakText } from '../actions';
+import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
 import { DEFAULT_MASK } from '../../shared/mask';
 import { EFFECTS } from '../../shared/effects';
 import { useEffect, useRef, useState } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
 import { ASPECTS, DEFAULT_CHROMA, DEFAULT_COLOR, DEFAULT_TRANSFORM, FONTS, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
 import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, styleAllCaptions, updateClip } from '../../shared/timeline';
-import type { BlendMode, ChromaKey, Mask, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
+import type { BlendMode, ChromaKey, Mask, RampPoint, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
 import { retimeWords } from '../../shared/captions';
 import { hasKeyHere, isAnimated, keyTimesOnTimeline, propValue, toggleKey, writeProps } from '../animEdit';
-import { useJobRunning, useSelected } from '../hooks';
+import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
 import { ColorField, Field, KeyButton, Seg, Slider, Toggle } from './controls';
@@ -77,7 +78,7 @@ function ProjectInspector({ multi }: { multi: number }) {
         <div className="stats">
           <div><span>Длительность</span><b>{fmtDur(projectDuration(project))}</b></div>
           <div><span>Клипов</span><b>{clips}</b></div>
-          <div><span>Файлов</span><b>{project.assets.length}</b></div>
+          <div><span>Файлов</span><b>{project.assets.filter((a) => !a.derived).length}</b></div>
         </div>
         <div className="section-title">Клавиши</div>
         <dl className="keys">
@@ -179,16 +180,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
             <p className="hint small" style={{ marginTop: 8 }}>Двойной клик по ползунку — вернуть значение по умолчанию.</p>
           </>
         )}
-        {cur === 'speed' && (
-          <>
-            <Field label="Скорость">
-              <Seg value={clip.speed} onChange={(v) => up({ speed: v }, 'speedp')} options={[0.5, 1, 1.5, 2, 3].map((v) => ({ value: v, label: `${v}×` }))} />
-            </Field>
-            <Slider label="Точно" min={0.25} max={4} step={0.05} value={clip.speed} format={(v) => `${v.toFixed(2)}×`} testId="speed"
-              onChange={(v) => up({ speed: v }, 'speed')} onReset={() => up({ speed: 1 }, 'speed')} />
-            <p className="hint">Длина на таймлайне: {fmtDur(dur)}. Высота голоса сохраняется.</p>
-          </>
-        )}
+        {cur === 'speed' && <SpeedTab clip={clip} asset={asset} />}
         {cur === 'audio' && (
           <>
             <Toggle label="Без звука" on={clip.muted} onChange={(v) => up({ muted: v }, 'mute')} testId="mute" />
@@ -209,6 +201,136 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   );
 }
 let lastMediaTab: MTab | null = null;
+
+// ---------- скорость: постоянная, кривая, реверс, стоп-кадр ----------
+function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
+  const commit = useStore((s) => s.commit);
+  const up = (patch: Partial<MediaClip>, key: string) => commit((p) => updateClip(p, clip.id, patch), `${key}-${clip.id}`);
+  const busy = !!useClipJob(clip.id);
+  const r = clip.retime;
+  const active = r?.ramp ? r.preset ?? 'custom' : 'none';
+  const [draft, setDraft] = useState<RampPoint[] | null>(null);
+  const curve = draft ?? r?.ramp ?? null;
+  const srcLen = r ? r.out - r.in : clip.out - clip.in;
+  const dur = clipDuration(clip);
+  const isVideo = asset?.kind === 'video';
+  const pick = (id: string) => {
+    setDraft(null);
+    if (id === 'none') { if (r?.ramp) void retimeClip(clip.id, { ramp: null }); return; }
+    if (id === 'custom') { setDraft(r?.ramp ?? [{ x: 0, v: 1 }, { x: 0.5, v: 1 }, { x: 1, v: 1 }]); return; }
+    const pr = RAMP_PRESETS.find((x) => x.id === id)!;
+    void retimeClip(clip.id, { ramp: pr.points, preset: pr.id });
+  };
+  return (
+    <>
+      <Field label="Скорость">
+        <Seg value={clip.speed} onChange={(v) => up({ speed: v }, 'speedp')} options={[0.5, 1, 1.5, 2, 3].map((v) => ({ value: v, label: `${v}×` }))} />
+      </Field>
+      <Slider label="Точно" min={0.25} max={4} step={0.05} value={clip.speed} format={(v) => `${v.toFixed(2)}×`} testId="speed"
+        onChange={(v) => up({ speed: v }, 'speed')} onReset={() => up({ speed: 1 }, 'speed')} />
+      <p className="hint">Длина на таймлайне: {fmtDur(dur)}. Высота голоса сохраняется.</p>
+
+      <div className="sub-head">Кривая скорости</div>
+      <div className="ramp-grid">
+        {[{ id: 'none', label: 'Нет', hint: 'Без кривой', points: null as RampPoint[] | null }, ...RAMP_PRESETS, { id: 'custom', label: 'Своя', hint: 'Нарисуй кривую сам', points: null }].map((pr) => (
+          <button key={pr.id} className={`ramp-tile ${(draft ? 'custom' : active) === pr.id ? 'active' : ''}`} title={pr.hint} disabled={busy}
+            onClick={() => pick(pr.id)} data-testid={`ramp-${pr.id}`}>
+            <RampThumb points={pr.id === 'custom' ? r?.preset === 'custom' ? r.ramp ?? null : null : pr.points} />
+            <span>{pr.label}</span>
+          </button>
+        ))}
+      </div>
+      {curve && (
+        <>
+          <RampEditor points={curve} onChange={setDraft} disabled={busy} />
+          <p className="hint small">
+            Тяни точки вверх — быстрее, вниз — медленнее. Двойной клик добавляет точку, двойной клик по точке — убирает.
+            {' '}Длина станет {fmtDur(new RampMap(normalizeRamp(curve), srcLen).total / clip.speed)}.
+          </p>
+          {draft && (
+            <div className="row-btns">
+              <button className="btn primary" disabled={busy} data-testid="ramp-apply" onClick={() => { const d = draft; setDraft(null); void retimeClip(clip.id, { ramp: d, preset: 'custom' }); }}>Применить</button>
+              <button className="btn" onClick={() => setDraft(null)}>Отмена</button>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className="sub-head">Ещё</div>
+      <Toggle label="Реверс — проиграть задом наперёд" on={!!r?.reverse} testId="reverse"
+        onChange={(v) => { if (!busy) void retimeClip(clip.id, { reverse: v }); }} />
+      {isVideo && (
+        <button className="btn block" disabled={busy} data-testid="freeze" onClick={() => void freezeFrame()} style={{ marginTop: 10 }}>
+          <Snowflake size={14} />Стоп-кадр в позиции курсора
+        </button>
+      )}
+      <p className="hint small" style={{ marginTop: 8 }}>
+        Реверс и кривая создают копию фрагмента — это занимает немного времени. Обрезка и разрезание работают как обычно.
+      </p>
+    </>
+  );
+}
+
+const RW = 260;
+const RH = 120;
+const vy = (v: number) => (1 - (Math.log10(v) + 1) / 2) * RH;
+const yv = (y: number) => Math.min(RAMP_MAX, Math.max(RAMP_MIN, 10 ** ((1 - y / RH) * 2 - 1)));
+
+function RampThumb({ points }: { points: RampPoint[] | null }) {
+  const W = 56; const H = 30;
+  const d = points
+    ? Array.from({ length: 29 }, (_, i) => { const x = i / 28; return `${(x * W).toFixed(1)},${(((1 - (Math.log10(rampSpeedAt(points, x)) + 1) / 2) * (H - 4)) + 2).toFixed(1)}`; }).join(' ')
+    : `0,${H / 2} ${W},${H / 2}`;
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="ramp-thumb">
+      <line x1={0} x2={W} y1={H / 2} y2={H / 2} className="axis" />
+      <polyline points={d} />
+    </svg>
+  );
+}
+
+function RampEditor({ points, onChange, disabled }: { points: RampPoint[]; onChange: (p: RampPoint[]) => void; disabled?: boolean }) {
+  const svg = useRef<SVGSVGElement>(null);
+  const drag = useRef<number | null>(null);
+  const pts = normalizeRamp(points);
+  const at = (e: { clientX: number; clientY: number }) => {
+    const b = svg.current!.getBoundingClientRect();
+    return { x: Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)), y: Math.min(RH, Math.max(0, ((e.clientY - b.top) / b.height) * RH)) };
+  };
+  const move = (e: React.PointerEvent) => {
+    const i = drag.current;
+    if (i === null || disabled) return;
+    const q = at(e);
+    const next = pts.map((p) => ({ ...p }));
+    const lo = i === 0 ? 0 : next[i - 1].x + 0.02;
+    const hi = i === next.length - 1 ? 1 : next[i + 1].x - 0.02;
+    next[i] = { x: i === 0 ? 0 : i === next.length - 1 ? 1 : Math.min(hi, Math.max(lo, q.x)), v: Math.round(yv(q.y) * 100) / 100 };
+    onChange(next);
+  };
+  const line = Array.from({ length: 101 }, (_, i) => `${(i / 100) * RW},${vy(rampSpeedAt(pts, i / 100)).toFixed(2)}`).join(' ');
+  return (
+    <svg ref={svg} className="ramp-editor" viewBox={`0 0 ${RW} ${RH}`} preserveAspectRatio="none" data-testid="ramp-editor"
+      onPointerMove={move} onPointerUp={() => { drag.current = null; }} onPointerLeave={() => { drag.current = null; }}
+      onDoubleClick={(e) => {
+        if (disabled || (e.target as Element).tagName === 'circle') return;
+        const q = at(e);
+        onChange([...pts, { x: q.x, v: rampSpeedAt(pts, q.x) }].sort((a, b) => a.x - b.x));
+      }}>
+      {[10, 1, 0.1].map((v) => (
+        <g key={v}>
+          <line x1={0} x2={RW} y1={vy(v)} y2={vy(v)} className={v === 1 ? 'axis' : 'grid'} />
+          <text x={4} y={Math.min(RH - 3, Math.max(10, vy(v) - 3))} className="lbl">{v}×</text>
+        </g>
+      ))}
+      <polyline points={line} className="curve" />
+      {pts.map((p, i) => (
+        <circle key={i} cx={p.x * RW} cy={vy(p.v)} r={5} data-testid={`ramp-pt-${i}`}
+          onPointerDown={(e) => { if (disabled) return; (e.target as Element).setPointerCapture?.(e.pointerId); drag.current = i; onChange(pts); }}
+          onDoubleClick={() => { if (!disabled && i > 0 && i < pts.length - 1) onChange(pts.filter((_, j) => j !== i)); }} />
+      ))}
+    </svg>
+  );
+}
 
 const BLENDS: { mode: BlendMode; label: string }[] = [
   { mode: 'normal', label: 'Обычный' }, { mode: 'multiply', label: 'Умножение' }, { mode: 'screen', label: 'Осветление (экран)' },

@@ -122,12 +122,13 @@ function MediaItem({ a, used }: { a: MediaAsset; used: boolean }) {
 
 function useUsedAssets(): Set<string> {
   const tracks = useStore((s) => s.project.tracks);
-  return useMemo(() => new Set(tracks.flatMap((t) => t.clips.map((c) => (c.type === 'media' ? c.assetId : '')))), [tracks]);
+  return useMemo(() => new Set(tracks.flatMap((t) => t.clips.flatMap((c) => (c.type === 'media' ? [c.assetId, c.retime?.assetId ?? ''] : [])))), [tracks]);
 }
 
 // ---------- Медиа ----------
 function MediaPanel() {
-  const assets = useStore((s) => s.project.assets);
+  const all = useStore((s) => s.project.assets);
+  const assets = all.filter((a) => !a.derived);
   const used = useUsedAssets();
   const [filter, setFilter] = useState<'all' | 'video' | 'image' | 'audio'>('all');
   const list = assets.filter((a) => filter === 'all' || a.kind === filter);
@@ -155,7 +156,7 @@ function MediaPanel() {
 
 // ---------- Аудио ----------
 function AudioPanel() {
-  const assets = useStore((s) => s.project.assets).filter((a) => a.kind === 'audio');
+  const assets = useStore((s) => s.project.assets).filter((a) => a.kind === 'audio' && !a.derived);
   const used = useUsedAssets();
   return (
     <>

@@ -35,6 +35,7 @@ export interface MediaAsset {
   missing?: boolean;         // файл пропал с диска (проект открыт на другом компьютере, файл перемещён)
   beats?: number[];          // доли такта (время исходника), если искали ритм
   bpm?: number;
+  derived?: boolean;         // служебная копия (реверс, кривая скорости, стоп-кадр) — не показывается в медиатеке
   thumbs?: string[];         // пути к кадрам-миниатюрам (равномерно по длительности)
   peaks?: number[];          // форма волны 0..1 (до ~2000 точек)
 }
@@ -139,6 +140,19 @@ export interface MediaClip {
   stab?: AiResult;              // стабилизированная копия фрагмента
   voice?: AiResult & { effect?: VoiceEffect; withDenoise?: boolean }; // обработанный звук с эффектом голоса
   effects?: Effect[];           // видеоэффекты (тряска, глитч, виньетка…)
+  retime?: Retime;              // клип показывает копию фрагмента с реверсом / кривой скорости
+}
+
+/** Точка кривой скорости: x — доля фрагмента (0..1), v — скорость (0.1..10). */
+export interface RampPoint { x: number; v: number }
+/** Откуда взята копия: исходный файл, его фрагмент и что с ним сделано. */
+export interface Retime {
+  assetId: Id;
+  in: number;
+  out: number;
+  reverse: boolean;
+  ramp?: RampPoint[];
+  preset?: string;              // id пресета или 'custom'
 }
 
 export interface TextStyle {

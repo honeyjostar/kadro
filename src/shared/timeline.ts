@@ -1,7 +1,8 @@
 // Операции над таймлайном. Все функции чистые: принимают проект и возвращают новый.
 import { IMAGE_DEFAULT_DURATION, newMediaClip, newTextClip, newTrack, uid } from './defaults';
-import { dropKeyframe, putKeyframe } from './anim';
-import type { AnimProp, Clip, Keyframes, MediaAsset, MediaClip, Project, TextClip, TextStyle, Track, TrackKind, Transition } from './types';
+import { dropKeyframe, mediaPropsAt, putKeyframe } from './anim';
+import { remapKeyframes } from './retime';
+import type { AnimProp, Clip, Keyframes, MediaAsset, MediaClip, Project, Retime, TextClip, TextStyle, Track, TrackKind, Transition } from './types';
 
 export const MIN_CLIP = 0.1;      // минимальная длина клипа на таймлайне, сек
 export const NEW_TRACK = 'new';   // цель перемещения: создать новую дорожку
@@ -610,6 +611,91 @@ export function activeClipsAt(p: Project, t: number): { track: Track; clip: Clip
 /** Время источника для клипа в момент таймлайна t. */
 export function sourceTimeAt(c: MediaClip, t: number): number {
   return c.in + (t - c.start) * c.speed;
+}
+
+// ---------- реверс, кривая скорости, стоп-кадр ----------
+/**
+ * Переключает клип на копию фрагмента (r задан) или обратно на исходник (r = undefined).
+ * assetId/in/out — что теперь показывает клип. Ключевые кадры переносятся, ИИ-обработку нужно сделать заново.
+ */
+export function setRetime(p: Project, clipId: string, r: Retime | undefined, assetId: string, inT: number, outT: number): Project {
+  return edit(p, (d) => {
+    const f = findClip(d, clipId);
+    if (!f || f.clip.type !== 'media') return;
+    const c = f.clip;
+    c.keyframes = remapKeyframes(c.keyframes, c.retime, r);
+    if (r) c.retime = r;
+    else delete c.retime;
+    c.assetId = assetId;
+    c.in = round(inT);
+    c.out = round(outT);
+    if (r?.ramp) c.speed = 1;
+    const reset = <T extends { enabled: boolean; status: string; path?: string; range?: [number, number] }>(x: T): T =>
+      ({ ...x, status: 'none', path: undefined, range: undefined });
+    c.removeBg = reset(c.removeBg);
+    c.denoise = reset(c.denoise);
+    if (c.stab) c.stab = reset(c.stab);
+    if (c.voice) c.voice = reset(c.voice);
+    sanitizeMedia(d, c);
+    pruneDerived(d);
+  });
+}
+
+/** Убирает служебные копии, на которые не ссылается ни один клип. */
+function pruneDerived(d: Project): void {
+  const used = new Set(d.tracks.flatMap((t) => t.clips.map((c) => (c.type === 'media' ? c.assetId : ''))));
+  d.assets = d.assets.filter((a) => !a.derived || used.has(a.id));
+}
+
+/**
+ * Стоп-кадр: в момент t клип разрезается, между частями встаёт картинка (assetId) длиной dur.
+ * На основной дорожке всё дальше сдвигается само, на дорожке наложений — сдвигаются клипы после t.
+ */
+export function insertFreeze(p: Project, clipId: string, t: number, assetId: string, dur: number): AddResult {
+  let newId = '';
+  const project = edit(p, (d) => {
+    const f = findClip(d, clipId);
+    const asset = d.assets.find((a) => a.id === assetId);
+    if (!f || f.clip.type !== 'media' || !asset) return;
+    const c = f.clip;
+    const props = mediaPropsAt(c, t);
+    const img = newMediaClip(asset, t);
+    newId = img.id;
+    img.out = round(dur);
+    Object.assign(img, {
+      fit: c.fit, color: structuredClone(c.color), mask: c.mask && structuredClone(c.mask), blend: c.blend,
+      chroma: c.removeBg.enabled ? undefined : c.chroma && structuredClone(c.chroma), effects: c.effects && structuredClone(c.effects),
+      transform: { scale: props.scale, x: props.x, y: props.y, rotation: props.rotation },
+    });
+    if (props.opacity < 1) img.opacity = props.opacity;
+    const track = f.track;
+    // разрезаем исходный клип (если t внутри) — правая часть начинается после стоп-кадра
+    let idx = f.index + 1;
+    if (t <= c.start + EPS) idx = f.index;
+    else if (t < clipEnd(c) - EPS) {
+      const srcT = round(snapFrame(c.in + (t - c.start) * c.speed, d.settings.fps));
+      if (srcT > c.in + 1e-6 && srcT < c.out - 1e-6) {
+        const right: MediaClip = structuredClone(c);
+        right.id = uid('clip');
+        right.in = srcT;
+        right.start = round(t);
+        right.fadeIn = 0;
+        c.out = srcT;
+        c.fadeOut = 0;
+        delete c.transitionOut;
+        track.clips.splice(f.index + 1, 0, right);
+      }
+    }
+    if (track.kind === 'main') {
+      track.clips.splice(idx, 0, img);
+    } else {
+      for (const x of track.clips) if (x.start >= t - EPS) x.start = round(x.start + dur);
+      img.start = round(t);
+      track.clips.splice(idx, 0, img);
+      track.clips.sort((a, b) => a.start - b.start);
+    }
+  });
+  return { project, clipId: newId };
 }
 
 export { IMAGE_DEFAULT_DURATION };

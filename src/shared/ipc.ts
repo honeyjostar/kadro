@@ -1,6 +1,6 @@
 // Контракт между интерфейсом (renderer) и главным процессом.
 import type { Cue } from './timeline';
-import type { ExportOptions, MediaAsset, Project, VoiceEffect } from './types';
+import type { ExportOptions, MediaAsset, Project, RampPoint, VoiceEffect } from './types';
 
 export type TtsVoiceId = 'irina' | 'dmitri' | 'denis' | 'ruslan' | 'amy' | 'ryan';
 export interface VoiceInfo { id: TtsVoiceId; label: string; sizeMb: number; ready: boolean }
@@ -32,7 +32,9 @@ export type AiJob =
   | { kind: 'ttsDownload'; jobId: string; voice: TtsVoiceId }
   | { kind: 'stab'; jobId: string; path: string; in: number; out: number; strength: number }
   | { kind: 'beats'; jobId: string; path: string }
-  | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number };
+  | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number }
+  | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
+  | { kind: 'freeze'; jobId: string; path: string; t: number; fps: number; alpha: boolean };
 
 export type AiOutput =
   | { kind: 'captions'; cues: Cue[]; text: string }
@@ -44,7 +46,9 @@ export type AiOutput =
   | { kind: 'tts'; path: string; duration: number }
   | { kind: 'stab'; path: string; range: [number, number] }
   | { kind: 'beats'; beats: number[]; bpm: number }
-  | { kind: 'reframe'; points: { t: number; x: number; y: number; found: boolean }[] };
+  | { kind: 'reframe'; points: { t: number; x: number; y: number; found: boolean }[] }
+  | { kind: 'retime'; path: string; duration: number }
+  | { kind: 'freeze'; path: string };
 
 export interface AiResponse { ok: boolean; output?: AiOutput; error?: string }
 

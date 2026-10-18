@@ -1,5 +1,5 @@
 import {
-  Activity, AudioLines, Blend, Copy, Eye, EyeOff, Film, Layers, Maximize2, Plus, Redo2, Scissors, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
+  Activity, AudioLines, Blend, Copy, Eye, EyeOff, Film, Layers, Maximize2, Plus, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -8,7 +8,7 @@ import {
   addFree, addToMain, beatTimes, clipDuration, clipEnd, findClip, mainToOverlay, moveClip, projectDuration, reorderMain, setTrackFlag, trimClip,
 } from '../../shared/timeline';
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
-import { alignToBeats, deleteSelection, duplicateSelection, importPaths, removePauses, splitAtPlayhead } from '../actions';
+import { alignToBeats, deleteSelection, duplicateSelection, freezeFrame, importPaths, removePauses, retimeClip, splitAtPlayhead } from '../actions';
 import { useSelected } from '../hooks';
 import { keyTimesOnTimeline } from '../animEdit';
 import { api, getState, useStore } from '../store';
@@ -193,7 +193,7 @@ const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selecte
         const first = Math.max(0, Math.floor((view.left - left) / tileW) - 1);
         const last = Math.min(Math.ceil(width / tileW), Math.ceil((view.left + view.width - left) / tileW) + 1);
         for (let i = first; i < last; i++) {
-          const src = asset.kind === 'image' ? 0 : clip.in + ((i * tileW) / pps) * clip.speed;
+          const src = asset.kind === 'image' ? 0 : clip.in + (((i + 0.5) * tileW) / pps) * clip.speed; // кадр середины плитки
           const idx = asset.kind === 'image' ? 0 : Math.min(thumbs.length - 1, Math.max(0, Math.floor((src / Math.max(0.001, asset.duration)) * thumbs.length)));
           tiles.push(<div key={i} style={{ left: i * tileW, width: tileW, backgroundImage: `url("${api.mediaUrl(thumbs[idx])}")` }} />);
         }
@@ -540,6 +540,9 @@ export function Timeline() {
         <button className="icon-btn" title="Разрезать у курсора (S)" onClick={splitAtPlayhead} disabled={noClips} data-testid="split"><Scissors size={17} /></button>
         <button className="icon-btn" title="Удалить (Delete)" onClick={deleteSelection} disabled={!selection.length} data-testid="delete"><Trash2 size={17} /></button>
         <button className="icon-btn" title="Копия клипа (Ctrl+D)" onClick={duplicateSelection} disabled={selection.length !== 1} data-testid="duplicate"><Copy size={17} /></button>
+        <button className="icon-btn" title="Стоп-кадр у курсора" onClick={() => void freezeFrame()} disabled={noClips} data-testid="tl-freeze"><Snowflake size={17} /></button>
+        <button className={`icon-btn ${selClip?.retime?.reverse ? 'on' : ''}`} title="Реверс выделенного клипа" disabled={!selClip || sel?.asset?.kind === 'image'}
+          onClick={() => selClip && void retimeClip(selClip.id, { reverse: !selClip.retime?.reverse })} data-testid="tl-reverse"><Rewind size={17} /></button>
         <span className="sep" />
         <button className="btn ghost small" title="Вырезать тишину между фразами в выделенном клипе" disabled={!canPauses}
           onClick={() => selClip && void removePauses(selClip.id)}><Wand2 size={15} />Убрать паузы</button>

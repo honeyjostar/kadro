@@ -381,3 +381,25 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 
 .fx-grid { grid-template-columns: repeat(3, 1fr); }
 .fx-swatch { height: 40px; }
+
+/* скорость: кривая, реверс */
+.sub-head { margin: 18px 0 8px; padding-top: 14px; border-top: 1px solid var(--line-soft); font-size: 12px; font-weight: 600; color: var(--text); }
+.ramp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ramp-tile { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px 5px; background: var(--raised); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-s); color: var(--muted); font: inherit; font-size: 11px; cursor: pointer; }
+.ramp-tile:hover:not(:disabled) { border-color: var(--line); color: var(--text); }
+.ramp-tile.active { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+.ramp-tile:disabled { opacity: 0.5; cursor: default; }
+.ramp-thumb { width: 100%; max-width: 56px; height: 30px; }
+.ramp-thumb polyline { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
+.ramp-thumb .axis { stroke: var(--line); stroke-dasharray: 2 2; }
+.ramp-editor { display: block; width: 100%; aspect-ratio: 260 / 120; margin-top: 10px; background: var(--bg); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-s); touch-action: none; user-select: none; }
+.ramp-editor .grid { stroke: var(--line-soft); }
+.ramp-editor .axis { stroke: var(--line); stroke-dasharray: 3 3; }
+.ramp-editor .lbl { fill: var(--faint); font-size: 9px; }
+.ramp-editor .curve { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+.ramp-editor circle { fill: var(--panel); stroke: var(--accent); stroke-width: 2; cursor: grab; }
+.ramp-editor circle:hover { fill: var(--accent); }
+.row-btns { display: flex; gap: 8px; margin-top: 8px; }
+.row-btns .btn { flex: 1; justify-content: center; }

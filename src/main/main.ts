@@ -9,6 +9,7 @@ import { ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady } from './ai/model
 import { denoise } from './ai/denoise';
 import { processVoice } from './ai/voice';
 import { stabilize } from './ai/stab';
+import { freezeFrame, retime } from './retime';
 import { cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
 import { exportProject, exportSpeechAudio, hasNvenc } from './exporter';
 import { analyze, makePeaks, makeProxy, makeThumbs } from './media';
@@ -214,6 +215,16 @@ async function runAi(job: AiJob): Promise<AiResponse> {
     if (job.kind === 'reframe') {
       const r = await workerCall<{ points: { t: number; x: number; y: number; found: boolean }[] }>(id, { kind: 'reframe', path: job.path, in: job.in, out: job.out, width: job.width, height: job.height });
       return { ok: true, output: { kind: 'reframe', points: r.points } };
+    }
+    if (job.kind === 'retime') {
+      const ac = new AbortController();
+      aiAborts.set(id, ac);
+      const r = await retime(job, (p) => send(p, job.reverse ? 'Переворачиваю' : 'Меняю скорость'), ac.signal);
+      return { ok: true, output: { kind: 'retime', path: r.path, duration: r.duration } };
+    }
+    if (job.kind === 'freeze') {
+      const out = await freezeFrame(job.path, job.t, job.fps, job.alpha);
+      return { ok: true, output: { kind: 'freeze', path: out } };
     }
     return { ok: false, error: 'Неизвестная задача' };
   } catch (e) {
