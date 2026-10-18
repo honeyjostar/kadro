@@ -20,6 +20,18 @@
     "e2e": "playwright test"
   },
   "dependencies": {
+    "@fontsource/caveat": "^5.3.0",
+    "@fontsource/comfortaa": "^5.3.0",
+    "@fontsource/lobster": "^5.3.0",
+    "@fontsource/montserrat": "^5.3.0",
+    "@fontsource/onest": "^5.3.1",
+    "@fontsource/oswald": "^5.3.0",
+    "@fontsource/press-start-2p": "^5.3.0",
+    "@fontsource/pt-serif": "^5.3.0",
+    "@fontsource/rubik": "^5.3.0",
+    "@fontsource/russo-one": "^5.3.0",
+    "@fontsource/unbounded": "^5.3.0",
+    "lucide-react": "^1.59.0",
     "onnxruntime-node": "^1.30.0",
     "react": "19.2",
     "react-dom": "19.2",
@@ -29,6 +41,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/node": "^22.20.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -36,6 +49,7 @@
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^44.9.0",
     "esbuild": "^0.25.12",
+    "playwright-core": "^1.56.1",
     "typescript": "^5.9.3",
     "vite": "^7.3.7",
     "vitest": "^3.2.7"

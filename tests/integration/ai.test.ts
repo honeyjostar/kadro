@@ -12,7 +12,8 @@ import { addAsset, addToMain, keepSourceRanges, mainTrack, updateClip, addFree }
 import type { MediaClip } from '../../src/shared/types';
 import { asrModelReady } from '../../src/main/ai/models';
 import { readPcm16k, transcribe, detectSpeech } from '../../src/main/ai/speech';
-import { denoise, findSpeechRanges } from '../../src/main/ai/audioFx';
+import { findSpeechRanges } from '../../src/main/ai/audioFx';
+import { denoise } from '../../src/main/ai/denoise';
 import { removeBackground } from '../../src/main/ai/matting';
 import { analyze, makePeaks, makeProxy, makeThumbs } from '../../src/main/media';
 import { assetFromFile, ff, meanVolume, near, pixelAt, probe, runExport, tmpDir, FFMPEG } from '../helpers/media';

@@ -9,8 +9,9 @@ export interface BuildOpts {
   width: number;
   height: number;
   fps: number;
-  /** Слои текста: файлы-списки concat (PNG-кадры W×H, покрывают весь ролик с 0). */
-  textLayers: string[];
+  /** Слои текста: файлы-списки concat (PNG-кадры W×H, покрывают весь ролик с 0).
+   *  С trackId — накладываются в порядке дорожек (как в превью); просто строка — поверх всего. */
+  textLayers: (string | { trackId: string; list: string })[];
   /** Только звук (для распознавания речи): видео-цепочки не строятся. */
   audioOnly?: boolean;
   /** Брать ли клипы с аудиодорожек (музыку). По умолчанию да. */
@@ -205,7 +206,20 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     }
 
     // ---------- наложения (картинка в картинке) ----------
+    const overlayText = (list: string) => {
+      const idx = addInput(['-f', 'concat', '-safe', '0', '-i', list]);
+      const t = L('t');
+      chains.push(`[${idx}:v]fps=${F},format=rgba[${t}]`);
+      const nv = L('v');
+      chains.push(`[${v}][${t}]overlay=x=0:y=0:eof_action=pass[${nv}]`);
+      v = nv;
+    };
     for (const track of p.tracks) {
+      if (track.kind === 'text' && !track.hidden) {
+        const layer = o.textLayers.find((l) => typeof l !== 'string' && l.trackId === track.id);
+        if (layer && typeof layer !== 'string') overlayText(layer.list);
+        continue;
+      }
       if (track.kind !== 'video' || track.hidden) continue;
       for (const c of track.clips) {
         if (c.type !== 'media') continue;
@@ -234,15 +248,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       }
     }
 
-    // ---------- текст и субтитры ----------
-    for (const list of o.textLayers) {
-      const idx = addInput(['-f', 'concat', '-safe', '0', '-i', list]);
-      const t = L('t');
-      chains.push(`[${idx}:v]fps=${F},format=rgba[${t}]`);
-      const nv = L('v');
-      chains.push(`[${v}][${t}]overlay=x=0:y=0:eof_action=pass[${nv}]`);
-      v = nv;
-    }
+    // ---------- слои текста без привязки к дорожке — поверх всего ----------
+    for (const l of o.textLayers) if (typeof l === 'string') overlayText(l);
     chains.push(`[${v}]format=yuv420p,trim=duration=${fmt(total)},setpts=PTS-STARTPTS[vout]`);
 
   }

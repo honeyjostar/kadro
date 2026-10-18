@@ -3,6 +3,7 @@ import { IMAGE_DEFAULT_DURATION, newMediaClip, newTextClip, newTrack, uid } from
 import type { Clip, MediaAsset, MediaClip, Project, TextClip, TextStyle, Track, TrackKind, Transition } from './types';
 
 export const MIN_CLIP = 0.1;      // минимальная длина клипа на таймлайне, сек
+export const NEW_TRACK = 'new';   // цель перемещения: создать новую дорожку
 const EPS = 1e-6;
 
 // ---------- базовые вычисления ----------
@@ -321,6 +322,16 @@ export function moveClip(p: Project, clipId: string, start: number, targetTrackI
     if (f.track.kind === 'main') return; // для основной — reorderMain
     const c = f.clip;
     c.start = round(Math.max(0, start));
+    if (targetTrackId === NEW_TRACK) {
+      // новая дорожка поверх остальных (для звука — внизу)
+      const kind: Exclude<TrackKind, 'main'> = c.type === 'text' ? 'text' : assetOf(d, c)?.kind === 'audio' ? 'audio' : 'video';
+      f.track.clips.splice(f.index, 1);
+      const t = newTrack(kind);
+      t.clips.push(c);
+      insertTrack(d, t);
+      cleanupEmptyTracks(d);
+      return;
+    }
     const target = targetTrackId ? d.tracks.find((t) => t.id === targetTrackId) : f.track;
     if (!target) return;
     // переход между основной и наложением — только для видео/фото
@@ -353,8 +364,8 @@ export function moveClip(p: Project, clipId: string, start: number, targetTrackI
   });
 }
 
-/** Перенос клипа с основной дорожки на дорожку наложения. */
-export function mainToOverlay(p: Project, clipId: string, start: number): Project {
+/** Перенос клипа с основной дорожки на дорожку наложения (target: id дорожки или NEW_TRACK). */
+export function mainToOverlay(p: Project, clipId: string, start: number, target?: string): Project {
   return edit(p, (d) => {
     const f = findClip(d, clipId);
     if (!f || f.track.kind !== 'main' || f.clip.type !== 'media') return;
@@ -363,7 +374,14 @@ export function mainToOverlay(p: Project, clipId: string, start: number): Projec
     delete c.transitionOut;
     c.start = round(Math.max(0, start));
     c.transform = { ...c.transform, scale: 0.6 };
-    placeFree(d, 'video', c);
+    if (target === NEW_TRACK) {
+      const t = newTrack('video');
+      t.clips.push(c);
+      insertTrack(d, t);
+    } else {
+      const pref = target && d.tracks.find((t) => t.id === target && t.kind === 'video') ? target : undefined;
+      placeFree(d, 'video', c, pref);
+    }
   });
 }
 

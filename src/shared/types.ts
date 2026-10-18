@@ -32,6 +32,7 @@ export interface MediaAsset {
   size: number;              // байт
   rotation: number;          // поворот из метаданных телефона, градусы
   proxy: 'none' | 'pending' | 'ready' | 'error';
+  missing?: boolean;         // файл пропал с диска (проект открыт на другом компьютере, файл перемещён)
   thumbs?: string[];         // пути к кадрам-миниатюрам (равномерно по длительности)
   peaks?: number[];          // форма волны 0..1 (до ~2000 точек)
 }

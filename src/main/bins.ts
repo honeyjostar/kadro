@@ -8,7 +8,7 @@ import path from 'node:path';
 const exe = process.platform === 'win32' ? '.exe' : '';
 
 function resourcesDir(): string | undefined {
-  const rp = (process as unknown as { resourcesPath?: string }).resourcesPath;
+  const rp = process.env.KADRO_RESOURCES || (process as unknown as { resourcesPath?: string }).resourcesPath;
   return rp && fs.existsSync(path.join(rp, 'bin')) ? rp : undefined;
 }
 
@@ -29,8 +29,10 @@ export function ffprobePath(): string {
 /** Встроенные небольшие модели (RNNoise), идут вместе с программой. */
 export function bundledModel(name: string): string {
   const r = resourcesDir();
+  const rp = process.env.KADRO_RESOURCES || (process as unknown as { resourcesPath?: string }).resourcesPath;
   const candidates = [
     r && path.join(r, 'models', name),
+    rp && path.join(rp, 'models', name),
     path.join(__dirname, '..', '..', 'resources', 'models', name),
     path.join(process.cwd(), 'resources', 'models', name),
   ].filter(Boolean) as string[];

@@ -25,7 +25,7 @@ export async function readPcm16k(file: string, ss?: number, dur?: number, signal
   args.push('-i', file, '-vn', '-ac', '1', '-ar', String(SR), '-c:a', 'pcm_s16le', wav);
   await runFfmpeg(args, { signal });
   try {
-    return sherpa.readWave(wav).samples as Float32Array;
+    return sherpa.readWave(wav, false).samples as Float32Array; // false: в Electron внешние буферы запрещены
   } finally {
     fs.rmSync(wav, { force: true });
   }
