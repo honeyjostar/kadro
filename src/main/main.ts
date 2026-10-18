@@ -361,6 +361,12 @@ function registerIpc(): void {
   ipcMain.on('win:title', (_e, t: string) => win?.setTitle(t));
 }
 
+// автотесты на машине без видеокарты: программная видеокарта (SwiftShader), чтобы проверить WebGL-хромакей
+if (process.env.KADRO_SWIFTSHADER) {
+  app.commandLine.appendSwitch('use-angle', 'swiftshader');
+  app.commandLine.appendSwitch('enable-unsafe-swiftshader');
+  app.commandLine.appendSwitch('ignore-gpu-blocklist');
+}
 const lock = process.env.KADRO_MULTI ? true : app.requestSingleInstanceLock();
 if (!lock) {
   app.quit();

@@ -4,7 +4,7 @@ import { hasAnim, kfExpr, maxScale, valueAt } from './anim';
 import { effectiveColor, ffmpegColorFilter } from './color';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geometry';
 import { clipDuration, mainTrack, projectDuration } from './timeline';
-import type { MediaAsset, MediaClip, Project } from './types';
+import type { BlendMode, MediaAsset, MediaClip, Mask, Project } from './types';
 
 export interface BuildOpts {
   width: number;
@@ -17,6 +17,8 @@ export interface BuildOpts {
   audioOnly?: boolean;
   /** Брать ли клипы с аудиодорожек (музыку). По умолчанию да. */
   includeMusic?: boolean;
+  /** Создаёт PNG-маску клипа размера w × h и возвращает путь (нужен, если в проекте есть маски). */
+  maskFile?: (clipId: string, mask: Mask, w: number, h: number) => string;
 }
 
 export interface BuiltGraph {
@@ -111,10 +113,17 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
   function visualChain(src: string, c: MediaClip, asset: MediaAsset, withAlpha: boolean): { label: string; x: number; y: number } {
     void withAlpha;
     const o2 = orientedSize(asset.width, asset.height, 0);
-    const parts: string[] = ['format=rgba'];
+    let cur = src;
+    let parts: string[] = ['format=rgba'];
+    const flush = () => { const l = L('vc'); chains.push(`[${cur}]${parts.join(',')}[${l}]`); cur = l; parts = []; };
+    // 1) хромакей — по исходным цветам
+    if (c.chroma) {
+      const hex = c.chroma.color.replace('#', '0x');
+      parts.push('format=yuva444p', `chromakey=color=${hex}:similarity=${fmt(Math.max(0.01, c.chroma.similarity))}:blend=${fmt(Math.max(0, c.chroma.smoothness))}`, 'format=rgba');
+    }
+    // 2) цвет
     const col = ffmpegColorFilter(effectiveColor(c.color));
     if (col) parts.push(col);
-    const label = L('fg');
     const D = clipDuration(c);
     const opKfs = c.keyframes?.opacity;
     const opacityPart = () => {
@@ -135,6 +144,23 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
         parts.push(`colorchannelmixer=aa=${fmt(c.opacity ?? 1)}`);
       }
     };
+    // 3) маска — в рамке клипа нужного размера (умножаем на уже имеющуюся прозрачность)
+    const applyMask = (w: number, h: number) => {
+      if (!c.mask || !o.maskFile) return;
+      const file = o.maskFile(c.id, c.mask, w, h);
+      const idx = addInput(['-loop', '1', '-framerate', String(F), '-i', file]);
+      parts.push(`fps=${F}`);
+      flush();
+      const [a, b] = [L('mk'), L('mk')];
+      const [al, ml, a2] = [L('mk'), L('mk'), L('mk')];
+      chains.push(`[${cur}]split=2[${a}][${b}]`);
+      chains.push(`[${b}]alphaextract[${al}]`);
+      chains.push(`[${idx}:v]format=gray,scale=${w}:${h},setsar=1[${ml}]`);
+      chains.push(`[${al}][${ml}]blend=all_mode=multiply:shortest=1[${a2}]`);
+      const out = L('mk');
+      chains.push(`[${a}][${a2}]alphamerge[${out}]`);
+      cur = out;
+    };
 
     const moving = (['x', 'y', 'scale', 'rotation'] as const).some((pr) => (c.keyframes?.[pr]?.length ?? 0) > 0);
     if (!moving) {
@@ -142,6 +168,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       const sw = Math.max(1, Math.round(pl.w));
       const sh = Math.max(1, Math.round(pl.h));
       parts.push(`scale=${sw}:${sh}:flags=bicubic`);
+      applyMask(sw, sh);
       let ow = sw;
       let oh = sh;
       if (Math.abs(c.transform.rotation) > 0.01) {
@@ -151,7 +178,9 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
         parts.push(`rotate=a=${fmt(r)}:c=none:ow=${ow}:oh=${oh}`);
       }
       opacityPart();
-      chains.push(`[${src}]${parts.join(',')}[${label}]`);
+      if (!parts.length) parts.push('null');
+      const label = L('fg');
+      chains.push(`[${cur}]${parts.join(',')}[${label}]`);
       return { label, x: Math.round(pl.cx - ow / 2), y: Math.round(pl.cy - oh / 2) };
     }
 
@@ -181,16 +210,39 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const [x1, y1] = corner(PW, 0);
     const [x2, y2] = corner(0, PH);
     const [x3, y3] = corner(PW, PH);
+    parts.push(`scale=${wm}:${hm}:flags=bicubic`);
+    applyMask(wm, hm);
     parts.push(
-      `scale=${wm}:${hm}:flags=bicubic`,
       `pad=${wm + 2 * m}:${hm + 2 * m}:${m}:${m}:color=black@0`,
       `pad=${PW}:${PH}:0:0:color=black@0`,
       `perspective=sense=destination:eval=frame:interpolation=linear:x0='${x0}':y0='${y0}':x1='${x1}':y1='${y1}':x2='${x2}':y2='${y2}':x3='${x3}':y3='${y3}'`,
       `crop=${W}:${H}:0:0`,
     );
     opacityPart();
-    chains.push(`[${src}]${parts.join(',')}[${label}]`);
+    const label = L('fg');
+    chains.push(`[${cur}]${parts.join(',')}[${label}]`);
     return { label, x: 0, y: 0 };
+  }
+
+  /** Режим наложения слоя на то, что под ним (как globalCompositeOperation в превью). */
+  const BLEND_FF: Record<Exclude<BlendMode, 'normal'>, string> = {
+    multiply: 'multiply', screen: 'screen', overlay: 'overlay', darken: 'darken', lighten: 'lighten', add: 'addition',
+  };
+  function blendOnto(base: string, layer: string, x: number, y: number, mode: Exclude<BlendMode, 'normal'>, start: number, end: number): string {
+    // слой на прозрачном холсте во весь ролик, чтобы кадры совпадали с основой один к одному
+    const [canvas, full, l1, l2, b1, b2, bg, lg, bl, bla, la, mix, out] = Array.from({ length: 13 }, () => L('bm'));
+    chains.push(`color=c=black@0:s=${W}x${H}:r=${F}:d=${fmt(total)},format=rgba[${canvas}]`);
+    chains.push(`[${canvas}][${layer}]overlay=x=${x}:y=${y}:eof_action=pass:format=auto:enable='between(t\\,${fmt(start)}\\,${fmt(end)})'[${full}]`);
+    chains.push(`[${full}]split=2[${l1}][${l2}]`);
+    chains.push(`[${base}]split=2[${b1}][${b2}]`);
+    chains.push(`[${b1}]format=gbrp[${bg}]`);
+    chains.push(`[${l1}]format=gbrp[${lg}]`);
+    chains.push(`[${bg}][${lg}]blend=all_mode=${BLEND_FF[mode]}[${bl}]`);
+    chains.push(`[${bl}]format=gbrap[${bla}]`);
+    chains.push(`[${l2}]alphaextract[${la}]`);
+    chains.push(`[${bla}][${la}]alphamerge[${mix}]`);
+    chains.push(`[${b2}][${mix}]overlay=x=0:y=0:eof_action=pass[${out}]`);
+    return out;
   }
 
   // ---------- основная дорожка ----------
@@ -309,6 +361,10 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
         const fg = visualChain(src, c, asset, true);
         const shifted = L('sh');
         chains.push(`[${fg.label}]setpts=PTS-STARTPTS+${fmt(c.start)}/TB[${shifted}]`);
+        if (c.blend && c.blend !== 'normal') {
+          v = blendOnto(v, shifted, fg.x, fg.y, c.blend, c.start, c.start + D);
+          continue;
+        }
         const nv = L('v');
         chains.push(`[${v}][${shifted}]overlay=x=${fg.x}:y=${fg.y}:eof_action=pass:enable='between(t\\,${fmt(c.start)}\\,${fmt(c.start + D)})'[${nv}]`);
         v = nv;

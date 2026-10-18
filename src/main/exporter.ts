@@ -8,6 +8,9 @@ import type { ExportReq, ExportResult, TextLayerReq } from '../shared/ipc';
 import { projectDuration } from '../shared/timeline';
 import { cacheDir, ffmpegMajor, ffmpegPath } from './bins';
 import { runFfmpeg } from './ffrun';
+import { maskBytes } from '../shared/mask';
+import { grayPng } from './png';
+import type { Mask } from '../shared/types';
 
 let nvencCache: Promise<boolean> | undefined;
 
@@ -67,7 +70,13 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     const blank = path.join(job, 'blank.png');
     fs.writeFileSync(blank, Buffer.from(req.blankPng));
     const lists = req.textLayers.filter((l) => l.clips.length).map((l, i) => ({ trackId: l.trackId, list: writeTextLayer(job, l, blank, total, i) }));
-    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists });
+    let maskN = 0;
+    const maskFile = (_id: string, mask: Mask, w: number, h: number) => {
+      const file = path.join(job, `mask${maskN++}.png`);
+      fs.writeFileSync(file, grayPng(maskBytes(mask, w, h), w, h));
+      return file;
+    };
+    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, maskFile });
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);
     fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });

@@ -1,5 +1,5 @@
 import type {
-  TextAnimType, WordHighlight, AspectKey, ColorAdjust, MediaAsset, MediaClip, Project, ProjectSettings, TextClip, TextStyle, Track, TrackKind, Transform, TransitionType,
+  ChromaKey, TextAnimType, WordHighlight, AspectKey, ColorAdjust, MediaAsset, MediaClip, Project, ProjectSettings, TextClip, TextStyle, Track, TrackKind, Transform, TransitionType,
 } from './types';
 
 let counter = 0;
@@ -167,3 +167,5 @@ export const HIGHLIGHTS: { mode: WordHighlight['mode']; label: string }[] = [
   { mode: 'pop', label: 'Слово выскакивает' },
   { mode: 'reveal', label: 'Слово за словом' },
 ];
+
+export const DEFAULT_CHROMA: ChromaKey = { color: '#00ff00', similarity: 0.12, smoothness: 0.06 };

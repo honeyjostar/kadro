@@ -127,6 +127,10 @@ export function rotatedVideo(): string {
     ff(['-display_rotation:v:0', '90', '-i', src, '-c', 'copy', f]);
   });
 }
+export function greenVideo(): string {
+  return media('green.mp4', (f) => ff(['-f', 'lavfi', '-i', 'color=c=0x00b140:s=640x360:r=30:d=4,drawbox=x=220:y=100:w=200:h=160:color=red@1:t=fill',
+    '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'ultrafast', f]));
+}
 export function toneMp3(): string {
   return media('tone.mp3', (f) => ff(['-f', 'lavfi', '-i', 'sine=frequency=550:sample_rate=48000:duration=6', '-c:a', 'libmp3lame', '-q:a', '4', f]));
 }

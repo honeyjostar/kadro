@@ -5,7 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { applyColorToPixel, effectiveColor } from '../../src/shared/color';
 import { DEFAULT_COLOR } from '../../src/shared/defaults';
 import {
-  RGB, act, clipIds, colorsVideo, frameDiff, grayImage, importAt, launch, MEDIA, near, personVideo, PHRASES, previewPixel, probe,
+  greenVideo, RGB, act, clipIds, colorsVideo, frameDiff, grayImage, importAt, launch, MEDIA, near, personVideo, PHRASES, previewPixel, probe,
   project, rawFrame, reset, rotatedVideo, seekAndSettle, solidVideo, state, store, talkVideo, toneMp3, waitAssetsReady, type Kadro,
 } from './kadro';
 
@@ -405,6 +405,38 @@ test('анимация текста и подсветка слов: экспор
   compareAt(pngs[0], out, 0.25);
   compareAt(pngs[1], out, 1.7);
   compareAt(pngs[2], out, 2.75);
+});
+
+test('маска, хромакей и режим наложения: плеер и экспорт совпадают', async () => {
+  await reset(win);
+  await importAt(win, [colorsVideo()]);
+  const [green] = await act(win, 'importPaths', [greenVideo()]);
+  await act(win, 'addAssetToTimeline', green, 'overlay', 0);
+  const [gid] = await clipIds(win, 'video');
+  await store(win, 'select', [gid]);
+  await seekAndSettle(win, 1.5);
+  await win.getByTestId('itab-mask').click();
+  await win.getByTestId('chroma-toggle').click();
+  await commit('(tl, p, a) => tl.updateClip(p, a[0], { chroma: { color: "#00b140", similarity: 0.12, smoothness: 0.05 } })', gid);
+  // серая картинка с маской-кругом и умножением
+  const [gray] = await act(win, 'importPaths', [grayImage()]);
+  await act(win, 'addAssetToTimeline', gray, 'overlay', 0);
+  const ids = await clipIds(win, 'video');
+  const gr = ids.find((x) => x !== gid)!;
+  await store(win, 'select', [gr]);
+  await win.getByTestId('mask-circle').click();
+  await win.getByTestId('itab-basic').click();
+  await win.getByTestId('blend').selectOption('multiply');
+  const c = (await project(win)).tracks.flatMap((t) => t.clips).find((x) => x.id === gr) as any;
+  expect(c.mask.shape).toBe('circle');
+  expect(c.blend).toBe('multiply');
+  await seekAndSettle(win, 1.5);
+  // зелёный фон вырезан: в углу видно основное видео (зелёное на 1.5 с)
+  const W0 = await win.evaluate(() => (window as any).__kadroEngine.W);
+  expect(W0).toBeGreaterThan(100);
+  const png = await parity(1.5, 'mask');
+  const out = await exportViaUi('720p');
+  compareAt(png, out, 1.5, 5);
 });
 
 test('автосубтитры из интерфейса: распознаются и правятся', async () => {

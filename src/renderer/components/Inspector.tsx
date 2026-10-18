@@ -1,9 +1,10 @@
-import { AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, RotateCcw } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw } from 'lucide-react';
+import { DEFAULT_MASK } from '../../shared/mask';
 import { useEffect, useRef, useState } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
-import { ASPECTS, DEFAULT_COLOR, DEFAULT_TRANSFORM, FONTS, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
+import { ASPECTS, DEFAULT_CHROMA, DEFAULT_COLOR, DEFAULT_TRANSFORM, FONTS, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
 import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, styleAllCaptions, updateClip } from '../../shared/timeline';
-import type { AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
+import type { BlendMode, ChromaKey, Mask, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
 import { retimeWords } from '../../shared/captions';
 import { hasKeyHere, isAnimated, keyTimesOnTimeline, propValue, toggleKey, writeProps } from '../animEdit';
 import { useSelected } from '../hooks';
@@ -91,7 +92,7 @@ function ProjectInspector({ multi }: { multi: number }) {
 }
 
 // ---------- видео, фото, звук ----------
-type MTab = 'basic' | 'color' | 'speed' | 'audio' | 'ai';
+type MTab = 'basic' | 'color' | 'mask' | 'speed' | 'audio' | 'ai';
 
 function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: MediaAsset; trackKind: string }) {
   const commit = useStore((s) => s.commit);
@@ -100,7 +101,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   const tabs: { id: MTab; label: string }[] = isAudio
     ? [{ id: 'audio', label: 'Звук' }, { id: 'speed', label: 'Скорость' }]
     : [
-      { id: 'basic', label: 'Основное' }, { id: 'color', label: 'Цвет' },
+      { id: 'basic', label: 'Основное' }, { id: 'color', label: 'Цвет' }, { id: 'mask', label: 'Маска' },
       ...(!isImage ? [{ id: 'speed' as MTab, label: 'Скорость' }] : []),
       ...(asset?.hasAudio ? [{ id: 'audio' as MTab, label: 'Звук' }] : []),
       ...(!isImage ? [{ id: 'ai' as MTab, label: 'ИИ' }] : []),
@@ -122,6 +123,13 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
               <Seg value={clip.fit} onChange={(v) => up({ fit: v }, 'fit')} options={[{ value: 'contain', label: 'Целиком' }, { value: 'cover', label: 'Заполнить' }]} />
             </Field>
             <AnimFields clip={clip} defs={MEDIA_ANIM} />
+            {trackKind === 'video' && (
+              <Field label="Режим наложения">
+                <select className="input" value={clip.blend ?? 'normal'} data-testid="blend" onChange={(e) => up({ blend: e.target.value as BlendMode }, 'blend')}>
+                  {BLENDS.map((b) => <option key={b.mode} value={b.mode}>{b.label}</option>)}
+                </select>
+              </Field>
+            )}
             {isImage && (
               <Slider label="Длительность" min={0.5} max={30} step={0.1} value={dur} format={(v) => `${v.toFixed(1)} с`}
                 onChange={(v) => up({ out: clip.in + v * clip.speed }, 'idur')} />
@@ -131,6 +139,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
             </button>
           </>
         )}
+        {cur === 'mask' && <MaskTab clip={clip} />}
         {cur === 'color' && (
           <>
             <Field label="Фильтр">
@@ -183,6 +192,85 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   );
 }
 let lastMediaTab: MTab | null = null;
+
+const BLENDS: { mode: BlendMode; label: string }[] = [
+  { mode: 'normal', label: 'Обычный' }, { mode: 'multiply', label: 'Умножение' }, { mode: 'screen', label: 'Осветление (экран)' },
+  { mode: 'overlay', label: 'Перекрытие' }, { mode: 'darken', label: 'Замена тёмным' }, { mode: 'lighten', label: 'Замена светлым' },
+  { mode: 'add', label: 'Сложение' },
+];
+const MASKS: { shape: Mask['shape'] | 'none'; label: string }[] = [
+  { shape: 'none', label: 'Нет' }, { shape: 'linear', label: 'Линия' }, { shape: 'mirror', label: 'Полоса' },
+  { shape: 'circle', label: 'Круг' }, { shape: 'rect', label: 'Прямоугольник' },
+];
+
+function MaskTab({ clip }: { clip: MediaClip }) {
+  const commit = useStore((s) => s.commit);
+  const m = clip.mask;
+  const up = (patch: Partial<MediaClip>, key: string) => commit((p) => updateClip(p, clip.id, patch), `${key}-${clip.id}`);
+  const setM = (patch: Partial<Mask>, key: string) => up({ mask: { ...(m ?? DEFAULT_MASK), ...patch } }, key);
+  const ch = clip.chroma;
+  const setC = (patch: Partial<ChromaKey>, key: string) => up({ chroma: { ...(ch ?? DEFAULT_CHROMA), ...patch } }, key);
+  const pick = async () => {
+    const ED = (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
+    if (!ED) { getState().toast('Пипетка недоступна — выбери цвет вручную'); return; }
+    try { const r = await new ED().open(); setC({ color: r.sRGBHex }, 'chc'); } catch { /* отменено */ }
+  };
+  return (
+    <>
+      <div className="mask-shapes">
+        {MASKS.map((x) => (
+          <button key={x.shape} className={`tile mask-tile ${(m?.shape ?? 'none') === x.shape ? 'active' : ''}`} data-testid={`mask-${x.shape}`}
+            onClick={() => up({ mask: x.shape === 'none' ? undefined : { ...(m ?? DEFAULT_MASK), shape: x.shape as Mask['shape'], ...(x.shape === 'linear' ? { feather: m?.feather ?? 0.05 } : {}) } }, 'mshape')}>
+            <MaskIcon shape={x.shape} /><span className="label">{x.label}</span>
+          </button>
+        ))}
+      </div>
+      {m && (
+        <>
+          <Slider label="Сдвиг по горизонтали" min={-0.5} max={0.5} step={0.005} value={m.x} format={signedPct} onChange={(v) => setM({ x: v }, 'mx')} onReset={() => setM({ x: 0 }, 'mx')} />
+          <Slider label="Сдвиг по вертикали" min={-0.5} max={0.5} step={0.005} value={m.y} format={signedPct} onChange={(v) => setM({ y: v }, 'my')} onReset={() => setM({ y: 0 }, 'my')} />
+          {m.shape !== 'linear' && m.shape !== 'mirror' && (
+            <Slider label="Ширина" min={0.02} max={1.5} step={0.01} value={m.w} format={pct} onChange={(v) => setM({ w: v }, 'mw')} />
+          )}
+          {m.shape !== 'linear' && (
+            <Slider label={m.shape === 'mirror' ? 'Толщина полосы' : 'Высота'} min={0.02} max={1.5} step={0.01} value={m.h} format={pct} onChange={(v) => setM({ h: v }, 'mh')} />
+          )}
+          <Slider label="Поворот" min={-180} max={180} step={1} value={m.rotation} format={deg} onChange={(v) => setM({ rotation: v }, 'mr')} onReset={() => setM({ rotation: 0 }, 'mr')} />
+          <Slider label="Растушёвка" min={0} max={0.5} step={0.005} value={m.feather} format={pct} onChange={(v) => setM({ feather: v }, 'mf')} />
+          <Toggle label="Инвертировать" on={m.invert} onChange={(v) => setM({ invert: v }, 'mi')} />
+        </>
+      )}
+      <div className="section-title">Хромакей — убрать цвет фона</div>
+      <Toggle label="Убрать цвет" hint="Зелёный или синий фон за человеком" on={!!ch} onChange={(v) => up({ chroma: v ? { ...DEFAULT_CHROMA } : undefined }, 'chon')} testId="chroma-toggle" />
+      {ch && (
+        <>
+          <div className="field-row" style={{ margin: '10px 0' }}>
+            <label>Цвет фона</label>
+            <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <button className="btn small" onClick={() => void pick()} title="Ткни в цвет на экране"><Pipette size={13} />Пипетка</button>
+              <input type="color" className="color-input" value={ch.color} onChange={(e) => setC({ color: e.target.value }, 'chc')} />
+            </span>
+          </div>
+          <Slider label="Сила" min={0.01} max={0.5} step={0.005} value={ch.similarity} format={pct} onChange={(v) => setC({ similarity: v }, 'chs')} testId="chroma-sim" />
+          <Slider label="Мягкость края" min={0} max={0.3} step={0.005} value={ch.smoothness} format={pct} onChange={(v) => setC({ smoothness: v }, 'chb')} />
+        </>
+      )}
+    </>
+  );
+}
+
+function MaskIcon({ shape }: { shape: Mask['shape'] | 'none' }) {
+  return (
+    <svg viewBox="0 0 40 28" className="mask-icon" aria-hidden>
+      <rect x="1" y="1" width="38" height="26" rx="3" className="frame" />
+      {shape === 'linear' && <path d="M1 15h38V27H1z" className="fill" />}
+      {shape === 'mirror' && <path d="M1 10h38v8H1z" className="fill" />}
+      {shape === 'circle' && <ellipse cx="20" cy="14" rx="9" ry="9" className="fill" />}
+      {shape === 'rect' && <rect x="10" y="7" width="20" height="14" rx="1" className="fill" />}
+      {shape === 'none' && <path d="M8 22 32 6" className="frame" />}
+    </svg>
+  );
+}
 let lastTextTab: 'text' | 'style' | 'anim' = 'text';
 
 function AnimPick({ label, kind, clip }: { label: string; kind: 'in' | 'out'; clip: TextClip }) {

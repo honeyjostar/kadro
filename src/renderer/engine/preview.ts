@@ -2,12 +2,18 @@
 // Геометрия, цвет, переходы и текст — те же функции/формулы, что и в экспорте.
 import { aiSource } from '../../shared/ai';
 import { mediaPropsAt } from '../../shared/anim';
+import { maskBytes } from '../../shared/mask';
+import { ChromaKeyer } from './chroma';
 import { effectiveColor, isIdentity, svgFilterMarkup } from '../../shared/color';
 import { BLUR_SIGMA_1080, placeOnCanvas, unitScale } from '../../shared/geometry';
 import { drawText } from '../../shared/textRender';
 import { clipDuration, clipEnd, projectDuration } from '../../shared/timeline';
 import { drawTransition } from '../../shared/transitions';
-import type { MediaAsset, MediaClip, Project, Track } from '../../shared/types';
+import type { BlendMode, Mask, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
+
+const COMPOSITE: Record<Exclude<BlendMode, 'normal'>, GlobalCompositeOperation> = {
+  multiply: 'multiply', screen: 'screen', overlay: 'overlay', darken: 'darken', lighten: 'lighten', add: 'lighter',
+};
 
 type MediaEl = HTMLVideoElement | HTMLAudioElement | HTMLImageElement;
 
@@ -365,15 +371,64 @@ export class PreviewEngine {
     const mp = mediaPropsAt(c, t);
     if (mp.opacity <= 0.001) return;
     const pl = placeOnCanvas(W, H, asset.width, asset.height, c.fit, { x: mp.x, y: mp.y, scale: mp.scale, rotation: mp.rotation });
+    let img: CanvasImageSource = src.el;
+    if (c.chroma) {
+      const sc = Math.min(1, 1920 / Math.max(src.w, src.h));
+      img = this.keyer().process(src.el as TexImageSource, Math.max(1, Math.round(src.w * sc)), Math.max(1, Math.round(src.h * sc)), c.chroma) ?? src.el;
+    }
+    const colorFilter = isIdentity(effectiveColor(c.color)) ? 'none' : `url(#kf-${c.id})`;
     c2d.save();
     c2d.globalAlpha = Math.min(1, mp.opacity);
+    if (!isMain && c.blend && c.blend !== 'normal') c2d.globalCompositeOperation = COMPOSITE[c.blend];
     c2d.translate(pl.cx, pl.cy);
     if (pl.rotation) c2d.rotate((pl.rotation * Math.PI) / 180);
-    const e = effectiveColor(c.color);
-    c2d.filter = isIdentity(e) ? 'none' : `url(#kf-${c.id})`;
     c2d.imageSmoothingQuality = 'high';
-    c2d.drawImage(src.el, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
+    if (c.mask) {
+      // слой нужного размера: цвет → маска (destination-in) → на холст
+      const w = Math.max(1, Math.round(pl.w));
+      const h = Math.max(1, Math.round(pl.h));
+      const layer = this.canvasFor(`${c.id}:layer`, w, h);
+      const lc = layer.getContext('2d')!;
+      lc.save();
+      lc.globalCompositeOperation = 'copy';
+      lc.filter = colorFilter;
+      lc.imageSmoothingQuality = 'high';
+      lc.drawImage(img, 0, 0, w, h);
+      lc.filter = 'none';
+      lc.globalCompositeOperation = 'destination-in';
+      lc.drawImage(this.maskCanvas(c.id, c.mask, w, h), 0, 0, w, h);
+      lc.restore();
+      c2d.drawImage(layer, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
+    } else {
+      c2d.filter = colorFilter;
+      c2d.drawImage(img, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
+    }
     c2d.restore();
+  }
+
+  private keyerInst: ChromaKeyer | null = null;
+  private keyer(): ChromaKeyer { this.keyerInst ??= new ChromaKeyer(); return this.keyerInst; }
+  private canvases = new Map<string, HTMLCanvasElement>();
+  private canvasFor(key: string, w: number, h: number): HTMLCanvasElement {
+    let cv = this.canvases.get(key);
+    if (!cv) { cv = document.createElement('canvas'); this.canvases.set(key, cv); }
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+    return cv;
+  }
+  private maskKeys = new Map<string, string>();
+  /** Маска считается той же функцией, что и PNG для экспорта; пересчёт — только при смене размера или формы. */
+  private maskCanvas(id: string, m: Mask, w: number, h: number): HTMLCanvasElement {
+    const mw = Math.max(1, Math.min(w, 960));
+    const mh = Math.max(1, Math.round((h * mw) / w));
+    const key = `${JSON.stringify(m)}:${mw}x${mh}`;
+    const cv = this.canvasFor(`${id}:mask`, mw, mh);
+    if (this.maskKeys.get(id) === key) return cv;
+    const bytes = maskBytes(m, mw, mh);
+    const img = new ImageData(mw, mh);
+    for (let i = 0; i < bytes.length; i++) { img.data[i * 4 + 3] = bytes[i]; }
+    cv.getContext('2d')!.putImageData(img, 0, 0);
+    this.maskKeys.set(id, key);
+    return cv;
   }
 
   private render(t: number): void {

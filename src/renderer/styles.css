@@ -365,3 +365,11 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .kf-marks i { position: absolute; width: 8px; height: 8px; margin-left: -4px; background: #fff; transform: rotate(45deg); border: 1px solid var(--accent); border-radius: 1px; }
 .beat-marks { position: absolute; left: 0; right: 0; top: 0; height: 100%; pointer-events: none; }
 .beat-marks i { position: absolute; top: 0; width: 2px; height: 6px; margin-left: -1px; background: #ffe14d; border-radius: 1px; }
+
+/* ---------- маски ---------- */
+.mask-shapes { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 4px 0 6px; }
+.mask-tile { padding: 6px 2px; align-items: center; gap: 4px; }
+.mask-tile .label { font-size: 10.5px; text-align: center; }
+.mask-icon { width: 34px; height: 24px; }
+.mask-icon .frame { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.mask-icon .fill { fill: var(--accent); opacity: 0.85; }

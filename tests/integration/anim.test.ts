@@ -116,3 +116,59 @@ describe('ключевые кадры в экспорте', () => {
     expect(b1.h).toBeGreaterThan(1000 * 0.9 > 960 ? 959 : 900);
   });
 });
+
+describe('маски, хромакей, режимы наложения в экспорте', () => {
+  it('маска круг с растушёвкой: края как в формуле превью', async () => {
+    const { maskAlpha } = await import('../../src/shared/mask');
+    let p = addFree(base(), 'white', 0).project; // 200×200, масштаб 0.6 → 324×324 по центру
+    const id = overlayId(p);
+    const mask = { shape: 'circle' as const, x: 0.1, y: 0, w: 0.6, h: 0.6, rotation: 0, feather: 0.1, invert: false };
+    p = updateClip(p, id, { mask });
+    runExport(p, f('mask.mp4'), { width: W, height: H });
+    const b = frame(f('mask.mp4'), 1);
+    const box = 324; const x0 = (W - box) / 2; const y0 = (H - box) / 2;
+    for (const [u, v] of [[0.6, 0.5], [0.15, 0.5], [0.9, 0.5], [0.6, 0.2], [0.33, 0.5], [0.6, 0.79]]) {
+      const px = Math.round(x0 + u * box); const py = Math.round(y0 + v * box);
+      const exp = maskAlpha(mask, px - x0 + 0.5, py - y0 + 0.5, box, box) * 255;
+      expect(Math.abs(b[(py * W + px) * 3] - exp), `(${u},${v}) ждали ${exp.toFixed(0)}`).toBeLessThan(10);
+    }
+  });
+
+  it('хромакей: зелёный фон убран, красный предмет остался', () => {
+    if (!fs.existsSync(f('green.mp4'))) {
+      ff(['-f', 'lavfi', '-i', 'color=c=0x00b140:s=640x360:r=30:d=3,drawbox=x=220:y=100:w=200:h=160:color=red@1:t=fill', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'ultrafast', f('green.mp4')]);
+    }
+    let p = base();
+    p = addAsset(p, assetFromFile('green', f('green.mp4'), 'video'));
+    p = addFree(p, 'green', 0).project;
+    const id = overlayId(p);
+    p = updateClip(p, id, { chroma: { color: '#00b140', similarity: 0.12, smoothness: 0.05 }, transform: { scale: 1, x: 0, y: 0, rotation: 0 } });
+    runExport(p, f('chroma.mp4'), { width: W, height: H });
+    const b = frame(f('chroma.mp4'), 1);
+    const at = (x: number, y: number) => [...b.subarray((y * W + x) * 3, (y * W + x) * 3 + 3)];
+    // кадр 640×360 вписан в 540 по ширине: высота 304, сверху поле 328
+    expect(at(30, 400).every((v) => v < 20), `фон ${at(30, 400)}`).toBe(true);
+    const red = at(270, 480);
+    expect(red[0] > 200 && red[1] < 60 && red[2] < 60, `предмет ${red}`).toBe(true);
+  });
+
+  it('режим наложения «умножение»', () => {
+    if (!fs.existsSync(f('gray.png'))) ff(['-f', 'lavfi', '-i', 'color=c=0x808080:s=200x200,format=rgb24', '-frames:v', '1', f('gray.png')]);
+    if (!fs.existsSync(f('yellowv.mp4'))) makeSolid(f('yellowv.mp4'), 'yellow', 3, 640, 360, 30, 440);
+    let p = newProject('b', '9:16');
+    p = addAsset(p, assetFromFile('yel', f('yellowv.mp4'), 'video'));
+    p = addAsset(p, assetFromFile('gray', f('gray.png'), 'image'));
+    p = addToMain(p, 'yel', 0).project;
+    p = addFree(p, 'gray', 0).project;
+    const id = overlayId(p);
+    p = updateClip(p, id, { blend: 'multiply' });
+    runExport(p, f('blend.mp4'), { width: W, height: H });
+    const b = frame(f('blend.mp4'), 1);
+    const i = (480 * W + 270) * 3;
+    expect(Math.abs(b[i] - 128)).toBeLessThan(8);     // 255 × 128/255
+    expect(Math.abs(b[i + 1] - 128)).toBeLessThan(8);
+    expect(b[i + 2]).toBeLessThan(10);
+    const j = (480 * W + 20) * 3; // вне картинки — жёлтый без изменений
+    expect(b[j]).toBeGreaterThan(240);
+  });
+});
