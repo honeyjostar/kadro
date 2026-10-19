@@ -77,12 +77,12 @@ curl -fL -o ffmpeg-win.zip "https://github.com/BtbN/FFmpeg-Builds/releases/downl
 node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip
 ```
 
-Результат — `release/Kadro-Setup-<версия>.exe` (около 200 МБ) и папка `release/win-unpacked` с готовой программой.
+Результат — `release/Kadro-Setup-<версия>.exe` (около 195 МБ; после установки программа занимает около 700 МБ) и папка `release/win-unpacked` с готовой программой.
 Скрипт сам подкладывает Windows-версии нативных модулей (sherpa-onnx, ONNX Runtime), FFmpeg, встроенные модели, значок и лицензии.
 
 ### Выпуск новой версии
 
-1. Поменяй `version` в `package.json` и опиши изменения в `docs/RELEASE_NOTES.md`.
+1. Поменяй `version` в `package.json`, опиши изменения в `docs/RELEASE_NOTES.md` и обнови номер версии и размеры в прямых ссылках на скачивание (начало `README.md` и раздел «Установка», начало `docs/RELEASE_NOTES.md`).
 2. Закоммить и отправь в `master`: `git commit -am "Версия 0.4.0" && git push`.
 3. GitHub Actions (`.github/workflows/release.yml`) увидит новую версию, прогонит тесты, соберёт установщик и zip на своих серверах и сам создаст релиз `v0.4.0` (15–20 минут). Обычные коммиты без смены версии релиз не трогают.
 

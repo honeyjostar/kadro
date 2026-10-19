@@ -16,10 +16,16 @@
 удаление фона, чистый голос, шаблоны. Экспорт до 4K без водяных знаков, без подписок и регистрации.</p>
 
 <p align="center">
-  <a href="https://github.com/honeyjostar/kadro/releases/latest"><b>⬇ Скачать для Windows</b></a> ·
-  <a href="docs/GUIDE.md">Руководство</a> ·
-  <a href="docs/BUILD.md">Сборка из исходников</a>
+  <a href="https://github.com/honeyjostar/kadro/releases/download/v0.3.0/Kadro-Setup-0.3.0.exe"><img src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C_%D0%B4%D0%BB%D1%8F_Windows-%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D1%89%D0%B8%D0%BA_195_%D0%9C%D0%91-ff3d7f?style=for-the-badge&logo=windows&logoColor=white" alt="Скачать для Windows — установщик, 195 МБ"></a>
+  <a href="https://github.com/honeyjostar/kadro/releases/download/v0.3.0/Kadro-0.3.0-portable.zip"><img src="https://img.shields.io/badge/%D0%91%D0%B5%D0%B7_%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B8-zip_276_%D0%9C%D0%91-2e2938?style=for-the-badge" alt="Без установки — zip, 276 МБ"></a>
 </p>
+
+<p align="center">Kadro 0.3.0 для Windows 10 и 11 · после установки занимает около 700 МБ ·
+  <a href="docs/GUIDE.md">Руководство</a> · <a href="docs/BUILD.md">Сборка из исходников</a></p>
+
+> [!IMPORTANT]
+> Программа — это файлы по кнопкам выше. Зелёная кнопка **Code → Download ZIP** скачивает исходный код для программистов:
+> программы там нет, а файлы `.ts` в нём — код на TypeScript, а не видео.
 
 ![Kadro: шаблон «Путешествие» на таймлайне](docs/screenshots/editor.png)
 
@@ -84,16 +90,17 @@ Kadro — обычная программа, а не сайт. Видео не �
 
 - Windows 10 или 11, 64-бит
 - 8 ГБ оперативной памяти (для 4K и удаления фона — лучше 16 ГБ)
-- 1 ГБ на диске для программы + место под модели ИИ (до 0.5 ГБ, скачиваются по желанию)
+- Около 700 МБ на диске для программы + место под модели ИИ (до 0.5 ГБ, скачиваются по желанию)
 - Видеокарта не обязательна; NVIDIA ускоряет экспорт
 
 ## Установка
 
-1. Скачай `Kadro-Setup-<версия>.exe` со страницы [Releases](https://github.com/honeyjostar/kadro/releases/latest).
+1. Скачай [**Kadro-Setup-0.3.0.exe**](https://github.com/honeyjostar/kadro/releases/download/v0.3.0/Kadro-Setup-0.3.0.exe) (195 МБ). Все версии — на странице [Releases](https://github.com/honeyjostar/kadro/releases/latest), в разделе **Assets**.
+   Браузер может спросить, точно ли сохранить редко скачиваемый файл, — выбери «Сохранить».
 2. Запусти. Windows может показать «Система Windows защитила ваш компьютер» — это потому, что у установщика нет платной цифровой подписи. Нажми **Подробнее → Выполнить в любом случае**.
-3. Установщик ставит программу в `%LOCALAPPDATA%\Programs\Kadro` (права администратора не нужны) и создаёт ярлыки на рабочем столе и в меню «Пуск». Дальше Kadro запускается как любая программа.
+3. Установщик ставит программу в `%LOCALAPPDATA%\Programs\Kadro` (около 700 МБ, права администратора не нужны) и создаёт ярлык **Kadro** на рабочем столе и в меню «Пуск» — по нему программа и запускается.
 
-**Без установки:** там же лежит `Kadro-<версия>-portable.zip` — распакуй в любую папку (хоть на флешку) и запускай `Kadro.exe`.
+**Без установки:** скачай [Kadro-0.3.0-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.3.0/Kadro-0.3.0-portable.zip) (276 МБ), распакуй в любую папку (хоть на флешку) и запусти `Kadro.exe` внутри.
 
 **Обновление** — просто поставь новую версию поверх, проекты и настройки сохранятся.
 **Удаление** — «Параметры → Приложения → Kadro → Удалить». Модели и черновики лежат в `%USERPROFILE%\.kadro`, эту папку можно удалить вручную.
