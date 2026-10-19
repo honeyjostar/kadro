@@ -34,7 +34,8 @@ export type AiJob =
   | { kind: 'beats'; jobId: string; path: string }
   | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number }
   | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
-  | { kind: 'freeze'; jobId: string; path: string; t: number; fps: number; alpha: boolean };
+  | { kind: 'freeze'; jobId: string; path: string; t: number; fps: number; alpha: boolean }
+  | { kind: 'beauty'; jobId: string; path: string; in: number; out: number; offset: number; smooth: number; bright: number; width: number; height: number };
 
 export type AiOutput =
   | { kind: 'captions'; cues: Cue[]; text: string }
@@ -48,7 +49,8 @@ export type AiOutput =
   | { kind: 'beats'; beats: number[]; bpm: number }
   | { kind: 'reframe'; points: { t: number; x: number; y: number; found: boolean }[] }
   | { kind: 'retime'; path: string; duration: number }
-  | { kind: 'freeze'; path: string };
+  | { kind: 'freeze'; path: string }
+  | { kind: 'beauty'; path: string; range: [number, number] };
 
 export interface AiResponse { ok: boolean; output?: AiOutput; error?: string }
 

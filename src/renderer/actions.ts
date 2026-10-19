@@ -1,5 +1,5 @@
 // Действия редактора, которые вызываются из разных мест интерфейса.
-import { aiCovers, aiSource, aiStale, videoSource } from '../shared/ai';
+import { aiCovers, aiSource, aiStale, videoInputFor, videoSource } from '../shared/ai';
 import { normalizeRamp, originalRange } from '../shared/retime';
 import { reframeKeyframes } from '../shared/reframe';
 import { CAPTION_STYLE, newProject } from '../shared/defaults';
@@ -133,7 +133,7 @@ export async function removeBackground(clipId: string): Promise<void> {
   if (!m) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
   if (!a || a.kind !== 'video') { getState().toast('Удаление фона работает с видео'); return; }
-  const st = aiSource(m.clip, 'stab');
+  const st = videoInputFor(m.clip, 'removeBg');
   const src = st ? { path: st.path, off: st.offset } : { path: a.path, off: 0 };
   const r = await runJob('Удаляю фон', { kind: 'removeBg', jobId: `bg_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, offset: src.off, width: a.width, height: a.height, fps: Math.min(60, a.fps || 30) }, clipId);
   if (!r.ok || r.output?.kind !== 'removeBg') { if (r.error !== 'Отменено') getState().toast(`Фон убрать не удалось: ${r.error}`, 'err'); return; }
@@ -210,6 +210,7 @@ export async function stabilizeClip(clipId: string, strength = 0.5): Promise<voi
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { stab: { enabled: true, status: 'ready', path: out.path, range: out.range } }));
   getState().toast('Видео стабилизировано', 'ok');
+  await rebuildAfter(clipId, 'stab');
 }
 export function disableStab(clipId: string): void {
   getState().commit((p) => {
@@ -217,6 +218,43 @@ export function disableStab(clipId: string): void {
     if (!f || f.clip.type !== 'media' || !f.clip.stab) return p;
     return updateClip(p, clipId, { stab: { ...f.clip.stab, enabled: false } });
   });
+  void rebuildAfter(clipId, 'stab');
+}
+
+/** Обработки картинки идут цепочкой (стабилизация → ретушь → без фона): после смены звена пересобираем следующие. */
+async function rebuildAfter(clipId: string, changed: 'stab' | 'beauty'): Promise<void> {
+  const c = mediaClip(clipId)?.clip;
+  if (!c) return;
+  if (changed === 'stab' && c.beauty?.enabled) { await retouchClip(clipId, c.beauty.smooth, c.beauty.bright); return; }
+  if (c.removeBg.enabled) await removeBackground(clipId);
+}
+
+// ---------- ретушь ----------
+export async function retouchClip(clipId: string, smooth: number, bright: number): Promise<void> {
+  const m = mediaClip(clipId);
+  if (!m) return;
+  const a = m.p.assets.find((x) => x.id === m.clip.assetId);
+  if (!a || a.kind !== 'video') { getState().toast('Ретушь работает с видео'); return; }
+  if (smooth < 0.01 && bright < 0.01) { disableRetouch(clipId); return; }
+  const st = videoInputFor(m.clip, 'beauty');
+  const src = st ? { path: st.path, off: st.offset } : { path: a.path, off: 0 };
+  const r = await runJob('Ретушь', {
+    kind: 'beauty', jobId: `be_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, offset: src.off,
+    smooth, bright, width: a.width, height: a.height,
+  }, clipId);
+  if (!r.ok || r.output?.kind !== 'beauty') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  const out = r.output;
+  getState().commit((p) => updateClip(p, clipId, { beauty: { enabled: true, status: 'ready', path: out.path, range: out.range, smooth, bright } }));
+  getState().toast('Ретушь готова', 'ok');
+  await rebuildAfter(clipId, 'beauty');
+}
+export function disableRetouch(clipId: string): void {
+  getState().commit((p) => {
+    const f = findClip(p, clipId);
+    if (!f || f.clip.type !== 'media' || !f.clip.beauty) return p;
+    return updateClip(p, clipId, { beauty: { ...f.clip.beauty, enabled: false } });
+  });
+  void rebuildAfter(clipId, 'beauty');
 }
 
 // ---------- ритм ----------
@@ -318,7 +356,9 @@ async function importDerived(path: string, name: string): Promise<MediaAsset | n
 async function reprocessAi(clipId: string): Promise<void> {
   const m = mediaClip(clipId);
   if (!m) return;
-  if (m.clip.stab?.enabled && aiStale(m.clip, 'stab')) await stabilizeClip(clipId);
+  if (m.clip.stab?.enabled && aiStale(m.clip, 'stab')) await stabilizeClip(clipId); // сама пересоберёт ретушь и фон
+  const c1 = mediaClip(clipId)?.clip;
+  if (c1?.beauty?.enabled && aiStale(c1, 'beauty')) await retouchClip(clipId, c1.beauty.smooth, c1.beauty.bright);
   if (mediaClip(clipId)?.clip.removeBg.enabled && aiStale(mediaClip(clipId)!.clip, 'removeBg')) await removeBackground(clipId);
   if (mediaClip(clipId)?.clip.denoise.enabled && aiStale(mediaClip(clipId)!.clip, 'denoise')) await enhanceVoice(clipId);
   else await refreshVoice(clipId);
@@ -503,7 +543,7 @@ export async function makeCaptions(model: 'multi' | 'ru', includeMusic: boolean)
 export function staleAiClips(p: Project): string[] {
   const out: string[] = [];
   for (const t of p.tracks) for (const c of t.clips) {
-    if (c.type === 'media' && (aiStale(c, 'removeBg') || aiStale(c, 'denoise') || aiStale(c, 'stab') || aiStale(c, 'voice'))) out.push(c.id);
+    if (c.type === 'media' && (aiStale(c, 'removeBg') || aiStale(c, 'denoise') || aiStale(c, 'stab') || aiStale(c, 'beauty') || aiStale(c, 'voice'))) out.push(c.id);
   }
   return out;
 }

@@ -10,6 +10,7 @@ import { denoise } from './ai/denoise';
 import { processVoice } from './ai/voice';
 import { stabilize } from './ai/stab';
 import { freezeFrame, retime } from './retime';
+import { beautify } from './ai/beauty';
 import { runFfmpeg } from './ffrun';
 import { importLutFile, listLutFiles } from './luts';
 import { cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
@@ -223,6 +224,13 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       aiAborts.set(id, ac);
       const r = await retime(job, (p) => send(p, job.reverse ? 'Переворачиваю' : 'Меняю скорость'), ac.signal);
       return { ok: true, output: { kind: 'retime', path: r.path, duration: r.duration } };
+    }
+    if (job.kind === 'beauty') {
+      const ac = new AbortController();
+      aiAborts.set(id, ac);
+      const out = path.join(cacheDir('ai'), `beauty_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.mp4`);
+      await beautify(job.path, job.in, job.out - job.in, { smooth: job.smooth, bright: job.bright, width: job.width, height: job.height }, out, (p) => send(p, 'Ретушь'), ac.signal);
+      return { ok: true, output: { kind: 'beauty', path: out, range: [job.in + job.offset, job.out + job.offset] } };
     }
     if (job.kind === 'freeze') {
       const out = await freezeFrame(job.path, job.t, job.fps, job.alpha);

@@ -1,7 +1,7 @@
 import type { AiResult, MediaClip } from './types';
 
 const EPS = 1e-3;
-type AiKind = 'removeBg' | 'denoise' | 'stab' | 'voice';
+type AiKind = 'removeBg' | 'denoise' | 'stab' | 'voice' | 'beauty';
 
 /** Годится ли обработанный файл для текущего фрагмента клипа. */
 export function aiCovers(r: AiResult | undefined, clipIn: number, clipOut: number): boolean {
@@ -16,13 +16,22 @@ export function aiSource(c: MediaClip, kind: AiKind): { path: string; offset: nu
   return { path: r!.path as string, offset: (r!.range as [number, number])[0] };
 }
 
-/** Картинка клипа: без фона (с прозрачностью) → стабилизированная → оригинал (null). */
+/** Картинка клипа: без фона (с прозрачностью) → с ретушью → стабилизированная → оригинал (null).
+ *  Обработки строятся цепочкой: стабилизация → ретушь → удаление фона. */
 export function videoSource(c: MediaClip): { path: string; offset: number; alpha: boolean } | null {
   const bg = aiSource(c, 'removeBg');
   if (bg) return { ...bg, alpha: true };
+  const be = aiSource(c, 'beauty');
+  if (be) return { ...be, alpha: false };
   const st = aiSource(c, 'stab');
   if (st) return { ...st, alpha: false };
   return null;
+}
+
+/** Из чего строить следующую обработку картинки: ретушь берёт стабилизированную копию, удаление фона — ретушь или стабилизацию. */
+export function videoInputFor(c: MediaClip, kind: 'beauty' | 'removeBg'): { path: string; offset: number } | null {
+  if (kind === 'removeBg') { const be = aiSource(c, 'beauty'); if (be) return be; }
+  return aiSource(c, 'stab');
 }
 
 /** Звук клипа: голос с эффектом → очищенный → оригинал (null). */

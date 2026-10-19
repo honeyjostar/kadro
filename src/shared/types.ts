@@ -138,6 +138,7 @@ export interface MediaClip {
   blend?: BlendMode;            // только для наложений
   chroma?: ChromaKey;
   stab?: AiResult;              // стабилизированная копия фрагмента
+  beauty?: AiResult & { smooth: number; bright: number }; // ретушь кожи (копия фрагмента)
   voice?: AiResult & { effect?: VoiceEffect; withDenoise?: boolean }; // обработанный звук с эффектом голоса
   effects?: Effect[];           // видеоэффекты (тряска, глитч, виньетка…)
   retime?: Retime;              // клип показывает копию фрагмента с реверсом / кривой скорости

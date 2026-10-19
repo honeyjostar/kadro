@@ -1,6 +1,6 @@
 import {
   Zap, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  Sparkles, Trash2, Type, Upload, Wand2,
+  Smile, Sparkles, Trash2, Type, Upload, Wand2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FILTER_PRESETS, effectiveColor, svgFilterMarkup } from '../../shared/color';
@@ -14,7 +14,7 @@ import { EFFECTS } from '../../shared/effects';
 import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
-  setVoiceEffect, stabilizeClip, startRecording, stopRecording, cancelRecording, voiceLevel,
+  setVoiceEffect, stabilizeClip, retouchClip, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
 } from '../actions';
 import { listMics, recPrefs, type MicInfo } from '../recorder';
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
@@ -624,6 +624,9 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
   const isVideo = asset?.kind === 'video';
   const hasAudio = !!asset?.hasAudio;
   const [stabStrength, setStabStrength] = useState(0.5);
+  const [smooth, setSmooth] = useState(clip?.beauty?.smooth ?? 0.6);
+  const [bright, setBright] = useState(clip?.beauty?.bright ?? 0.3);
+  useEffect(() => { if (clip?.beauty) { setSmooth(clip.beauty.smooth); setBright(clip.beauty.bright); } }, [clip?.id, clip?.beauty]);
   return (
     <>
       {!compact && (
@@ -689,6 +692,28 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
                 <button className="btn block" disabled={busy} onClick={() => void stabilizeClip(clip.id, stabStrength)} data-testid="ai-stab">Стабилизировать</button>
               </>
             )
+          ) : <div className="hint small">Нужен видеоклип</div>}
+        </div>
+      )}
+
+      {asset?.kind !== 'audio' && (
+        <div className={`ai-card ${!clip || !isVideo ? 'off' : ''}`}>
+          <h4><Smile size={15} />Ретушь лица</h4>
+          <p className="hint">Сглаживает и осветляет кожу, остальной кадр не трогает.</p>
+          {clip && isVideo ? (
+            <>
+              <Slider label="Сглаживание кожи" min={0} max={1} step={0.05} value={smooth} format={(v) => `${Math.round(v * 100)}%`} onChange={setSmooth} testId="beauty-smooth" />
+              <Slider label="Осветление" min={0} max={1} step={0.05} value={bright} format={(v) => `${Math.round(v * 100)}%`} onChange={setBright} testId="beauty-bright" />
+              {clip.beauty?.enabled && (aiCovers(clip.beauty, clip.in, clip.out)
+                ? <div className="status-line ok">Готово — уже в превью и экспорте</div>
+                : <div className="status-line err">Клип обрезали после обработки — примени заново</div>)}
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                <button className="btn grow" disabled={busy || (smooth < 0.01 && bright < 0.01)} onClick={() => void retouchClip(clip.id, smooth, bright)} data-testid="ai-beauty">
+                  {clip.beauty?.enabled ? 'Применить заново' : 'Применить'}
+                </button>
+                {clip.beauty?.enabled && <button className="btn" onClick={() => disableRetouch(clip.id)} data-testid="ai-beauty-off">Убрать</button>}
+              </div>
+            </>
           ) : <div className="hint small">Нужен видеоклип</div>}
         </div>
       )}

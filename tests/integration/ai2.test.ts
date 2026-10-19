@@ -146,3 +146,32 @@ describe('ритм в настоящем файле', () => {
     }
   });
 });
+
+describe('ретушь', () => {
+  it('сглаживает и осветляет только кожу', async () => {
+    const { beautify } = await import('../../src/main/ai/beauty');
+    const src = f('skin.mp4');
+    if (!fs.existsSync(src)) {
+      // слева — «кожа» с шумом, справа — синий с тем же шумом
+      ff(['-f', 'lavfi', '-i', 'color=c=0xe0ac8c:s=320x360:r=30:d=2', '-f', 'lavfi', '-i', 'color=c=0x3c64c8:s=320x360:r=30:d=2',
+        '-filter_complex', '[0][1]hstack,noise=alls=24:allf=p,format=yuv420p', '-c:v', 'libx264', '-qp', '4', '-preset', 'ultrafast', src]);
+    }
+    const out = f('skin_b.mp4');
+    await beautify(src, 0, 2, { smooth: 1, bright: 0.6, width: 640, height: 360 }, out);
+    const stats = (file: string, x0: number) => {
+      const r = spawnSync(FFMPEG, ['-v', 'error', '-ss', '1', '-i', file, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'gray', '-'], { maxBuffer: 1 << 24 });
+      const b = r.stdout as Buffer;
+      let s = 0; let s2 = 0; let n = 0;
+      for (let y = 80; y < 280; y++) for (let x = x0 + 60; x < x0 + 260; x++) { const v = b[y * 640 + x]; s += v; s2 += v * v; n++; }
+      const m = s / n;
+      return { mean: m, sd: Math.sqrt(s2 / n - m * m) };
+    };
+    const a0 = stats(src, 0); const a1 = stats(out, 0);
+    const b0 = stats(src, 320); const b1 = stats(out, 320);
+    expect(a1.sd).toBeLessThan(a0.sd * 0.6);       // кожа гладкая
+    expect(a1.mean).toBeGreaterThan(a0.mean + 4);  // и светлее
+    expect(Math.abs(b1.sd - b0.sd)).toBeLessThan(b0.sd * 0.15); // синий не тронут
+    expect(Math.abs(b1.mean - b0.mean)).toBeLessThan(2);
+    expect(probe(out).duration).toBeCloseTo(2, 1);
+  });
+});

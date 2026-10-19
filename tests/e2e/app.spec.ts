@@ -666,6 +666,40 @@ test('голос, озвучка, ритм — через интерфейс', a
   expect(Math.min(ph, 1 - ph) * P, `склейка на ${cut}`).toBeLessThan(0.05);
 });
 
+test('ретушь лица и цепочка со стабилизацией — через интерфейс', async () => {
+  const shaky = shakyVideo();
+  test.skip(!shaky, 'нет тестового фото человека');
+  await reset(win);
+  await importAt(win, [shaky!]);
+  const [id] = await clipIds(win, 'main');
+  await store(win, 'select', [id]);
+  await win.getByTestId('tab-ai').click();
+  const panel = win.locator('aside.panel');
+  await setSlider(win, 'beauty-smooth', 0.8);
+  await panel.getByTestId('ai-beauty').click();
+  const clipOf = (cid: string) => win.evaluate((x) => (window as any).__kadro.useStore.getState().project.tracks[0].clips.find((c: any) => c.id === x), cid);
+  await win.waitForFunction((cid) => {
+    const s = (window as any).__kadro.useStore.getState();
+    return s.project.tracks[0].clips.find((c: any) => c.id === cid)?.beauty?.status === 'ready' && !Object.keys(s.jobs).length;
+  }, id, { timeout: 90_000 });
+  const b1 = (await clipOf(id)).beauty;
+  expect(b1.smooth).toBeCloseTo(0.8, 2);
+  await seekAndSettle(win, 1);
+  expect(await win.evaluate((cid) => (window as any).__kadroEngine.media.get(`${cid}:v`)?.src.includes('beauty_'), id)).toBe(true);
+  // стабилизация после ретуши: ретушь пересобирается поверх стабилизированной копии
+  await panel.getByTestId('ai-stab').click();
+  await win.waitForFunction(([cid, old]) => {
+    const s = (window as any).__kadro.useStore.getState();
+    const c = s.project.tracks[0].clips.find((x: any) => x.id === cid);
+    return c?.stab?.status === 'ready' && c?.beauty?.path !== old && c?.beauty?.status === 'ready' && !Object.keys(s.jobs).length;
+  }, [id, b1.path] as const, { timeout: 120_000 });
+  const png = await parity(1, 'beauty');
+  const out = await exportViaUi('720p');
+  compareAt(png, out, 1, 5);
+  await panel.getByTestId('ai-beauty-off').click();
+  expect((await clipOf(id)).beauty.enabled).toBe(false);
+});
+
 test('стабилизация и автокадрирование — через интерфейс', async () => {
   const shaky = shakyVideo();
   const walk = walkVideo();
