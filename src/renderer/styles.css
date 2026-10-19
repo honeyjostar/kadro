@@ -479,3 +479,6 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .chips button.active { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 .font-pop-list .font-row { width: 100%; }
 .tr-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; display: block; }
+.fx-toggle-row { margin: 10px 0; }
+.fx-grid .tile { align-content: start; }
+.fx-grid .tile .label { min-height: 2.5em; line-height: 1.25; }

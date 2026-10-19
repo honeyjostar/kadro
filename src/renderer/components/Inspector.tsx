@@ -159,14 +159,21 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
         {cur === 'mask' && <MaskTab clip={clip} />}
         {cur === 'fx' && (
           <>
-            {(clip.effects ?? []).map((e) => (
-              <Slider key={e.type} label={EFFECTS.find((x) => x.type === e.type)?.label ?? e.type} min={0} max={1} step={0.01} value={e.amount} format={pct}
-                testId={`fxamt-${e.type}`}
-                extra={<button className="icon-btn" style={{ width: 22, height: 22 }} title="Убрать эффект"
-                  onClick={() => up({ effects: clip.effects!.filter((x) => x.type !== e.type) }, 'fxdel')}><X size={13} /></button>}
-                onChange={(v) => up({ effects: clip.effects!.map((x) => (x.type === e.type ? { ...x, amount: v } : x)) }, `fx-${e.type}`)} />
-            ))}
-            <p className="hint small">Новые эффекты — в разделе «Эффекты» слева.</p>
+            {(clip.effects ?? []).map((e) => {
+              const def = EFFECTS.find((x) => x.type === e.type);
+              const del = (
+                <button className="icon-btn" style={{ width: 22, height: 22 }} title="Убрать эффект"
+                  onClick={() => up({ effects: clip.effects!.filter((x) => x.type !== e.type) }, 'fxdel')}><X size={13} /></button>
+              );
+              if (def?.toggle) return <div key={e.type} className="field-row fx-toggle-row"><label>{def.label}</label>{del}</div>;
+              return (
+                <Slider key={e.type} label={def?.label ?? e.type} min={0} max={1} step={0.01} value={e.amount} format={pct}
+                  testId={`fxamt-${e.type}`} extra={del}
+                  onChange={(v) => up({ effects: clip.effects!.map((x) => (x.type === e.type ? { ...x, amount: v } : x)) }, `fx-${e.type}`)} />
+              );
+            })}
+            {!(clip.effects ?? []).length && <p className="hint">Эффектов пока нет.</p>}
+            <p className="hint small">Новые эффекты — в разделе «Эффекты» слева: {EFFECTS.length} штук, наведи мышь, чтобы посмотреть.</p>
           </>
         )}
         {cur === 'color' && (

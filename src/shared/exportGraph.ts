@@ -2,12 +2,15 @@
 import { aiSource, audioSource, videoSource } from './ai';
 import { hasAnim, kfExpr, maxScale, valueAt } from './anim';
 import { effectiveColor, ffmpegColorFilter } from './color';
-import { gradeActive, gradeTable, haldImage, type CubeLut } from './grade';
+import { GRADE_N, gradeActive, gradeTable, haldImage, type CubeLut } from './grade';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geometry';
 import { clipDuration, mainTrack, projectDuration } from './timeline';
 import type { BlendMode, MediaAsset, MediaClip, Project } from './types';
 import { maskBytes } from './mask';
-import { blurSigma, flashDuration, fxGeometryExpr, fxMaxScale, fxMoves, hueMatrix, pixelBlock, rainbowAngle, rgbShiftAt, scanlineStep, sortedEffects, vignetteBytes } from './effects';
+import {
+  LEAK_PERIOD, SPLIT_EFFECTS, blurSigma, flashDuration, fxGeometryExpr, fxMatrixAt, fxMaxScale, fxMoves, glowOpacity, glowSigma, hueMatrix, leakBytes,
+  leakOpacity, letterboxBar, lookKey, lookTable, pixelBlock, rainbowAngle, rgbShiftAt, scanlines, sortedEffects, splitLayout, vignetteBytes,
+} from './effects';
 import { saturateMatrix } from './color';
 
 export interface BuildOpts {
@@ -194,9 +197,118 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       if (!list.length) return;
       const frames = Math.ceil(D * F);
       const fx = (t: string) => list.find((e) => e.type === t);
+      let lookDone = false;
+      let matrixDone = false;
+      /** Наложение второго потока режимом «экран» (только цвет; прозрачность — как у слоя). */
+      const screenOnto = (top: string, op: number) => {
+        const out = L('fx');
+        const ov = fmt(op);
+        chains.push(`[${cur}][${top}]blend=c0_mode=screen:c1_mode=screen:c2_mode=screen:c3_mode=normal:c0_opacity=${ov}:c1_opacity=${ov}:c2_opacity=${ov}:shortest=1,format=rgba[${out}]`);
+        cur = out;
+      };
       for (const e of list) {
         const a = e.amount;
         switch (e.type) {
+          case 'mirrorv': {
+            const half = Math.floor(h / 2);
+            flush();
+            const [x1, x2, tp, bt, out] = [L('fx'), L('fx'), L('fx'), L('fx'), L('fx')];
+            chains.push(`[${cur}]split=2[${x1}][${x2}]`);
+            chains.push(`[${x1}]crop=${w}:${half}:0:0[${tp}]`);
+            chains.push(`[${x2}]crop=${w}:${h - half}:0:0,vflip[${bt}]`);
+            chains.push(`[${tp}][${bt}]vstack=inputs=2[${out}]`);
+            cur = out;
+            break;
+          }
+          case 'kaleido': {
+            const qw = Math.floor(w / 2);
+            const qh = Math.floor(h / 2);
+            flush();
+            const [s1, s2, s3, s4, tl, tr, bl, br, top, bot, out] = Array.from({ length: 11 }, () => L('fx'));
+            chains.push(`[${cur}]split=4[${s1}][${s2}][${s3}][${s4}]`);
+            chains.push(`[${s1}]crop=${qw}:${qh}:0:0[${tl}]`);
+            chains.push(`[${s2}]crop=${w - qw}:${qh}:0:0,hflip[${tr}]`);
+            chains.push(`[${s3}]crop=${qw}:${h - qh}:0:0,vflip[${bl}]`);
+            chains.push(`[${s4}]crop=${w - qw}:${h - qh}:0:0,hflip,vflip[${br}]`);
+            chains.push(`[${tl}][${tr}]hstack=inputs=2[${top}]`);
+            chains.push(`[${bl}][${br}]hstack=inputs=2[${bot}]`);
+            chains.push(`[${top}][${bot}]vstack=inputs=2[${out}]`);
+            cur = out;
+            break;
+          }
+          case 'split2': case 'split3': case 'split4': case 'split9': {
+            if (list.some((x) => SPLIT_EFFECTS.includes(x.type) && x !== e && SPLIT_EFFECTS.indexOf(x.type) < SPLIT_EFFECTS.indexOf(e.type))) break;
+            const S = splitLayout(e.type, w, h, a);
+            const n = S.cols * S.rows;
+            flush();
+            const tiles = Array.from({ length: n }, () => L('fx'));
+            chains.push(`[${cur}]scale=${S.sw}:${S.sh}:flags=bicubic,crop=${S.tw}:${S.th}:${S.cx}:${S.cy},split=${n}${tiles.map((x) => `[${x}]`).join('')}`);
+            const layout: string[] = [];
+            for (let j = 0; j < S.rows; j++) for (let i = 0; i < S.cols; i++) layout.push(`${i * S.tw}_${j * S.th}`);
+            const grid = L('fx');
+            chains.push(`${tiles.map((x) => `[${x}]`).join('')}xstack=inputs=${n}:layout=${layout.join('|')}[${grid}]`);
+            cur = grid;
+            if (S.cols * S.tw !== w || S.rows * S.th !== h) parts.push(`scale=${w}:${h}:flags=bicubic`);
+            for (let i = 1; i < S.cols && S.gap > 0; i++) parts.push(`drawbox=x=${i * S.tw - Math.floor(S.gap / 2)}:y=0:w=${S.gap}:h=${h}:color=black:t=fill`);
+            for (let j = 1; j < S.rows && S.gap > 0; j++) parts.push(`drawbox=x=0:y=${j * S.th - Math.floor(S.gap / 2)}:w=${w}:h=${S.gap}:color=black:t=fill`);
+            break;
+          }
+          case 'oldfilm': case 'comic': case 'duotone': case 'noir': case 'cyber': case 'thermal': case 'nightvision': case 'solarize': {
+            if (lookDone || !o.rgbFile) break;
+            lookDone = true;
+            const img = haldImage(lookTable(c.effects, GRADE_N));
+            const file = o.rgbFile(`look_${c.id}_${lookKey(c.effects).replace(/[^0-9a-z.-]/gi, '_')}`, img.rgb, img.w, img.h);
+            const idx = addInput(['-i', file]);
+            flush();
+            const l = L('fx');
+            chains.push(`[${cur}][${idx}:v]haldclut=clut=first:interp=trilinear[${l}]`);
+            cur = l;
+            break;
+          }
+          case 'colorpulse': case 'bwflash': case 'strobe': case 'flicker': {
+            if (matrixDone) break;
+            matrixDone = true;
+            const name = `colorchannelmixer@mx${labelN++}`;
+            const keys = ['rr', 'rg', 'rb', 'gr', 'gg', 'gb', 'br', 'bg', 'bb'];
+            const cmds: string[] = [];
+            let prev = '';
+            for (let i = 0; i < frames; i++) {
+              const m = fxMatrixAt(c.effects, i / F) ?? [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+              const vals = [m[0][0], m[0][1], m[0][2], m[1][0], m[1][1], m[1][2], m[2][0], m[2][1], m[2][2]].map(fmt);
+              const key = vals.join(',');
+              if (key === prev) continue;
+              prev = key;
+              cmds.push(`${fmt(i === 0 ? 0 : (i - 0.5) / F)} ${keys.map((k2, j) => `${name} ${k2} ${vals[j]}`).join(', ')}`);
+            }
+            parts.push(`sendcmd=c='${cmds.join(';')}'`, `${name}=rr=1`);
+            break;
+          }
+          case 'glow': {
+            parts.push('format=gbrap');
+            flush();
+            const [x1, x2, bl] = [L('fx'), L('fx'), L('fx')];
+            chains.push(`[${cur}]split=2[${x1}][${x2}]`);
+            chains.push(`[${x2}]gblur=sigma=${fmt(glowSigma(w))}[${bl}]`);
+            cur = x1;
+            screenOnto(bl, glowOpacity(a));
+            break;
+          }
+          case 'lightleak': {
+            if (!o.rgbFile) break;
+            const file = o.rgbFile(`leak_${w}x${h}`, leakBytes(w, h), 2 * w, h);
+            const idx = addInput(['-loop', '1', '-framerate', String(F), '-i', file]);
+            parts.push('format=gbrap');
+            flush();
+            const lk = L('fx');
+            chains.push(`[${idx}:v]format=gbrap,crop=w=${w}:h=${h}:x='floor(${w}*(t/${LEAK_PERIOD}-floor(t/${LEAK_PERIOD})))':y=0,setsar=1[${lk}]`);
+            screenOnto(lk, leakOpacity(a));
+            break;
+          }
+          case 'letterbox': {
+            const bar = letterboxBar(h, a);
+            parts.push(`drawbox=x=0:y=0:w=${w}:h=${bar}:color=black:t=fill`, `drawbox=x=0:y=${h - bar}:w=${w}:h=${bar}:color=black:t=fill`);
+            break;
+          }
           case 'mirror': {
             const half = Math.floor(w / 2);
             flush();
@@ -228,7 +340,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
             parts.push(`colorchannelmixer=rr=${fmt(m[0][0])}:rg=${fmt(m[0][1])}:rb=${fmt(m[0][2])}:gr=${fmt(m[1][0])}:gg=${fmt(m[1][1])}:gb=${fmt(m[1][2])}:br=${fmt(m[2][0])}:bg=${fmt(m[2][1])}:bb=${fmt(m[2][2])}`);
             const d = Math.max(1, Math.round(w * 0.004 * (0.5 + a)));
             parts.push(`rgbashift=rh=${-d}:bh=${d}:edge=smear`);
-            parts.push(`drawgrid=w=iw:h=${scanlineStep(h)}:t=1:color=black@${fmt(0.3 * a)}`);
+            const sl = scanlines(h);
+            parts.push(`drawgrid=x=-${sl.thick}:y=0:w=iw+${sl.thick}:h=${sl.period}:t=${sl.thick}:color=black@${fmt(0.3 * a)}`);
             break;
           }
           case 'rgbsplit':
@@ -303,7 +416,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const T = `((in-1)/${F})`; // in у perspective считается с единицы
     const loc = (t: number) => (t - c.in) / c.speed; // время ключа → время от начала клипа
     const ex = (prop: 'x' | 'y' | 'scale' | 'rotation', base: number) => kfExpr(k[prop], base, T, loc);
-    const g = fxGeometryExpr(c.effects, T);
+    const g = fxGeometryExpr(c.effects, T, D);
     const kk = `((${ex('scale', c.transform.scale)})*${g.scale}/${fmt(sm)})`;
     const X = `(${fmt(W / 2)}+(${ex('x', c.transform.x)}+${g.dx})*${W})`;
     const Y = `(${fmt(H / 2)}+(${ex('y', c.transform.y)}+${g.dy})*${H})`;
@@ -489,7 +602,11 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     }
 
     // ---------- слои текста без привязки к дорожке — поверх всего ----------
-    for (const l of o.textLayers) if (typeof l === 'string') overlayText(l);
+    // строки — слои без дорожки; слои частиц (fx:…) — поверх всего, как в плеере
+    for (const l of o.textLayers) {
+      if (typeof l === 'string') overlayText(l);
+      else if (!p.tracks.some((t) => t.id === l.trackId)) overlayText(l.list);
+    }
     chains.push(`[${v}]format=${clear ? 'yuva420p' : 'yuv420p'},trim=duration=${fmt(total)},setpts=PTS-STARTPTS[vout]`);
 
   }

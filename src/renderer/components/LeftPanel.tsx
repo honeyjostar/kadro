@@ -11,7 +11,9 @@ import type { ModelInfo } from '../../shared/ipc';
 import {
   addText, animAllCaptions, clipEnd, findClip, mainTrack, removeAsset, setTransition, styleAllCaptions, updateClip,
 } from '../../shared/timeline';
-import { EFFECTS } from '../../shared/effects';
+import { EFFECT_CATS, EFFECTS, fxGeometry, particleEffects, type EffectCat } from '../../shared/effects';
+import { drawParticles } from '../../shared/particles';
+import { applyPixelEffects } from '../engine/effectsPreview';
 import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
@@ -494,43 +496,92 @@ function CaptionsPanel() {
 }
 
 // ---------- Эффекты ----------
-const FX_SWATCH: Record<EffectType, string> = {
-  shake: 'linear-gradient(100deg,#4a6da6 40%,#6f95d1 40% 46%,#4a6da6 46%)',
-  pulse: 'radial-gradient(circle,#ff3d7f 0 22%,#4a6da6 23% 34%,#2b3f63 35%)',
-  flash: 'linear-gradient(90deg,#fff 0%,#f6f6f6 35%,#4a6da6 100%)',
-  glitch: 'linear-gradient(180deg,#4a6da6 0 30%,#ff3d7f 30% 38%,#4a6da6 38% 62%,#46e0d0 62% 70%,#4a6da6 70%)',
-  rgbsplit: 'linear-gradient(90deg,#ff2d55 0 30%,#4a6da6 30% 70%,#2d8cff 70%)',
-  vhs: 'repeating-linear-gradient(180deg,#5f6f8a 0 3px,#3d4a60 3px 5px)',
-  grain: 'radial-gradient(circle at 30% 30%,#8a8a8a 1px,transparent 1.5px) 0 0/5px 5px,#555',
-  vignette: 'radial-gradient(circle,#d9963a 30%,#2a1a08 85%)',
-  blur: 'radial-gradient(circle,#d9963a 10%,#4a6da6 70%)',
-  pixelate: 'conic-gradient(#4a6da6 25%,#d9963a 0 50%,#4a6da6 0 75%,#d9963a 0) 0 0/12px 12px',
-  mirror: 'linear-gradient(90deg,#d9963a 0 25%,#4a6da6 25% 50%,#4a6da6 50% 75%,#d9963a 75%)',
-  invert: 'linear-gradient(90deg,#d9963a 50%,#2669c5 50%)',
-  rainbow: 'linear-gradient(90deg,#ff3d3d,#ffb23d,#e8ff3d,#3dff8a,#3dc5ff,#8a3dff,#ff3dd2)',
-};
+/** Образец для живых превью эффектов: небо, солнце, холмы, фигурка. */
+let fxScene: HTMLCanvasElement | null = null;
+function effectScene(): HTMLCanvasElement {
+  if (fxScene) return fxScene;
+  const cv = document.createElement('canvas');
+  cv.width = THUMB_W; cv.height = THUMB_H;
+  const g = cv.getContext('2d')!;
+  const sky = g.createLinearGradient(0, 0, 0, THUMB_H);
+  sky.addColorStop(0, '#3a7bd5'); sky.addColorStop(0.6, '#f2a65a'); sky.addColorStop(1, '#ff6b6b');
+  g.fillStyle = sky; g.fillRect(0, 0, THUMB_W, THUMB_H);
+  g.fillStyle = '#ffe9a8'; g.beginPath(); g.arc(88, 30, 12, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#2f6b3a'; g.beginPath(); g.moveTo(0, 56); g.quadraticCurveTo(36, 36, 70, 54); g.quadraticCurveTo(100, 44, 128, 52); g.lineTo(128, 72); g.lineTo(0, 72); g.fill();
+  g.fillStyle = '#1d3f25'; g.beginPath(); g.moveTo(0, 64); g.quadraticCurveTo(50, 52, 128, 66); g.lineTo(128, 72); g.lineTo(0, 72); g.fill();
+  g.fillStyle = '#15131a'; g.beginPath(); g.arc(40, 40, 4, 0, Math.PI * 2); g.fill(); g.fillRect(38, 44, 4, 12);
+  fxScene = cv;
+  return cv;
+}
+
+/** Миниатюра эффекта: в покое — один кадр, при наведении — эффект в движении. */
+function EffectThumb({ type }: { type: EffectType }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const [hover, setHover] = useState(false);
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv) return;
+    const ctx = cv.getContext('2d', { willReadFrequently: true })!;
+    const scene = effectScene();
+    const fake = { id: `thumb-${type}`, effects: [{ type, amount: 0.75 }] } as unknown as MediaClip;
+    const layer = document.createElement('canvas');
+    layer.width = THUMB_W; layer.height = THUMB_H;
+    const lc = layer.getContext('2d', { willReadFrequently: true })!;
+    const draw = (t: number) => {
+      lc.globalCompositeOperation = 'copy';
+      lc.drawImage(scene, 0, 0);
+      lc.globalCompositeOperation = 'source-over';
+      applyPixelEffects(layer, fake, t);
+      const g = fxGeometry(fake.effects, t, 3);
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, THUMB_W, THUMB_H);
+      ctx.save();
+      ctx.translate(THUMB_W / 2 + g.dx * THUMB_W, THUMB_H / 2 + g.dy * THUMB_H);
+      ctx.rotate((g.drot * Math.PI) / 180);
+      ctx.scale(g.scale, g.scale);
+      ctx.drawImage(layer, -THUMB_W / 2, -THUMB_H / 2);
+      ctx.restore();
+      const pe = particleEffects(fake.effects);
+      if (pe.length) drawParticles(ctx, pe, t, THUMB_W, THUMB_H, 0.22); // в миниатюре частицы крупнее, иначе не видно
+    };
+    if (!hover) { draw(type === 'flash' ? 0.05 : type === 'zoomin' || type === 'zoomout' ? 1.5 : 1.3); return; }
+    let raf = 0;
+    const t0 = performance.now();
+    const loop = () => { draw(((performance.now() - t0) / 1000) % 3); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [type, hover]);
+  return <canvas ref={ref} width={THUMB_W} height={THUMB_H} className="swatch tr-thumb" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} />;
+}
 
 function EffectsPanel() {
   const sel = useSelected();
   const commit = useStore((s) => s.commit);
+  const [cat, setCat] = useState<EffectCat | 'all'>('all');
   const clip = sel?.clip.type === 'media' && sel.asset?.kind !== 'audio' ? (sel.clip as MediaClip) : null;
   const toggle = (type: EffectType) => {
-    if (!clip) { getState().toast('Выдели видео или фото на таймлайне'); return; }
+    if (!clip) { getState().toast('Сначала выдели видео или фото на таймлайне — эффект встанет на него'); return; }
     const has = clip.effects?.some((e) => e.type === type);
-    const effects = has ? clip.effects!.filter((e) => e.type !== type) : [...(clip.effects ?? []), { type, amount: 0.5 }];
+    const def = EFFECTS.find((x) => x.type === type);
+    const effects = has ? clip.effects!.filter((e) => e.type !== type) : [...(clip.effects ?? []), { type, amount: def?.toggle ? 1 : 0.6 }];
     commit((p) => updateClip(p, clip.id, { effects: effects.length ? effects : undefined }));
   };
+  const list = EFFECTS.filter((e) => cat === 'all' || e.cat === cat);
   return (
     <>
-      <div className="panel-head">Эффекты</div>
+      <div className="panel-head">Эффекты · {EFFECTS.length}</div>
       <div className="panel-body">
-        <p className="hint">{clip ? 'Нажми на эффект, чтобы добавить или убрать. Силу — во вкладке «Эффекты» справа.' : 'Выдели клип на таймлайне — эффекты применяются к нему.'}</p>
-        <div className="tile-grid fx-grid" style={{ marginTop: 10 }}>
-          {EFFECTS.map((e) => {
+        <p className="hint">{clip ? 'Нажми — эффект добавится, ещё раз — уберётся. Наведи мышь, чтобы посмотреть. Сила — справа, во вкладке «Эффекты».' : 'Выдели клип на таймлайне — эффекты применяются к нему. Наведи мышь на эффект, чтобы посмотреть.'}</p>
+        <div className="chips" style={{ margin: '10px 0 8px' }}>
+          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
+          {EFFECT_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
+        </div>
+        <div className="tile-grid fx-grid">
+          {list.map((e) => {
             const on = !!clip?.effects?.some((x) => x.type === e.type);
             return (
               <button key={e.type} className={`tile ${on ? 'active' : ''}`} onClick={() => toggle(e.type)} title={e.hint} data-testid={`fx-${e.type}`}>
-                <div className={`swatch fx-swatch fx-${e.type}`} style={{ background: FX_SWATCH[e.type] }} />
+                <EffectThumb type={e.type} />
                 <span className="label">{e.label}</span>
               </button>
             );

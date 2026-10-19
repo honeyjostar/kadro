@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { applyColorToPixel, effectiveColor } from '../../src/shared/color';
 import { DEFAULT_COLOR } from '../../src/shared/defaults';
 import {
-  beatMp3, greenVideo, shakyVideo, walkVideo, RGB, act, clipIds, colorsVideo, frameDiff, grayImage, importAt, launch, MEDIA, near, personVideo, PHRASES, previewPixel, probe,
+  beatMp3, greenVideo, patternImage, shakyVideo, walkVideo, RGB, act, clipIds, colorsVideo, frameDiff, grayImage, importAt, launch, MEDIA, near, personVideo, PHRASES, previewPixel, probe,
   project, rawFrame, reset, rotatedVideo, seekAndSettle, setSlider, solidVideo, state, store, talkVideo, toneMp3, waitAssetsReady, type Kadro,
 } from './kadro';
 
@@ -470,6 +470,34 @@ test('видеоэффекты: плитки, сила, экспорт совп�
   const out = await exportViaUi('720p');
   compareAt(pngs[0], out, 1.2, 6);
   compareAt(pngs[1], out, 2.3, 6);
+});
+
+test('все эффекты: плеер совпадает с экспортом', async () => {
+  await reset(win);
+  const [img] = await act(win, 'importPaths', [patternImage()]);
+  const types: string[] = await win.evaluate(() => (window as any).__kadro.effects.EFFECTS.map((e: any) => e.type));
+  expect(types.length).toBeGreaterThanOrEqual(45);
+  for (let i = 0; i < types.length; i++) await act(win, 'addAssetToTimeline', img, 'main', 999);
+  await commit(`(tl, p, a) => {
+    let q = p;
+    const clips = q.tracks.find((t) => t.kind === 'main').clips;
+    clips.forEach((c, i) => { q = tl.updateClip(q, c.id, { out: 1, effects: [{ type: a[0][i], amount: 0.7 }] }); });
+    return q;
+  }`, types);
+  await waitAssetsReady(win);
+  const pngs: string[] = [];
+  for (let i = 0; i < types.length; i++) pngs.push(await parity(i + 0.53, `all_${types[i]}`));
+  const out = await exportViaUi('720p');
+  const bad: string[] = [];
+  for (let i = 0; i < types.length; i++) {
+    const a = rawFrame(['-i', pngs[i]], 180, 320);
+    const b = rawFrame(['-ss', String(i + 0.53), '-i', out], 180, 320);
+    const d = frameDiff(a, b);
+    // в сетках кадр уменьшен в 2–3 раза: мелкие детали узора по-разному сглаживаются при масштабе — допуск на редкие точки выше
+    const p98max = types[i] === 'split4' || types[i] === 'split9' ? 72 : 48;
+    if (d.mean > 6 || d.p98 > p98max) bad.push(`${types[i]}: ${d.mean.toFixed(2)} / ${d.p98.toFixed(0)}`);
+  }
+  expect(bad, `не совпали:\n${bad.join('\n')}`).toEqual([]);
 });
 
 test('реверс, кривая скорости и стоп-кадр — через интерфейс, экспорт совпадает', async () => {

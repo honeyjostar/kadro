@@ -92,6 +92,11 @@ export class GradeProcessor {
   apply(layer: HTMLCanvasElement, g: Grade, cube: CubeLut | null): void {
     if (!gradeActive(g, !!cube)) return;
     const { key, t } = this.table(g, cube);
+    this.applyTable(layer, key, t);
+  }
+
+  /** Любая таблица N³ (цветокоррекция, образы-эффекты) к слою на месте; key — для кэша текстуры. */
+  applyTable(layer: HTMLCanvasElement, key: string, t: Uint8Array): void {
     const w = layer.width; const h = layer.height;
     const lc = layer.getContext('2d', { willReadFrequently: true })!;
     const gl = this.gl;

@@ -3,7 +3,8 @@
 import { aiSource, audioSource, videoSource } from '../../shared/ai';
 import { mediaPropsAt } from '../../shared/anim';
 import { maskBytes } from '../../shared/mask';
-import { fxGeometry, sortedEffects } from '../../shared/effects';
+import { fxGeometry, particleEffects, sortedEffects } from '../../shared/effects';
+import { drawParticles } from '../../shared/particles';
 import { applyPixelEffects } from './effectsPreview';
 import { ChromaKeyer } from './chroma';
 import { effectiveColor, isIdentity, svgFilterMarkup } from '../../shared/color';
@@ -421,7 +422,7 @@ export class PreviewEngine {
     const mp = mediaPropsAt(c, t);
     if (mp.opacity <= 0.001) return;
     const local = t - c.start;
-    const g = fxGeometry(c.effects, local);
+    const g = fxGeometry(c.effects, local, clipDuration(c));
     const pl = placeOnCanvas(W, H, asset.width, asset.height, c.fit, { x: mp.x + g.dx, y: mp.y + g.dy, scale: mp.scale * g.scale, rotation: mp.rotation + g.drot });
     let img: CanvasImageSource = src.el;
     if (c.chroma) {
@@ -452,7 +453,7 @@ export class PreviewEngine {
       lc.filter = 'none';
       lc.restore();
       if (graded) this.grader().apply(layer, c.grade!, cube);
-      if (fx.length) applyPixelEffects(layer, c, local);
+      if (fx.length) applyPixelEffects(layer, c, local, (l, key, tb) => this.grader().applyTable(l, key, tb));
       if (c.mask) {
         lc.save();
         lc.globalCompositeOperation = 'destination-in';
@@ -533,6 +534,15 @@ export class PreviewEngine {
           const a = assetOf(c);
           if (a && a.kind !== 'audio') this.drawLayer(ctx, c, a, false, t);
         }
+      }
+    }
+    // частицы (снег, конфетти…) — поверх всего, как отдельный слой в экспорте
+    for (const track of p.tracks) {
+      if (track.hidden || track.kind === 'audio' || track.kind === 'text') continue;
+      for (const c of track.clips) {
+        if (c.type !== 'media' || t < c.start - EPS || t >= clipEnd(c) - EPS) continue;
+        const pe = particleEffects(c.effects);
+        if (pe.length) drawParticles(ctx, pe, t - c.start, W, H);
       }
     }
     ctx.restore();

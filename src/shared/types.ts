@@ -113,7 +113,18 @@ export interface ChromaKey {
   smoothness: number; // 0..0.3 (мягкость края)
 }
 
-export type EffectType = 'shake' | 'pulse' | 'flash' | 'glitch' | 'rgbsplit' | 'vhs' | 'grain' | 'vignette' | 'blur' | 'pixelate' | 'mirror' | 'invert' | 'rainbow';
+export type EffectType =
+  | 'shake' | 'pulse' | 'flash' | 'glitch' | 'rgbsplit' | 'vhs' | 'grain' | 'vignette' | 'blur' | 'pixelate' | 'mirror' | 'invert' | 'rainbow'
+  // движение
+  | 'quake' | 'heartbeat' | 'zoomin' | 'zoomout' | 'sway' | 'bounce' | 'drift' | 'spin'
+  // свет и цвет во времени
+  | 'strobe' | 'flicker' | 'colorpulse' | 'bwflash' | 'glow' | 'lightleak'
+  // образы (одна цветовая таблица)
+  | 'oldfilm' | 'comic' | 'duotone' | 'solarize' | 'thermal' | 'nightvision' | 'noir' | 'cyber'
+  // кадр
+  | 'mirrorv' | 'kaleido' | 'split2' | 'split3' | 'split4' | 'split9' | 'letterbox'
+  // частицы поверх кадра
+  | 'snow' | 'rain' | 'confetti' | 'hearts' | 'sparkles' | 'bubbles';
 export interface Effect { type: EffectType; amount: number } // amount 0..1
 
 export type VoiceEffect = 'none' | 'chipmunk' | 'deep' | 'robot' | 'echo' | 'hall' | 'radio' | 'phone' | 'megaphone';

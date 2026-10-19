@@ -34,6 +34,18 @@ test('снимки', async () => {
     await shot('font-picker');
     await win.keyboard.press('Escape');
   }
+  if (want('effects')) {
+    const [main] = (await K.win.evaluate(() => (window as any).__kadro.useStore.getState().project.tracks[0].clips.map((c: any) => c.id))) as string[];
+    await K.win.evaluate((id) => (window as any).__kadro.useStore.getState().select([id]), main);
+    await win.click('[data-testid=tab-effects]');
+    await win.waitForTimeout(500);
+    await shot('effects');
+    for (const cat of ['Свет и цвет', 'Стиль', 'Кадр', 'Частицы']) {
+      await win.locator('.chips button', { hasText: cat }).first().click();
+      await win.waitForTimeout(400);
+      await shot(`effects-${cat}`);
+    }
+  }
   if (want('transitions')) {
     await importAt(win, [path.join(MEDIA, 'colors.mp4')], 'main', 99);
     await waitAssetsReady(win);

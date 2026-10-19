@@ -128,6 +128,10 @@ export function solidVideo(name: string, color: string, dur: number): string {
   return media(name, (f) => ff(['-f', 'lavfi', '-i', `color=c=${color}:s=640x360:r=30:d=${dur}`, '-f', 'lavfi', '-i', `sine=frequency=330:sample_rate=48000:duration=${dur}`,
     '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', f]));
 }
+/** Узорная картинка (кадр testsrc2): эффекты на ней видны. */
+export function patternImage(): string {
+  return media('pattern.png', (f) => ff(['-f', 'lavfi', '-i', 'testsrc2=s=640x360:r=30:d=1', '-frames:v', '1', '-update', '1', f]));
+}
 export function grayImage(): string {
   return media('gray.png', (f) => ff(['-f', 'lavfi', '-i', 'color=c=0x8a6f5a:s=400x400,format=rgb24', '-frames:v', '1', f]));
 }
