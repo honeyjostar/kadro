@@ -1,20 +1,18 @@
 # Сборка установщика для Windows на серверах GitHub.
-# Запуск: опубликовать релиз на GitHub (Releases → Draft a new release → тег v0.4.0) или отправить тег
-# (git tag v0.4.0 && git push origin v0.4.0) — установщик и zip появятся в этом релизе.
-# Можно и вручную: Actions → Release → Run workflow (тогда файлы будут в артефактах сборки).
+# Когда запускается:
+#   • поменяли "version" в package.json и отправили в master — если релиза с этой версией ещё нет,
+#     он создаётся сам (тег vX.Y.Z), к нему прикладываются установщик и zip;
+#   • опубликовали релиз в интерфейсе GitHub или отправили тег vX.Y.Z — файлы прикладываются к нему;
+#   • вручную: Actions → Release → Run workflow (файлы — в артефактах сборки).
 name: Release
 
 on:
   push:
+    branches: [master]
     tags: ['v*']
   release:
     types: [published]
   workflow_dispatch:
-
-# релиз из интерфейса создаёт и тег — две одинаковые сборки не нужны, ждём по очереди
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -23,6 +21,11 @@ env:
   # CUDA-версия ONNX Runtime не нужна (программа работает на процессоре и DirectML) — не качаем лишние сотни мегабайт
   ONNXRUNTIME_NODE_INSTALL: skip
 
+# релиз из интерфейса создаёт и тег — одинаковые сборки идут по очереди, а не одновременно
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   windows-installer:
     runs-on: ubuntu-24.04
@@ -30,37 +33,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Версия и нужна ли сборка
+        id: ver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          SKIP=false
+          # обычный коммит в master собираем, только если релиза с этой версией ещё нет
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_type }}" = "branch" ]; then
+            if gh release view "v$V" --repo "${{ github.repository }}" >/dev/null 2>&1; then SKIP=true; fi
+          fi
+          echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
+          echo "Версия $V, пропустить сборку: $SKIP"
+
       - uses: actions/setup-node@v4
+        if: steps.ver.outputs.skip != 'true'
         with:
           node-version: 22
           cache: npm
 
-      - name: Инструменты (NSIS, FFmpeg для тестов)
+      - name: Инструменты (NSIS, zip, FFmpeg для тестов)
+        if: steps.ver.outputs.skip != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y nsis unzip zip ffmpeg
 
       - name: Зависимости
+        if: steps.ver.outputs.skip != 'true'
         run: npm ci
 
       - name: Проверка типов и тесты
+        if: steps.ver.outputs.skip != 'true'
         run: |
           npm run typecheck
           npm run test:ci
 
       - name: Сборка кода
+        if: steps.ver.outputs.skip != 'true'
         run: npm run build
 
       - name: Electron и FFmpeg для Windows
+        if: steps.ver.outputs.skip != 'true'
         run: |
           EV=$(node -p "require('electron/package.json').version")
           curl -fsSL -o electron-win.zip "https://github.com/electron/electron/releases/download/v${EV}/electron-v${EV}-win32-x64.zip"
           curl -fsSL -o ffmpeg-win.zip "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
 
-      - name: Установщик
+      - name: Установщик и переносная версия
+        if: steps.ver.outputs.skip != 'true'
         run: node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip --portable
 
-      - name: Файл установщика в артефакты сборки
+      - name: Файлы в артефакты сборки
+        if: steps.ver.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Kadro-Windows
@@ -70,11 +96,13 @@ jobs:
           retention-days: 14
 
       - name: Релиз на GitHub
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.ver.outputs.skip != 'true' && github.event_name != 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', steps.ver.outputs.version) }}
+          target_commitish: ${{ github.sha }}
+          name: Kadro ${{ steps.ver.outputs.version }}
+          body_path: docs/RELEASE_NOTES.md
           files: |
             release/Kadro-Setup-*.exe
             release/Kadro-*-portable.zip
-          body_path: docs/RELEASE_NOTES.md
