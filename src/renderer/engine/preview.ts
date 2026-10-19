@@ -122,6 +122,19 @@ export class PreviewEngine {
     void this.ac?.close();
   }
 
+  /** Всё загружено, перемотано и нарисовано (для автотестов и снимков кадра). */
+  settled(): boolean {
+    if (this.dirty || this.playing) return false;
+    for (const e of this.media.values()) {
+      if (!e.ready) return false;
+      if (e.kind === 'video') {
+        const v = e.el as HTMLVideoElement;
+        if (v.seeking || v.readyState < 2) return false;
+      }
+    }
+    return true;
+  }
+
   /** Заглушить звук превью (во время записи голоса — чтобы не попадал в микрофон). */
   setMuted(b: boolean): void {
     this.muted = b;
@@ -180,7 +193,17 @@ export class PreviewEngine {
       (m as HTMLVideoElement).playsInline = true;
       m.preservesPitch = true;
       m.onloadeddata = () => { entry.ready = true; this.dropFallback(entry); this.dirty = true; };
-      m.onseeked = () => { this.dirty = true; };
+      // после перемотки кадр на видеокарте может появиться чуть позже события — перерисуем ещё пару раз
+      m.onseeked = () => {
+        this.dirty = true;
+        setTimeout(() => { this.dirty = true; }, 60);
+        setTimeout(() => { this.dirty = true; }, 250);
+      };
+      if (kind === 'video') {
+        const v = m as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number };
+        const onFrame = () => { this.dirty = true; if (v.src) v.requestVideoFrameCallback?.(onFrame); };
+        v.requestVideoFrameCallback?.(onFrame);
+      }
       m.onerror = () => { entry.ready = false; };
       m.src = src;
       el = m;
@@ -284,13 +307,18 @@ export class PreviewEngine {
       } else {
         this.onTime?.(this.t);
       }
-    } else if (!this.dirty) {
+    } else if (this.dirty) {
+      // после любой перемены ещё ~0.6 с перерисовываем каждый кадр: на видеокарте кадр видео после перемотки
+      // может стать доступен чуть позже событий — так он точно попадёт на экран
+      this.settleUntil = performance.now() + 600;
+    } else if (performance.now() > this.settleUntil) {
       return;
     }
     this.syncPlayback(this.t);
     this.render(this.t);
     this.dirty = false;
   }
+  private settleUntil = 0;
 
   private gainFor(c: MediaClip, track: Track, prevTr: number, t: number, isVisualEntryWithSeparateAudio: boolean): number {
     if (isVisualEntryWithSeparateAudio || track.muted || c.muted) return 0;

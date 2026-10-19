@@ -77,12 +77,24 @@ export async function previewPixel(win: Page, fx: number, fy: number): Promise<[
 export async function seekAndSettle(win: Page, t: number): Promise<void> {
   await store(win, 'setPlaying', false);
   await store(win, 'setPlayhead', t);
-  // ждём, пока все видео домотаются и кадр перерисуется
-  await win.waitForFunction(() => {
-    const vids = [...document.querySelectorAll('video')];
-    return vids.every((v) => !v.seeking && v.readyState >= 2);
-  }, undefined, { timeout: 20_000 }).catch(() => undefined);
+  // ждём, пока все файлы загрузятся, видео домотаются и кадр перерисуется
+  await win.waitForFunction(() => (window as unknown as W).__kadroEngine?.settled?.() === true, undefined, { timeout: 20_000 }).catch(() => undefined);
   await win.waitForTimeout(250);
+  // кадр устоялся: два снимка подряд одинаковые (на программной видеокарте кадр после перемотки появляется не сразу)
+  let prev = '';
+  for (let i = 0; i < 20; i++) {
+    const cur = await win.evaluate(() => {
+      const c = document.querySelector('[data-testid=preview]') as HTMLCanvasElement | null;
+      if (!c) return '';
+      const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+      let h = 0;
+      for (let k = 0; k < d.length; k += 397) h = (h * 31 + d[k]) | 0;
+      return String(h);
+    });
+    if (cur === prev) break;
+    prev = cur;
+    await win.waitForTimeout(120);
+  }
 }
 
 export function near(a: number[], b: number[], tol: number): boolean {

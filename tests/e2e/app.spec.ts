@@ -266,6 +266,8 @@ async function exportViaUi(res: '720p' | '1080p'): Promise<string> {
 }
 
 test('воспроизведение идёт в реальном времени и видео не отстаёт', async () => {
+  // программная видеокарта (SwiftShader) рисует медленно — скорость воспроизведения на ней не показательна
+  test.skip(!!process.env.KADRO_SWIFTSHADER, 'скорость меряем только без программной видеокарты');
   await reset(win);
   await importAt(win, [colorsVideo()]);
   await seekAndSettle(win, 0);
