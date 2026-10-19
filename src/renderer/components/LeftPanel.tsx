@@ -1,14 +1,15 @@
 import {
-  Zap, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
+  Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
   LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen,
 } from 'lucide-react';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_PRESETS, effectiveColor, svgFilterMarkup } from '../../shared/color';
-import { DEFAULT_COLOR, FONT_CATS, FONTS, HIGHLIGHTS, type FontCat, TEXT_ANIMS, TEXT_PRESETS, TRANSITIONS, VOICE_FX } from '../../shared/defaults';
+import { DEFAULT_COLOR, FONT_CATS, FONTS, HIGHLIGHTS, type FontCat, TEXT_ANIMS, TEXT_PRESETS, TRANSITION_CATS, TRANSITIONS, type TransitionCat, VOICE_FX } from '../../shared/defaults';
+import { drawTransition } from '../../shared/transitions';
 import { retimeWords } from '../../shared/captions';
 import type { ModelInfo } from '../../shared/ipc';
 import {
-  addText, animAllCaptions, findClip, mainTrack, removeAsset, setTransition, styleAllCaptions, updateClip,
+  addText, animAllCaptions, clipEnd, findClip, mainTrack, removeAsset, setTransition, styleAllCaptions, updateClip,
 } from '../../shared/timeline';
 import { EFFECTS } from '../../shared/effects';
 import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
@@ -541,44 +542,88 @@ function EffectsPanel() {
 }
 
 // ---------- Переходы ----------
-const SW_A = '#4a6da6';
-const SW_B = '#d9963a';
-function transitionSwatch(t: TransitionType | 'none'): { bg: string; icon?: ReactNode } {
-  switch (t) {
-    case 'none': return { bg: `linear-gradient(90deg, ${SW_A} 50%, ${SW_B} 50%)` };
-    case 'fade': return { bg: `linear-gradient(90deg, ${SW_A} 15%, ${SW_B} 85%)` };
-    case 'fadeblack': return { bg: `linear-gradient(90deg, ${SW_A} 10%, #000 50%, ${SW_B} 90%)` };
-    case 'fadewhite': return { bg: `linear-gradient(90deg, ${SW_A} 10%, #fff 50%, ${SW_B} 90%)` };
-    case 'slideleft': return { bg: `linear-gradient(90deg, ${SW_A} 40%, ${SW_B} 40%)`, icon: <ArrowLeft size={16} /> };
-    case 'slideright': return { bg: `linear-gradient(90deg, ${SW_B} 60%, ${SW_A} 60%)`, icon: <ArrowRight size={16} /> };
-    case 'slideup': return { bg: `linear-gradient(180deg, ${SW_A} 40%, ${SW_B} 40%)`, icon: <ArrowUp size={16} /> };
-    case 'slidedown': return { bg: `linear-gradient(180deg, ${SW_B} 60%, ${SW_A} 60%)`, icon: <ArrowDown size={16} /> };
-    case 'wipeleft': return { bg: `linear-gradient(100deg, ${SW_A} 45%, ${SW_B} 45%)` };
-    case 'wiperight': return { bg: `linear-gradient(80deg, ${SW_B} 55%, ${SW_A} 55%)` };
-    case 'circleopen': return { bg: `radial-gradient(circle, ${SW_B} 0 34%, ${SW_A} 35%)` };
-    case 'zoomin': return { bg: `radial-gradient(circle, ${SW_B} 0 18%, ${SW_A} 60%)` };
-  }
+/** Два образца для живых превью переходов: «А» — тёплый, «Б» — холодный. */
+let samplePair: [HTMLCanvasElement, HTMLCanvasElement] | null = null;
+const THUMB_W = 128;
+const THUMB_H = 72;
+function sampleFrames(): [HTMLCanvasElement, HTMLCanvasElement] {
+  if (samplePair) return samplePair;
+  const make = (c1: string, c2: string, letter: string, ink: string) => {
+    const cv = document.createElement('canvas');
+    cv.width = THUMB_W; cv.height = THUMB_H;
+    const g = cv.getContext('2d')!;
+    const gr = g.createLinearGradient(0, 0, THUMB_W, THUMB_H);
+    gr.addColorStop(0, c1); gr.addColorStop(1, c2);
+    g.fillStyle = gr; g.fillRect(0, 0, THUMB_W, THUMB_H);
+    g.fillStyle = ink; g.font = "700 38px 'Unbounded'"; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(letter, THUMB_W / 2, THUMB_H / 2 + 2);
+    return cv;
+  };
+  samplePair = [make('#ff8a3d', '#ff3d7f', 'A', 'rgba(255,255,255,0.9)'), make('#2d7dd2', '#47e6c1', 'B', 'rgba(10,20,40,0.85)')];
+  return samplePair;
+}
+
+/** Миниатюра перехода: в покое — середина перехода, при наведении — перехода целиком по кругу. */
+function TransitionThumb({ type }: { type: TransitionType | null }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const [hover, setHover] = useState(false);
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv) return;
+    const ctx = cv.getContext('2d', { willReadFrequently: true })!;
+    const scratch = document.createElement('canvas');
+    scratch.width = THUMB_W; scratch.height = THUMB_H;
+    const [a, b] = sampleFrames();
+    const draw = (p: number) => {
+      if (!type) { ctx.drawImage(p < 0.5 ? a : b, 0, 0); return; }
+      drawTransition(ctx, type, p, a, b, THUMB_W, THUMB_H, scratch);
+    };
+    if (!hover) { draw(type === 'circlecrop' || type === 'rectcrop' ? 0.15 : 0.45); return; }
+    let raf = 0;
+    const t0 = performance.now();
+    const loop = () => {
+      const k = ((performance.now() - t0) / 1400) % 1.4; // 1 с перехода + пауза
+      draw(Math.min(1, k));
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [type, hover]);
+  return <canvas ref={ref} width={THUMB_W} height={THUMB_H} className="swatch tr-thumb" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} />;
 }
 
 function TransitionsPanel() {
   const project = useStore((s) => s.project);
   const junction = useStore((s) => s.junction);
   const selection = useStore((s) => s.selection);
+  const playhead = useStore((s) => s.playhead);
   const commit = useStore((s) => s.commit);
+  const [cat, setCat] = useState<TransitionCat | 'all'>('all');
   const main = mainTrack(project);
-  // кому ставим переход: выбранный стык или выделенный клип основной дорожки (переход в конце клипа)
+  // кому ставим переход: выбранный стык, выделенный клип основной дорожки (переход в конце клипа)
+  // или — если ничего не выбрано — стык, ближайший к белой линии времени
   let targetId: string | null = junction;
   if (!targetId && selection.length === 1) {
     const i = main.clips.findIndex((c) => c.id === selection[0]);
     if (i >= 0 && i < main.clips.length - 1) targetId = selection[0];
+  }
+  let auto = false;
+  if (!targetId && main.clips.length > 1) {
+    let best = Infinity;
+    for (const c of main.clips.slice(0, -1)) {
+      const d = Math.abs(clipEnd(c) - playhead);
+      if (d < best) { best = d; targetId = c.id; }
+    }
+    auto = true;
   }
   const target = targetId ? (findClip(project, targetId)?.clip as MediaClip | undefined) : undefined;
   const cur = target?.transitionOut;
   const [dur, setDur] = useState(0.5);
   const durNow = cur?.duration ?? dur;
   const apply = (type: TransitionType | null) => {
-    if (!targetId) { getState().toast('Сначала выбери стык между клипами на основной дорожке'); return; }
+    if (!targetId) { getState().toast('Переход ставится между двумя клипами — добавь на основную дорожку ещё одно видео или фото'); return; }
     commit((p) => setTransition(p, targetId!, type ? { type, duration: durNow } : null));
+    if (type && auto) getState().toast('Переход поставлен на ближайший к курсору стык', 'ok');
   };
   const applyAll = () => {
     if (!cur) return;
@@ -586,28 +631,30 @@ function TransitionsPanel() {
     getState().toast('Переход поставлен на все стыки', 'ok');
   };
   const joints = Math.max(0, main.clips.length - 1);
+  const list = TRANSITIONS.filter((t) => cat === 'all' || t.cat === cat);
   return (
     <>
-      <div className="panel-head">Переходы</div>
+      <div className="panel-head">Переходы · {TRANSITIONS.length}</div>
       <div className="panel-body">
         <p className="hint">
           {joints === 0 ? 'Переходы ставятся между двумя клипами на основной дорожке. Добавь хотя бы два.' :
-            target ? 'Выбран стык. Нажми на переход, чтобы поставить его.' : 'Нажми на квадратик между клипами на таймлайне, чтобы выбрать стык.'}
+            auto ? 'Нажми на переход — он встанет на стык рядом с курсором. Наведи мышь, чтобы посмотреть.' : 'Выбран стык. Нажми на переход, чтобы поставить его. Наведи мышь, чтобы посмотреть.'}
         </p>
-        <div className="tile-grid" style={{ marginTop: 10 }}>
+        <div className="chips" style={{ margin: '10px 0 8px' }}>
+          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
+          {TRANSITION_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
+        </div>
+        <div className="tile-grid">
           <button className={`tile ${target && !cur ? 'active' : ''}`} onClick={() => apply(null)} disabled={!target}>
-            <div className="swatch" style={{ background: transitionSwatch('none').bg }} />
+            <TransitionThumb type={null} />
             <span className="label">Без перехода</span>
           </button>
-          {TRANSITIONS.map((t) => {
-            const sw = transitionSwatch(t.type);
-            return (
-              <button key={t.type} className={`tile ${cur?.type === t.type ? 'active' : ''}`} onClick={() => apply(t.type)} disabled={!target} data-testid={`tr-${t.type}`}>
-                <div className="swatch" style={{ background: sw.bg }}>{sw.icon}</div>
-                <span className="label">{t.label}</span>
-              </button>
-            );
-          })}
+          {list.map((t) => (
+            <button key={t.type} className={`tile ${cur?.type === t.type ? 'active' : ''}`} onClick={() => apply(t.type)} disabled={!target} data-testid={`tr-${t.type}`}>
+              <TransitionThumb type={t.type} />
+              <span className="label">{t.label}</span>
+            </button>
+          ))}
         </div>
         <Slider label="Длительность" min={0.1} max={2} step={0.05} value={durNow} format={(v) => `${v.toFixed(2)} с`}
           onChange={(v) => { setDur(v); if (cur && targetId) commit((p) => setTransition(p, targetId!, { ...cur, duration: v }), `trdur-${targetId}`); }} />

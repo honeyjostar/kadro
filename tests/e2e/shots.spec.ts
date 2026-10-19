@@ -34,4 +34,14 @@ test('снимки', async () => {
     await shot('font-picker');
     await win.keyboard.press('Escape');
   }
+  if (want('transitions')) {
+    await importAt(win, [path.join(MEDIA, 'colors.mp4')], 'main', 99);
+    await waitAssetsReady(win);
+    await win.click('[data-testid=tab-transitions]');
+    await win.waitForTimeout(400);
+    await shot('transitions');
+    await win.click('[data-testid=tr-radial]');
+    await seekAndSettle(win, 4);
+    await shot('transition-applied');
+  }
 });

@@ -155,8 +155,9 @@ describe('экспорт: переходы', () => {
     expect(near(pixelAt(f('o_mix.mp4'), 5, 270, 480), BLUE)).toBe(true);
   });
 
-  it('все 11 переходов собираются и рендерятся', () => {
-    for (const t of TRANSITIONS) {
+  // каждый переход — отдельный тест (длинный синхронный цикл вешает связь с vitest)
+  for (const t of TRANSITIONS) {
+    it(`переход «${t.label}» (${t.type}) собирается и рендерится`, () => {
       let p = addToMain(proj(), 'red', 0).project;
       p = addToMain(p, 'blue', 100).project;
       p = updateClip(p, main(p)[0].id, { out: 2 });
@@ -164,8 +165,11 @@ describe('экспорт: переходы', () => {
       p = setTransition(p, main(p)[0].id, { type: t.type, duration: 0.6 });
       runExport(p, f(`tr_${t.type}.mp4`));
       expect(Math.abs(probe(f(`tr_${t.type}.mp4`)).duration - 3.4)).toBeLessThan(0.1);
-    }
-  });
+      // до перехода — красный, после — синий
+      expect(near(pixelAt(f(`tr_${t.type}.mp4`), 0.5, 270, 480), RED)).toBe(true);
+      expect(near(pixelAt(f(`tr_${t.type}.mp4`), 3, 270, 480), BLUE)).toBe(true);
+    });
+  }
 });
 
 describe('экспорт: цвет, наложения, звук', () => {

@@ -63,7 +63,19 @@ export interface ColorAdjust {
 export type TransitionType =
   | 'fade' | 'fadeblack' | 'fadewhite'
   | 'slideleft' | 'slideright' | 'slideup' | 'slidedown'
-  | 'wipeleft' | 'wiperight' | 'circleopen' | 'zoomin';
+  | 'wipeleft' | 'wiperight' | 'circleopen' | 'zoomin'
+  // считаются по пикселям — те же формулы, что в FFmpeg xfade
+  | 'fadefast' | 'fadeslow' | 'fadegrays' | 'dissolve' | 'distance' | 'pixelize' | 'hblur'
+  | 'wipeup' | 'wipedown' | 'wipetl' | 'wipetr' | 'wipebl' | 'wipebr'
+  | 'smoothleft' | 'smoothright' | 'smoothup' | 'smoothdown'
+  | 'coverleft' | 'coverright' | 'coverup' | 'coverdown'
+  | 'revealleft' | 'revealright' | 'revealup' | 'revealdown'
+  | 'circleclose' | 'circlecrop' | 'rectcrop' | 'radial'
+  | 'vertopen' | 'vertclose' | 'horzopen' | 'horzclose'
+  | 'diagtl' | 'diagtr' | 'diagbl' | 'diagbr'
+  | 'hlslice' | 'hrslice' | 'vuslice' | 'vdslice'
+  | 'hlwind' | 'hrwind' | 'vuwind' | 'vdwind'
+  | 'squeezeh' | 'squeezev';
 
 export interface Transition {
   type: TransitionType;
