@@ -13,18 +13,18 @@ import { stabilize } from '../../src/main/ai/stab';
 import { trackPerson } from '../../src/main/ai/matting';
 import { synthesize } from '../../src/main/ai/tts';
 import { readPcm16k, transcribe } from '../../src/main/ai/speech';
-import { ttsVoiceReady } from '../../src/main/ai/models';
+import { asrModelReady, ttsVoiceReady } from '../../src/main/ai/models';
 import { detectBeats } from '../../src/shared/beats';
 import { reframeKeyframes } from '../../src/shared/reframe';
 import { valueAt } from '../../src/shared/anim';
-import { FFMPEG, ff, makeTone, meanVolume, probe, tmpDir, zeroCrossFreq } from '../helpers/media';
+import { FFMPEG, ff, makeTone, meanVolume, probe, tmpDir, zeroCrossFreq, PERSON_IMG } from '../helpers/media';
 
 const D = tmpDir('ai2');
 const f = (n: string) => path.join(D, n);
 
 beforeAll(() => {
   if (!fs.existsSync(f('tone300.wav'))) ff(['-f', 'lavfi', '-i', 'sine=frequency=300:sample_rate=48000:duration=2', f('tone300.wav')]);
-  const img = ['/tmp/kadro-tests/ai/girl1.jpg', '/tmp/asr/girl1.jpg'].find((p) => fs.existsSync(p));
+  const img = PERSON_IMG;
   if (img && !fs.existsSync(f('shaky.mp4'))) {
     ff(['-loop', '1', '-i', img, '-vf', "scale=960:640,crop=880:580:x='40+25*sin(n*1.3)+15*sin(n*0.37)':y='30+20*sin(n*0.9)+10*sin(n*2.1)',format=yuv420p",
       '-t', '3', '-r', '30', '-c:v', 'libx264', '-preset', 'ultrafast', f('shaky.mp4')]);
@@ -75,8 +75,7 @@ describe('стабилизация', () => {
     }
     return tot / (n - 1);
   };
-  it('тряска заметно меньше', async () => {
-    if (!fs.existsSync(f('shaky.mp4'))) return;
+  it.skipIf(!PERSON_IMG && !fs.existsSync(f('shaky.mp4')))('тряска заметно меньше', async () => {
     await stabilize(f('shaky.mp4'), 0, 3, 0.8, f('stab.mp4'));
     const before = madCenter(f('shaky.mp4'));
     const after = madCenter(f('stab.mp4'));
@@ -86,8 +85,7 @@ describe('стабилизация', () => {
 });
 
 describe('автокадрирование', () => {
-  it('кадр следует за идущим человеком', async () => {
-    if (!fs.existsSync(f('walk.mp4'))) return;
+  it.skipIf(!PERSON_IMG && !fs.existsSync(f('walk.mp4')))('кадр следует за идущим человеком', async () => {
     const pts = await trackPerson({ src: f('walk.mp4'), ss: 0, dur: 4, width: 1280, height: 720 });
     expect(pts.filter((p) => p.found).length).toBeGreaterThan(pts.length * 0.9);
     // центр спрайта: (100 + 200t + 160) / 1280
@@ -110,8 +108,7 @@ describe('автокадрирование', () => {
 });
 
 describe('озвучка текста', () => {
-  it('голос читает текст — распознавание слышит те же слова', async () => {
-    if (!ttsVoiceReady('irina')) return;
+  it.skipIf(!ttsVoiceReady('irina') || !asrModelReady('ru'))('голос читает текст — распознавание слышит те же слова', async () => {
     const dur = synthesize('Привет! Это проверка озвучки текста.', 'irina', 1, f('tts.wav'));
     expect(dur).toBeGreaterThan(1.2);
     expect(dur).toBeLessThan(5);

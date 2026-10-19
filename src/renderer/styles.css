@@ -162,7 +162,7 @@ button { cursor: pointer; }
 
 /* ---------- плеер ---------- */
 .stage { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
-.stage-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 14px; position: relative; }
+.stage-area { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 14px; position: relative; overflow: hidden; }
 .canvas-wrap { position: relative; box-shadow: 0 0 0 1px var(--line-soft); background: #000; }
 .canvas-wrap canvas { display: block; width: 100%; height: 100%; }
 .sel-box { position: absolute; border: 1.5px solid var(--accent); cursor: move; touch-action: none; }

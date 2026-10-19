@@ -148,13 +148,13 @@ export function beatMp3(): string {
     '-filter_complex', "[0]volume='0.9*exp(-mod(t-0.25\\,60/128)*25)*gte(t\\,0.25)':eval=frame[k];[k][1]amix=inputs=2:normalize=0", '-c:a', 'libmp3lame', '-q:a', '3', f]));
 }
 export function shakyVideo(): string | null {
-  const img = ['/tmp/kadro-tests/ai/girl1.jpg', '/tmp/asr/girl1.jpg'].find((p) => fs.existsSync(p));
+  const img = [process.env.KADRO_TEST_PERSON, '/tmp/kadro-tests/ai/girl1.jpg', '/tmp/asr/girl1.jpg'].find((p): p is string => !!p && fs.existsSync(p));
   if (!img) return null;
   return media('shaky.mp4', (f) => ff(['-loop', '1', '-i', img, '-vf', "scale=960:640,crop=880:580:x='40+25*sin(n*1.3)+15*sin(n*0.37)':y='30+20*sin(n*0.9)+10*sin(n*2.1)',format=yuv420p",
     '-t', '2', '-r', '30', '-c:v', 'libx264', '-preset', 'ultrafast', f]));
 }
 export function walkVideo(): string | null {
-  const img = ['/tmp/kadro-tests/ai/girl1.jpg', '/tmp/asr/girl1.jpg'].find((p) => fs.existsSync(p));
+  const img = [process.env.KADRO_TEST_PERSON, '/tmp/kadro-tests/ai/girl1.jpg', '/tmp/asr/girl1.jpg'].find((p): p is string => !!p && fs.existsSync(p));
   if (!img) return null;
   return media('walk.mp4', (f) => ff(['-f', 'lavfi', '-i', 'color=c=0x6a7280:s=1280x720:r=30:d=3', '-loop', '1', '-i', img,
     '-filter_complex', "[1]crop=200:359:130:40,scale=320:574[p];[0][p]overlay=x='100+250*t':y=146:shortest=1,format=yuv420p",
@@ -192,7 +192,7 @@ export function talkVideo(): string {
   });
 }
 export function personVideo(): string | null {
-  const img = ['/tmp/kadro-tests/ai/girl1.jpg', '/tmp/asr/girl1.jpg'].find((p) => fs.existsSync(p));
+  const img = [process.env.KADRO_TEST_PERSON, '/tmp/kadro-tests/ai/girl1.jpg', '/tmp/asr/girl1.jpg'].find((p): p is string => !!p && fs.existsSync(p));
   if (!img) return null;
   return media('person.mp4', (f) => ff(['-loop', '1', '-i', img, '-vf', "scale=640:-2,zoompan=z='1+0.002*on':d=1:s=640x426:fps=30", '-t', '1.5',
     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-preset', 'ultrafast', f]));

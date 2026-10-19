@@ -87,6 +87,8 @@ function ProjectInspector({ multi }: { multi: number }) {
           <dt>S или Ctrl+B</dt><dd>разрезать у курсора</dd>
           <dt>Delete</dt><dd>удалить выделенное</dd>
           <dt>Ctrl+D</dt><dd>копия клипа</dd>
+          <dt>Ctrl+G</dt><dd>сгруппировать (с Shift — разгруппировать)</dd>
+          <dt>Ctrl+S / Ctrl+E</dt><dd>сохранить проект / экспорт</dd>
           <dt>Ctrl+Z / Ctrl+Y</dt><dd>отменить / вернуть</dd>
           <dt>← →</dt><dd>на кадр (с Shift — на секунду)</dd>
           <dt>Ctrl+колесо</dt><dd>масштаб таймлайна</dd>

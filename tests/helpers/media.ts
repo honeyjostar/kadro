@@ -137,3 +137,10 @@ export function runExport(p: Project, out: string, opts: Partial<BuildOpts> & { 
 }
 
 export const near = (a: number[], b: number[], tol = 12) => a.every((v, i) => Math.abs(v - b[i]) <= tol);
+
+/**
+ * Фото человека для тестов ИИ (удаление фона, стабилизация, автокадрирование, ретушь).
+ * В репозиторий чужие фото не кладём: укажи своё через KADRO_TEST_PERSON — без него эти тесты пропускаются.
+ */
+export const PERSON_IMG: string | undefined = [process.env.KADRO_TEST_PERSON, '/tmp/kadro-tests/ai/girl1.jpg', '/tmp/asr/girl1.jpg']
+  .find((p): p is string => !!p && fs.existsSync(p));
