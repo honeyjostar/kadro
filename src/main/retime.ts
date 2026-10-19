@@ -112,7 +112,7 @@ async function reverse(job: RetimeJob, fps: number, work: string, target: string
 export async function freezeFrame(src: string, t: number, fps: number, alpha: boolean): Promise<string> {
   const out = path.join(cacheDir('clips'), `freeze_${uniq()}.png`);
   const ss = Math.max(0, t - 0.5 / Math.max(1, fps || 30));
-  await runFfmpeg(['-hide_banner', '-y', ...(alpha ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(ss), '-i', src, '-frames:v', '1', '-update', '1',
+  await runFfmpeg(['-hide_banner', '-y', ...(alpha && /\.webm$/i.test(src) ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(ss), '-i', src, '-frames:v', '1', '-update', '1',
     '-pix_fmt', alpha ? 'rgba' : 'rgb24', out]);
   if (!fs.existsSync(out)) throw new Error('Кадр не получился');
   return out;

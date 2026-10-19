@@ -130,9 +130,17 @@ function mediaClip(clipId: string): { clip: MediaClip; p: Project } | null {
   return { clip: f.clip, p };
 }
 
+/** GIF играет по кругу — обработка фрагмента исходника к нему не применяется. */
+function gifBlocked(p: Project, c: MediaClip, what: string): boolean {
+  const a = p.assets.find((x) => x.id === c.assetId);
+  if (!a?.loop) return false;
+  getState().toast(`${what} не работает с GIF — только с обычным видео`);
+  return true;
+}
+
 export async function removeBackground(clipId: string): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m) return;
+  if (!m || gifBlocked(m.p, m.clip, 'Удаление фона')) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
   if (!a || a.kind !== 'video') { getState().toast('Удаление фона работает с видео'); return; }
   const st = videoInputFor(m.clip, 'removeBg');
@@ -204,7 +212,7 @@ async function refreshVoice(clipId: string): Promise<void> {
 // ---------- стабилизация ----------
 export async function stabilizeClip(clipId: string, strength = 0.5): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m) return;
+  if (!m || gifBlocked(m.p, m.clip, 'Стабилизация')) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
   if (!a || a.kind !== 'video') { getState().toast('Стабилизация работает с видео'); return; }
   const r = await runJob('Стабилизирую', { kind: 'stab', jobId: `st_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, strength }, clipId);
@@ -234,7 +242,7 @@ async function rebuildAfter(clipId: string, changed: 'stab' | 'beauty'): Promise
 // ---------- ретушь ----------
 export async function retouchClip(clipId: string, smooth: number, bright: number): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m) return;
+  if (!m || gifBlocked(m.p, m.clip, 'Ретушь')) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
   if (!a || a.kind !== 'video') { getState().toast('Ретушь работает с видео'); return; }
   if (smooth < 0.01 && bright < 0.01) { disableRetouch(clipId); return; }
@@ -282,7 +290,7 @@ export function alignToBeats(): void {
 // ---------- автокадрирование ----------
 export async function autoReframe(clipId: string): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m) return;
+  if (!m || gifBlocked(m.p, m.clip, 'Автокадрирование')) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
   if (!a || a.kind !== 'video') { getState().toast('Автокадрирование работает с видео'); return; }
   const st = aiSource(m.clip, 'stab');
@@ -309,7 +317,7 @@ export async function autoReframe(clipId: string): Promise<void> {
  */
 export async function retimeClip(clipId: string, opts: { reverse?: boolean; ramp?: RampPoint[] | null; preset?: string }): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m) return;
+  if (!m || gifBlocked(m.p, m.clip, 'Реверс и кривая скорости')) return;
   const c = m.clip;
   const orig = originalRange(c);
   const src = m.p.assets.find((a) => a.id === orig.assetId);
@@ -387,14 +395,15 @@ function freezeTarget(): MediaClip | null {
 
 export async function freezeFrame(dur = 2): Promise<void> {
   const c = freezeTarget();
-  if (!c) { getState().toast('Поставь курсор на видео, из которого нужен стоп-кадр'); return; }
+  if (!c) { getState().toast('Стоп-кадр берётся из кадра под белой линией времени. Передвинь её на видео и нажми ещё раз'); return; }
   const p = getState().project;
   const a = p.assets.find((x) => x.id === c.assetId)!;
   const t = getState().playhead;
   const fps = a.fps || p.settings.fps;
-  const s = Math.min(c.out - 0.5 / fps, Math.max(c.in, c.in + (t - c.start) * c.speed));
+  let s = Math.min(c.out - 0.5 / fps, Math.max(c.in, c.in + (t - c.start) * c.speed));
+  if (a.loop && a.duration > 0) s = Math.min(a.duration - 0.5 / fps, s % a.duration);
   const vs = videoSource(c);
-  const res = await runJob('Делаю стоп-кадр', { kind: 'freeze', jobId: `fz_${uidShort()}`, path: vs?.path ?? a.path, t: s - (vs?.offset ?? 0), fps, alpha: !!vs?.alpha }, c.id, false);
+  const res = await runJob('Делаю стоп-кадр', { kind: 'freeze', jobId: `fz_${uidShort()}`, path: vs?.path ?? a.path, t: s - (vs?.offset ?? 0), fps, alpha: !!vs?.alpha || !!a.loop }, c.id, false);
   if (!res.ok || res.output?.kind !== 'freeze') { getState().toast(`Не получилось: ${res.error}`, 'err'); return; }
   const asset = await importDerived(res.output.path, `Стоп-кадр · ${a.name}`);
   if (!asset) return;

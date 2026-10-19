@@ -194,7 +194,8 @@ const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selecte
         const first = Math.max(0, Math.floor((view.left - left) / tileW) - 1);
         const last = Math.min(Math.ceil(width / tileW), Math.ceil((view.left + view.width - left) / tileW) + 1);
         for (let i = first; i < last; i++) {
-          const src = asset.kind === 'image' ? 0 : clip.in + (((i + 0.5) * tileW) / pps) * clip.speed; // кадр середины плитки
+          const raw = asset.kind === 'image' ? 0 : clip.in + (((i + 0.5) * tileW) / pps) * clip.speed; // кадр середины плитки
+          const src = asset.loop && asset.duration > 0 ? raw % asset.duration : raw; // GIF по кругу
           const idx = asset.kind === 'image' ? 0 : Math.min(thumbs.length - 1, Math.max(0, Math.floor((src / Math.max(0.001, asset.duration)) * thumbs.length)));
           tiles.push(<div key={i} style={{ left: i * tileW, width: tileW, backgroundImage: `url("${api.mediaUrl(thumbs[idx])}")` }} />);
         }

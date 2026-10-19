@@ -341,13 +341,17 @@ export class PreviewEngine {
         const prevTr = prev && prev.type === 'media' ? prev.transitionOut?.duration ?? 0 : 0;
         const ve = this.media.get(`${c.id}:v`);
         const ae = this.media.get(`${c.id}:a`);
+        const asset = p.assets.find((x) => x.id === c.assetId);
+        const loopDur = asset?.loop && asset.duration > 0 ? asset.duration : 0; // GIF: время по кругу
+        const wrap = (s: number) => (loopDur ? ((s % loopDur) + loopDur) % loopDur : s);
         for (const e of [ve, ae]) {
           if (!e || e.kind === 'image') continue;
           const m = e.el as HTMLMediaElement;
           const start = c.start;
           const end = clipEnd(c);
           const active = t >= start - EPS && t < end - EPS;
-          const desired = c.in + (t - start) * c.speed - e.offset;
+          const desired = wrap(c.in + (t - start) * c.speed - e.offset);
+          if (loopDur && !m.loop) m.loop = true;
           const separateAudio = e === ve && !!ae;
           if (e.gain && this.ac) e.gain.gain.setTargetAtTime(this.gainFor(c, track, prevTr, t, separateAudio), this.ac.currentTime, 0.01);
           if (this.playing && active) {
@@ -357,7 +361,8 @@ export class PreviewEngine {
               m.playbackRate = c.speed;
               void m.play().catch(() => undefined);
             } else {
-              const drift = m.currentTime - desired;
+              let drift = m.currentTime - desired;
+              if (loopDur) drift -= Math.round(drift / loopDur) * loopDur; // переход через конец круга — не рассинхрон
               if (Math.abs(drift) > 0.2) {
                 m.currentTime = Math.max(0, desired);
               } else {
@@ -368,7 +373,7 @@ export class PreviewEngine {
             }
           } else if (this.playing && t < start && start - t < 0.8) {
             if (!m.paused) m.pause();
-            const pre = c.in - e.offset;
+            const pre = wrap(c.in - e.offset);
             if (Math.abs(m.currentTime - pre) > 0.04) m.currentTime = Math.max(0, pre);
           } else {
             if (!m.paused) m.pause();

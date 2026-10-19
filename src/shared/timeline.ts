@@ -53,7 +53,7 @@ export function transitionDur(t: Track, i: number): number {
 /** Максимальная длина источника для клипа (картинки — без ограничения). */
 function sourceLimit(p: Project, c: MediaClip): number {
   const a = assetOf(p, c);
-  if (!a || a.kind === 'image') return Infinity;
+  if (!a || a.kind === 'image' || a.loop) return Infinity;
   return a.duration;
 }
 
@@ -500,7 +500,7 @@ export function alignMainToBeats(p: Project, beats: number[], minClip = 0.3): Pr
     if (c.type !== 'media') continue;
     const end = clipEnd(c);
     const a = assetOf(d, c);
-    const maxEnd = a && a.kind !== 'image' ? c.start + (a.duration - c.in) / c.speed : end + 10;
+    const maxEnd = a && a.kind !== 'image' && !a.loop ? c.start + (a.duration - c.in) / c.speed : end + 10;
     let best: number | null = null;
     for (const b of beats) {
       if (b < c.start + minClip || b > maxEnd + 1e-6) continue;

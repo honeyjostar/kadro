@@ -57,8 +57,20 @@ function rotationOf(v?: ProbeStream): number {
   return ((Math.round(r) % 360) + 360) % 360;
 }
 
-export function kindOf(file: string, pr: ProbeResult): MediaKind {
+/** Сколько кадров в GIF (без декодирования — по пакетам). */
+async function gifFrames(file: string): Promise<number> {
+  try {
+    const { stdout } = await execFileP(ffprobePath(), ['-v', 'error', '-select_streams', 'v:0', '-count_packets',
+      '-show_entries', 'stream=nb_read_packets', '-of', 'csv=p=0', file], { windowsHide: true });
+    return Number.parseInt(stdout.trim(), 10) || 1;
+  } catch {
+    return 1;
+  }
+}
+
+export function kindOf(file: string, pr: ProbeResult, frames = 1): MediaKind {
   const ext = path.extname(file).toLowerCase();
+  if (ext === '.gif' && frames > 1 && pr.duration > 0.04) return 'video'; // анимированный GIF играет как видео
   if (IMAGE_EXT.includes(ext)) return 'image';
   if (pr.video && ['png', 'mjpeg', 'bmp', 'webp', 'tiff'].includes(pr.video.codec_name ?? '') && (pr.duration < 0.05 || pr.video.nb_frames === '1')) return 'image';
   if (!pr.video) return 'audio';
@@ -78,6 +90,7 @@ export function proxyPlan(kind: MediaKind, pr: ProbeResult, file: string): 'none
   if (kind === 'audio') {
     return pr.audio && PLAYABLE_A.includes(pr.audio.codec_name ?? '') && !['.wma', '.aiff', '.aif'].includes(ext) ? 'none' : 'audio';
   }
+  if (ext === '.gif') return 'video'; // плеер Chromium не играет GIF как видео — делаем WebM с прозрачностью
   const v = pr.video!;
   const vOk = PLAYABLE_V.includes(v.codec_name ?? '') && (v.codec_name !== 'h264' || OK_PIX.includes(v.pix_fmt ?? ''));
   const aOk = !pr.audio || PLAYABLE_A.includes(pr.audio.codec_name ?? '');
@@ -87,7 +100,8 @@ export function proxyPlan(kind: MediaKind, pr: ProbeResult, file: string): 'none
 
 export async function analyze(file: string): Promise<{ asset: MediaAsset; plan: 'none' | 'audio' | 'video' }> {
   const pr = await probe(file);
-  const kind = kindOf(file, pr);
+  const isGif = path.extname(file).toLowerCase() === '.gif';
+  const kind = kindOf(file, pr, isGif ? await gifFrames(file) : 1);
   if (kind !== 'audio' && !pr.video) throw new Error('В файле нет картинки');
   if (kind === 'audio' && !pr.audio) throw new Error('В файле нет звука');
   const rot = rotationOf(pr.video);
@@ -115,6 +129,7 @@ export async function analyze(file: string): Promise<{ asset: MediaAsset; plan: 
   };
   const tags = Object.fromEntries(Object.entries(pr.video?.tags ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
   if (kind === 'video' && ['vp8', 'vp9'].includes(pr.video?.codec_name ?? '') && tags.alpha_mode === '1') asset.alpha = true;
+  if (kind === 'video' && isGif) asset.loop = true;
   return { asset, plan };
 }
 
@@ -139,6 +154,19 @@ export async function makeProxy(asset: MediaAsset, plan: 'audio' | 'video', onPr
       { duration: asset.duration, onProgress, signal });
     fs.renameSync(tmp, out);
     return out;
+  }
+  if (path.extname(asset.path).toLowerCase() === '.gif') {
+    // анимированный GIF: VP9 с прозрачностью, те же размеры и время кадров, что у оригинала
+    const gout = path.join(cacheDir('proxy'), `${key}.webm`);
+    if (fs.existsSync(gout)) return gout;
+    const gtmp = gout + '.part.webm';
+    await runFfmpeg([
+      '-hide_banner', '-y', '-i', asset.path, '-map', '0:v:0', '-an',
+      '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '28', '-deadline', 'good', '-cpu-used', '4',
+      '-row-mt', '1', '-auto-alt-ref', '0', '-g', '15', '-progress', 'pipe:1', '-nostats', gtmp,
+    ], { duration: asset.duration, onProgress, signal });
+    fs.renameSync(gtmp, gout);
+    return gout;
   }
   const out = path.join(cacheDir('proxy'), `${key}.mp4`);
   if (fs.existsSync(out)) return out;

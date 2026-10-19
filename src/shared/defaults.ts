@@ -74,7 +74,7 @@ export function newProject(name = 'Новый проект', aspect: AspectKey =
 export const IMAGE_DEFAULT_DURATION = 3;
 
 export function newMediaClip(asset: MediaAsset, start = 0): MediaClip {
-  const len = asset.kind === 'image' ? IMAGE_DEFAULT_DURATION : asset.duration;
+  const len = asset.kind === 'image' ? IMAGE_DEFAULT_DURATION : asset.loop ? Math.max(asset.duration, IMAGE_DEFAULT_DURATION) : asset.duration;
   return {
     id: uid('clip'),
     type: 'media',

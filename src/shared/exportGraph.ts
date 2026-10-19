@@ -372,7 +372,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       } else {
         const path = vsrc ? vsrc.path : g.asset.path;
         const offset = vsrc ? vsrc.offset : 0;
-        const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : vsrc ? [] : alphaDecoder(g.asset)), '-ss', fmt(g.in - offset), '-t', fmt(g.out - g.in + 0.5), '-i', path]);
+        const lp = vsrc ? null : loopInput(g.asset, g.in);
+        const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : vsrc ? [] : alphaDecoder(g.asset)), ...(lp ? lp.args : []), '-ss', fmt(lp ? lp.ss : g.in - offset), '-t', fmt(g.out - g.in + 0.5), '-i', path]);
         srcLabel = L('src');
         const half = 0.5 / F;
         const sel = g.clips
@@ -469,7 +470,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
           const vs = videoSource(c);
           const path = vs ? vs.path : asset.path;
           const off = vs ? vs.offset : 0;
-          const idx = addInput([...thr, ...(vs?.alpha ? ['-c:v', 'libvpx-vp9'] : vs ? [] : alphaDecoder(asset)), '-ss', fmt(c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
+          const lp = vs ? null : loopInput(asset, c.in);
+          const idx = addInput([...thr, ...(vs?.alpha ? ['-c:v', 'libvpx-vp9'] : vs ? [] : alphaDecoder(asset)), ...(lp ? lp.args : []), '-ss', fmt(lp ? lp.ss : c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
           src = L('o');
           chains.push(`[${idx}:v]setpts=(PTS-STARTPTS)/${fmt(c.speed)},fps=${F},tpad=stop_mode=clone:stop_duration=2,trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${src}]`);
         }
@@ -556,6 +558,12 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
 export type Quality = 'normal' | 'high' | 'max';
 
 /** VP8/VP9 с прозрачностью: встроенный декодер FFmpeg альфу теряет, нужен libvpx. */
+/** GIF по кругу: вход повторяется бесконечно, начало — внутри первого круга (как остаток в превью). */
+function loopInput(a: MediaAsset, inSec: number): { args: string[]; ss: number } | null {
+  if (!a.loop || !(a.duration > 0)) return null;
+  return { args: ['-stream_loop', '-1'], ss: ((inSec % a.duration) + a.duration) % a.duration };
+}
+
 function alphaDecoder(a: MediaAsset): string[] {
   if (!a.alpha) return [];
   return ['-c:v', a.videoCodec === 'vp8' ? 'libvpx' : 'libvpx-vp9'];
