@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256">
+  <title>Kadro</title>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#ff3d7f"/>
+  <rect x="12" y="12" width="40" height="4.5" rx="2.25" fill="#15131a"/>
+  <rect x="12" y="47.5" width="40" height="4.5" rx="2.25" fill="#15131a"/>
+  <path d="M26 23.5v17l16-8.5z" fill="#15131a"/>
+</svg>

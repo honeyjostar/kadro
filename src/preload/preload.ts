@@ -37,6 +37,7 @@ const api: KadroApi = {
   onAiProgress: (cb) => on('ai:progress', cb),
   showInFolder: (p) => ipcRenderer.send('shell:show', p),
   setTitle: (t) => ipcRenderer.send('win:title', t),
+  logError: (message) => ipcRenderer.send('app:log', message),
 };
 
 contextBridge.exposeInMainWorld('kadro', api);

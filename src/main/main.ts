@@ -92,7 +92,15 @@ function createWindow(): void {
   win.webContents.on('before-input-event', (_e, input) => {
     if (input.type === 'keyDown' && input.key === 'F12') win?.webContents.toggleDevTools();
   });
-  win.webContents.on('render-process-gone', (_e, d) => log('renderer gone', d));
+  // окно упало (нехватка памяти, сбой видеодрайвера) — перезагружаем: черновик сохраняется автоматически
+  let lastReload = 0;
+  win.webContents.on('render-process-gone', (_e, d) => {
+    log('renderer gone', d);
+    if (d.reason === 'clean-exit' || !win || win.isDestroyed()) return;
+    if (Date.now() - lastReload < 10_000) return; // не уходим в бесконечный перезапуск
+    lastReload = Date.now();
+    win.webContents.reload();
+  });
   win.webContents.on('console-message', (_e, level, message) => { if (level >= 2) log('renderer:', message); });
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 }
@@ -451,8 +459,12 @@ function registerIpc(): void {
   });
   ipcMain.on('shell:show', (_e, p: string) => shell.showItemInFolder(p));
   ipcMain.on('win:title', (_e, t: string) => win?.setTitle(t));
+  ipcMain.on('app:log', (_e, ...a: unknown[]) => log('renderer error:', ...a));
 }
 
+// неожиданная ошибка в главном процессе — в журнал, программа продолжает работать
+process.on('uncaughtException', (e) => log('uncaught', e));
+process.on('unhandledRejection', (e) => log('unhandled rejection', e));
 // автотесты: ненастоящий микрофон без запроса разрешения
 if (process.env.KADRO_FAKE_MEDIA) {
   app.commandLine.appendSwitch('use-fake-device-for-media-stream');

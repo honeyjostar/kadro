@@ -1,6 +1,6 @@
 // Сборка Kadro под Windows x64 на Linux: папка программы + установщик NSIS.
 // Нужны: dist/ (npm run build), zip Electron для win32-x64, zip FFmpeg (BtbN, win64-gpl-shared), makensis.
-//   node scripts/pack-win.mjs --electron <electron-win32-x64.zip> --ffmpeg <ffmpeg-win64-gpl-shared.zip>
+//   node scripts/pack-win.mjs --electron <electron-win32-x64.zip> --ffmpeg <ffmpeg-win64-gpl-shared.zip> [--portable]
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -197,3 +197,20 @@ SectionEnd
 `);
 run('makensis', ['-V2', nsi], { cwd: OUT });
 console.log(`\nГотово: ${setup} (${(fs.statSync(setup).size / 1e6).toFixed(1)} МБ)`);
+
+// --portable: та же программа zip-архивом — распаковать в любую папку и запускать Kadro.exe без установки
+if (process.argv.includes('--portable')) {
+  step('Переносная версия (zip)');
+  const name = `Kadro-${pkg.version}-portable`;
+  const stage = path.join(OUT, name);
+  const zipPath = path.join(OUT, `${name}.zip`);
+  fs.rmSync(stage, { recursive: true, force: true });
+  fs.rmSync(zipPath, { force: true });
+  fs.renameSync(APP_DIR, stage);
+  try {
+    run('zip', ['-qr9', zipPath, name], { cwd: OUT });
+  } finally {
+    fs.renameSync(stage, APP_DIR);
+  }
+  console.log(`Готово: ${zipPath} (${(fs.statSync(zipPath).size / 1e6).toFixed(1)} МБ)`);
+}

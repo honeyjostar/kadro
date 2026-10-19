@@ -455,3 +455,11 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .tpl-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tpl-info b { font-size: 13px; }
 .tpl-actions { display: flex; flex-direction: column; gap: 6px; padding: 0 8px 10px; }
+
+/* окно ошибки */
+.crash { position: fixed; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 1000; padding: 16px; }
+.crash-card { max-width: 460px; padding: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-m); }
+.crash-card h2 { margin: 0 0 8px; font-family: var(--logo); font-size: 20px; }
+.crash-card p { color: var(--muted); line-height: 1.5; }
+.crash-card details { margin-top: 14px; color: var(--muted); font-size: 12px; }
+.crash-card pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padding: 8px; border-radius: var(--radius-s); }

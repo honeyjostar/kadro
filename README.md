@@ -1,12 +1,27 @@
-# Kadro
+<p align="center">
+  <img src="docs/brand/banner.png" alt="Kadro — бесплатный видеоредактор с ИИ" width="100%">
+</p>
 
-**Бесплатный видеоредактор для Windows с ИИ-функциями, которые работают прямо на твоём компьютере.**
+<p align="center">
+  <a href="https://github.com/honeyjostar/kadro/releases/latest"><img src="https://img.shields.io/github/v/release/honeyjostar/kadro?label=%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F&color=ff3d7f" alt="Версия"></a>
+  <a href="https://github.com/honeyjostar/kadro/releases"><img src="https://img.shields.io/github/downloads/honeyjostar/kadro/total?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B8%D0%B2%D0%B0%D0%BD%D0%B8%D0%B9&color=15131a" alt="Скачиваний"></a>
+  <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-15131a" alt="Windows 10 и 11">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-GPL--3.0-15131a" alt="Лицензия GPL-3.0"></a>
+</p>
+
+<h1 align="center">Kadro</h1>
+
+<p align="center"><b>Бесплатный видеоредактор для Windows с ИИ-функциями, которые работают прямо на твоём компьютере.</b><br>
 Монтаж для TikTok, Reels, Shorts и YouTube: таймлайн, переходы, эффекты, текст с анимацией, автосубтитры,
-удаление фона, чистый голос, шаблоны. Экспорт до 4K, без водяных знаков, без подписок, без регистрации.
+удаление фона, чистый голос, шаблоны. Экспорт до 4K без водяных знаков, без подписок и регистрации.</p>
+
+<p align="center">
+  <a href="https://github.com/honeyjostar/kadro/releases/latest"><b>⬇ Скачать для Windows</b></a> ·
+  <a href="docs/GUIDE.md">Руководство</a> ·
+  <a href="docs/BUILD.md">Сборка из исходников</a>
+</p>
 
 ![Kadro: шаблон «Путешествие» на таймлайне](docs/screenshots/editor.png)
-
-**[⬇ Скачать для Windows](https://github.com/honeyjostar/kadro/releases/latest)** · [Руководство](docs/GUIDE.md) · [Сборка из исходников](docs/BUILD.md)
 
 ---
 
@@ -76,7 +91,9 @@ Kadro — обычная программа, а не сайт. Видео не �
 
 1. Скачай `Kadro-Setup-<версия>.exe` со страницы [Releases](https://github.com/honeyjostar/kadro/releases/latest).
 2. Запусти. Windows может показать «Система Windows защитила ваш компьютер» — это потому, что у установщика нет платной цифровой подписи. Нажми **Подробнее → Выполнить в любом случае**.
-3. Установщик ставит программу в `%LOCALAPPDATA%\Programs\Kadro` (права администратора не нужны) и создаёт ярлыки.
+3. Установщик ставит программу в `%LOCALAPPDATA%\Programs\Kadro` (права администратора не нужны) и создаёт ярлыки на рабочем столе и в меню «Пуск». Дальше Kadro запускается как любая программа.
+
+**Без установки:** там же лежит `Kadro-<версия>-portable.zip` — распакуй в любую папку (хоть на флешку) и запускай `Kadro.exe`.
 
 **Обновление** — просто поставь новую версию поверх, проекты и настройки сохранятся.
 **Удаление** — «Параметры → Приложения → Kadro → Удалить». Модели и черновики лежат в `%USERPROFILE%\.kadro`, эту папку можно удалить вручную.

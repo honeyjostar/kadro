@@ -92,4 +92,6 @@ export interface KadroApi {
   onAiProgress(cb: (jobId: string, p: number, stage?: string) => void): () => void;
   showInFolder(path: string): void;
   setTitle(title: string): void;
+  /** Записать ошибку окна в журнал программы. */
+  logError(message: string): void;
 }
