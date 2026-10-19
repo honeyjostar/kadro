@@ -16,6 +16,7 @@ import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
 import { ColorField, Field, KeyButton, Seg, Slider, Toggle } from './controls';
 import { AiTools, textPreviewStyle } from './LeftPanel';
+import { CurvesPanel, HslPanel, LutPanel } from './GradeTab';
 
 export function Inspector() {
   const sel = useSelected();
@@ -113,6 +114,8 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
     ];
   const [tab, setTab] = useState<MTab>(() => (lastMediaTab && tabs.some((t) => t.id === lastMediaTab) ? lastMediaTab : tabs[0].id));
   useEffect(() => { lastMediaTab = tab; }, [tab]);
+  const [colorSub, setColorSub] = useState<ColorSub>(lastColorSub);
+  useEffect(() => { lastColorSub = colorSub; }, [colorSub]);
   const cur = tabs.some((t) => t.id === tab) ? tab : tabs[0].id;
   const up = (patch: Partial<MediaClip>, key: string) => commit((p) => updateClip(p, clip.id, patch), `${key}-${clip.id}`);
   const c = clip.color;
@@ -158,6 +161,16 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
           </>
         )}
         {cur === 'color' && (
+          <div style={{ marginBottom: 6 }}>
+            <Seg value={colorSub} onChange={setColorSub} options={[
+              { value: 'basic', label: 'Основное' }, { value: 'curves', label: 'Кривые' }, { value: 'hsl', label: 'HSL' }, { value: 'lut', label: 'LUT' },
+            ]} />
+          </div>
+        )}
+        {cur === 'color' && colorSub === 'curves' && <CurvesPanel clip={clip} />}
+        {cur === 'color' && colorSub === 'hsl' && <HslPanel clip={clip} />}
+        {cur === 'color' && colorSub === 'lut' && <LutPanel clip={clip} />}
+        {cur === 'color' && colorSub === 'basic' && (
           <>
             <Field label="Фильтр">
               <select className="input" value={c.preset} onChange={(e) => up({ color: { ...c, preset: e.target.value, presetAmount: 1 } }, 'preset')}>
@@ -201,6 +214,8 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   );
 }
 let lastMediaTab: MTab | null = null;
+type ColorSub = 'basic' | 'curves' | 'hsl' | 'lut';
+let lastColorSub: ColorSub = 'basic';
 
 // ---------- скорость: постоянная, кривая, реверс, стоп-кадр ----------
 function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
@@ -273,6 +288,7 @@ function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
 
 const RW = 260;
 const RH = 120;
+const RPAD = 7;
 const vy = (v: number) => (1 - (Math.log10(v) + 1) / 2) * RH;
 const yv = (y: number) => Math.min(RAMP_MAX, Math.max(RAMP_MIN, 10 ** ((1 - y / RH) * 2 - 1)));
 
@@ -295,7 +311,9 @@ function RampEditor({ points, onChange, disabled }: { points: RampPoint[]; onCha
   const pts = normalizeRamp(points);
   const at = (e: { clientX: number; clientY: number }) => {
     const b = svg.current!.getBoundingClientRect();
-    return { x: Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)), y: Math.min(RH, Math.max(0, ((e.clientY - b.top) / b.height) * RH)) };
+    const ux = ((e.clientX - b.left) / b.width) * (RW + 2 * RPAD) - RPAD;
+    const uy = ((e.clientY - b.top) / b.height) * (RH + 2 * RPAD) - RPAD;
+    return { x: Math.min(1, Math.max(0, ux / RW)), y: Math.min(RH, Math.max(0, uy)) };
   };
   const move = (e: React.PointerEvent) => {
     const i = drag.current;
@@ -309,7 +327,7 @@ function RampEditor({ points, onChange, disabled }: { points: RampPoint[]; onCha
   };
   const line = Array.from({ length: 101 }, (_, i) => `${(i / 100) * RW},${vy(rampSpeedAt(pts, i / 100)).toFixed(2)}`).join(' ');
   return (
-    <svg ref={svg} className="ramp-editor" viewBox={`0 0 ${RW} ${RH}`} preserveAspectRatio="none" data-testid="ramp-editor"
+    <svg ref={svg} className="ramp-editor" viewBox={`${-RPAD} ${-RPAD} ${RW + 2 * RPAD} ${RH + 2 * RPAD}`} preserveAspectRatio="none" data-testid="ramp-editor"
       onPointerMove={move} onPointerUp={() => { drag.current = null; }} onPointerLeave={() => { drag.current = null; }}
       onDoubleClick={(e) => {
         if (disabled || (e.target as Element).tagName === 'circle') return;

@@ -76,6 +76,10 @@ export interface KadroApi {
   runAi(job: AiJob): Promise<AiResponse>;
   /** Запись с микрофона (webm/opus) → FLAC в папке данных. */
   saveRecording(data: ArrayBuffer): Promise<string>;
+  /** Выбрать файл .cube: копия в папке программы. null — отменили. */
+  pickLut(): Promise<{ path: string; name: string } | { error: string } | null>;
+  listLuts(): Promise<{ path: string; name: string }[]>;
+  readLut(path: string): Promise<string | null>;
   cancelAi(jobId: string): void;
   onAiProgress(cb: (jobId: string, p: number, stage?: string) => void): () => void;
   showInFolder(path: string): void;

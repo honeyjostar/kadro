@@ -56,7 +56,7 @@ export function Player() {
 
   // движок превью живёт всё время работы окна
   useEffect(() => {
-    const eng = new PreviewEngine(canvasRef.current!, api.mediaUrl);
+    const eng = new PreviewEngine(canvasRef.current!, api.mediaUrl, api.readLut);
     engineRef.current = eng;
     (window as unknown as { __kadroEngine: PreviewEngine }).__kadroEngine = eng;
     eng.onTime = (t) => getState().setPlayhead(t);

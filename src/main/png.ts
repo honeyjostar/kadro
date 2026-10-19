@@ -1,4 +1,4 @@
-// Минимальный PNG-кодировщик (оттенки серого) — для масок экспорта, без сторонних библиотек.
+// Минимальный PNG-кодировщик (оттенки серого и RGB) — для масок и таблиц цвета экспорта, без сторонних библиотек.
 import zlib from 'node:zlib';
 
 const CRC = (() => {
@@ -24,18 +24,26 @@ function chunk(type: string, data: Buffer): Buffer {
   return Buffer.concat([len, td, crc]);
 }
 
-export function grayPng(bytes: Uint8Array, w: number, h: number): Buffer {
-  const raw = Buffer.alloc((w + 1) * h);
+function encode(bytes: Uint8Array, w: number, h: number, channels: 1 | 3): Buffer {
+  const row = w * channels;
+  const raw = Buffer.alloc((row + 1) * h);
   for (let y = 0; y < h; y++) {
-    raw[y * (w + 1)] = 0; // без фильтра
-    Buffer.from(bytes.buffer, bytes.byteOffset + y * w, w).copy(raw, y * (w + 1) + 1);
+    raw[y * (row + 1)] = 0; // без фильтра
+    Buffer.from(bytes.buffer, bytes.byteOffset + y * row, row).copy(raw, y * (row + 1) + 1);
   }
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(w, 0);
   ihdr.writeUInt32BE(h, 4);
-  ihdr[8] = 8; ihdr[9] = 0; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  ihdr[8] = 8; ihdr[9] = channels === 3 ? 2 : 0; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
   return Buffer.concat([
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 6 })), chunk('IEND', Buffer.alloc(0)),
   ]);
+}
+
+export function grayPng(bytes: Uint8Array, w: number, h: number): Buffer {
+  return encode(bytes, w, h, 1);
+}
+export function rgbPng(bytes: Uint8Array, w: number, h: number): Buffer {
+  return encode(bytes, w, h, 3);
 }

@@ -665,6 +665,7 @@ export function insertFreeze(p: Project, clipId: string, t: number, assetId: str
     Object.assign(img, {
       fit: c.fit, color: structuredClone(c.color), mask: c.mask && structuredClone(c.mask), blend: c.blend,
       chroma: c.removeBg.enabled ? undefined : c.chroma && structuredClone(c.chroma), effects: c.effects && structuredClone(c.effects),
+      grade: c.grade && structuredClone(c.grade),
       transform: { scale: props.scale, x: props.x, y: props.y, rotation: props.rotation },
     });
     if (props.opacity < 1) img.opacity = props.opacity;

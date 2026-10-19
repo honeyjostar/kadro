@@ -2,6 +2,7 @@
 import { aiSource, audioSource, videoSource } from './ai';
 import { hasAnim, kfExpr, maxScale, valueAt } from './anim';
 import { effectiveColor, ffmpegColorFilter } from './color';
+import { gradeActive, gradeTable, haldImage, type CubeLut } from './grade';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geometry';
 import { clipDuration, mainTrack, projectDuration } from './timeline';
 import type { BlendMode, MediaAsset, MediaClip, Project } from './types';
@@ -22,6 +23,10 @@ export interface BuildOpts {
   includeMusic?: boolean;
   /** Сохраняет картинку в оттенках серого (маска, виньетка) w × h и возвращает путь к PNG. */
   grayFile?: (name: string, bytes: Uint8Array, w: number, h: number) => string;
+  /** Сохраняет цветную картинку (RGB) w × h — таблица цвета Hald CLUT — и возвращает путь к PNG. */
+  rgbFile?: (name: string, bytes: Uint8Array, w: number, h: number) => string;
+  /** Загруженные файлы LUT (.cube) по пути. */
+  luts?: Record<string, CubeLut>;
 }
 
 export interface BuiltGraph {
@@ -62,7 +67,9 @@ interface Group {
 function sameLook(a: MediaClip, b: MediaClip): boolean {
   // анимация привязана ко времени клипа — такие куски не склеиваем в одну группу
   if (hasAnim(a.keyframes) || hasAnim(b.keyframes)) return false;
-  const extra = (c: MediaClip) => JSON.stringify([c.opacity ?? 1, c.mask ?? null, c.blend ?? 'normal', c.chroma ?? null, c.stab?.path ?? '', c.voice?.path ?? '']);
+  // эффекты тоже считаются от начала клипа (вспышка, глитч, тряска)
+  if (a.effects?.length || b.effects?.length) return false;
+  const extra = (c: MediaClip) => JSON.stringify([c.opacity ?? 1, c.mask ?? null, c.blend ?? 'normal', c.chroma ?? null, c.stab?.path ?? '', c.voice?.path ?? '', c.grade ?? null]);
   if (extra(a) !== extra(b)) return false;
   return a.assetId === b.assetId && a.speed === b.speed && a.fit === b.fit &&
     JSON.stringify(a.transform) === JSON.stringify(b.transform) &&
@@ -165,6 +172,20 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       cur = out;
     };
 
+    // 3½) кривые, HSL, свой LUT — одной таблицей (после масштаба: дешевле, а результат тот же)
+    const applyGrade = () => {
+      const g = c.grade;
+      const cube = g?.lut ? o.luts?.[g.lut.path] ?? null : null;
+      if (!g || !o.rgbFile || !gradeActive(g, !!cube)) return;
+      const img = haldImage(gradeTable(g, cube));
+      const file = o.rgbFile(`grade_${c.id}`, img.rgb, img.w, img.h);
+      const idx = addInput(['-i', file]);
+      flush();
+      const l = L('gr');
+      chains.push(`[${cur}][${idx}:v]haldclut=clut=first:interp=trilinear[${l}]`);
+      cur = l;
+    };
+
     // 4) видеоэффекты — на слое нужного размера
     const applyEffects = (w: number, h: number) => {
       const list = sortedEffects(c.effects);
@@ -249,6 +270,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       const sw = Math.max(1, Math.round(pl.w));
       const sh = Math.max(1, Math.round(pl.h));
       parts.push(`scale=${sw}:${sh}:flags=bicubic`);
+      applyGrade();
       applyEffects(sw, sh);
       applyMask(sw, sh);
       let ow = sw;
@@ -294,6 +316,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const [x2, y2] = corner(0, PH);
     const [x3, y3] = corner(PW, PH);
     parts.push(`scale=${wm}:${hm}:flags=bicubic`);
+    applyGrade();
     applyEffects(wm, hm);
     applyMask(wm, hm);
     parts.push(

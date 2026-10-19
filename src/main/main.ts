@@ -11,6 +11,7 @@ import { processVoice } from './ai/voice';
 import { stabilize } from './ai/stab';
 import { freezeFrame, retime } from './retime';
 import { runFfmpeg } from './ffrun';
+import { importLutFile, listLutFiles } from './luts';
 import { cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
 import { exportProject, exportSpeechAudio, hasNvenc } from './exporter';
 import { analyze, makePeaks, makeProxy, makeThumbs } from './media';
@@ -402,6 +403,17 @@ function registerIpc(): void {
   ipcMain.handle('ai:voices', async (): Promise<VoiceInfo[]> =>
     Object.values(TTS_VOICES).map((v) => ({ id: v.id, label: v.label, sizeMb: v.sizeMb, ready: ttsVoiceReady(v.id) })));
   ipcMain.handle('ai:run', (_e, job: AiJob) => runAi(job));
+  ipcMain.handle('lut:pick', async () => {
+    let src = process.env.KADRO_TEST_LUT; // автотесты: без системного окна
+    if (!src) {
+      const r = await dialog.showOpenDialog(win!, { title: 'Загрузить LUT', properties: ['openFile'], filters: [{ name: 'LUT (.cube)', extensions: ['cube'] }] });
+      if (r.canceled || !r.filePaths[0]) return null;
+      src = r.filePaths[0];
+    }
+    try { return importLutFile(src); } catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
+  });
+  ipcMain.handle('lut:list', () => listLutFiles());
+  ipcMain.handle('lut:read', (_e, p: string) => { if (!/\.cube$/i.test(p)) return null; try { return fs.readFileSync(p, 'utf8'); } catch { return null; } });
   ipcMain.handle('rec:save', async (_e, data: ArrayBuffer) => {
     const dir = cacheDir('recordings');
     const stem = `voice_${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}_${Math.random().toString(36).slice(2, 6)}`;

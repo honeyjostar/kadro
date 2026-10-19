@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { buildGraph, fullArgs, type BuildOpts, type Quality } from '../../src/shared/exportGraph';
 import type { MediaAsset, Project } from '../../src/shared/types';
-import { grayPng } from '../../src/main/png';
+import { grayPng, rgbPng } from '../../src/main/png';
 
 export const FFMPEG = process.env.KADRO_FFMPEG || 'ffmpeg';
 export const FFPROBE = process.env.KADRO_FFPROBE || 'ffprobe';
@@ -119,7 +119,13 @@ export function runExport(p: Project, out: string, opts: Partial<BuildOpts> & { 
     fs.writeFileSync(file, grayPng(bytes, w, h));
     return file;
   };
-  const g = buildGraph(p, { width: W, height: H, fps: F, textLayers: opts.textLayers ?? [], grayFile });
+  let rgbN = 0;
+  const rgbFile = (_name: string, bytes: Uint8Array, w: number, h: number) => {
+    const file = `${out}.clut${rgbN++}.png`;
+    fs.writeFileSync(file, rgbPng(bytes, w, h));
+    return file;
+  };
+  const g = buildGraph(p, { width: W, height: H, fps: F, textLayers: opts.textLayers ?? [], grayFile, rgbFile, luts: opts.luts });
   const filterFile = out + '.filter.txt';
   fs.writeFileSync(filterFile, g.filter);
   const args = fullArgs(g, filterFile, ffmpegMajor(), 'x264', opts.quality ?? 'normal', F, out)

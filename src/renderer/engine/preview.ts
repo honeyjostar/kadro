@@ -7,6 +7,8 @@ import { fxGeometry, sortedEffects } from '../../shared/effects';
 import { applyPixelEffects } from './effectsPreview';
 import { ChromaKeyer } from './chroma';
 import { effectiveColor, isIdentity, svgFilterMarkup } from '../../shared/color';
+import { gradeActive } from '../../shared/grade';
+import { GradeProcessor, lutFor, setLutListener } from './grade';
 import { BLUR_SIGMA_1080, placeOnCanvas, unitScale } from '../../shared/geometry';
 import { drawText } from '../../shared/textRender';
 import { clipDuration, clipEnd, projectDuration } from '../../shared/timeline';
@@ -56,7 +58,8 @@ export class PreviewEngine {
   onTime?: (t: number) => void;
   onEnded?: () => void;
 
-  constructor(private canvas: HTMLCanvasElement, private mediaUrl: (p: string) => string) {
+  constructor(private canvas: HTMLCanvasElement, private mediaUrl: (p: string) => string, private readLut: (p: string) => Promise<string | null> = async () => null) {
+    setLutListener(() => { this.dirty = true; });
     this.ctx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
     this.filterDefs = document.querySelector('#kadro-filters defs');
     const loop = () => {
@@ -400,7 +403,9 @@ export class PreviewEngine {
     if (pl.rotation) c2d.rotate((pl.rotation * Math.PI) / 180);
     c2d.imageSmoothingQuality = 'high';
     const fx = sortedEffects(c.effects);
-    if (c.mask || fx.length) {
+    const cube = lutFor(c.grade?.lut?.path, this.readLut);
+    const graded = gradeActive(c.grade, !!cube);
+    if (c.mask || fx.length || graded) {
       // слой нужного размера: цвет → эффекты → маска (destination-in) → на холст
       const w = Math.max(1, Math.round(pl.w));
       const h = Math.max(1, Math.round(pl.h));
@@ -413,6 +418,7 @@ export class PreviewEngine {
       lc.drawImage(img, 0, 0, w, h);
       lc.filter = 'none';
       lc.restore();
+      if (graded) this.grader().apply(layer, c.grade!, cube);
       if (fx.length) applyPixelEffects(layer, c, local);
       if (c.mask) {
         lc.save();
@@ -428,6 +434,8 @@ export class PreviewEngine {
     c2d.restore();
   }
 
+  private graderInst: GradeProcessor | null = null;
+  private grader(): GradeProcessor { this.graderInst ??= new GradeProcessor(); return this.graderInst; }
   private keyerInst: ChromaKeyer | null = null;
   private keyer(): ChromaKeyer { this.keyerInst ??= new ChromaKeyer(); return this.keyerInst; }
   private canvases = new Map<string, HTMLCanvasElement>();

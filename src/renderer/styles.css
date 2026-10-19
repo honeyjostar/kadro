@@ -393,7 +393,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .ramp-thumb { width: 100%; max-width: 56px; height: 30px; }
 .ramp-thumb polyline { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; }
 .ramp-thumb .axis { stroke: var(--line); stroke-dasharray: 2 2; }
-.ramp-editor { display: block; width: 100%; aspect-ratio: 260 / 120; margin-top: 10px; background: var(--bg); border: 1px solid var(--line-soft);
+.ramp-editor { display: block; width: 100%; aspect-ratio: 274 / 134; margin-top: 10px; background: var(--bg); border: 1px solid var(--line-soft);
   border-radius: var(--radius-s); touch-action: none; user-select: none; }
 .ramp-editor .grid { stroke: var(--line-soft); }
 .ramp-editor .axis { stroke: var(--line); stroke-dasharray: 3 3; }
@@ -422,3 +422,19 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .icon-btn.rec-on { color: #ff4d4d; }
 .stage-chip.rec { display: flex; align-items: center; gap: 8px; color: var(--text); border-color: rgba(255, 77, 77, 0.5); }
 .stage-chip.rec .rec-dot { width: 9px; height: 9px; }
+
+/* кривые и HSL */
+.curve-editor { display: block; width: 100%; aspect-ratio: 1; margin: 10px 0 6px; background: var(--bg); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-s); touch-action: none; user-select: none; }
+.curve-editor .grid line { stroke: var(--line-soft); }
+.curve-editor .frame { fill: none; stroke: var(--line-soft); }
+.curve-editor .diag { stroke: var(--line); stroke-dasharray: 4 4; }
+.curve-editor .curve { fill: none; stroke-width: 2.2; stroke-linejoin: round; }
+.curve-editor .other { fill: none; stroke-width: 1.2; opacity: 0.45; }
+.curve-editor circle { fill: var(--panel); stroke-width: 2; cursor: grab; }
+.curve-editor circle:hover { fill: var(--text); }
+.hsl-bands { display: flex; justify-content: space-between; gap: 4px; margin: 4px 0 10px; }
+.hsl-dot { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; box-shadow: inset 0 0 0 2px var(--panel); cursor: pointer; padding: 0; position: relative; }
+.hsl-dot.active { border-color: var(--text); }
+.hsl-dot.changed::after { content: ''; position: absolute; right: -3px; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); border: 1.5px solid var(--panel); }
+.hsl-dot:focus-visible, .ramp-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

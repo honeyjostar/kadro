@@ -260,3 +260,35 @@ function frame2(file: string, t: number, w: number, h: number): Buffer {
   if (r.status !== 0 || r.stdout.length < w * h * 3) throw new Error(String(r.stderr));
   return r.stdout;
 }
+
+describe('кривые, HSL, LUT в экспорте', () => {
+  it('цвета в файле совпадают с расчётом таблицы (как в превью)', async () => {
+    const { gradeTable, applyTable, parseCube, GRADE_N } = await import('../../src/shared/grade');
+    const bars = ['0xd83c3c', '0xe0c040', '0x3cb45a', '0x3c6ee0', '0x808080', '0xf0f0f0', '0x202020', '0xa040c0'];
+    if (!fs.existsSync(f('bars.png'))) {
+      ff([...bars.flatMap((c) => ['-f', 'lavfi', '-i', `color=c=${c}:s=50x200,format=rgb24`]), '-filter_complex', `${bars.map((_, i) => `[${i}]`).join('')}hstack=inputs=${bars.length}`, '-frames:v', '1', f('bars.png')]);
+    }
+    const lines = ['LUT_3D_SIZE 9'];
+    for (let b = 0; b < 9; b++) for (let g = 0; g < 9; g++) for (let r = 0; r < 9; r++) lines.push(`${(b / 8) ** 0.9} ${g / 8} ${Math.min(1, (r / 8) * 1.1)}`);
+    const lut = parseCube(lines.join('\n'));
+    const grade = {
+      curves: { all: [{ x: 0, y: 0.04 }, { x: 0.3, y: 0.22 }, { x: 0.7, y: 0.8 }, { x: 1, y: 0.97 }], b: [{ x: 0, y: 0 }, { x: 0.5, y: 0.6 }, { x: 1, y: 1 }] },
+      hsl: { red: { h: 0.4, s: -0.5, l: 0.2 }, blue: { h: -0.3, s: 0.4, l: -0.3 } },
+      lut: { path: '/x/test.cube', name: 'test', amount: 0.7 },
+    };
+    let p = newProject('gr', '16:9');
+    p = addAsset(p, assetFromFile('bars', f('bars.png'), 'image'));
+    p = addToMain(p, 'bars', 0).project;
+    p = updateClip(p, mainTrack(p).clips[0].id, { grade: grade as never });
+    runExport(p, f('grade.mp4'), { width: 800, height: 450, luts: { '/x/test.cube': lut } } as never);
+    const t = gradeTable(grade as never, lut);
+    const b = frame2(f('grade.mp4'), 1, 800, 450);
+    // картинка 400×200 вписана в кадр 800×450 как 800×400: полосы по 100 px
+    bars.forEach((c, i) => {
+      const n = parseInt(c.slice(2), 16);
+      const want = applyTable(t, GRADE_N, (n >> 16) & 255, (n >> 8) & 255, n & 255);
+      const got = (() => { const x = Math.round((i + 0.5) * 100); const y = 225; return [...b.subarray((y * 800 + x) * 3, (y * 800 + x) * 3 + 3)]; })();
+      for (let ch = 0; ch < 3; ch++) expect(Math.abs(got[ch] - want[ch]), `полоса ${c}: ${got} вместо ${want}`).toBeLessThan(7);
+    });
+  });
+});

@@ -8,7 +8,8 @@ import type { ExportReq, ExportResult, TextLayerReq } from '../shared/ipc';
 import { projectDuration } from '../shared/timeline';
 import { cacheDir, ffmpegMajor, ffmpegPath } from './bins';
 import { runFfmpeg } from './ffrun';
-import { grayPng } from './png';
+import { grayPng, rgbPng } from './png';
+import { loadLuts } from './luts';
 
 let nvencCache: Promise<boolean> | undefined;
 
@@ -74,7 +75,13 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
       fs.writeFileSync(file, grayPng(bytes, w, h));
       return file;
     };
-    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile });
+    let rgbN = 0;
+    const rgbFile = (_name: string, bytes: Uint8Array, w: number, h: number) => {
+      const file = path.join(job, `clut${rgbN++}.png`);
+      fs.writeFileSync(file, rgbPng(bytes, w, h));
+      return file;
+    };
+    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project) });
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);
     fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });

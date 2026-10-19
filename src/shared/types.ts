@@ -141,6 +141,17 @@ export interface MediaClip {
   voice?: AiResult & { effect?: VoiceEffect; withDenoise?: boolean }; // обработанный звук с эффектом голоса
   effects?: Effect[];           // видеоэффекты (тряска, глитч, виньетка…)
   retime?: Retime;              // клип показывает копию фрагмента с реверсом / кривой скорости
+  grade?: Grade;                // кривые, HSL, свой LUT
+}
+
+/** Точка кривой: x — вход, y — выход (0..1). */
+export interface CurvePoint { x: number; y: number }
+export type HslBand = 'red' | 'orange' | 'yellow' | 'green' | 'cyan' | 'blue' | 'purple' | 'magenta';
+/** Тонкая цветокоррекция: применяется после основной (яркость, контраст…) одной 3D-таблицей. */
+export interface Grade {
+  curves?: { all?: CurvePoint[]; r?: CurvePoint[]; g?: CurvePoint[]; b?: CurvePoint[] };
+  hsl?: Partial<Record<HslBand, { h: number; s: number; l: number }>>; // каждое -1..1
+  lut?: { path: string; name: string; amount: number };              // файл .cube и сила 0..1
 }
 
 /** Точка кривой скорости: x — доля фрагмента (0..1), v — скорость (0.1..10). */

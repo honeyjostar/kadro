@@ -577,6 +577,46 @@ test('запись голоса с микрофона: от курсора, на
   expect((await project(win)).tracks.filter((t) => t.kind === 'audio').flatMap((t) => t.clips)).toHaveLength(1);
 });
 
+test('кривые, HSL и свой LUT — через интерфейс, экспорт совпадает с плеером', async () => {
+  await reset(win);
+  await importAt(win, [colorsVideo()]);
+  const [id] = await clipIds(win, 'main');
+  await store(win, 'select', [id]);
+  await seekAndSettle(win, 0.5);
+  await win.getByTestId('itab-color').click();
+  // кривые: тянем среднюю часть общей кривой вниз (добавив точку двойным кликом)
+  await win.getByRole('button', { name: 'Кривые', exact: true }).click();
+  const ed = (await win.getByTestId('curve-editor').boundingBox())!;
+  await win.mouse.dblclick(ed.x + ed.width * 0.5, ed.y + ed.height * 0.5);
+  const pt = (await win.getByTestId('curve-pt-1').boundingBox())!;
+  await drag(pt.x + pt.width / 2, pt.y + pt.height / 2, pt.x + pt.width / 2, pt.y + pt.height / 2 + ed.height * 0.15);
+  let c = (await project(win)).tracks[0].clips[0] as any;
+  expect(c.grade.curves.all).toHaveLength(3);
+  expect(c.grade.curves.all[1].y).toBeLessThan(0.42);
+  // HSL: красный — сдвиг оттенка и меньше насыщенности
+  await win.getByRole('button', { name: 'HSL', exact: true }).click();
+  await win.getByTestId('hsl-red').click();
+  await setSlider(win, 'hsl-h', 0.6);
+  await setSlider(win, 'hsl-s', -0.4);
+  // LUT из файла
+  const lines = ['TITLE "Тёплый тест"', 'LUT_3D_SIZE 9'];
+  for (let b = 0; b < 9; b++) for (let g = 0; g < 9; g++) for (let r = 0; r < 9; r++) lines.push(`${Math.min(1, (r / 8) * 1.08 + 0.03)} ${g / 8} ${(b / 8) * 0.85}`);
+  fs.writeFileSync(path.join(MEDIA, 'test.cube'), lines.join('\n'));
+  await win.getByRole('button', { name: 'LUT', exact: true }).click();
+  await win.getByTestId('lut-load').click();
+  await expect(win.getByTestId('lut-select')).toBeVisible();
+  await setSlider(win, 'lut-amount', 0.8);
+  c = (await project(win)).tracks[0].clips[0] as any;
+  expect(c.grade.hsl.red.h).toBeCloseTo(0.6, 2);
+  expect(c.grade.lut.name).toBe('Тёплый тест');
+  expect(c.grade.lut.amount).toBeCloseTo(0.8, 2);
+  const pngs = [await parity(0.5, 'gr05'), await parity(2.5, 'gr25'), await parity(3.5, 'gr35')];
+  const out = await exportViaUi('720p');
+  compareAt(pngs[0], out, 0.5);
+  compareAt(pngs[1], out, 2.5);
+  compareAt(pngs[2], out, 3.5);
+});
+
 test('голос, озвучка, ритм — через интерфейс', async () => {
   await reset(win);
   await importAt(win, [talkVideo()]);
