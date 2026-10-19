@@ -2,6 +2,7 @@
 # Когда запускается:
 #   • поменяли "version" в package.json и отправили в master — если релиза с этой версией ещё нет,
 #     он создаётся сам (тег vX.Y.Z), к нему прикладываются установщик и zip;
+#     если релиз уже есть — у него только обновляется описание из docs/RELEASE_NOTES.md;
 #   • опубликовали релиз в интерфейсе GitHub или отправили тег vX.Y.Z — файлы прикладываются к нему;
 #   • вручную: Actions → Release → Run workflow (файлы — в артефактах сборки).
 name: Release
@@ -47,6 +48,13 @@ jobs:
           fi
           echo "skip=$SKIP" >> "$GITHUB_OUTPUT"
           echo "Версия $V, пропустить сборку: $SKIP"
+
+      # релиз этой версии уже есть — только обновляем его описание из docs/RELEASE_NOTES.md (секунды, без сборки)
+      - name: Описание релиза
+        if: steps.ver.outputs.skip == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "v${{ steps.ver.outputs.version }}" --repo "${{ github.repository }}" --notes-file docs/RELEASE_NOTES.md
 
       - uses: actions/setup-node@v4
         if: steps.ver.outputs.skip != 'true'
