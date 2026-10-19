@@ -1,7 +1,8 @@
 // Тонкая цветокоррекция: кривые, HSL по цветам, свой LUT (.cube).
 // Всё сводится в одну 3D-таблицу N×N×N: превью применяет её (WebGL или процессор), экспорт — фильтром haldclut.
 // Интерполяция одинаковая — трилинейная, результат обрезается вниз до целого (как в FFmpeg).
-import type { CurvePoint, Grade, HslBand } from './types';
+import { filterLook, lookFilterPixel } from './color';
+import type { ColorAdjust, CurvePoint, Grade, HslBand } from './types';
 
 export const GRADE_LEVEL = 6;                       // уровень Hald CLUT
 export const GRADE_N = GRADE_LEVEL * GRADE_LEVEL;   // 36 точек по каждой оси
@@ -157,7 +158,8 @@ function hslActive(hsl: Grade['hsl']): boolean {
 }
 
 // ---------- сборка ----------
-export function gradeActive(g: Grade | undefined, lutReady = true): boolean {
+export function gradeActive(g: Grade | undefined, lutReady = true, color?: ColorAdjust): boolean {
+  if (filterLook(color)) return true;
   if (!g) return false;
   const c = g.curves;
   const curves = !!c && [c.all, c.r, c.g, c.b].some((x) => curveFn(x));
@@ -165,7 +167,10 @@ export function gradeActive(g: Grade | undefined, lutReady = true): boolean {
 }
 
 /** Точка: LUT (с силой) → кривые (общая, затем каналы) → HSL. Вход/выход 0..1. */
-export function gradePixel(g: Grade, cube: CubeLut | null, rgb: [number, number, number]): [number, number, number] {
+export function gradePixel(g: Grade, cube: CubeLut | null, rgb: [number, number, number], color?: ColorAdjust): [number, number, number] {
+  // «характер» фильтра (тени/света, выцветание, тонирование) — первым, сразу после яркости/контраста/насыщенности
+  const fl = filterLook(color);
+  if (fl) rgb = lookFilterPixel(fl.look, fl.k, rgb);
   let [r, gg, b] = rgb;
   if (cube && g.lut && g.lut.amount > 0.001) {
     const o = sampleCube(cube, [r, gg, b]);
@@ -194,13 +199,13 @@ export function gradePixel(g: Grade, cube: CubeLut | null, rgb: [number, number,
 }
 
 /** Таблица N³ (RGB, байты), индекс (r + g·N + b·N²)·3 — так же, как раскладка Hald CLUT. */
-export function gradeTable(g: Grade, cube: CubeLut | null, N = GRADE_N): Uint8Array {
+export function gradeTable(g: Grade, cube: CubeLut | null, N = GRADE_N, color?: ColorAdjust): Uint8Array {
   const out = new Uint8Array(N * N * N * 3);
   let i = 0;
   for (let b = 0; b < N; b++) {
     for (let gg = 0; gg < N; gg++) {
       for (let r = 0; r < N; r++) {
-        const o = gradePixel(g, cube, [r / (N - 1), gg / (N - 1), b / (N - 1)]);
+        const o = gradePixel(g, cube, [r / (N - 1), gg / (N - 1), b / (N - 1)], color);
         out[i++] = Math.round(o[0] * 255); out[i++] = Math.round(o[1] * 255); out[i++] = Math.round(o[2] * 255);
       }
     }

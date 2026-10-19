@@ -1,7 +1,8 @@
 // Кривые / HSL / LUT в превью: одна 3D-таблица (shared/grade.ts), трилинейно, с обрезкой вниз — как haldclut в FFmpeg.
 // На видеокарте — WebGL2 с 3D-текстурой; без неё — то же самое на процессоре.
 import { GRADE_N, applyTable, gradeActive, gradeTable, parseCube, type CubeLut } from '../../shared/grade';
-import type { Grade } from '../../shared/types';
+import { filterLook } from '../../shared/color';
+import type { ColorAdjust, Grade } from '../../shared/types';
 
 const VS = `#version 300 es
 in vec2 p; out vec2 uv;
@@ -77,21 +78,22 @@ export class GradeProcessor {
   }
 
   /** Таблица для клипа (кэш по содержимому настроек). */
-  table(g: Grade, cube: CubeLut | null): { key: string; t: Uint8Array } {
-    const key = JSON.stringify([g.curves ?? null, g.hsl ?? null, cube && g.lut ? [g.lut.path, g.lut.amount] : null]);
+  table(g: Grade, cube: CubeLut | null, color?: ColorAdjust): { key: string; t: Uint8Array } {
+    const fl = filterLook(color);
+    const key = JSON.stringify([g.curves ?? null, g.hsl ?? null, cube && g.lut ? [g.lut.path, g.lut.amount] : null, fl ? [fl.id, fl.k] : null]);
     let t = this.tables.get(key);
     if (!t) {
       if (this.tables.size > 24) this.tables.clear();
-      t = gradeTable(g, cube);
+      t = gradeTable(g, cube, GRADE_N, color);
       this.tables.set(key, t);
     }
     return { key, t };
   }
 
   /** Применяет коррекцию к слою (на месте). */
-  apply(layer: HTMLCanvasElement, g: Grade, cube: CubeLut | null): void {
-    if (!gradeActive(g, !!cube)) return;
-    const { key, t } = this.table(g, cube);
+  apply(layer: HTMLCanvasElement, g: Grade, cube: CubeLut | null, color?: ColorAdjust): void {
+    if (!gradeActive(g, !!cube, color)) return;
+    const { key, t } = this.table(g, cube, color);
     this.applyTable(layer, key, t);
   }
 

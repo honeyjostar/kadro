@@ -3,7 +3,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { EFFECTS, fxMatrixAt, letterboxBar, lookPixel, PARTICLE_EFFECTS } from '../../src/shared/effects';
-import { newProject } from '../../src/shared/defaults';
+import { DEFAULT_COLOR, newProject } from '../../src/shared/defaults';
+import { FILTER_PRESETS, applyColorToPixel, effectiveColor } from '../../src/shared/color';
+import { gradePixel } from '../../src/shared/grade';
 import { addAsset, addToMain, mainTrack, updateClip } from '../../src/shared/timeline';
 import type { Effect, EffectType, MediaClip, Project } from '../../src/shared/types';
 import { assetFromFile, ff, makeSolid, near, pixelAt, probe, runExport, tmpDir } from '../helpers/media';
@@ -90,4 +92,27 @@ describe('новые эффекты: результат по формуле', ()
     ff(['-ss', '2.9', '-i', out, '-frames:v', '1', b]);
     expect(fs.statSync(a).size).not.toBe(fs.statSync(b).size);
   });
+});
+
+describe('фильтры: экспорт совпадает с расчётом (основа + «характер»)', () => {
+  const colors: [string, number[]][] = [['orange.mp4', ORANGE], ['navy.mp4', [30, 50, 90]]];
+  beforeAll(() => { if (!fs.existsSync(f('navy.mp4'))) makeSolid(f('navy.mp4'), '0x1e325a', 3, 640, 360, 30); });
+  for (const preset of FILTER_PRESETS.filter((x) => x.id !== 'none')) {
+    it(`фильтр «${preset.label}» (${preset.id})`, () => {
+      for (const [file, rgb] of colors) {
+        let p = newProject('flt', '16:9');
+        p = addAsset(p, assetFromFile('v', f(file), 'video'));
+        p = addToMain(p, 'v', 0).project;
+        const id = (mainTrack(p).clips[0] as MediaClip).id;
+        const color = { ...DEFAULT_COLOR, preset: preset.id, presetAmount: 0.8 };
+        p = updateClip(p, id, { color });
+        const out = f(`flt_${preset.id}_${file}`);
+        runExport(p, out, opts);
+        const base = applyColorToPixel(rgb as [number, number, number], effectiveColor(color));
+        const want = gradePixel({}, null, [base[0] / 255, base[1] / 255, base[2] / 255], color).map((v) => v * 255);
+        const got = pixelAt(out, 1.5, 320, 180);
+        expect(near(got, want, 9), `${preset.id} на ${file}: ${got} ≠ ${want.map(Math.round)}`).toBe(true);
+      }
+    });
+  }
 });

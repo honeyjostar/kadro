@@ -3,7 +3,8 @@ import {
   LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { FILTER_PRESETS, effectiveColor, svgFilterMarkup } from '../../shared/color';
+import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
+import { gradePixel } from '../../shared/grade';
 import { DEFAULT_COLOR, FONT_CATS, FONTS, HIGHLIGHTS, type FontCat, TEXT_ANIMS, TEXT_PRESETS, TRANSITION_CATS, TRANSITIONS, type TransitionCat, VOICE_FX } from '../../shared/defaults';
 import { drawTransition } from '../../shared/transitions';
 import { retimeWords } from '../../shared/captions';
@@ -716,17 +717,53 @@ function TransitionsPanel() {
 }
 
 // ---------- Фильтры ----------
-const SAMPLE_BG = 'linear-gradient(180deg, #6fa3d6 0%, #b9d3ea 38%, #f2c48d 52%, #c97b4a 58%, #4d7a3a 62%, #263f1c 100%)';
+/** Миниатюра фильтра: кадр клипа (или образец) через тот же расчёт цвета, что у плеера и экспорта. */
+function FilterThumb({ id, src }: { id: string; src?: string }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv) return;
+    const ctx = cv.getContext('2d', { willReadFrequently: true })!;
+    let alive = true;
+    const paint = (img: CanvasImageSource, iw: number, ih: number) => {
+      if (!alive) return;
+      // «заполнить»: кадр обрезается по миниатюре
+      const k = Math.max(THUMB_W / iw, THUMB_H / ih);
+      ctx.drawImage(img, (THUMB_W - iw * k) / 2, (THUMB_H - ih * k) / 2, iw * k, ih * k);
+      if (id === 'none') return;
+      const adj = { ...DEFAULT_COLOR, preset: id };
+      const e = effectiveColor(adj);
+      const data = ctx.getImageData(0, 0, THUMB_W, THUMB_H);
+      const d = data.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const o = applyColorToPixel([d[i], d[i + 1], d[i + 2]], e);
+        const g = gradePixel({}, null, [o[0] / 255, o[1] / 255, o[2] / 255], adj);
+        d[i] = g[0] * 255; d[i + 1] = g[1] * 255; d[i + 2] = g[2] * 255;
+      }
+      ctx.putImageData(data, 0, 0);
+    };
+    if (src) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => paint(img, img.naturalWidth, img.naturalHeight);
+      img.src = api.mediaUrl(src);
+    } else {
+      paint(effectScene(), THUMB_W, THUMB_H);
+    }
+    return () => { alive = false; };
+  }, [id, src]);
+  return <canvas ref={ref} width={THUMB_W} height={THUMB_H} className="swatch tr-thumb" />;
+}
 
 function FiltersPanel() {
   const sel = useSelected();
   const commit = useStore((s) => s.commit);
   const project = useStore((s) => s.project);
+  const [cat, setCat] = useState<FilterCat | 'all'>('all');
   const clip = sel?.clip.type === 'media' && sel.asset?.kind !== 'audio' ? (sel.clip as MediaClip) : null;
-  const thumb = clip && sel?.asset ? sel.asset.thumbs?.[0] ?? (sel.asset.kind === 'image' ? sel.asset.previewPath : undefined) : undefined;
-  const defs = useMemo(() => FILTER_PRESETS.map((f) => svgFilterMarkup(`kfp-${f.id}`, effectiveColor({ ...DEFAULT_COLOR, preset: f.id }))).join(''), []);
+  const thumb = clip && sel?.asset ? sel.asset.thumbs?.[Math.floor((sel.asset.thumbs?.length ?? 1) / 2)] ?? (sel.asset.kind === 'image' ? sel.asset.previewPath : undefined) : undefined;
   const setPreset = (id: string) => {
-    if (!clip) { getState().toast('Выдели клип на таймлайне, чтобы применить фильтр'); return; }
+    if (!clip) { getState().toast('Сначала выдели видео или фото на таймлайне — фильтр встанет на него'); return; }
     commit((p) => updateClip(p, clip.id, { color: { ...clip.color, preset: id, presetAmount: clip.color.preset === id ? clip.color.presetAmount : 1 } }));
   };
   const applyAll = () => {
@@ -739,28 +776,29 @@ function FiltersPanel() {
     }, p));
     getState().toast('Фильтр применён ко всем клипам', 'ok');
   };
+  const list = FILTER_PRESETS.filter((f) => f.id === 'none' || cat === 'all' || f.cat === cat);
   return (
     <>
-      <div className="panel-head">Фильтры</div>
+      <div className="panel-head">Фильтры · {FILTER_PRESETS.length - 1}</div>
       <div className="panel-body">
-        <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden><defs dangerouslySetInnerHTML={{ __html: defs }} /></svg>
-        {!clip && <p className="hint">Выдели видео или фото на таймлайне — фильтр применится к нему.</p>}
-        <div className="tile-grid filter-grid" style={{ marginTop: 8 }}>
-          {FILTER_PRESETS.map((f) => (
-            <button key={f.id} className={`tile ${clip?.color.preset === f.id ? 'active' : ''}`} onClick={() => setPreset(f.id)} data-testid={`filter-${f.id}`}>
-              <div className="swatch filter-swatch" style={{
-                backgroundImage: thumb ? `url("${api.mediaUrl(thumb)}")` : SAMPLE_BG,
-                filter: f.id === 'none' ? undefined : `url(#kfp-${f.id})`,
-              }} />
-              <span className="label">{f.label}</span>
-            </button>
-          ))}
-        </div>
+        <p className="hint">{clip ? 'Миниатюры показывают твой кадр. Нажми, чтобы применить.' : 'Выдели видео или фото на таймлайне — фильтр применится к нему, а миниатюры покажут твой кадр.'}</p>
         {clip && clip.color.preset !== 'none' && (
           <Slider label="Сила фильтра" min={0} max={1} step={0.01} value={clip.color.presetAmount} format={(v) => `${Math.round(v * 100)}%`}
             onChange={(v) => commit((p) => updateClip(p, clip.id, { color: { ...clip.color, presetAmount: v } }), `famt-${clip.id}`)} />
         )}
-        {clip && <button className="btn block" onClick={applyAll}>Применить ко всем клипам</button>}
+        <div className="chips" style={{ margin: '10px 0 8px' }}>
+          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
+          {FILTER_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
+        </div>
+        <div className="tile-grid">
+          {list.map((f) => (
+            <button key={f.id} className={`tile ${clip?.color.preset === f.id ? 'active' : ''}`} onClick={() => setPreset(f.id)} data-testid={`filter-${f.id}`}>
+              <FilterThumb id={f.id} src={thumb} />
+              <span className="label">{f.label}</span>
+            </button>
+          ))}
+        </div>
+        {clip && <button className="btn block" style={{ marginTop: 10 }} onClick={applyAll}>Применить ко всем клипам</button>}
         <p className="hint small" style={{ marginTop: 10 }}>Яркость, контраст, насыщенность и теплота — справа во вкладке «Цвет».</p>
       </div>
     </>

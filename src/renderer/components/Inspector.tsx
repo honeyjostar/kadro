@@ -5,7 +5,7 @@ import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt }
 import { DEFAULT_MASK } from '../../shared/mask';
 import { EFFECTS } from '../../shared/effects';
 import { useEffect, useRef, useState } from 'react';
-import { FILTER_PRESETS } from '../../shared/color';
+import { FILTER_CATS, FILTER_PRESETS } from '../../shared/color';
 import { ASPECTS, DEFAULT_CHROMA, DEFAULT_COLOR, DEFAULT_TRANSFORM, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
 import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, styleAllCaptions, updateClip } from '../../shared/timeline';
 import type { BlendMode, ChromaKey, Mask, RampPoint, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
@@ -190,7 +190,12 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
           <>
             <Field label="Фильтр">
               <select className="input" value={c.preset} onChange={(e) => up({ color: { ...c, preset: e.target.value, presetAmount: 1 } }, 'preset')}>
-                {FILTER_PRESETS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                <option value="none">Нет</option>
+                {FILTER_CATS.map((cat) => (
+                  <optgroup key={cat.id} label={cat.label}>
+                    {FILTER_PRESETS.filter((f) => f.cat === cat.id).map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                  </optgroup>
+                ))}
               </select>
             </Field>
             {c.preset !== 'none' && (

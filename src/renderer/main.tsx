@@ -3,13 +3,14 @@ import './fonts';
 import './styles.css';
 import * as timeline from '../shared/timeline';
 import * as effects from '../shared/effects';
+import * as color from '../shared/color';
 import * as actions from './actions';
 import { App } from './components/App';
 import { api, getState, useStore } from './store';
 import { CrashGuard } from './components/Crash';
 
 // доступ для автотестов (window.__kadro) — в обычной работе не используется
-(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects };
+(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color };
 
 // ошибки вне React (обработчики, промисы) не роняют окно: в журнал и короткое сообщение
 const report = (msg: string) => {

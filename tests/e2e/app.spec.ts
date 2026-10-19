@@ -500,6 +500,37 @@ test('все эффекты: плеер совпадает с экспортом
   expect(bad, `не совпали:\n${bad.join('\n')}`).toEqual([]);
 });
 
+test('все фильтры: плеер совпадает с экспортом, плитки ставят фильтр', async () => {
+  await reset(win);
+  const [img] = await act(win, 'importPaths', [patternImage()]);
+  const ids: string[] = await win.evaluate(() => (window as any).__kadro.color.FILTER_PRESETS.map((f: any) => f.id).filter((id: string) => id !== 'none'));
+  expect(ids.length).toBeGreaterThanOrEqual(45);
+  for (let i = 0; i < ids.length; i++) await act(win, 'addAssetToTimeline', img, 'main', 999);
+  await commit(`(tl, p, a) => {
+    let q = p;
+    const clips = q.tracks.find((t) => t.kind === 'main').clips;
+    clips.forEach((c, i) => { q = tl.updateClip(q, c.id, { out: 1, color: { ...c.color, preset: a[0][i], presetAmount: 0.85 } }); });
+    return q;
+  }`, ids);
+  // плитка в панели ставит фильтр выделенному клипу
+  const [first] = await clipIds(win, 'main');
+  await store(win, 'select', [first]);
+  await win.getByTestId('tab-filters').click();
+  await win.getByTestId('filter-polaroid').click();
+  expect(((await project(win)).tracks[0].clips[0] as any).color.preset).toBe('polaroid');
+  await commit(`(tl, p, a) => tl.updateClip(p, a[0], { color: { ...tl.findClip(p, a[0]).clip.color, preset: a[1] } })`, first, ids[0]);
+  await waitAssetsReady(win);
+  const pngs: string[] = [];
+  for (let i = 0; i < ids.length; i++) pngs.push(await parity(i + 0.5, `flt_${ids[i]}`));
+  const out = await exportViaUi('720p');
+  const bad: string[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    const d = frameDiff(rawFrame(['-i', pngs[i]], 180, 320), rawFrame(['-ss', String(i + 0.5), '-i', out], 180, 320));
+    if (d.mean > 4 || d.p98 > 30) bad.push(`${ids[i]}: ${d.mean.toFixed(2)} / ${d.p98.toFixed(0)}`);
+  }
+  expect(bad, `не совпали:\n${bad.join('\n')}`).toEqual([]);
+});
+
 test('реверс, кривая скорости и стоп-кадр — через интерфейс, экспорт совпадает', async () => {
   await reset(win);
   await importAt(win, [colorsVideo()]);

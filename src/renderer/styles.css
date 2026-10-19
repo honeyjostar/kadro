@@ -379,7 +379,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .voice-grid .btn { padding: 0 4px; font-size: 11.5px; }
 .btn.on { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
 
-.fx-grid { grid-template-columns: repeat(3, 1fr); }
+.fx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .fx-swatch { height: 40px; }
 
 /* скорость: кривая, реверс */
@@ -481,4 +481,8 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .tr-thumb { width: 100%; height: auto; aspect-ratio: 16 / 9; display: block; }
 .fx-toggle-row { margin: 10px 0; }
 .fx-grid .tile { align-content: start; }
-.fx-grid .tile .label { min-height: 2.5em; line-height: 1.25; }
+.fx-grid .tile .label { line-height: 1.25; }
+.fx-grid .tile { min-width: 0; }
+.fx-grid .tile .label { overflow-wrap: break-word; }
+.tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tile-grid.fx-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

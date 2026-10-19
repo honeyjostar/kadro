@@ -181,8 +181,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const applyGrade = () => {
       const g = c.grade;
       const cube = g?.lut ? o.luts?.[g.lut.path] ?? null : null;
-      if (!g || !o.rgbFile || !gradeActive(g, !!cube)) return;
-      const img = haldImage(gradeTable(g, cube));
+      if (!o.rgbFile || !gradeActive(g, !!cube, c.color)) return;
+      const img = haldImage(gradeTable(g ?? {}, cube, GRADE_N, c.color));
       const file = o.rgbFile(`grade_${c.id}`, img.rgb, img.w, img.h);
       const idx = addInput(['-i', file]);
       flush();

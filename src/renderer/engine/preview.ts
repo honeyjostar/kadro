@@ -438,7 +438,7 @@ export class PreviewEngine {
     c2d.imageSmoothingQuality = 'high';
     const fx = sortedEffects(c.effects);
     const cube = lutFor(c.grade?.lut?.path, this.readLut);
-    const graded = gradeActive(c.grade, !!cube);
+    const graded = gradeActive(c.grade, !!cube, c.color);
     if (c.mask || fx.length || graded) {
       // слой нужного размера: цвет → эффекты → маска (destination-in) → на холст
       const w = Math.max(1, Math.round(pl.w));
@@ -452,7 +452,7 @@ export class PreviewEngine {
       lc.drawImage(img, 0, 0, w, h);
       lc.filter = 'none';
       lc.restore();
-      if (graded) this.grader().apply(layer, c.grade!, cube);
+      if (graded) this.grader().apply(layer, c.grade ?? {}, cube, c.color);
       if (fx.length) applyPixelEffects(layer, c, local, (l, key, tb) => this.grader().applyTable(l, key, tb));
       if (c.mask) {
         lc.save();
