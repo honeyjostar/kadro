@@ -1,12 +1,20 @@
 # Сборка установщика для Windows на серверах GitHub.
-# Запуск: отправить тег версии (git tag v0.3.0 && git push origin v0.3.0) — установщик появится в Releases.
-# Можно и вручную: Actions → Release → Run workflow (тогда установщик будет в артефактах сборки).
+# Запуск: опубликовать релиз на GitHub (Releases → Draft a new release → тег v0.4.0) или отправить тег
+# (git tag v0.4.0 && git push origin v0.4.0) — установщик и zip появятся в этом релизе.
+# Можно и вручную: Actions → Release → Run workflow (тогда файлы будут в артефактах сборки).
 name: Release
 
 on:
   push:
     tags: ['v*']
+  release:
+    types: [published]
   workflow_dispatch:
+
+# релиз из интерфейса создаёт и тег — две одинаковые сборки не нужны, ждём по очереди
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -65,6 +73,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           files: |
             release/Kadro-Setup-*.exe
             release/Kadro-*-portable.zip

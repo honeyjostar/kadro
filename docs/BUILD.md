@@ -83,13 +83,9 @@ node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip
 ### Выпуск новой версии
 
 1. Поменяй `version` в `package.json` и опиши изменения в `docs/RELEASE_NOTES.md`.
-2. Закоммить и отправь тег:
-   ```bash
-   git commit -am "Версия 0.4.0"
-   git tag v0.4.0
-   git push origin master --tags
-   ```
-3. GitHub Actions (`.github/workflows/release.yml`) сам прогонит тесты, соберёт установщик на своих серверах и выложит его в **Releases**.
+2. Закоммить и отправь на GitHub: `git commit -am "Версия 0.4.0" && git push`.
+3. На GitHub: **Releases → Draft a new release**, тег `v0.4.0` (создастся сам), заголовок и текст из `docs/RELEASE_NOTES.md` → **Publish release**. Или из консоли: `git tag v0.4.0 && git push origin v0.4.0`.
+4. GitHub Actions (`.github/workflows/release.yml`) сам прогонит тесты, соберёт установщик и zip на своих серверах и приложит их к релизу (15–20 минут).
 
 ## Как устроено коротко
 
