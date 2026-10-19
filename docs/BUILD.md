@@ -90,6 +90,8 @@ node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip
 
 ## Как устроено коротко
 
+![Схема: проект, превью, экспорт и общие формулы](brand/architecture.png)
+
 - **Проект** — JSON (`src/shared/types.ts`): дорожки, клипы, ссылки на файлы. Все правки — чистые функции в `src/shared/timeline.ts`, история отмены — снимки проекта.
 - **Превью** (`src/renderer/engine/preview.ts`) каждый кадр рисует слои на canvas; цвет — SVG-фильтр, кривые/HSL/LUT — 3D-таблица (WebGL2 или процессор), эффекты — `effectsPreview.ts`.
 - **Экспорт** (`src/shared/exportGraph.ts`) превращает проект в граф фильтров FFmpeg; текст рисуется теми же функциями, что в превью, и подаётся в FFmpeg кадрами PNG.
