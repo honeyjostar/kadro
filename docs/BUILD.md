@@ -47,6 +47,7 @@ npm run dev          # сборка и запуск
 | `KADRO_DATA` | папка данных вместо `~/.kadro` (черновик, кэш, модели) |
 | `KADRO_MODELS` | папка моделей ИИ |
 | `KADRO_MULTI=1` | разрешить несколько окон программы (для тестов) |
+| `ONNXRUNTIME_NODE_INSTALL=skip` | при `npm ci` не качать CUDA-версию ONNX Runtime (она не нужна) |
 
 ## Тесты
 

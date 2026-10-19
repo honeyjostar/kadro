@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+env:
+  # CUDA-версия ONNX Runtime не нужна (программа работает на процессоре и DirectML) — не качаем лишние сотни мегабайт
+  ONNXRUNTIME_NODE_INSTALL: skip
+
 jobs:
   windows-installer:
     runs-on: ubuntu-24.04
