@@ -331,3 +331,22 @@ describe('группа с прозрачным фоном', () => {
     expect(px(W / 2, H / 2)[2]).toBeLessThan(60);
   });
 });
+
+describe('шаблоны в экспорте', () => {
+  it('все встроенные шаблоны собираются в видео без ошибок', async () => {
+    const { BUILTIN_TEMPLATES, applyTemplate, templateDuration } = await import('../../src/shared/templates');
+    if (!fs.existsSync(f('colors4.mp4'))) {
+      ff(['-f', 'lavfi', '-i', 'testsrc2=s=640x360:r=30:d=6', '-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=48000:duration=6',
+        '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', f('colors4.mp4')]);
+    }
+    const assets = [assetFromFile('vid', f('colors4.mp4'), 'video'), assetFromFile('rect', f('rect.png'), 'image')];
+    for (const t of BUILTIN_TEMPLATES) {
+      const p = applyTemplate(newProject('t'), t, assets);
+      const out = f(`tpl_${t.id}.mp4`);
+      const w = Math.round(p.settings.width / 4 / 2) * 2;
+      const h = Math.round(p.settings.height / 4 / 2) * 2;
+      runExport(p, out, { width: w, height: h });
+      expect(Math.abs(probe(out).duration - templateDuration(t)), t.name).toBeLessThan(0.15);
+    }
+  }, 300_000);
+});

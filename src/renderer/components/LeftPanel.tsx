@@ -1,6 +1,6 @@
 import {
   Zap, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  Smile, Sparkles, Trash2, Type, Upload, Wand2,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FILTER_PRESETS, effectiveColor, svgFilterMarkup } from '../../shared/color';
@@ -14,9 +14,10 @@ import { EFFECTS } from '../../shared/effects';
 import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
-  setVoiceEffect, stabilizeClip, retouchClip, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
+  setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
 } from '../actions';
 import { listMics, recPrefs, type MicInfo } from '../recorder';
+import { BUILTIN_TEMPLATES, templateDuration, type Template } from '../../shared/templates';
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore, type LeftTab } from '../store';
 import { fmtDur, fmtTime, peakLevel } from '../util';
@@ -32,6 +33,7 @@ const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'transitions', label: 'Переходы', icon: <Blend size={19} /> },
   { id: 'filters', label: 'Фильтры', icon: <Palette size={19} /> },
   { id: 'ai', label: 'ИИ', icon: <Sparkles size={19} /> },
+  { id: 'templates', label: 'Шаблоны', icon: <LayoutTemplate size={19} /> },
 ];
 
 export function Rail() {
@@ -60,7 +62,61 @@ export function LeftPanel() {
       {tab === 'transitions' && <TransitionsPanel />}
       {tab === 'filters' && <FiltersPanel />}
       {tab === 'ai' && <AiPanel />}
+      {tab === 'templates' && <TemplatesPanel />}
     </aside>
+  );
+}
+
+// ---------- Шаблоны ----------
+function TemplatesPanel() {
+  const [mine, setMine] = useState<Template[]>([]);
+  const [open, setOpen] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const libCount = useStore((s) => s.project.assets.filter((a) => !a.derived && (a.kind === 'video' || a.kind === 'image')).length);
+  const hasMain = useStore((s) => s.project.tracks[0]?.clips.length > 0);
+  const refresh = () => void api.listTemplates().then(setMine);
+  useEffect(refresh, []);
+  const run = async (fn: () => Promise<unknown>) => { setBusy(true); try { await fn(); } finally { setBusy(false); } };
+  const card = (t: Template) => {
+    const isOpen = open === t.id;
+    return (
+      <div key={t.id} className={`tpl-card ${isOpen ? 'open' : ''}`} data-testid={`tpl-${t.id}`}>
+        <button className="tpl-head" onClick={() => setOpen(isOpen ? null : t.id)} aria-expanded={isOpen}>
+          <div className={`tpl-thumb a${t.aspect.replace(':', '-')}`} style={t.thumb ? { backgroundImage: `url("${t.thumb}")` } : { background: t.swatch ?? 'var(--raised-2)' }} />
+          <div className="tpl-info">
+            <b>{t.name}</b>
+            <span className="hint small">{t.hint}</span>
+            <span className="hint small">{t.aspect} · {t.slots.length} окошек · {templateDuration(t).toFixed(1)} с</span>
+          </div>
+        </button>
+        {isOpen && (
+          <div className="tpl-actions">
+            <button className="btn primary block" disabled={busy} onClick={() => void run(() => startFromTemplate(t, 'pick'))} data-testid="tpl-pick"><FolderOpen size={14} />Выбрать видео и фото…</button>
+            <button className="btn block" disabled={busy || !libCount} onClick={() => void run(() => startFromTemplate(t, 'library'))} data-testid="tpl-library">
+              Взять из медиатеки{libCount ? ` (${libCount})` : ''}
+            </button>
+            {t.custom && <button className="btn ghost small" onClick={() => void api.deleteTemplate(t.id).then(refresh)}><Trash2 size={13} />Удалить шаблон</button>}
+          </div>
+        )}
+      </div>
+    );
+  };
+  return (
+    <>
+      <div className="panel-head">Шаблоны</div>
+      <div className="panel-body">
+        <p className="hint">Готовый монтаж: переходы, цвет, эффекты и надписи. Выбери шаблон, потом свои видео и фото — по порядку. Текст потом правится как обычно, отмена — Ctrl+Z.</p>
+        <div className="tpl-list">{BUILTIN_TEMPLATES.map(card)}</div>
+        {mine.length > 0 && (<><div className="sub-head">Мои шаблоны</div><div className="tpl-list">{mine.map(card)}</div></>)}
+        <div className="sub-head">Сохранить свой</div>
+        <p className="hint small">Длительности клипов основной дорожки, переходы, цвет, эффекты, наезды и надписи станут шаблоном — без самих видео.</p>
+        <div className="row-btns">
+          <input className="input" style={{ flex: 1, minWidth: 0 }} placeholder="Название" value={name} onChange={(e) => setName(e.target.value)} data-testid="tpl-name" />
+          <button className="btn" disabled={!hasMain || busy} onClick={() => void run(async () => { if (await saveAsTemplate(name)) { setName(''); refresh(); } })} data-testid="tpl-save">Сохранить</button>
+        </div>
+      </div>
+    </>
   );
 }
 

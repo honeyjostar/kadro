@@ -13,6 +13,7 @@ import { freezeFrame, retime } from './retime';
 import { beautify } from './ai/beauty';
 import { runFfmpeg } from './ffrun';
 import { importLutFile, listLutFiles } from './luts';
+import { isTemplate, type Template } from '../shared/templates';
 import { cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
 import { exportProject, exportSpeechAudio, hasNvenc } from './exporter';
 import { analyze, makePeaks, makeProxy, makeThumbs } from './media';
@@ -421,6 +422,13 @@ function registerIpc(): void {
     try { return importLutFile(src); } catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
   });
   ipcMain.handle('lut:list', () => listLutFiles());
+  const tplDir = () => { const d = path.join(dataDir(), 'templates'); fs.mkdirSync(d, { recursive: true }); return d; };
+  const tplFile = (id: string) => path.join(tplDir(), `${id.replace(/[^a-z0-9_-]/gi, '_')}.json`);
+  ipcMain.handle('tpl:list', () => fs.readdirSync(tplDir()).filter((f) => f.endsWith('.json')).flatMap((f) => {
+    try { const t = JSON.parse(fs.readFileSync(path.join(tplDir(), f), 'utf8')); return isTemplate(t) ? [{ ...t, custom: true }] : []; } catch { return []; }
+  }));
+  ipcMain.handle('tpl:save', (_e, t: Template) => { if (!isTemplate(t)) return false; fs.writeFileSync(tplFile(t.id), JSON.stringify(t)); return true; });
+  ipcMain.handle('tpl:delete', (_e, id: string) => { fs.rmSync(tplFile(id), { force: true }); });
   ipcMain.handle('group:path', (_e, ext: string) =>
     path.join(cacheDir('groups'), `group_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext === 'webm' ? 'webm' : 'mp4'}`));
   ipcMain.handle('lut:read', (_e, p: string) => { if (!/\.cube$/i.test(p)) return null; try { return fs.readFileSync(p, 'utf8'); } catch { return null; } });

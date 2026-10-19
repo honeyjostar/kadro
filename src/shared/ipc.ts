@@ -1,5 +1,6 @@
 // Контракт между интерфейсом (renderer) и главным процессом.
 import type { Cue } from './timeline';
+import type { Template } from './templates';
 import type { ExportOptions, MediaAsset, Project, RampPoint, VoiceEffect } from './types';
 
 export type TtsVoiceId = 'irina' | 'dmitri' | 'denis' | 'ruslan' | 'amy' | 'ryan';
@@ -84,6 +85,9 @@ export interface KadroApi {
   readLut(path: string): Promise<string | null>;
   /** Новый путь для отрисованной группы в папке программы. */
   groupPath(ext: 'mp4' | 'webm'): Promise<string>;
+  listTemplates(): Promise<Template[]>;
+  saveTemplate(t: Template): Promise<boolean>;
+  deleteTemplate(id: string): Promise<void>;
   cancelAi(jobId: string): void;
   onAiProgress(cb: (jobId: string, p: number, stage?: string) => void): () => void;
   showInFolder(path: string): void;

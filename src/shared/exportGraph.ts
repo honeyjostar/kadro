@@ -418,7 +418,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
           chains.push(`[${acc}][${segLabels[i]}]xfade=transition=${tr.type}:duration=${fmt(tr.duration)}:offset=${fmt(accDur - tr.duration)}[${nl}]`);
           accDur += groups[i].duration - tr.duration;
         } else {
-          chains.push(`[${acc}][${segLabels[i]}]concat=n=2:v=1:a=0[${nl}]`);
+          // concat отдаёт время в микросекундах, а xfade требует одинаковую шкалу у обоих входов — возвращаем 1/F
+          chains.push(`[${acc}][${segLabels[i]}]concat=n=2:v=1:a=0,settb=1/${F}[${nl}]`);
           accDur += groups[i].duration;
         }
         acc = nl;

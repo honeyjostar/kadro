@@ -441,3 +441,17 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .ai-card .grow { flex: 1; justify-content: center; }
 .group-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 14px 8px; padding: 8px 10px; background: var(--accent-soft); border-radius: var(--radius-s); font-size: 12px; }
 .group-bar span { flex: 1 1 100%; color: var(--text); }
+
+/* шаблоны */
+.tpl-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.tpl-card { background: var(--raised); border: 1px solid var(--line-soft); border-radius: var(--radius-m); overflow: hidden; }
+.tpl-card.open { border-color: var(--accent); }
+.tpl-head { display: flex; align-items: center; gap: 12px; width: 100%; padding: 8px; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tpl-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tpl-thumb { flex: none; border-radius: 6px; background-size: cover !important; background-position: center !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08); }
+.tpl-thumb.a9-16 { width: 45px; height: 80px; }
+.tpl-thumb.a1-1, .tpl-thumb.a4-5, .tpl-thumb.a3-4 { width: 64px; height: 72px; }
+.tpl-thumb.a16-9, .tpl-thumb.a4-3, .tpl-thumb.a21-9 { width: 96px; height: 54px; }
+.tpl-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tpl-info b { font-size: 13px; }
+.tpl-actions { display: flex; flex-direction: column; gap: 6px; padding: 0 8px 10px; }

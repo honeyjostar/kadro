@@ -9,6 +9,7 @@ import {
   splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip,
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
+import { applyTemplate, projectToTemplate, type Template } from '../shared/templates';
 import type { MediaAsset, MediaClip, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
 import { api, getState, takeEarlyPatches } from './store';
 import { uidShort } from './util';
@@ -545,6 +546,59 @@ export async function rebuildGroup(clipId: string): Promise<void> {
     return setRetime(r, clipId, undefined, asset.id, Math.min(mc.in, asset.duration), Math.min(mc.out, asset.duration));
   });
   takeEarlyPatches([asset.id]);
+}
+
+// ---------- шаблоны ----------
+/** Применить шаблон: к выбранным файлам (from='pick') или ко всем видео и фото медиатеки. Отмена — Ctrl+Z. */
+export async function startFromTemplate(t: Template, from: 'pick' | 'library'): Promise<boolean> {
+  let assets: MediaAsset[];
+  if (from === 'pick') {
+    const paths = await api.pickMedia();
+    if (!paths.length) return false;
+    const ids = await importPaths(paths);
+    assets = ids.map((id) => getState().project.assets.find((a) => a.id === id)).filter((a): a is MediaAsset => !!a);
+  } else {
+    assets = getState().project.assets.filter((a) => !a.derived && !a.missing && (a.kind === 'video' || a.kind === 'image'));
+  }
+  assets = assets.filter((a) => a.kind === 'video' || a.kind === 'image');
+  if (!assets.length) { getState().toast('Нужны видео или фото — добавь их в медиатеку'); return false; }
+  getState().setPlaying(false);
+  getState().commit((p) => applyTemplate(p, t, assets));
+  getState().select([]);
+  getState().setPlayhead(0);
+  getState().toast(`Шаблон «${t.name}» готов: ${t.slots.length} окошек из ${assets.length} файлов. Отменить — Ctrl+Z`, 'ok');
+  return true;
+}
+
+/** Сохранить текущий монтаж как свой шаблон (с картинкой кадра). */
+export async function saveAsTemplate(name: string): Promise<boolean> {
+  const p = getState().project;
+  let thumb: string | undefined;
+  try {
+    const eng = (window as unknown as { __kadroEngine?: { snapshot(): string } }).__kadroEngine;
+    const src = eng?.snapshot();
+    if (src) thumb = await shrink(src, 180);
+  } catch { /* без картинки */ }
+  let t: Template;
+  try { t = projectToTemplate(p, name, thumb); } catch (e) { getState().toast(e instanceof Error ? e.message : String(e)); return false; }
+  const ok = await api.saveTemplate(t);
+  getState().toast(ok ? `Шаблон «${t.name}» сохранён` : 'Шаблон не сохранился', ok ? 'ok' : 'err');
+  return ok;
+}
+function shrink(dataUrl: string, max: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k));
+      c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext('2d')!.drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
 }
 
 // ---------- озвучка текста ----------

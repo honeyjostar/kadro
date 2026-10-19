@@ -678,6 +678,42 @@ test('группы: основная дорожка и наложения, эк�
   expect(p.assets.filter((a) => a.derived)).toHaveLength(0);
 });
 
+test('шаблоны: из медиатеки, экспорт совпадает, свой шаблон, отмена', async () => {
+  await reset(win);
+  await importAt(win, [colorsVideo()]);
+  await act(win, 'importPaths', [grayImage()]);
+  await win.getByTestId('tab-templates').click();
+  await win.getByTestId('tpl-trip').getByRole('button').first().click();
+  await win.getByTestId('tpl-library').click();
+  let p = await project(win);
+  expect(p.settings.aspect).toBe('9:16');
+  expect(p.tracks[0].clips).toHaveLength(6);
+  expect(p.tracks.find((t) => t.kind === 'text')!.clips.map((c: any) => c.text)).toEqual(['В ДОРОГУ', 'ещё вернёмся']);
+  const pngs = [await parity(1.0, 'tpl1'), await parity(4.2, 'tpl2'), await parity(8.0, 'tpl3')];
+  const out = await exportViaUi('720p');
+  compareAt(pngs[0], out, 1.0, 5);
+  compareAt(pngs[1], out, 4.2, 5);
+  compareAt(pngs[2], out, 8.0, 5);
+  // свой шаблон
+  await win.getByTestId('tab-templates').click();
+  await win.getByTestId('tpl-name').fill('Мой тест');
+  await win.getByTestId('tpl-save').click();
+  await expect(win.getByText('Мои шаблоны')).toBeVisible();
+  const mine = await win.evaluate(() => (window as any).kadro.listTemplates());
+  expect(mine.map((t: any) => t.name)).toContain('Мой тест');
+  expect(mine[0].thumb).toMatch(/^data:image\/jpeg/);
+  // отмена возвращает проект как был
+  await win.keyboard.press('Escape');
+  await win.locator('body').click({ position: { x: 5, y: 5 } });
+  await win.keyboard.press('Control+z');
+  p = await project(win);
+  expect(p.tracks[0].clips).toHaveLength(1);
+  // и удалить свой шаблон
+  await win.getByTestId(`tpl-${mine[0].id}`).getByRole('button').first().click();
+  await win.getByTestId(`tpl-${mine[0].id}`).getByRole('button', { name: /Удалить шаблон/ }).click();
+  await expect(win.getByText('Мои шаблоны')).toHaveCount(0);
+});
+
 test('голос, озвучка, ритм — через интерфейс', async () => {
   await reset(win);
   await importAt(win, [talkVideo()]);

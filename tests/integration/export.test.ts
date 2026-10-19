@@ -142,6 +142,19 @@ describe('экспорт: переходы', () => {
     expect(near(pixelAt(f('o6.mp4'), 7, 270, 480), BLUE)).toBe(true);
   });
 
+  it('склейка без перехода, потом с переходом (и наоборот) — шкала времени не ломается', () => {
+    let p = addToMain(proj(), 'red', 0).project;
+    p = addToMain(p, 'blue', 100).project;
+    p = addToMain(p, 'red', 100).project;
+    p = addToMain(p, 'blue', 100).project;
+    for (const c of main(p)) p = updateClip(p, c.id, { out: 1.5 });
+    p = setTransition(p, main(p)[1].id, { type: 'fade', duration: 0.5 }); // 1-я склейка простая, 2-я — с переходом
+    runExport(p, f('o_mix.mp4'));
+    expect(Math.abs(probe(f('o_mix.mp4')).duration - 5.5)).toBeLessThan(0.1);
+    expect(near(pixelAt(f('o_mix.mp4'), 2, 270, 480), BLUE)).toBe(true);
+    expect(near(pixelAt(f('o_mix.mp4'), 5, 270, 480), BLUE)).toBe(true);
+  });
+
   it('все 11 переходов собираются и рендерятся', () => {
     for (const t of TRANSITIONS) {
       let p = addToMain(proj(), 'red', 0).project;
