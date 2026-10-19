@@ -617,6 +617,67 @@ test('кривые, HSL и свой LUT — через интерфейс, эк�
   compareAt(pngs[2], out, 3.5);
 });
 
+test('группы: основная дорожка и наложения, экспорт совпадает, разгруппировка', async () => {
+  await reset(win);
+  await importAt(win, [colorsVideo()]);
+  const [img] = await act(win, 'importPaths', [grayImage()]);
+  await act(win, 'addAssetToTimeline', img, 'overlay', 0.5);
+  await commit(`(tl, p) => { const r = tl.addText(p, 1.5, 'Группа'); return tl.updateClip(r.project, r.clipId, { duration: 2 }); }`);
+  let p = await project(win);
+  const mainId = p.tracks[0].clips[0].id;
+  const ovId = p.tracks.find((t) => t.kind === 'video')!.clips[0].id;
+  const txtId = p.tracks.find((t) => t.kind === 'text')!.clips[0].id;
+  // 1) группа из наложений (картинка + текст) — прозрачная, поверх основного видео
+  await store(win, 'select', [ovId]);
+  await win.locator(`[data-clip="${txtId}"]`).click({ modifiers: ['Shift'] });
+  expect(await state(win, '(s) => s.selection.length')).toBe(2);
+  await win.getByTestId('tl-group').click();
+  await win.waitForFunction(() => {
+    const s = (window as any).__kadro.useStore.getState();
+    return s.project.tracks.some((t: any) => t.clips.some((c: any) => c.group)) && !Object.keys(s.jobs).length;
+  }, undefined, { timeout: 60_000 });
+  await waitAssetsReady(win);
+  p = await project(win);
+  const g1 = p.tracks.flatMap((t) => t.clips).find((c: any) => c.group) as any;
+  expect(g1.group.alpha).toBe(true);
+  expect(p.assets.find((a) => a.id === g1.assetId)!.alpha).toBe(true);
+  expect(p.tracks.some((t) => t.kind === 'text')).toBe(false);
+  await expect(win.getByTestId('group-bar')).toBeVisible();
+  const pngA = await parity(2, 'grpA');
+  const outA = await exportViaUi('720p');
+  compareAt(pngA, outA, 2, 5);
+  // 2) группа с основной дорожкой: основной клип + прозрачная группа
+  await store(win, 'select', [mainId, g1.id]);
+  await win.keyboard.press('Control+g');
+  await win.waitForFunction(() => {
+    const s = (window as any).__kadro.useStore.getState();
+    const t0 = s.project.tracks[0].clips[0];
+    return t0?.group && !t0.group.alpha && !Object.keys(s.jobs).length;
+  }, undefined, { timeout: 60_000 });
+  await waitAssetsReady(win);
+  p = await project(win);
+  expect(p.tracks).toHaveLength(1);
+  const g2 = p.tracks[0].clips[0] as any;
+  expect(g2.out - g2.in).toBeCloseTo(4, 1);
+  const pngB = [await parity(0.7, 'grpB1'), await parity(2.5, 'grpB2')];
+  const outB = await exportViaUi('720p');
+  compareAt(pngB[0], outB, 0.7, 5);
+  compareAt(pngB[1], outB, 2.5, 5);
+  // разгруппировка: снова основной клип и прозрачная группа; затем и её
+  await store(win, 'select', [g2.id]);
+  await win.getByTestId('ungroup').click();
+  p = await project(win);
+  expect((p.tracks[0].clips[0] as any).assetId).toBe((await project(win)).assets.find((a) => a.name === 'colors.mp4')!.id);
+  const inner = p.tracks.flatMap((t) => t.clips).find((c: any) => c.group) as any;
+  expect(inner).toBeTruthy();
+  await store(win, 'select', [inner.id]);
+  await win.keyboard.press('Control+Shift+g');
+  p = await project(win);
+  expect(p.tracks.find((t) => t.kind === 'text')!.clips[0].start).toBeCloseTo(1.5, 3);
+  expect(p.tracks.find((t) => t.kind === 'video')!.clips[0].start).toBeCloseTo(0.5, 3);
+  expect(p.assets.filter((a) => a.derived)).toHaveLength(0);
+});
+
 test('голос, озвучка, ритм — через интерфейс', async () => {
   await reset(win);
   await importAt(win, [talkVideo()]);

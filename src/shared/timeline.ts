@@ -2,7 +2,7 @@
 import { IMAGE_DEFAULT_DURATION, newMediaClip, newTextClip, newTrack, uid } from './defaults';
 import { dropKeyframe, mediaPropsAt, putKeyframe } from './anim';
 import { remapKeyframes } from './retime';
-import type { AnimProp, Clip, Keyframes, MediaAsset, MediaClip, Project, Retime, TextClip, TextStyle, Track, TrackKind, Transition } from './types';
+import type { AnimProp, Clip, GroupData, Keyframes, MediaAsset, MediaClip, Project, Retime, TextClip, TextStyle, Track, TrackKind, Transition } from './types';
 
 export const MIN_CLIP = 0.1;      // минимальная длина клипа на таймлайне, сек
 export const NEW_TRACK = 'new';   // цель перемещения: создать новую дорожку
@@ -644,7 +644,18 @@ export function setRetime(p: Project, clipId: string, r: Retime | undefined, ass
 
 /** Убирает служебные копии, на которые не ссылается ни один клип. */
 function pruneDerived(d: Project): void {
-  const used = new Set(d.tracks.flatMap((t) => t.clips.map((c) => (c.type === 'media' ? c.assetId : ''))));
+  const used = new Set<string>();
+  // клипы внутри групп (в том числе вложенных) тоже держат свои файлы — они вернутся при разгруппировке
+  const walk = (tracks: Track[]) => {
+    for (const t of tracks) {
+      for (const c of t.clips) {
+        if (c.type !== 'media') continue;
+        used.add(c.assetId);
+        if (c.group) walk(c.group.tracks);
+      }
+    }
+  };
+  walk(d.tracks);
   d.assets = d.assets.filter((a) => !a.derived || used.has(a.id));
 }
 
@@ -698,6 +709,115 @@ export function insertFreeze(p: Project, clipId: string, t: number, assetId: str
     }
   });
   return { project, clipId: newId };
+}
+
+// ---------- составные клипы (группы) ----------
+/** Проверяет выделение и собирает содержимое группы. Ошибка — понятным текстом. */
+export function planGroup(p: Project, ids: string[]): { data: GroupData; t0: number; sub: Project } | { error: string } {
+  const found = ids.map((id) => findClip(p, id)).filter((f): f is NonNullable<typeof f> => !!f);
+  if (found.length < 2) return { error: 'Выдели два клипа или больше (Shift или Ctrl + клик)' };
+  const visual = found.some((f) => f.clip.type === 'text' || assetOf(p, f.clip as MediaClip)?.kind !== 'audio');
+  if (!visual) return { error: 'В группе должен быть хотя бы один видеоклип, фото или текст' };
+  const mainF = found.filter((f) => f.track.kind === 'main').sort((a, b) => a.index - b.index);
+  for (let i = 1; i < mainF.length; i++) {
+    if (mainF[i].index !== mainF[i - 1].index + 1) return { error: 'Клипы основной дорожки в группе должны идти подряд' };
+  }
+  let t0 = Math.min(...found.map((f) => f.clip.start));
+  let t1 = Math.max(...found.map((f) => clipEnd(f.clip)));
+  if (mainF.length) {
+    const a = mainF[0].clip.start;
+    const b = clipEnd(mainF[mainF.length - 1].clip);
+    if (t0 < a - EPS || t1 > b + EPS) return { error: 'Наложения и текст в группе не должны выходить за начало и конец выделенных клипов основной дорожки — подрежь их' };
+    t0 = a;
+    t1 = b;
+  }
+  const dur = round(t1 - t0);
+  const main = newTrack('main');
+  mainF.forEach((f, i) => {
+    const c = structuredClone(f.clip) as MediaClip;
+    c.start = round(c.start - t0);
+    if (i === mainF.length - 1) delete c.transitionOut; // переход к следующему клипу снаружи группы остаётся у самой группы
+    main.clips.push(c);
+  });
+  const tracks: Track[] = [main];
+  for (const t of p.tracks) {
+    if (t.kind === 'main') continue;
+    const mine = found.filter((f) => f.track.id === t.id);
+    if (!mine.length) continue;
+    const nt: Track = { ...newTrack(t.kind, t.name), muted: t.muted, hidden: t.hidden, clips: [] };
+    for (const f of mine) {
+      const c = structuredClone(f.clip);
+      c.start = round(c.start - t0);
+      nt.clips.push(c);
+    }
+    nt.clips.sort((a, b) => a.start - b.start);
+    tracks.push(nt);
+  }
+  const data: GroupData = { tracks, alpha: mainF.length === 0, duration: dur };
+  const sub: Project = { ...structuredClone(p), tracks: structuredClone(tracks), name: `${p.name} — группа` };
+  return { data, t0, sub };
+}
+
+/** Заменяет выделенные клипы одним составным клипом (assetId — отрисованная группа). */
+export function applyGroup(p: Project, ids: string[], assetId: string, data: GroupData, t0: number): AddResult {
+  let clipId = '';
+  const project = edit(p, (d) => {
+    const asset = d.assets.find((a) => a.id === assetId);
+    if (!asset) return;
+    const mainT = mainTrack(d);
+    const mainIdx = mainT.clips.findIndex((c) => ids.includes(c.id));
+    const lastMain = [...mainT.clips].reverse().find((c) => ids.includes(c.id)) as MediaClip | undefined;
+    const prefTrack = d.tracks.find((t) => t.kind === 'video' && t.clips.some((c) => ids.includes(c.id)))?.id;
+    const clip = newMediaClip(asset, t0);
+    clip.out = round(Math.min(asset.duration || data.duration, data.duration));
+    clip.group = data;
+    clipId = clip.id;
+    for (const t of d.tracks) t.clips = t.clips.filter((c) => !ids.includes(c.id));
+    if (mainIdx >= 0) {
+      if (lastMain?.transitionOut) clip.transitionOut = lastMain.transitionOut;
+      mainT.clips.splice(mainIdx, 0, clip);
+    } else {
+      placeFree(d, 'video', clip, prefTrack);
+    }
+    cleanupEmptyTracks(d);
+    pruneDerived(d);
+  });
+  return { project, clipId };
+}
+
+/** Разгруппировать: вернуть клипы на место (относительно текущего начала группы). */
+export function ungroupClip(p: Project, clipId: string): { project: Project; ids: string[] } {
+  const ids: string[] = [];
+  const project = edit(p, (d) => {
+    const f = findClip(d, clipId);
+    if (!f || f.clip.type !== 'media' || !f.clip.group) return;
+    const g = f.clip.group;
+    const at = f.clip.start;
+    const tr = f.clip.transitionOut;
+    f.track.clips.splice(f.index, 1);
+    const [gm, ...rest] = g.tracks;
+    if (gm?.clips.length) {
+      const mainT = mainTrack(d);
+      const idx = f.track.kind === 'main' ? f.index : mainT.clips.length;
+      const restored = gm.clips.map((c) => ({ ...structuredClone(c), id: uid('clip') }) as MediaClip);
+      if (tr && restored.length) restored[restored.length - 1].transitionOut = tr;
+      mainT.clips.splice(idx, 0, ...restored);
+      ids.push(...restored.map((c) => c.id));
+    }
+    for (const t of rest) {
+      for (const c0 of t.clips) {
+        const c = structuredClone(c0);
+        c.id = uid(c.type === 'text' ? 'txt' : 'clip');
+        c.start = round(c.start + at);
+        ids.push(c.id);
+        // на свою дорожку того же вида, если там свободно, иначе — на новую
+        placeFree(d, t.kind as Exclude<TrackKind, 'main'>, c);
+      }
+    }
+    cleanupEmptyTracks(d);
+    pruneDerived(d);
+  });
+  return { project, ids };
 }
 
 export { IMAGE_DEFAULT_DURATION };

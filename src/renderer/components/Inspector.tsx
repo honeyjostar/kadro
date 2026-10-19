@@ -1,6 +1,6 @@
 import { X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
-import { alignToBeats, findBeats, freezeFrame, retimeClip, speakText } from '../actions';
+import { alignToBeats, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection } from '../actions';
 import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
 import { DEFAULT_MASK } from '../../shared/mask';
 import { EFFECTS } from '../../shared/effects';
@@ -123,6 +123,13 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   return (
     <>
       <div className="panel-head"><span className="ellipsis" title={asset?.name}>{asset?.name ?? 'Клип'}</span></div>
+      {clip.group && (
+        <div className="group-bar" data-testid="group-bar">
+          <span>Группа: {clip.group.tracks.reduce((n, t) => n + t.clips.length, 0)} клипа внутри</span>
+          <button className="btn small" onClick={ungroupSelection} data-testid="ungroup">Разгруппировать</button>
+          <button className="btn small" title="Собрать заново (например, после смены формата кадра)" onClick={() => void rebuildGroup(clip.id)}>Пересобрать</button>
+        </div>
+      )}
       <Tabs value={cur} tabs={tabs} onChange={setTab} />
       <div className="panel-body">
         {cur === 'basic' && (

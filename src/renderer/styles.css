@@ -439,3 +439,5 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .hsl-dot.changed::after { content: ''; position: absolute; right: -3px; top: -3px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); border: 1.5px solid var(--panel); }
 .hsl-dot:focus-visible, .ramp-tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .ai-card .grow { flex: 1; justify-content: center; }
+.group-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 14px 8px; padding: 8px 10px; background: var(--accent-soft); border-radius: var(--radius-s); font-size: 12px; }
+.group-bar span { flex: 1 1 100%; color: var(--text); }

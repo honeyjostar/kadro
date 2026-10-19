@@ -6,8 +6,9 @@ import { CAPTION_STYLE, newProject } from '../shared/defaults';
 import type { AiJob, AiResponse, TtsVoiceId } from '../shared/ipc';
 import {
   addAsset, addFree, addToMain, alignMainToBeats, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
-  splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime,
+  splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip,
 } from '../shared/timeline';
+import { renderTextLayers } from './engine/textExport';
 import type { MediaAsset, MediaClip, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
 import { api, getState, takeEarlyPatches } from './store';
 import { uidShort } from './util';
@@ -470,6 +471,82 @@ export function cancelRecording(): void {
   getState().setRecording(null);
 }
 
+// ---------- группы (составные клипы) ----------
+/** Отрисовывает содержимое группы в файл (через тот же экспорт). */
+async function renderGroup(sub: Project, alpha: boolean): Promise<MediaAsset | null> {
+  const s = getState();
+  if (s.exportOpen) { s.toast('Сначала закрой окно экспорта'); return null; }
+  const { width: W, height: H, fps } = sub.settings;
+  const jobId = `grp_${uidShort()}`;
+  s.setJob({ id: jobId, label: 'Собираю группу', progress: 0, cancellable: false });
+  const off = api.onExportProgress((p) => { const j = getState().jobs[jobId]; if (j) getState().setJob({ ...j, progress: 0.05 + p * 0.95 }); });
+  try {
+    const { layers, blank } = await renderTextLayers(sub, W, H, fps);
+    const outPath = await api.groupPath(alpha ? 'webm' : 'mp4');
+    const r = await api.startExport({
+      project: sub, textLayers: layers, blankPng: blank,
+      opts: { height: Math.min(W, H) as 1080, fps: fps as 30, quality: 'high', encoder: 'auto', outPath, alpha },
+    });
+    if (!r.ok || !r.path) { getState().toast(`Группа не собралась: ${r.error ?? ''}`, 'err'); return null; }
+    const name = `Группа · ${sub.tracks.reduce((n, t) => n + t.clips.length, 0)} клипа`;
+    const asset = await importDerived(r.path, name);
+    if (asset && alpha) asset.alpha = true;
+    return asset;
+  } finally {
+    off();
+    getState().setJob(null, jobId);
+  }
+}
+
+/** Ctrl+G: выделенные клипы → один составной клип. */
+export async function groupSelection(): Promise<string | null> {
+  const s = getState();
+  const plan = planGroup(s.project, s.selection);
+  if ('error' in plan) { s.toast(plan.error); return null; }
+  const ids = [...s.selection];
+  const before = s.project;
+  const asset = await renderGroup(plan.sub, plan.data.alpha);
+  if (!asset) return null;
+  if (getState().project.tracks !== before.tracks) {
+    // за время сборки что-то поменяли — проверим, что выделенные клипы на месте
+    const again = planGroup(getState().project, ids);
+    if ('error' in again || JSON.stringify(again.data) !== JSON.stringify(plan.data)) { getState().toast('Клипы изменились, пока собиралась группа — повтори'); return null; }
+  }
+  let id = '';
+  getState().commit((p) => { const r = applyGroup(addAsset(p, asset), ids, asset.id, plan.data, plan.t0); id = r.clipId; return r.project; });
+  takeEarlyPatches([asset.id]);
+  getState().select(id ? [id] : []);
+  getState().toast('Группа готова. Разгруппировать — Ctrl+Shift+G', 'ok');
+  return id || null;
+}
+
+/** Ctrl+Shift+G: вернуть клипы из группы. */
+export function ungroupSelection(): void {
+  const s = getState();
+  const f = s.selection.length === 1 ? findClip(s.project, s.selection[0]) : undefined;
+  if (!f || f.clip.type !== 'media' || !f.clip.group) { s.toast('Выдели группу на таймлайне'); return; }
+  let ids: string[] = [];
+  s.commit((p) => { const r = ungroupClip(p, f.clip.id); ids = r.ids; return r.project; });
+  s.select(ids);
+}
+
+/** Пересобрать группу (файл пропал или поменялся формат кадра). */
+export async function rebuildGroup(clipId: string): Promise<void> {
+  const f = findClip(getState().project, clipId);
+  if (!f || f.clip.type !== 'media' || !f.clip.group) return;
+  const g = f.clip.group;
+  const p = getState().project;
+  const sub: Project = { ...structuredClone(p), tracks: structuredClone(g.tracks), name: `${p.name} — группа` };
+  const asset = await renderGroup(sub, g.alpha);
+  if (!asset) return;
+  getState().commit((q) => {
+    const r = addAsset(q, asset);
+    const mc = f.clip as MediaClip;
+    return setRetime(r, clipId, undefined, asset.id, Math.min(mc.in, asset.duration), Math.min(mc.out, asset.duration));
+  });
+  takeEarlyPatches([asset.id]);
+}
+
 // ---------- озвучка текста ----------
 export async function ensureVoice(voice: TtsVoiceId): Promise<boolean> {
   const list = await api.ttsVoices();
@@ -578,7 +655,22 @@ export function reportMissing(p: Project): void {
       if (a?.missing && o && !o.missing) { rebuild.push(c.id); rebuilt.add(a.id); }
     }
   }
-  if (rebuild.length) void (async () => { for (const id of rebuild) await retimeClip(id, {}); })();
+  // то же для групп: все клипы внутри на месте — собираем заново
+  const regroup: string[] = [];
+  for (const t of p.tracks) {
+    for (const c of t.clips) {
+      if (c.type !== 'media' || !c.group) continue;
+      const a = p.assets.find((x) => x.id === c.assetId);
+      const inner = c.group.tracks.flatMap((tr) => tr.clips).filter((x): x is MediaClip => x.type === 'media');
+      if (a?.missing && inner.every((x) => !p.assets.find((q) => q.id === x.assetId)?.missing)) { regroup.push(c.id); rebuilt.add(a.id); }
+    }
+  }
+  if (rebuild.length || regroup.length) {
+    void (async () => {
+      for (const id of rebuild) await retimeClip(id, {});
+      for (const id of regroup) await rebuildGroup(id);
+    })();
+  }
   const lost = p.assets.filter((a) => a.missing && !rebuilt.has(a.id));
   if (!lost.length) return;
   getState().toast(lost.length === 1

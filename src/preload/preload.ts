@@ -29,6 +29,7 @@ const api: KadroApi = {
   pickLut: () => ipcRenderer.invoke('lut:pick'),
   listLuts: () => ipcRenderer.invoke('lut:list'),
   readLut: (p) => ipcRenderer.invoke('lut:read', p),
+  groupPath: (ext) => ipcRenderer.invoke('group:path', ext),
   cancelAi: (id) => ipcRenderer.send('ai:cancel', id),
   onAiProgress: (cb) => on('ai:progress', cb),
   showInFolder: (p) => ipcRenderer.send('shell:show', p),

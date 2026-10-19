@@ -113,6 +113,8 @@ export async function analyze(file: string): Promise<{ asset: MediaAsset; plan: 
     rotation: rot,
     proxy: plan === 'none' ? 'none' : 'pending',
   };
+  const tags = Object.fromEntries(Object.entries(pr.video?.tags ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
+  if (kind === 'video' && ['vp8', 'vp9'].includes(pr.video?.codec_name ?? '') && tags.alpha_mode === '1') asset.alpha = true;
   return { asset, plan };
 }
 

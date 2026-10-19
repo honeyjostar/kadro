@@ -1,5 +1,5 @@
 import {
-  Activity, AudioLines, Blend, Copy, Eye, EyeOff, Film, Layers, Maximize2, Mic, Plus, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
+  Activity, AudioLines, Blend, Copy, Eye, EyeOff, Film, Group, Layers, Maximize2, Mic, Plus, Ungroup, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -8,7 +8,7 @@ import {
   addFree, addToMain, beatTimes, clipDuration, clipEnd, findClip, mainToOverlay, moveClip, projectDuration, reorderMain, setTrackFlag, trimClip,
 } from '../../shared/timeline';
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
-import { alignToBeats, deleteSelection, duplicateSelection, freezeFrame, importPaths, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
+import { alignToBeats, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
 import { useSelected } from '../hooks';
 import { recPrefs } from '../recorder';
 import { keyTimesOnTimeline } from '../animEdit';
@@ -542,6 +542,9 @@ export function Timeline() {
         <button className="icon-btn" title="Разрезать у курсора (S)" onClick={splitAtPlayhead} disabled={noClips} data-testid="split"><Scissors size={17} /></button>
         <button className="icon-btn" title="Удалить (Delete)" onClick={deleteSelection} disabled={!selection.length} data-testid="delete"><Trash2 size={17} /></button>
         <button className="icon-btn" title="Копия клипа (Ctrl+D)" onClick={duplicateSelection} disabled={selection.length !== 1} data-testid="duplicate"><Copy size={17} /></button>
+        {selClip?.group && selection.length === 1
+          ? <button className="icon-btn" title="Разгруппировать (Ctrl+Shift+G)" onClick={ungroupSelection} data-testid="tl-ungroup"><Ungroup size={17} /></button>
+          : <button className="icon-btn" title="Сгруппировать выделенные клипы (Ctrl+G)" onClick={() => void groupSelection()} disabled={selection.length < 2} data-testid="tl-group"><Group size={17} /></button>}
         <button className="icon-btn" title="Стоп-кадр у курсора" onClick={() => void freezeFrame()} disabled={noClips} data-testid="tl-freeze"><Snowflake size={17} /></button>
         <button className={`icon-btn ${selClip?.retime?.reverse ? 'on' : ''}`} title="Реверс выделенного клипа" disabled={!selClip || sel?.asset?.kind === 'image'}
           onClick={() => selClip && void retimeClip(selClip.id, { reverse: !selClip.retime?.reverse })} data-testid="tl-reverse"><Rewind size={17} /></button>

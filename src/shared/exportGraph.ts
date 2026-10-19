@@ -27,6 +27,8 @@ export interface BuildOpts {
   rgbFile?: (name: string, bytes: Uint8Array, w: number, h: number) => string;
   /** Загруженные файлы LUT (.cube) по пути. */
   luts?: Record<string, CubeLut>;
+  /** Прозрачный фон (для группы из наложений): основная дорожка должна быть пустой. */
+  transparent?: boolean;
 }
 
 export interface BuiltGraph {
@@ -370,7 +372,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       } else {
         const path = vsrc ? vsrc.path : g.asset.path;
         const offset = vsrc ? vsrc.offset : 0;
-        const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(g.in - offset), '-t', fmt(g.out - g.in + 0.5), '-i', path]);
+        const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : vsrc ? [] : alphaDecoder(g.asset)), '-ss', fmt(g.in - offset), '-t', fmt(g.out - g.in + 0.5), '-i', path]);
         srcLabel = L('src');
         const half = 0.5 / F;
         const sel = g.clips
@@ -425,7 +427,11 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     }
 
     let v = L('v');
-    chains.push(`color=c=black:s=${W}x${H}:r=${F}:d=${fmt(total)},format=yuv420p[${v}]`);
+    const clear = !!o.transparent && !segLabels.length;
+    const ovf = clear ? ':format=auto' : ''; // на прозрачном холсте сохраняем альфу в RGBA
+    chains.push(clear
+      ? `color=c=black@0:s=${W}x${H}:r=${F}:d=${fmt(total)},format=rgba[${v}]`
+      : `color=c=black:s=${W}x${H}:r=${F}:d=${fmt(total)},format=yuv420p[${v}]`);
     if (mainOut) {
       const nv = L('v');
       chains.push(`[${v}][${mainOut}]overlay=x=0:y=0:eof_action=pass[${nv}]`);
@@ -438,7 +444,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       const t = L('t');
       chains.push(`[${idx}:v]fps=${F},format=rgba[${t}]`);
       const nv = L('v');
-      chains.push(`[${v}][${t}]overlay=x=0:y=0:eof_action=pass[${nv}]`);
+      chains.push(`[${v}][${t}]overlay=x=0:y=0:eof_action=pass${ovf}[${nv}]`);
       v = nv;
     };
     for (const track of p.tracks) {
@@ -462,7 +468,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
           const vs = videoSource(c);
           const path = vs ? vs.path : asset.path;
           const off = vs ? vs.offset : 0;
-          const idx = addInput([...thr, ...(vs?.alpha ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
+          const idx = addInput([...thr, ...(vs?.alpha ? ['-c:v', 'libvpx-vp9'] : vs ? [] : alphaDecoder(asset)), '-ss', fmt(c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
           src = L('o');
           chains.push(`[${idx}:v]setpts=(PTS-STARTPTS)/${fmt(c.speed)},fps=${F},tpad=stop_mode=clone:stop_duration=2,trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${src}]`);
         }
@@ -474,14 +480,14 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
           continue;
         }
         const nv = L('v');
-        chains.push(`[${v}][${shifted}]overlay=x=${fg.x}:y=${fg.y}:eof_action=pass:enable='between(t\\,${fmt(c.start)}\\,${fmt(c.start + D)})'[${nv}]`);
+        chains.push(`[${v}][${shifted}]overlay=x=${fg.x}:y=${fg.y}:eof_action=pass${ovf}:enable='between(t\\,${fmt(c.start)}\\,${fmt(c.start + D)})'[${nv}]`);
         v = nv;
       }
     }
 
     // ---------- слои текста без привязки к дорожке — поверх всего ----------
     for (const l of o.textLayers) if (typeof l === 'string') overlayText(l);
-    chains.push(`[${v}]format=yuv420p,trim=duration=${fmt(total)},setpts=PTS-STARTPTS[vout]`);
+    chains.push(`[${v}]format=${clear ? 'yuva420p' : 'yuv420p'},trim=duration=${fmt(total)},setpts=PTS-STARTPTS[vout]`);
 
   }
 
@@ -548,6 +554,18 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
 
 export type Quality = 'normal' | 'high' | 'max';
 
+/** VP8/VP9 с прозрачностью: встроенный декодер FFmpeg альфу теряет, нужен libvpx. */
+function alphaDecoder(a: MediaAsset): string[] {
+  if (!a.alpha) return [];
+  return ['-c:v', a.videoCodec === 'vp8' ? 'libvpx' : 'libvpx-vp9'];
+}
+
+/** Видео с прозрачностью (группа из наложений): VP9 + Opus в WebM. */
+export function alphaEncoderArgs(fps: number, duration: number): string[] {
+  return ['-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-crf', '18', '-b:v', '0', '-deadline', 'good', '-cpu-used', '4', '-row-mt', '1',
+    '-auto-alt-ref', '0', '-r', String(fps), '-c:a', 'libopus', '-b:a', '192k', '-ar', '48000', '-t', fmt(duration)];
+}
+
 export function encoderArgs(enc: 'nvenc' | 'x264', quality: Quality, fps: number, duration: number): string[] {
   const v = enc === 'nvenc'
     ? ['-c:v', 'h264_nvenc', '-preset', quality === 'max' ? 'p7' : quality === 'high' ? 'p5' : 'p4', '-rc', 'vbr',
@@ -559,14 +577,14 @@ export function encoderArgs(enc: 'nvenc' | 'x264', quality: Quality, fps: number
 }
 
 /** Полный список аргументов ffmpeg. filterArg — как передать граф: файл (для новых и старых версий FFmpeg). */
-export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number, enc: 'nvenc' | 'x264', quality: Quality, fps: number, out: string): string[] {
+export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number, enc: 'nvenc' | 'x264' | 'vp9alpha', quality: Quality, fps: number, out: string): string[] {
   const filterOpt = ffmpegMajor >= 7 ? ['-/filter_complex', filterFile] : ['-filter_complex_script', filterFile];
   return [
     '-hide_banner', '-y', '-nostdin',
     ...g.inputs.flat(),
     ...filterOpt,
     '-map', g.vOut, '-map', g.aOut,
-    ...encoderArgs(enc, quality, fps, g.duration),
+    ...(enc === 'vp9alpha' ? alphaEncoderArgs(fps, g.duration) : encoderArgs(enc, quality, fps, g.duration)),
     '-progress', 'pipe:1', '-nostats',
     out,
   ];

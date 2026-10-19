@@ -292,3 +292,42 @@ describe('кривые, HSL, LUT в экспорте', () => {
     });
   });
 });
+
+describe('группа с прозрачным фоном', () => {
+  function rgbaAt(file: string, t: number, w: number, h: number, x: number, y: number): number[] {
+    const r = spawnSync(FFMPEG, ['-v', 'error', '-c:v', 'libvpx-vp9', '-ss', String(t), '-i', file, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-'], { maxBuffer: 64 << 20 });
+    const b = r.stdout as Buffer;
+    if (b.length < w * h * 4) throw new Error(String(r.stderr));
+    return [...b.subarray((y * w + x) * 4, (y * w + x) * 4 + 4)];
+  }
+  it('наложения без основной дорожки → WebM с альфой, и он сам кладётся поверх видео', () => {
+    let p = newProject('grp', '9:16');
+    p = addAsset(p, assetFromFile('rect', f('rect.png'), 'image'));
+    const o = addFree(p, 'rect', 0);
+    p = updateClip(o.project, o.clipId, { out: 2, transform: { scale: 0.5, x: 0, y: 0, rotation: 0 } });
+    const out = f('group_alpha.webm');
+    runExport(p, out, { width: W, height: H, alpha: true });
+    const pr = spawnSync(FFMPEG.replace(/ffmpeg$/, 'ffprobe'), ['-v', 'error', '-show_entries', 'stream_tags=alpha_mode', '-of', 'csv=p=0', out], { encoding: 'utf8' });
+    expect(pr.stdout).toMatch(/1/);
+    const corner = rgbaAt(out, 1, W, H, 10, 10);
+    const center = rgbaAt(out, 1, W, H, W / 2, H / 2);
+    expect(corner[3]).toBeLessThan(10);
+    expect(center[3]).toBeGreaterThan(245);
+    expect(center[0]).toBeGreaterThan(200);
+    expect(center[2]).toBeLessThan(50);
+    // этот файл — как ресурс с прозрачностью поверх синего видео
+    if (!fs.existsSync(f('blue.mp4'))) makeSolid(f('blue.mp4'), 'blue', 2, 540, 960, 30);
+    let q = newProject('use', '9:16');
+    q = addAsset(q, assetFromFile('blue', f('blue.mp4'), 'video'));
+    q = addAsset(q, { ...assetFromFile('grp', out, 'video'), alpha: true, videoCodec: 'vp9' });
+    q = addToMain(q, 'blue', 0).project;
+    const g = addFree(q, 'grp', 0);
+    q = updateClip(g.project, g.clipId, { transform: { scale: 1, x: 0, y: 0, rotation: 0 } });
+    runExport(q, f('group_use.mp4'), { width: W, height: H });
+    const fr = frame2(f('group_use.mp4'), 1, W, H);
+    const px = (x: number, y: number) => [...fr.subarray((y * W + x) * 3, (y * W + x) * 3 + 3)];
+    expect(px(20, 20)[2]).toBeGreaterThan(200); // фон — синее видео
+    expect(px(W / 2, H / 2)[0]).toBeGreaterThan(200); // в центре — красный прямоугольник из группы
+    expect(px(W / 2, H / 2)[2]).toBeLessThan(60);
+  });
+});

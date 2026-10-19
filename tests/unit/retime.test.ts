@@ -159,3 +159,82 @@ describe('стоп-кадр', () => {
     expect(mainTrack(r.project).clips[0].start).toBe(0);
   });
 });
+
+describe('группы', () => {
+  async function load() { return import('../../src/shared/timeline'); }
+  function proj(): Project {
+    let p = newProject('t');
+    p = addAsset(p, asset('a', 'video', 4));
+    p = addAsset(p, asset('b', 'video', 3));
+    p = addAsset(p, asset('c', 'video', 5));
+    p = addAsset(p, asset('ov', 'image', 0));
+    p = addToMain(p, 'a', 0).project;
+    p = addToMain(p, 'b', 4).project;
+    p = addToMain(p, 'c', 7).project;
+    return p;
+  }
+  it('проверки выделения', async () => {
+    const { planGroup } = await load();
+    let p = proj();
+    const [a, b, c] = mainTrack(p).clips.map((x) => x.id);
+    expect(planGroup(p, [a])).toHaveProperty('error');
+    expect((planGroup(p, [a, c]) as { error: string }).error).toMatch(/подряд/);
+    const ov = addFree(p, 'ov', 6);
+    p = updateClip(ov.project, ov.clipId, { out: 3 }); // 6..9 — выходит за клипы a+b (0..7)
+    expect((planGroup(p, [a, b, ov.clipId]) as { error: string }).error).toMatch(/выходить/);
+    expect(planGroup(p, [b, c, ov.clipId])).not.toHaveProperty('error');
+  });
+  it('группа на основной дорожке и разгруппировка', async () => {
+    const { planGroup, applyGroup, ungroupClip, setTransition } = await load();
+    let p = proj();
+    const [a, b, c] = mainTrack(p).clips.map((x) => x.id);
+    p = setTransition(p, b, { type: 'fade', duration: 0.5 });
+    const ov = addFree(p, 'ov', 5);
+    p = updateClip(ov.project, ov.clipId, { out: 1.5 });
+    const plan = planGroup(p, [b, a, ov.clipId]);
+    if ('error' in plan) throw new Error(plan.error);
+    expect(plan.t0).toBe(0);
+    expect(plan.data.alpha).toBe(false);
+    expect(plan.data.duration).toBe(7);
+    expect(plan.data.tracks[0].clips.map((x) => x.start)).toEqual([0, 4]);
+    expect((plan.data.tracks[0].clips[1] as MediaClip).transitionOut).toBeUndefined(); // переход к c остаётся у группы
+    expect(plan.data.tracks[1].clips[0].start).toBe(5);
+    p = addAsset(p, asset('grp', 'video', 7, true));
+    const g = applyGroup(p, [a, b, ov.clipId], 'grp', plan.data, plan.t0);
+    const cl = mainTrack(g.project).clips as MediaClip[];
+    expect(cl.map((x) => [x.assetId, x.start])).toEqual([['grp', 0], ['c', 6.5]]);
+    expect(cl[0].transitionOut?.type).toBe('fade');
+    expect(g.project.tracks.filter((t) => t.kind === 'video')).toHaveLength(0);
+    // разгруппировка возвращает всё на место
+    const u = ungroupClip(g.project, g.clipId);
+    const back = mainTrack(u.project).clips as MediaClip[];
+    expect(back.map((x) => [x.assetId, x.start])).toEqual([['a', 0], ['b', 4], ['c', 6.5]]);
+    expect(back[1].transitionOut?.type).toBe('fade');
+    const vt = u.project.tracks.find((t) => t.kind === 'video')!;
+    expect(vt.clips[0].start).toBe(5);
+    expect(u.ids).toHaveLength(3);
+    expect(u.project.assets.find((x) => x.id === 'grp')).toBeUndefined();
+  });
+  it('группа из наложений — прозрачная, встаёт на дорожку наложений', async () => {
+    const { planGroup, applyGroup, ungroupClip, addText, moveClip } = await load();
+    let p = proj();
+    const o1 = addFree(p, 'ov', 2); p = o1.project;
+    const t1 = addText(p, 3, 'Привет'); p = t1.project;
+    const plan = planGroup(p, [o1.clipId, t1.clipId]);
+    if ('error' in plan) throw new Error(plan.error);
+    expect(plan.data.alpha).toBe(true);
+    expect(plan.t0).toBe(2);
+    expect(plan.data.tracks[0].clips).toHaveLength(0);
+    p = addAsset(p, asset('grp', 'video', plan.data.duration, true));
+    const g = applyGroup(p, [o1.clipId, t1.clipId], 'grp', plan.data, plan.t0);
+    const gc = findClip(g.project, g.clipId)!;
+    expect(gc.track.kind).toBe('video');
+    expect(gc.clip.start).toBe(2);
+    expect(g.project.tracks.some((t) => t.kind === 'text')).toBe(false);
+    // сдвинули группу на 1 с позже — после разгруппировки клипы тоже позже
+    const moved = moveClip(g.project, g.clipId, 3);
+    const u = ungroupClip(moved, g.clipId);
+    const txt = u.project.tracks.find((t) => t.kind === 'text')!.clips[0];
+    expect(txt.start).toBe(4);
+  });
+});

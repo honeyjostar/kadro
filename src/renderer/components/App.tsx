@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { deleteSelection, duplicateSelection, importPaths, reportMissing, saveProject, splitAtPlayhead } from '../actions';
+import { deleteSelection, duplicateSelection, importPaths, reportMissing, saveProject, splitAtPlayhead, groupSelection, ungroupSelection } from '../actions';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Inspector } from './Inspector';
@@ -61,6 +61,7 @@ export function App() {
       if (ctrl && (k === 'e' || k === 'у')) { e.preventDefault(); s.setExportOpen(true); return; }
       if (ctrl && (k === 'd' || k === 'в')) { e.preventDefault(); duplicateSelection(); return; }
       if (ctrl && (k === 'b' || k === 'и')) { e.preventDefault(); splitAtPlayhead(); return; }
+      if (ctrl && (k === 'g' || k === 'п')) { e.preventDefault(); if (e.shiftKey) ungroupSelection(); else void groupSelection(); return; }
       if (!ctrl && (k === 's' || k === 'ы')) { e.preventDefault(); splitAtPlayhead(); return; }
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelection(); return; }
       if (e.key === 'ArrowLeft') { e.preventDefault(); s.setPlaying(false); s.setPlayhead(Math.max(0, s.playhead - (e.shiftKey ? 1 : 1 / fps))); return; }

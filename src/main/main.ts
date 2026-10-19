@@ -421,6 +421,8 @@ function registerIpc(): void {
     try { return importLutFile(src); } catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
   });
   ipcMain.handle('lut:list', () => listLutFiles());
+  ipcMain.handle('group:path', (_e, ext: string) =>
+    path.join(cacheDir('groups'), `group_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext === 'webm' ? 'webm' : 'mp4'}`));
   ipcMain.handle('lut:read', (_e, p: string) => { if (!/\.cube$/i.test(p)) return null; try { return fs.readFileSync(p, 'utf8'); } catch { return null; } });
   ipcMain.handle('rec:save', async (_e, data: ArrayBuffer) => {
     const dir = cacheDir('recordings');

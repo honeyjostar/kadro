@@ -82,6 +82,8 @@ export interface KadroApi {
   pickLut(): Promise<{ path: string; name: string } | { error: string } | null>;
   listLuts(): Promise<{ path: string; name: string }[]>;
   readLut(path: string): Promise<string | null>;
+  /** Новый путь для отрисованной группы в папке программы. */
+  groupPath(ext: 'mp4' | 'webm'): Promise<string>;
   cancelAi(jobId: string): void;
   onAiProgress(cb: (jobId: string, p: number, stage?: string) => void): () => void;
   showInFolder(path: string): void;

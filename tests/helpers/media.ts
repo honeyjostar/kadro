@@ -109,7 +109,7 @@ export function assetFromFile(id: string, file: string, kind: MediaAsset['kind']
   };
 }
 
-export function runExport(p: Project, out: string, opts: Partial<BuildOpts> & { quality?: Quality } = {}): { args: string[]; filter: string } {
+export function runExport(p: Project, out: string, opts: Partial<BuildOpts> & { quality?: Quality; alpha?: boolean } = {}): { args: string[]; filter: string } {
   const W = opts.width ?? 540;
   const H = opts.height ?? 960;
   const F = opts.fps ?? 30;
@@ -125,10 +125,10 @@ export function runExport(p: Project, out: string, opts: Partial<BuildOpts> & { 
     fs.writeFileSync(file, rgbPng(bytes, w, h));
     return file;
   };
-  const g = buildGraph(p, { width: W, height: H, fps: F, textLayers: opts.textLayers ?? [], grayFile, rgbFile, luts: opts.luts });
+  const g = buildGraph(p, { width: W, height: H, fps: F, textLayers: opts.textLayers ?? [], grayFile, rgbFile, luts: opts.luts, transparent: opts.alpha });
   const filterFile = out + '.filter.txt';
   fs.writeFileSync(filterFile, g.filter);
-  const args = fullArgs(g, filterFile, ffmpegMajor(), 'x264', opts.quality ?? 'normal', F, out)
+  const args = fullArgs(g, filterFile, ffmpegMajor(), opts.alpha ? 'vp9alpha' : 'x264', opts.quality ?? 'normal', F, out)
     .map((a) => (a === 'medium' || a === 'slow' ? 'ultrafast' : a));
   const pretty = args.filter((a) => a !== '-progress' && a !== 'pipe:1');
   const r = spawnSync(FFMPEG, pretty, { encoding: 'utf8', maxBuffer: 1 << 26 });

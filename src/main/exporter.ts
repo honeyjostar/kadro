@@ -81,13 +81,14 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
       fs.writeFileSync(file, rgbPng(bytes, w, h));
       return file;
     };
-    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project) });
+    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha });
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);
     fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });
-    const tmpOut = path.join(path.dirname(opts.outPath), `.${path.basename(opts.outPath, '.mp4')}.kadro-part.mp4`);
-    const wantNv = opts.encoder === 'nvenc' || (opts.encoder === 'auto' && (await hasNvenc()));
-    const encoders: ('nvenc' | 'x264')[] = wantNv ? ['nvenc', 'x264'] : ['x264'];
+    const ext = path.extname(opts.outPath) || '.mp4';
+    const tmpOut = path.join(path.dirname(opts.outPath), `.${path.basename(opts.outPath, ext)}.kadro-part${ext}`);
+    const wantNv = !opts.alpha && (opts.encoder === 'nvenc' || (opts.encoder === 'auto' && (await hasNvenc())));
+    const encoders: ('nvenc' | 'x264' | 'vp9alpha')[] = opts.alpha ? ['vp9alpha'] : wantNv ? ['nvenc', 'x264'] : ['x264'];
     let lastErr: unknown;
     for (const enc of encoders) {
       try {
