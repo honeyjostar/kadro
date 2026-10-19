@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { FILTER_PRESETS, effectiveColor, svgFilterMarkup } from '../../shared/color';
-import { DEFAULT_COLOR, FONTS, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS, TRANSITIONS, VOICE_FX } from '../../shared/defaults';
+import { DEFAULT_COLOR, FONT_CATS, FONTS, HIGHLIGHTS, type FontCat, TEXT_ANIMS, TEXT_PRESETS, TRANSITIONS, VOICE_FX } from '../../shared/defaults';
 import { retimeWords } from '../../shared/captions';
 import type { ModelInfo } from '../../shared/ipc';
 import {
@@ -21,7 +21,7 @@ import { BUILTIN_TEMPLATES, templateDuration, type Template } from '../../shared
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore, type LeftTab } from '../store';
 import { fmtDur, fmtTime, peakLevel } from '../util';
-import { ColorField, Progress, Seg, Slider, Toggle } from './controls';
+import { ColorField, FontPicker, Progress, Seg, Slider, Toggle } from './controls';
 import { aiCovers } from '../../shared/ai';
 
 const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
@@ -342,10 +342,15 @@ function hexA(hex: string, a: number): string {
 
 function TextPanel() {
   const commit = useStore((s) => s.commit);
+  const [fontCat, setFontCat] = useState<FontCat | 'all'>('all');
   const add = (style?: Partial<TextStyle>, text = 'Текст') => {
     let id = '';
     commit((p) => { const r = addText(p, getState().playhead, text, style); id = r.clipId; return r.project; });
-    if (id) getState().select([id]);
+    if (id) {
+      getState().select([id]);
+      // сразу печатать: справа открывается поле текста с выделенным словом «Текст»
+      setTimeout(() => window.dispatchEvent(new Event('kadro:edit-text')), 30);
+    }
   };
   return (
     <>
@@ -362,11 +367,15 @@ function TextPanel() {
             </button>
           ))}
         </div>
-        <div className="section-title">Шрифты</div>
+        <div className="section-title">Шрифты · {FONTS.length}</div>
+        <div className="chips" style={{ marginBottom: 8 }}>
+          <button className={fontCat === 'all' ? 'active' : ''} onClick={() => setFontCat('all')}>Все</button>
+          {FONT_CATS.map((c) => <button key={c.id} className={fontCat === c.id ? 'active' : ''} onClick={() => setFontCat(c.id)}>{c.label}</button>)}
+        </div>
         <div className="font-list">
-          {FONTS.map((f) => (
-            <button key={f.family} className="font-row" onClick={() => add({ font: f.family })} style={{ fontFamily: `'${f.family}'` }}>
-              {f.label} <span>Съешь же ещё</span>
+          {FONTS.filter((f) => fontCat === 'all' || f.cat === fontCat).map((f) => (
+            <button key={f.family} className="font-row" onClick={() => add({ font: f.family })} style={{ fontFamily: `'${f.family}'` }} title={`Добавить текст шрифтом ${f.label}`}>
+              {f.label} <span>Привет, мир</span>
             </button>
           ))}
         </div>
@@ -431,9 +440,7 @@ function CaptionsPanel() {
             </div>
             <div className="field">
               <div className="field-row"><label>Шрифт</label></div>
-              <select className="input" value={first.style.font} onChange={(e) => commit((p) => styleAllCaptions(p, { font: e.target.value }))}>
-                {FONTS.map((f) => <option key={f.family} value={f.family}>{f.label}</option>)}
-              </select>
+              <FontPicker value={first.style.font} onChange={(font) => commit((p) => styleAllCaptions(p, { font }))} />
             </div>
             <Slider label="Размер" min={24} max={140} step={1} value={first.style.size} format={(v) => `${Math.round(v)}`}
               onChange={(v) => commit((p) => styleAllCaptions(p, { size: v }), 'capsize')} />

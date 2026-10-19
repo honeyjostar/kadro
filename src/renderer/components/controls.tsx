@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { FONT_CATS, FONTS, type FontCat } from '../../shared/defaults';
 
 export function Slider(props: {
   label: string; value: number; min: number; max: number; step?: number;
@@ -78,5 +79,56 @@ export function KeyButton({ state, onClick, testId }: { state: 'none' | 'animate
     <button className={`key-btn ${state}`} onClick={onClick} title={title} data-testid={testId} aria-label={title}>
       <svg viewBox="0 0 12 12" aria-hidden><path d="M6 1 11 6 6 11 1 6Z" /></svg>
     </button>
+  );
+}
+
+/** Выбор шрифта: поиск, группы, каждый шрифт показан самим собой. */
+export function FontPicker({ value, onChange, testId }: { value: string; onChange: (family: string) => void; testId?: string }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [cat, setCat] = useState<FontCat | 'all'>('all');
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (box.current && !box.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); } };
+    document.addEventListener('mousedown', away);
+    document.addEventListener('keydown', esc, true);
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc, true); };
+  }, [open]);
+  const needle = q.trim().toLowerCase();
+  const list = FONTS.filter((f) => (cat === 'all' || f.cat === cat) && (!needle || f.label.toLowerCase().includes(needle)));
+  const groups = FONT_CATS.map((c) => ({ ...c, fonts: list.filter((f) => f.cat === c.id) })).filter((g) => g.fonts.length);
+  const label = FONTS.find((f) => f.family === value)?.label ?? value;
+  return (
+    <div className="font-picker" ref={box}>
+      <button type="button" className="input font-picker-btn" onClick={() => setOpen(!open)} data-testid={testId} style={{ fontFamily: `'${value}'` }}
+        aria-haspopup="listbox" aria-expanded={open}>
+        <span>{label}</span><svg viewBox="0 0 12 12" aria-hidden><path d="M3 4.5 6 7.5 9 4.5" /></svg>
+      </button>
+      {open && (
+        <div className="font-pop" role="listbox">
+          <input className="input" autoFocus placeholder={`Поиск среди ${FONTS.length} шрифтов`} value={q} onChange={(e) => setQ(e.target.value)} />
+          <div className="chips">
+            <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
+            {FONT_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
+          </div>
+          <div className="font-pop-list">
+            {groups.map((g) => (
+              <div key={g.id}>
+                <div className="font-pop-cat">{g.label}</div>
+                {g.fonts.map((f) => (
+                  <button key={f.family} role="option" aria-selected={f.family === value} className={`font-row ${f.family === value ? 'active' : ''}`}
+                    style={{ fontFamily: `'${f.family}'` }} onClick={() => { onChange(f.family); setOpen(false); }}>
+                    {f.label} <span>Привет, мир</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+            {!groups.length && <div className="hint small">Ничего не нашлось</div>}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -6,7 +6,7 @@ import { DEFAULT_MASK } from '../../shared/mask';
 import { EFFECTS } from '../../shared/effects';
 import { useEffect, useRef, useState } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
-import { ASPECTS, DEFAULT_CHROMA, DEFAULT_COLOR, DEFAULT_TRANSFORM, FONTS, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
+import { ASPECTS, DEFAULT_CHROMA, DEFAULT_COLOR, DEFAULT_TRANSFORM, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
 import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, styleAllCaptions, updateClip } from '../../shared/timeline';
 import type { BlendMode, ChromaKey, Mask, RampPoint, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
 import { retimeWords } from '../../shared/captions';
@@ -14,7 +14,7 @@ import { hasKeyHere, isAnimated, keyTimesOnTimeline, propValue, toggleKey, write
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
-import { ColorField, Field, KeyButton, Seg, Slider, Toggle } from './controls';
+import { ColorField, Field, FontPicker, KeyButton, Seg, Slider, Toggle } from './controls';
 import { AiTools, textPreviewStyle } from './LeftPanel';
 import { CurvesPanel, HslPanel, LutPanel } from './GradeTab';
 
@@ -594,9 +594,7 @@ function TextInspector({ clip }: { clip: TextClip }) {
             <textarea ref={area} className="input" value={clip.text} rows={3} data-testid="text-input"
               onChange={(e) => up({ text: e.target.value, words: retimeWords(e.target.value, clip.words) }, 'text')} placeholder="Напиши текст" />
             <Field label="Шрифт">
-              <select className="input" value={s.font} onChange={(e) => st({ font: e.target.value }, 'font')} style={{ fontFamily: `'${s.font}'` }}>
-                {FONTS.map((f) => <option key={f.family} value={f.family} style={{ fontFamily: `'${f.family}'` }}>{f.label}</option>)}
-              </select>
+              <FontPicker value={s.font} onChange={(font) => st({ font }, 'font')} testId="text-font" />
             </Field>
             <Slider label="Размер" min={12} max={300} step={1} value={s.size} format={(v) => String(Math.round(v))} testId="text-size"
               onChange={(v) => st({ size: v }, 'size')} />
