@@ -11,6 +11,7 @@ import { App } from './components/App';
 import { api, getState, useStore } from './store';
 import { CrashGuard } from './components/Crash';
 import { setTextWarper } from '../shared/textRender';
+import type { Appearance } from '../shared/appearance';
 import { warper } from './engine/warp';
 
 // доступ для автотестов (window.__kadro) — в обычной работе не используется
@@ -37,6 +38,18 @@ const applyTheme = (dark: boolean) => {
 };
 applyTheme(api.initialTheme?.dark !== false);
 api.onThemeChanged((t) => { useStore.setState({ themePref: t.pref }); applyTheme(t.dark); });
+
+// цвет акцента (кнопки, курсор, выделение) — data-accent на <html>; стили в styles.css
+const applyAccent = (a: Appearance) => { document.documentElement.dataset.accent = a.accent; };
+applyAccent(getState().appearance);
+api.onAppearanceChanged((a) => { getState().setAppearance(a); applyAccent(a); });
+// своё оформление: ошибка в theme.json или custom.css — сообщаем один раз на каждое новое сообщение
+let lastCustomError = '';
+api.onCustomStatus((st) => {
+  getState().setCustomStatus(st);
+  if (st.error && st.error !== lastCustomError) getState().toast(`Своё оформление: ${st.error}`, 'err');
+  lastCustomError = st.error ?? '';
+});
 
 // наклон текста в перспективе — на видеокарте (и в плеере, и для кадров экспорта)
 setTextWarper((W, H, draw, quad) => warper().warpDrawn(W, H, draw, quad));

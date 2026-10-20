@@ -6,6 +6,8 @@ import type { Platform } from '../shared/safezones';
 import { projectDuration } from '../shared/timeline';
 import type { AspectKey, MediaAsset, Model3D, Project } from '../shared/types';
 import type { AutoStyle } from '../shared/autoEdit';
+import { normalizeAppearance, type Appearance } from '../shared/appearance';
+import type { CustomStatus } from '../shared/ipc';
 
 export const api: KadroApi = (window as unknown as { kadro: KadroApi }).kadro;
 
@@ -64,6 +66,10 @@ interface State {
   autoOpen: AutoOpen | null;
   /** Последний собранный авто-ролик — для «Ещё вариант». */
   autoLast: AutoParams | null;
+  /** Оформление (акцент, значок, размер интерфейса, своё оформление) и окно настроек. */
+  appearance: Appearance;
+  customStatus: CustomStatus | null;
+  settingsOpen: boolean;
 
   commit: (fn: (p: Project) => Project, key?: string) => void;
   replace: (p: Project, path?: string | null) => void;
@@ -90,6 +96,9 @@ interface State {
   setModel3dEdit: (e: { init: Model3D; clipId?: string } | null) => void;
   setAutoOpen: (o: AutoOpen | null) => void;
   setAutoLast: (p: AutoParams | null) => void;
+  setAppearance: (a: Appearance) => void;
+  setCustomStatus: (s: CustomStatus | null) => void;
+  setSettingsOpen: (b: boolean) => void;
 }
 
 const HISTORY = 120;
@@ -143,6 +152,9 @@ export const useStore = create<State>((set, get) => ({
   model3dEdit: null,
   autoOpen: null,
   autoLast: null,
+  appearance: normalizeAppearance(api?.initialAppearance),
+  customStatus: null,
+  settingsOpen: false,
 
   commit: (fn, key) => {
     const s = get();
@@ -221,6 +233,9 @@ export const useStore = create<State>((set, get) => ({
   setModel3dEdit: (e) => set({ model3dEdit: e }),
   setAutoOpen: (o) => set({ autoOpen: o }),
   setAutoLast: (p) => set({ autoLast: p }),
+  setAppearance: (a) => set({ appearance: a }),
+  setCustomStatus: (st) => set({ customStatus: st }),
+  setSettingsOpen: (b) => set({ settingsOpen: b }),
 }));
 
 export const getState = () => useStore.getState();

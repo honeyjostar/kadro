@@ -8,6 +8,8 @@ import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, LibFolder, Mode
 import { countDeep, libMeta, listDir, searchDir } from './library';
 import * as m3d from './model3d';
 import { highlights } from './highlights';
+import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
+import { normalizeAppearance, type Appearance } from '../shared/appearance';
 import type { MediaAsset, Project } from '../shared/types';
 import { ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady } from './ai/models';
 import { denoise } from './ai/denoise';
@@ -71,6 +73,7 @@ function serveFile(req: Request): Response {
 }
 
 let win: BrowserWindow | null = null;
+const customStyles = new CustomStyles(() => win, (st) => win?.webContents.send('appearance:custom', st));
 
 /** Цвета рамки окна под тему: фон и значки свернуть/закрыть (Windows рисует их поверх нашей верхней панели). */
 function chromeColors(): { bg: string; symbol: string } {
@@ -99,7 +102,7 @@ function createWindow(): void {
     show: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     titleBarOverlay: process.platform === 'win32' ? { color: colors.bg, symbolColor: colors.symbol, height: 40 } : false,
-    icon: app.isPackaged ? path.join(process.resourcesPath, 'icon.png') : path.join(__dirname, '..', '..', 'resources', 'icon.png'),
+    icon: iconPng(appearance()),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'preload.js'),
       contextIsolation: true,
@@ -123,6 +126,11 @@ function createWindow(): void {
     win.webContents.reload();
   });
   win.webContents.on('console-message', (_e, level, message) => { if (level >= 2) log('renderer:', message); });
+  // размер интерфейса и своё оформление — после каждой загрузки страницы
+  win.webContents.on('did-finish-load', () => {
+    win?.webContents.setZoomFactor(appearance().uiScale);
+    customStyles.reattach();
+  });
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 }
 
@@ -351,7 +359,8 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[] }
+interface Settings { lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance> }
+const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
 }
@@ -654,6 +663,55 @@ function registerIpc(): void {
     applyTheme(pref);
   });
   ipcMain.on('app:log', (_e, ...a: unknown[]) => log('renderer error:', ...a));
+  // ---------- оформление ----------
+  ipcMain.on('appearance:get', (e) => { e.returnValue = appearance(); });
+  ipcMain.handle('appearance:set', (_e, patch: Partial<Appearance>) => {
+    const before = appearance();
+    const next = normalizeAppearance({ ...before, ...patch });
+    writeSettings({ ...readSettings(), appearance: next });
+    let shortcuts = 0;
+    if (next.icon !== before.icon || next.iconFile !== before.iconFile) {
+      applyWindowIcon(win, next);
+      try { shortcuts = applyShortcutIcons(next); } catch (e) { log('shortcut icons', e); }
+    }
+    if (next.uiScale !== before.uiScale) win?.webContents.setZoomFactor(next.uiScale);
+    if (next.custom !== before.custom) customStyles.setEnabled(next.custom);
+    win?.webContents.send('appearance:changed', next);
+    return { appearance: next, shortcuts, windows: process.platform === 'win32' };
+  });
+  ipcMain.handle('appearance:pickIcon', async () => {
+    let file = process.env.KADRO_TEST_ICON; // автотесты: без системного окна
+    if (!file) {
+      const r = await dialog.showOpenDialog(win!, {
+        title: 'Свой значок Kadro',
+        properties: ['openFile'],
+        filters: [{ name: 'Картинки', extensions: ['png', 'jpg', 'jpeg', 'ico', 'webp', 'bmp'] }],
+      });
+      if (r.canceled || !r.filePaths[0]) return { ok: false };
+      file = r.filePaths[0];
+    }
+    try {
+      const iconFile = makeCustomIcon(file);
+      const next = normalizeAppearance({ ...appearance(), icon: 'custom', iconFile });
+      writeSettings({ ...readSettings(), appearance: next });
+      applyWindowIcon(win, next);
+      let shortcuts = 0;
+      try { shortcuts = applyShortcutIcons(next); } catch (e) { log('shortcut icons', e); }
+      win?.webContents.send('appearance:changed', next);
+      return { ok: true, appearance: next, shortcuts, windows: process.platform === 'win32' };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
+  ipcMain.handle('custom:open', async () => {
+    const dir = ensureCustomFiles();
+    if (!process.env.KADRO_NO_OPEN) await shell.openPath(dir);
+    return dir;
+  });
+  ipcMain.on('app:docs', (_e, page: 'customize' | 'guide') => {
+    const url = page === 'customize' ? 'https://github.com/honeyjostar/kadro/blob/master/docs/CUSTOMIZE.md' : 'https://github.com/honeyjostar/kadro/blob/master/docs/GUIDE.md';
+    void shell.openExternal(url);
+  });
 }
 
 // неожиданная ошибка в главном процессе — в журнал, программа продолжает работать
@@ -681,7 +739,10 @@ if (!lock) {
     nativeTheme.themeSource = readSettings().theme ?? 'dark';
     nativeTheme.on('updated', () => applyTheme(nativeTheme.themeSource as ThemePref));
     createWindow();
+    customStyles.setEnabled(appearance().custom);
     setTimeout(() => { try { hasNvenc(); } catch { /* проверим позже */ } }, 3000);
+    // установщик пересоздаёт ярлыки со значком по умолчанию — возвращаем выбранный
+    if (app.isPackaged) setTimeout(() => { try { applyShortcutIcons(appearance()); } catch (e) { log('shortcut icons', e); } }, 4000);
     log('Kadro started', app.getVersion(), process.platform, 'ffmpeg:', ffmpegPath());
   });
   app.on('window-all-closed', () => {

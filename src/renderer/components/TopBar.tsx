@@ -1,9 +1,9 @@
-import { FolderOpen, FilePlus2, House, Monitor, Moon, Save, Sun, Upload } from 'lucide-react';
+import { FolderOpen, FilePlus2, House, Monitor, Moon, Save, Settings, Sun, Upload } from 'lucide-react';
 import type { ThemePref } from '../../shared/ipc';
 import type { ReactNode } from 'react';
 import { newProjectAction, openProject, saveProject } from '../actions';
 import { renameProject } from '../../shared/timeline';
-import { useStore } from '../store';
+import { getState, useStore } from '../store';
 import { LogoMark } from './Home';
 
 export const THEMES: Record<ThemePref, { label: string; short: string; icon: ReactNode; next: ThemePref }> = {
@@ -34,6 +34,7 @@ export function TopBar() {
       <div className="spacer" />
       <button className="btn ghost small" title={`${th.label}. Нажми, чтобы переключить: тёмная → светлая → как в Windows`}
         onClick={() => setThemePref(th.next)} data-testid="theme-btn">{th.icon}{th.short}</button>
+      <button className="icon-btn" title="Настройки: тема, цвет акцента, значок программы, размер интерфейса, своё оформление" onClick={() => getState().setSettingsOpen(true)} data-testid="topbar-settings"><Settings size={16} /></button>
       <button className="btn ghost small" title="Новый пустой проект. Текущий не пропадёт — он останется в «Недавних»" onClick={() => void newProjectAction()}><FilePlus2 size={15} />Новый</button>
       <button className="btn ghost small" title="Открыть файл проекта .kadro" onClick={() => void openProject()}><FolderOpen size={15} />Открыть</button>
       <button className="btn ghost small" title="Сохранить проект (Ctrl+S)" onClick={() => void saveProject()}><Save size={15} />Сохранить</button>

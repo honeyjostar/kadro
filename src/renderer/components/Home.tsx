@@ -1,8 +1,9 @@
 // Главный экран (как «Главная» в Premiere): новый проект нужного формата, демо-ролик и демо-проект,
 // недавние проекты, шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
-import { FolderOpen, Play, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
+import { FolderOpen, Play, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
+import { APP_ICONS, type IconId } from '../../shared/appearance';
 import type { HomeInfo, RecentProject } from '../../shared/ipc';
 import { BUILTIN_TEMPLATES, templateDuration, type Template } from '../../shared/templates';
 import type { AspectKey } from '../../shared/types';
@@ -92,6 +93,7 @@ export function Home() {
       <header className="home-top">
         <div className="logo"><LogoMark />Kadro</div>
         <div className="spacer" />
+        <button className="btn ghost home-settings" onClick={() => getState().setSettingsOpen(true)} data-testid="home-settings"><Settings size={15} />Настройки</button>
         {current && (
           <button className="btn" onClick={() => getState().setHome(false)} data-testid="home-close">
             Вернуться к проекту «{current.name}»<X size={15} />
@@ -197,6 +199,7 @@ export function Home() {
           <Seg value={themePref} onChange={(v) => getState().setThemePref(v)}
             options={[{ value: 'dark', label: 'Тёмная' }, { value: 'light', label: 'Светлая' }, { value: 'system', label: 'Как в Windows' }]} />
         </div>
+        <button className="btn ghost small" onClick={() => getState().setSettingsOpen(true)} data-testid="home-settings-foot">Цвет, значок, своё оформление…</button>
         <span className="hint">Kadro работает без интернета и регистрации, видео сохраняется без водяных знаков.</span>
       </footer>
     </div>
@@ -216,13 +219,19 @@ function RecentCard({ r, disabled, onOpen, onForget }: { r: RecentProject; disab
   );
 }
 
-export function LogoMark() {
+/** Значок Kadro — того цвета, что выбран в настройках (свой — картинкой). */
+export function LogoMark({ icon }: { icon?: IconId } = {}) {
+  const a = useStore((s) => s.appearance);
+  const id = icon ?? a.icon;
+  if (id === 'custom' && a.iconFile) return <img className="logo-mark" src={api.mediaUrl(a.iconFile.replace(/\.ico$/i, '.png'))} alt="" />;
+  const c = APP_ICONS.find((x) => x.id === id) ?? APP_ICONS[0];
+  const ring = c.id === 'black' ? 'rgba(255,255,255,0.22)' : c.id === 'white' ? 'rgba(0,0,0,0.18)' : 'none';
   return (
     <svg className="logo-mark" viewBox="0 0 64 64" aria-hidden>
-      <rect x="2.75" y="2.75" width="58.5" height="58.5" rx="13.5" fill="#000" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" />
-      <rect x="12" y="12" width="40" height="4.5" rx="2.25" fill="#fff" />
-      <rect x="12" y="47.5" width="40" height="4.5" rx="2.25" fill="#fff" />
-      <path d="M26 23.5v17l16-8.5z" fill="#fff" />
+      <rect x="2.75" y="2.75" width="58.5" height="58.5" rx="13.5" fill={c.bg} stroke={ring} strokeWidth="1.5" />
+      <rect x="12" y="12" width="40" height="4.5" rx="2.25" fill={c.fg} />
+      <rect x="12" y="47.5" width="40" height="4.5" rx="2.25" fill={c.fg} />
+      <path d="M26 23.5v17l16-8.5z" fill={c.fg} />
     </svg>
   );
 }

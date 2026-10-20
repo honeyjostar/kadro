@@ -14,6 +14,7 @@
   --accent: #ff3d7f;
   --accent-ink: #2a0614;
   --accent-soft: rgba(255, 61, 127, 0.16);
+  --on-accent: #ffffff;
   --video: #3a5a8c;
   --video-edge: rgba(111, 149, 209, 0.45);
   --overlay: #3f6f6a;
@@ -132,7 +133,7 @@ button { cursor: pointer; }
 }
 .btn:hover { background: var(--raised-2); }
 .btn:disabled { opacity: 0.45; cursor: default; }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn.ghost { background: transparent; border-color: transparent; }
 .btn.ghost:hover { background: var(--raised); }
@@ -182,7 +183,7 @@ button { cursor: pointer; }
 .media-actions { position: absolute; top: 5px; right: 5px; display: flex; gap: 4px; opacity: 0; }
 .media-item:hover .media-actions { opacity: 1; }
 .media-actions button { width: 24px; height: 24px; border-radius: 5px; border: 0; background: rgba(21, 19, 26, 0.85); color: #fff; display: flex; align-items: center; justify-content: center; }
-.media-actions button:hover { background: var(--accent); }
+.media-actions button:hover { background: var(--accent); color: var(--on-accent); }
 .used-dot { position: absolute; left: 7px; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 2px rgba(21, 19, 26, 0.85); }
 .audio-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
 .audio-row { display: grid; grid-template-columns: 56px 1fr auto; gap: 8px; align-items: center; padding: 6px; border: 1px solid var(--line-soft); border-radius: var(--radius-s); background: var(--bg); cursor: grab; }
@@ -288,7 +289,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .switch { width: 32px; height: 18px; border-radius: 9px; background: var(--line); position: relative; flex-shrink: 0; transition: background 0.15s; }
 .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text); transition: left 0.15s; }
 .switch.on { background: var(--accent); }
-.switch.on::after { left: 16px; background: #fff; }
+.switch.on::after { left: 16px; background: var(--on-accent); }
 .ai-card { border: 1px solid var(--line-soft); background: var(--bg); border-radius: var(--radius-m); padding: 12px; margin: 10px 0; }
 .ai-card h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
 .ai-card .hint { margin-bottom: 10px; }
@@ -386,7 +387,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
   position: absolute; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 5px; z-index: 4;
   background: var(--raised-2); border: 1px solid var(--line); color: var(--muted); display: flex; align-items: center; justify-content: center; padding: 0;
 }
-.junction:hover, .junction.has { background: var(--accent); color: #fff; border-color: var(--accent); }
+.junction:hover, .junction.has { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); z-index: 6; pointer-events: none; }
 .playhead::before { content: ''; position: absolute; top: 0; left: -5px; width: 12px; height: 12px; background: var(--accent); clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%); }
 .snap-line { position: absolute; top: 0; bottom: 0; width: 1px; background: #ffe14d; z-index: 6; pointer-events: none; }
@@ -759,3 +760,29 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .auto-fresh { margin: 12px 0 0; }
 .auto-progress { margin-top: 14px; font-size: 12.5px; color: var(--text); }
 @media (max-width: 900px) { .auto-body { grid-template-columns: 1fr; } }
+
+/* ---------- Цвет акцента (Настройки → Оформление) ---------- */
+:root:not([data-theme='light'])[data-accent='violet'] { --accent: #9d7cff; --accent-ink: #150a33; --accent-soft: rgba(157, 124, 255, 0.18); --on-accent: #ffffff; }
+:root[data-theme='light'][data-accent='violet'] { --accent: #6a42f5; --accent-ink: #ffffff; --accent-soft: rgba(106, 66, 245, 0.12); --on-accent: #ffffff; }
+:root:not([data-theme='light'])[data-accent='blue'] { --accent: #4a8dff; --accent-ink: #05142e; --accent-soft: rgba(74, 141, 255, 0.18); --on-accent: #ffffff; }
+:root[data-theme='light'][data-accent='blue'] { --accent: #1b63e0; --accent-ink: #ffffff; --accent-soft: rgba(27, 99, 224, 0.12); --on-accent: #ffffff; }
+:root:not([data-theme='light'])[data-accent='mono'] { --accent: #f2eff6; --accent-ink: #15131a; --accent-soft: rgba(255, 255, 255, 0.12); --on-accent: #15131a; }
+:root[data-theme='light'][data-accent='mono'] { --accent: #17151c; --accent-ink: #ffffff; --accent-soft: rgba(0, 0, 0, 0.08); --on-accent: #ffffff; }
+
+/* ---------- Настройки ---------- */
+.settings-modal { width: 640px; }
+.settings-modal h3 { display: flex; align-items: center; gap: 8px; }
+.settings-sec { padding: 14px 0; border-top: 1px solid var(--line-soft); }
+.settings-sec:first-of-type { border-top: 0; padding-top: 6px; }
+.settings-sec > b { display: block; font-size: 13px; margin-bottom: 8px; }
+.settings-sec .hint { margin: 6px 0 0; }
+.accent-row, .icon-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.accent-opt, .icon-opt { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 10px 7px; min-width: 86px; border-radius: 10px; border: 1px solid var(--line-soft); background: var(--bg); color: var(--muted); font-size: 12px; }
+.accent-opt:hover, .icon-opt:hover { border-color: var(--line); color: var(--text); }
+.accent-opt.active, .icon-opt.active { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 1px var(--accent) inset; }
+.accent-dot { width: 26px; height: 26px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(127, 127, 127, 0.35) inset; }
+.icon-opt svg, .icon-opt img { width: 34px; height: 34px; display: block; border-radius: 8px; }
+.icon-opt.add { justify-content: center; }
+.custom-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.custom-path { font-size: 11.5px; color: var(--muted); user-select: text; word-break: break-all; }
+.home-top .home-settings { -webkit-app-region: no-drag; }

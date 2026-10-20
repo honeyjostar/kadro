@@ -2,6 +2,9 @@
 import type { Cue } from './timeline';
 import type { Template } from './templates';
 import type { Highlights } from './autoEdit';
+import type { Appearance } from './appearance';
+export interface AppearanceResult { appearance?: Appearance; shortcuts?: number; windows?: boolean }
+export interface CustomStatus { on: boolean; dir: string; error?: string; skipped?: string[] }
 import type { ExportOptions, MediaAsset, Project, RampPoint, VoiceEffect } from './types';
 
 export type TtsVoiceId = 'irina' | 'dmitri' | 'denis' | 'ruslan' | 'amy' | 'ryan';
@@ -97,6 +100,14 @@ export interface KadroApi {
   initialTheme: { pref: ThemePref; dark: boolean };
   setTheme(pref: ThemePref): void;
   onThemeChanged(cb: (t: { pref: ThemePref; dark: boolean }) => void): () => void;
+  /** Оформление: акцент, значок, размер интерфейса, своё оформление. */
+  initialAppearance: Appearance;
+  setAppearance(patch: Partial<Appearance>): Promise<AppearanceResult>;
+  pickAppIcon(): Promise<AppearanceResult & { ok: boolean; error?: string }>;
+  openCustomDir(): Promise<string>;
+  openDocs(page: 'customize' | 'guide'): void;
+  onAppearanceChanged(cb: (a: Appearance) => void): () => void;
+  onCustomStatus(cb: (s: CustomStatus) => void): () => void;
   forgetRecent(path: string): void;
   /** Библиотека: папки, которые видны в любом проекте. */
   libFolders(): Promise<LibFolder[]>;
