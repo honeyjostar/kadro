@@ -2,8 +2,8 @@
 
 ### ⬇ Скачать
 
-- **[Kadro-Setup-0.4.0.exe](https://github.com/honeyjostar/kadro/releases/download/v0.4.0/Kadro-Setup-0.4.0.exe)** — установщик, 203 МБ (после установки около 700 МБ). Рекомендуется.
-- [Kadro-0.4.0-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.4.0/Kadro-0.4.0-portable.zip) — без установки, 284 МБ: распакуй и запусти `Kadro.exe`.
+- **[Kadro-Setup-0.4.0.exe](https://github.com/honeyjostar/kadro/releases/download/v0.4.0/Kadro-Setup-0.4.0.exe)** — установщик, 212 МБ (после установки около 700 МБ). Рекомендуется.
+- [Kadro-0.4.0-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.4.0/Kadro-0.4.0-portable.zip) — без установки, 292 МБ: распакуй и запусти `Kadro.exe`.
 
 «Source code» в списке файлов ниже — исходный код для программистов, программы там нет.
 
