@@ -140,13 +140,14 @@ export function LibraryView() {
           ))}
         </div>
       )}
+      {list.filter((f) => f.kind !== 'audio').length > 1 && (
+        <button className="btn small block lib-auto" title="Собрать ролик из видео и фото этой папки — под музыку из неё, если есть" onClick={() => autoFrom(list)} data-testid="lib-auto">
+          <WandSparkles size={13} />Авто-ролик из этой папки
+        </button>
+      )}
       <div className="lib-head">
         <span className="hint small">{searching ? `Найдено: ${found!.length}${found!.length >= 400 ? ' (первые 400)' : ''}` : files(list.length)}</span>
-        {list.filter((f) => f.kind !== 'audio').length > 1 && (
-          <button className="btn ghost small lib-auto" title="Собрать ролик из видео и фото этой папки — под музыку из неё, если есть" onClick={() => autoFrom(list)} data-testid="lib-auto">
-            <WandSparkles size={13} />Авто-ролик
-          </button>
-        )}
+
         <select className="lib-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)} title="Порядок файлов" data-testid="lib-sort">
           <option value="name">По имени</option>
           <option value="new">Сначала новые</option>

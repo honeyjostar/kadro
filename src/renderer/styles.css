@@ -728,7 +728,8 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .auto-card b svg { color: var(--accent); }
 .auto-card .row-btns { margin-top: 6px; }
 .auto-from-media { margin-top: 8px; justify-content: center; }
-.lib-auto { margin-left: auto; }
+.lib-auto { margin-top: 10px; justify-content: center; }
+.lib-head > .hint { white-space: nowrap; }
 .auto-modal { width: 860px; }
 .auto-modal h3 { display: flex; align-items: center; gap: 8px; }
 .auto-modal h3 svg { color: var(--accent); }

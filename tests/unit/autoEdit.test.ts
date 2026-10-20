@@ -201,7 +201,7 @@ describe('авто-ролик: сборка', () => {
     for (const x of mainClips(p)) expect(grid.some((g) => Math.abs(g - x.start) < 0.002)).toBe(true);
   });
 
-  it('вертикальное видео в горизонтальном ролике — целиком, с размытым фоном', () => {
+  it('вертикальное видео в горизонтальном ролике — целиком, с размытым фоном; горизонтальное в вертикальном — на весь кадр', () => {
     const { project: p } = autoEdit(newProject('x'), base({
       aspect: '16:9', media: [{ asset: asset('tall', 'video', 10, { width: 1080, height: 1920 }) }, { asset: asset('wide', 'video', 10) }],
     }));
@@ -209,6 +209,10 @@ describe('авто-ролик: сборка', () => {
     expect(cl.find((c) => c.assetId === 'tall')!.fit).toBe('contain');
     expect(cl.find((c) => c.assetId === 'wide')!.fit).toBe('cover');
     expect(p.settings.background).toBe('blur');
+    // горизонтальное в вертикальном — на весь кадр
+    const v = autoEdit(newProject('x'), base({ aspect: '9:16', media: [{ asset: asset('wide', 'video', 10) }] }));
+    expect(mainClips(v.project)[0].fit).toBe('cover');
+    expect(v.project.settings.background).not.toBe('blur');
   });
 
   it('один seed — один ролик, другой seed — другой вариант', () => {

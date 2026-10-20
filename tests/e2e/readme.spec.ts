@@ -28,6 +28,19 @@ async function fakeCursor(win: Page): Promise<void> {
     window.addEventListener('mouseup', () => { c.style.transform = ''; }, true);
   });
 }
+/** Плеер дорисовал кадр (не чёрный). */
+async function waitPreview(win: Page): Promise<void> {
+  await win.waitForFunction(() => {
+    const c = document.querySelector('[data-testid=preview]') as HTMLCanvasElement | null;
+    if (!c) return false;
+    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+    let lit = 0;
+    for (let i = 0; i < d.length; i += 4 * 97) if (d[i] + d[i + 1] + d[i + 2] > 60) lit++;
+    return lit > d.length / (4 * 97) * 0.3;
+  }, undefined, { timeout: 30_000 });
+}
+/** Всплывающие подсказки не нужны на снимках. */
+const noToasts = (win: Page) => win.addStyleTag({ content: '.toasts { display: none !important; }' });
 async function clickOn(win: Page, l: Locator, pause = 250): Promise<void> {
   await l.scrollIntoViewIfNeeded();
   const b = (await l.boundingBox())!;
@@ -47,6 +60,7 @@ test('демо-ролик для README: авто-ролик за 20 секун�
   const win = K.win;
   await expect(win.getByTestId('home')).toBeVisible();
   await fakeCursor(win);
+  await noToasts(win);
   await win.mouse.move(700, 820);
   await win.waitForTimeout(1500);
   const cdp = await K.app.context().newCDPSession(win);
@@ -68,14 +82,19 @@ test('демо-ролик для README: авто-ролик за 20 секун�
   await win.keyboard.type('Лето 2026', { delay: 90 });
   await win.waitForTimeout(400);
   await clickOn(win, win.getByTestId('auto-build'), 0);
+  const buildStart = Date.now() / 1000;
   await expect(win.getByTestId('auto-dialog')).toHaveCount(0, { timeout: 60_000 });
+  await waitPreview(win);
+  const buildEnd = Date.now() / 1000;
   await win.mouse.move(760, 600, { steps: 12 });
-  await win.waitForTimeout(1500);
+  await win.waitForTimeout(1200);
   await clickOn(win, win.getByTestId('play'), 0);
   await win.waitForTimeout(6500);
   await clickOn(win, win.getByTestId('play'), 300);
-  await clickOn(win, win.getByTestId('tpl-auto-variant'), 900);
+  await clickOn(win, win.getByTestId('tpl-auto-variant'), 300);
   await store(win, 'setPlayhead', 0);
+  await waitPreview(win);
+  await win.waitForTimeout(500);
   await clickOn(win, win.getByTestId('play'), 0);
   await win.waitForTimeout(4000);
   await cdp.send('Page.stopScreencast');
@@ -88,6 +107,8 @@ test('демо-ролик для README: авто-ролик за 20 секун�
   });
   lines.push(`file '${path.basename(frames[frames.length - 1].file)}'`);
   fs.writeFileSync(path.join(dir, 'list.txt'), lines.join('\n'));
+  // сборка (разбор видео) в гифке идёт быстрее — отметки времени для ускорения
+  fs.writeFileSync(path.join(dir, 'frames.json'), JSON.stringify({ frames: frames.map((f) => f.t), buildStart, buildEnd }));
   console.log(`кадров: ${frames.length}, секунд: ${end.toFixed(1)}`);
   await K.app.close();
 });
@@ -97,6 +118,7 @@ test('снимки интерфейса для README', async () => {
   const K: Kadro = await launch({ data, env: { KADRO_SKIP_HOME: '', KADRO_TEST_PICK: SCENES.join('|'), KADRO_TEST_FOLDER: DEMO } });
   const win = K.win;
   const shot = (n: string) => win.screenshot({ path: path.join(OUT!, `${n}.png`) });
+  await noToasts(win);
   await expect(win.getByTestId('home')).toBeVisible();
   await win.mouse.move(1470, 10);
   await win.waitForTimeout(2600);
@@ -117,18 +139,10 @@ test('снимки интерфейса для README', async () => {
   await win.waitForTimeout(1500);
   await shot('editor');
 
-  // эффекты: выделенный клип, раздел «Эффекты»
-  const ids = await win.evaluate(() => (window as any).__kadro.useStore.getState().project.tracks[0].clips.map((c: any) => c.id)) as string[];
-  await store(win, 'select', [ids[3]]);
-  const st = await win.evaluate((id) => (window as any).__kadro.useStore.getState().project.tracks[0].clips.find((c: any) => c.id === id).start, ids[3]);
-  await store(win, 'setPlayhead', st + 0.4);
-  await win.getByTestId('tab-effects').click();
-  await win.waitForTimeout(1500);
-  await shot('effects');
-
   // библиотека папок
   await win.getByTestId('tab-media').click();
   await win.getByTestId('media-view-library').click();
+  await store(win, 'select', []);
   await win.getByTestId('lib-add').click();
   await win.waitForTimeout(2500);
   await shot('library');
@@ -141,9 +155,9 @@ test('снимки интерфейса для README', async () => {
     const ov: string[] = await k.actions.importPaths([scenes[0]], { mode: 'overlay', at: 0 });
     const s = k.useStore.getState();
     const clip = s.project.tracks.flatMap((t: any) => t.clips).find((c: any) => c.assetId === ov[0]);
-    s.commit((p: any) => k.timeline.updateClip(p, clip.id, { pin: [0.56, 0.16, 0.9, 0.24, 0.55, 0.78, 0.88, 0.7] }));
-    const r = k.timeline.addText(k.useStore.getState().project, 0, 'ДАВНЫМ-ДАВНО', { font: 'Russo One', size: 120, color: '#ffe14d' });
-    k.useStore.getState().commit(() => k.timeline.updateClip(r.project, r.clipId, { tilt: { x: 58, y: 0 }, x: 0.3, y: 0.62, duration: 5 }));
+    s.commit((p: any) => k.timeline.updateClip(p, clip.id, { pin: [0.68, 0.05, 0.95, 0.11, 0.68, 0.43, 0.94, 0.38] }));
+    const r = k.timeline.addText(k.useStore.getState().project, 0, 'ГЛАВА ПЕРВАЯ\nКАК Я СДЕЛАЛ\nСВОЙ РЕДАКТОР', { font: 'Russo One', size: 150, color: '#ffe14d', shadow: false });
+    k.useStore.getState().commit(() => k.timeline.updateClip(r.project, r.clipId, { tilt: { x: 62, y: 0 }, x: 0.5, y: 0.7, duration: 5 }));
     k.useStore.getState().select([clip.id]);
     void ids;
   }, SCENES);
@@ -158,6 +172,8 @@ test('снимки интерфейса для README', async () => {
   await win.evaluate(async () => { await (window as any).__kadro.actions.openDemo(); });
   await win.waitForTimeout(800);
   await store(win, 'setPlayhead', 5.2);
+  const at = await win.evaluate(() => { const p = (window as any).__kadro.useStore.getState().project; return p.tracks[0].clips.find((c: any) => c.start <= 5.2 && c.start + (c.out - c.in) / c.speed > 5.2)?.id; });
+  await store(win, 'select', [at]);
   await win.getByTestId('tab-filters').click();
   await win.waitForTimeout(2000);
   await shot('light');

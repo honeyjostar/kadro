@@ -77,6 +77,21 @@ KADRO_MAKE_PREVIEWS=1 xvfb-run -a npx playwright test previews   # демо-ро
 Превью собираются в самом Kadro: шаблон на демо-видео → экспорт → сжатие (`tests/e2e/previews.spec.ts`).
 Один шаблон: `KADRO_MAKE_PREVIEWS=trip,reel …`. После правки шаблона в `src/shared/templates.ts` его превью нужно пересобрать.
 
+## Картинки для README
+
+Гифка, снимки экрана и обложка тоже снимаются с самой программы:
+
+```bash
+npm run build
+KADRO_README=/tmp/readme xvfb-run -a npx playwright test readme   # кадры гифки (tour/) и снимки *.png
+cd /tmp/readme/tour && ffmpeg -f concat -safe 0 -i list.txt \
+  -vf "fps=12,scale=960:-2:flags=lanczos,split[a][b];[a]palettegen=max_colors=192:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle" demo.gif
+node scripts/make-banner.mjs docs/screenshots/editor.png          # docs/brand/banner.png и social-preview.png
+```
+
+В `tour/frames.json` — время каждого кадра и отметки начала и конца сборки авто-ролика: этот отрезок в гифке
+удобно ускорить (в `docs/demo.gif` — в 5 раз).
+
 ## Установщик для Windows
 
 Собирается на Linux (или в WSL). Нужны `nsis` и `unzip`:

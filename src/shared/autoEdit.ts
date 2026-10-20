@@ -540,8 +540,8 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
     const c: MediaClip = newMediaClip(a);
     const rot = Math.abs(a.rotation % 180) === 90;
     const ar = (rot ? a.height : a.width) / Math.max(1, rot ? a.width : a.height);
-    const mismatch = ar && frameAR ? Math.max(ar / frameAR, frameAR / ar) : 1;
-    c.fit = mismatch > 1.5 ? 'contain' : 'cover';
+    // вертикальное видео в горизонтальном ролике — целиком на размытом фоне; горизонтальное в вертикальном — обрезаем по бокам, как в TikTok
+    c.fit = ar && frameAR && frameAR / ar > 1.5 ? 'contain' : 'cover';
     if (c.fit === 'contain') anyContain = true;
     c.transform = { ...DEFAULT_TRANSFORM };
     if (isVideo(a)) {
