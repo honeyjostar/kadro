@@ -74,6 +74,22 @@ describe('новые эффекты: результат по формуле', ()
     expect(near(pixelAt(out, 1, 320, 360 - bar + 3), [0, 0, 0], 10)).toBe(true);
   });
 
+  it('кино-полосы у основной дорожки — по краям кадра, даже когда квадратное видео заполняет кадр', () => {
+    if (!fs.existsSync(f('orange_sq.mp4'))) makeSolid(f('orange_sq.mp4'), '0xe67828', 3, 360, 360, 30);
+    let p = newProject('lb', '16:9');
+    p = addAsset(p, assetFromFile('v', f('orange_sq.mp4'), 'video'));
+    p = addToMain(p, 'v', 0).project;
+    const id = (mainTrack(p).clips[0] as MediaClip).id;
+    p = updateClip(p, id, { fit: 'cover', effects: [{ type: 'letterbox', amount: 0.5 }] });
+    const out = f('o_letterbox_cover.mp4');
+    runExport(p, out, opts);
+    const bar = letterboxBar(360, 0.5);
+    expect(near(pixelAt(out, 1, 320, 3), [0, 0, 0], 10)).toBe(true);
+    expect(near(pixelAt(out, 1, 320, bar - 3), [0, 0, 0], 10)).toBe(true);
+    expect(near(pixelAt(out, 1, 320, bar + 4), ORANGE, 14)).toBe(true);
+    expect(near(pixelAt(out, 1, 320, 360 - bar + 3), [0, 0, 0], 10)).toBe(true);
+  });
+
   it('сияние и засветка делают кадр светлее, но не меняют размер', () => {
     const base = pixelAt(orange([], 'none'), 1, 320, 180);
     for (const type of ['glow', 'lightleak'] as EffectType[]) {

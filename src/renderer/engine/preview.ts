@@ -5,7 +5,7 @@ import { mediaPropsAt } from '../../shared/anim';
 import { maskBytes } from '../../shared/mask';
 import { fxGeometry, particleEffects, sortedEffects } from '../../shared/effects';
 import { drawParticles } from '../../shared/particles';
-import { applyPixelEffects } from './effectsPreview';
+import { applyPixelEffects, drawMainBars } from './effectsPreview';
 import { ChromaKeyer } from './chroma';
 import { effectiveColor, isIdentity, svgFilterMarkup } from '../../shared/color';
 import { gradeActive } from '../../shared/grade';
@@ -420,7 +420,7 @@ export class PreviewEngine {
     }
     if (!src) return;
     const mp = mediaPropsAt(c, t);
-    if (mp.opacity <= 0.001) return;
+    if (mp.opacity <= 0.001) { if (isMain) drawMainBars(c2d, c, W, H); return; }
     const local = t - c.start;
     const g = fxGeometry(c.effects, local, clipDuration(c));
     const pl = placeOnCanvas(W, H, asset.width, asset.height, c.fit, { x: mp.x + g.dx, y: mp.y + g.dy, scale: mp.scale * g.scale, rotation: mp.rotation + g.drot });
@@ -453,7 +453,7 @@ export class PreviewEngine {
       lc.filter = 'none';
       lc.restore();
       if (graded) this.grader().apply(layer, c.grade ?? {}, cube, c.color);
-      if (fx.length) applyPixelEffects(layer, c, local, (l, key, tb) => this.grader().applyTable(l, key, tb));
+      if (fx.length) applyPixelEffects(layer, c, local, (l, key, tb) => this.grader().applyTable(l, key, tb), isMain);
       if (c.mask) {
         lc.save();
         lc.globalCompositeOperation = 'destination-in';
@@ -466,6 +466,7 @@ export class PreviewEngine {
       c2d.drawImage(img, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
     }
     c2d.restore();
+    if (isMain) drawMainBars(c2d, c, W, H);
   }
 
   private graderInst: GradeProcessor | null = null;

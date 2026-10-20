@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { newProject } from '../../src/shared/defaults';
-import { BUILTIN_TEMPLATES, applyTemplate, isTemplate, projectToTemplate, templateDuration } from '../../src/shared/templates';
+import { FONTS, TEXT_PRESETS, TRANSITIONS, newProject } from '../../src/shared/defaults';
+import { FILTER_PRESETS } from '../../src/shared/color';
+import { EFFECTS } from '../../src/shared/effects';
+import { BUILTIN_TEMPLATES, DEMO_BPM, DEMO_SCENES, DEMO_TEMPLATE, TEMPLATE_CATS, applyTemplate, isTemplate, projectToTemplate, templateDuration } from '../../src/shared/templates';
 import { clipDuration, clipEnd, mainTrack, projectDuration } from '../../src/shared/timeline';
 import type { MediaAsset, MediaClip, TextClip } from '../../src/shared/types';
 
@@ -30,6 +32,43 @@ describe('шаблоны', () => {
       expect(tx.start).toBeGreaterThanOrEqual(0);
       expect(clipEnd(tx)).toBeLessThanOrEqual(total + 1e-6); // надписи не тянут ролик дальше видео
     }
+  });
+  it.each([...BUILTIN_TEMPLATES, DEMO_TEMPLATE].map((t) => [t.name, t] as const))('%s: шрифты, стили, фильтры, эффекты и переходы существуют', (_n, t) => {
+    const fonts = new Set(FONTS.map((f) => f.family));
+    for (const x of t.texts) {
+      if (x.style?.font) expect(fonts.has(x.style.font), `шрифт ${x.style.font}`).toBe(true);
+      if (x.preset) expect(TEXT_PRESETS.some((p) => p.id === x.preset), `стиль ${x.preset}`).toBe(true);
+    }
+    for (const s of t.slots) {
+      if (s.color?.preset) expect(FILTER_PRESETS.some((p) => p.id === s.color!.preset), `фильтр ${s.color.preset}`).toBe(true);
+      for (const e of s.effects ?? []) expect(EFFECTS.some((x) => x.type === e.type), `эффект ${e.type}`).toBe(true);
+      if (s.transitionOut) expect(TRANSITIONS.some((x) => x.type === s.transitionOut!.type), `переход ${s.transitionOut.type}`).toBe(true);
+    }
+    for (const d of t.demo ?? []) expect(DEMO_SCENES).toContain(d);
+  });
+  it('у каждого встроенного шаблона есть раздел, демо-ролики и уникальный id', () => {
+    const ids = BUILTIN_TEMPLATES.map((t) => t.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(BUILTIN_TEMPLATES.length).toBeGreaterThanOrEqual(18);
+    for (const t of BUILTIN_TEMPLATES) {
+      expect(TEMPLATE_CATS.map((c) => c.id), t.id).toContain(t.cat);
+      expect(t.demo?.length, t.id).toBeGreaterThan(0);
+    }
+  });
+  it('одновременные надписи — на разных дорожках, в одной дорожке они не перекрываются', () => {
+    const p = applyTemplate(newProject('x'), DEMO_TEMPLATE, [asset('long', 'video', 60)]);
+    const tracks = p.tracks.filter((t) => t.kind === 'text');
+    expect(tracks.length).toBeGreaterThanOrEqual(2);
+    expect(tracks.flatMap((t) => t.clips)).toHaveLength(DEMO_TEMPLATE.texts.length);
+    for (const t of tracks) {
+      for (let i = 1; i < t.clips.length; i++) expect(t.clips[i].start).toBeGreaterThanOrEqual(clipEnd(t.clips[i - 1]) - 1e-6);
+    }
+  });
+  it('демо-проект: склейки ровно на долях бита', () => {
+    const p = applyTemplate(newProject('x'), DEMO_TEMPLATE, [asset('long', 'video', 60)]);
+    const beat = 60 / DEMO_BPM;
+    for (const c of mainTrack(p).clips) { const k = c.start / (4 * beat); expect(Math.abs(k - Math.round(k))).toBeLessThan(0.002); }
+    expect(templateDuration(DEMO_TEMPLATE)).toBeCloseTo(30 * beat, 2);
   });
   it('длина шаблона учитывает переходы', () => {
     const t = BUILTIN_TEMPLATES.find((x) => x.id === 'vlog')!;

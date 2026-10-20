@@ -218,7 +218,10 @@ export function Player() {
             <div className="empty-stage">
               <h2>Начни с видео</h2>
               <p>Перетащи файлы в окно или нажми кнопку. Kadro понимает MP4, MOV, MKV, фото и музыку.</p>
-              <button className="btn primary" onClick={() => void pickAndImport({ mode: 'auto', at: 0 })} data-testid="empty-import"><Upload size={15} />Добавить файлы</button>
+              <div className="row-btns">
+                <button className="btn primary" onClick={() => void pickAndImport({ mode: 'auto', at: 0 })} data-testid="empty-import"><Upload size={15} />Добавить файлы</button>
+                <button className="btn" onClick={() => getState().setHome(true)} data-testid="empty-home">Демо и шаблоны</button>
+              </div>
             </div>
           )}
         </div>

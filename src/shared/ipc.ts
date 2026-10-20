@@ -59,6 +59,12 @@ export interface AppInfo { version: string; platform: string; nvenc: boolean; da
 
 export interface ImportResult { assets: MediaAsset[]; errors: { path: string; message: string }[] }
 
+export interface RecentProject { path: string; name: string; mtime: number; clips: number; duration: number; aspect: string; thumb?: string }
+/** Демо-файлы из комплекта программы: ролики-сцены, бит, демо-ролик и превью шаблонов. Только те, что есть на диске. */
+export interface DemoFiles { scenes: Record<string, string>; beat: string | null; reel: string | null; previews: Record<string, string> }
+/** show — настройка «показывать при запуске», autoOpen — открыть ли сейчас (в автотестах выключено). */
+export interface HomeInfo { show: boolean; autoOpen: boolean; demo: DemoFiles; recent: RecentProject[] }
+
 export interface KadroApi {
   info(): Promise<AppInfo>;
   pickMedia(): Promise<string[]>;
@@ -68,6 +74,14 @@ export interface KadroApi {
   pathForFile(file: File): string;
   saveProject(project: Project, path?: string | null): Promise<string | null>;
   openProject(): Promise<{ project: Project; path: string } | null>;
+  /** Открыть проект по пути (из списка недавних). */
+  openProjectPath(path: string): Promise<{ project: Project; path: string } | { error: string }>;
+  /** Стартовый экран: показывать ли, недавние проекты, демо-файлы. */
+  homeInfo(): Promise<HomeInfo>;
+  setShowHome(show: boolean): void;
+  forgetRecent(path: string): void;
+  /** Сохранить копию проекта в «Черновики» (и в недавние). */
+  stashDraft(project: Project): Promise<string>;
   loadLast(): Promise<{ project: Project; path: string | null } | null>;
   autosave(project: Project, path: string | null): void;
   pickExportPath(defaultName: string): Promise<string | null>;

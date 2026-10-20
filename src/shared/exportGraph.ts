@@ -125,7 +125,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
   const assetOf = (c: MediaClip) => p.assets.find((a) => a.id === c.assetId) as MediaAsset;
 
   /** Видеопоток клипа/группы: возвращает метку потока RGBA, уже размещённого на холсте (или картинку и место для overlay). */
-  function visualChain(src: string, c: MediaClip, asset: MediaAsset, withAlpha: boolean): { label: string; x: number; y: number } {
+  function visualChain(src: string, c: MediaClip, asset: MediaAsset, withAlpha: boolean, isMain = false): { label: string; x: number; y: number } {
     void withAlpha;
     const o2 = orientedSize(asset.width, asset.height, 0);
     let cur = src;
@@ -305,6 +305,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
             break;
           }
           case 'letterbox': {
+            if (isMain) break; // у клипа основной дорожки полосы — по краям кадра, а не слоя (см. ниже)
             const bar = letterboxBar(h, a);
             parts.push(`drawbox=x=0:y=0:w=${w}:h=${bar}:color=black:t=fill`, `drawbox=x=0:y=${h - bar}:w=${w}:h=${bar}:color=black:t=fill`);
             break;
@@ -515,9 +516,12 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       } else {
         chains.push(`color=c=${bgColor}:s=${W}x${H}:r=${F}:d=${fmt(D)},format=yuv420p[${bgLabel}]`);
       }
-      const fg = visualChain(fgSrc, c0, g.asset, !!bgr);
+      const fg = visualChain(fgSrc, c0, g.asset, !!bgr, true);
       const seg = L('seg');
-      chains.push(`[${bgLabel}][${fg.label}]overlay=x=${fg.x}:y=${fg.y}:eof_action=repeat:shortest=1,format=yuv420p,setsar=1[${seg}]`);
+      // кино-полосы клипа основной дорожки — по краям кадра: при заполнении кадра края слоя обрезаны
+      const lb = c0.effects?.find((e) => e.type === 'letterbox' && e.amount > 0);
+      const bars = lb ? `,drawbox=x=0:y=0:w=${W}:h=${letterboxBar(H, lb.amount)}:color=black:t=fill,drawbox=x=0:y=${H - letterboxBar(H, lb.amount)}:w=${W}:h=${letterboxBar(H, lb.amount)}:color=black:t=fill` : '';
+      chains.push(`[${bgLabel}][${fg.label}]overlay=x=${fg.x}:y=${fg.y}:eof_action=repeat:shortest=1${bars},format=yuv420p,setsar=1[${seg}]`);
       segLabels.push(seg);
     }
 

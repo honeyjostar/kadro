@@ -70,6 +70,8 @@ fs.rmSync(ffTmp, { recursive: true, force: true });
 
 step('Модели');
 cp(path.join(ROOT, 'resources/models'), path.join(RES, 'models'));
+cp(path.join(ROOT, 'resources/demo'), path.join(RES, 'demo'));
+if (fs.existsSync(path.join(ROOT, 'resources/templates'))) cp(path.join(ROOT, 'resources/templates'), path.join(RES, 'templates'));
 fs.copyFileSync(path.join(ROOT, 'resources/icon.png'), path.join(RES, 'icon.png'));
 
 step('Лицензии');

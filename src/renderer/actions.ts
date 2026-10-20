@@ -3,14 +3,15 @@ import { aiCovers, aiSource, aiStale, videoInputFor, videoSource } from '../shar
 import { normalizeRamp, originalRange } from '../shared/retime';
 import { reframeKeyframes } from '../shared/reframe';
 import { CAPTION_STYLE, newProject } from '../shared/defaults';
-import type { AiJob, AiResponse, TtsVoiceId } from '../shared/ipc';
+import { exportSize } from '../shared/geometry';
+import type { AiJob, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
 import {
   addAsset, addFree, addToMain, alignMainToBeats, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
   splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip,
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
-import { applyTemplate, projectToTemplate, type Template } from '../shared/templates';
-import type { MediaAsset, MediaClip, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
+import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
+import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
 import { api, getState, takeEarlyPatches } from './store';
 import { uidShort } from './util';
 import { VoiceRecorder } from './recorder';
@@ -564,12 +565,28 @@ export async function startFromTemplate(t: Template, from: 'pick' | 'library'): 
   if (from === 'pick') {
     const paths = await api.pickMedia();
     if (!paths.length) return false;
-    const ids = await importPaths(paths);
-    assets = ids.map((id) => getState().project.assets.find((a) => a.id === id)).filter((a): a is MediaAsset => !!a);
+    assets = await importForTemplate(paths);
   } else {
     assets = getState().project.assets.filter((a) => !a.derived && !a.missing && (a.kind === 'video' || a.kind === 'image'));
   }
-  assets = assets.filter((a) => a.kind === 'video' || a.kind === 'image');
+  return applyTemplateNow(t, assets);
+}
+
+/** Шаблон со стартового экрана: выбрать свои файлы → новый проект по шаблону. */
+export async function templateFromFiles(t: Template): Promise<boolean> {
+  const paths = await api.pickMedia();
+  if (!paths.length) return false;
+  await replaceProject(newProject(t.name, t.aspect));
+  return applyTemplateNow(t, await importForTemplate(paths));
+}
+
+async function importForTemplate(paths: string[]): Promise<MediaAsset[]> {
+  const ids = await importPaths(paths);
+  return ids.map((id) => getState().project.assets.find((a) => a.id === id)).filter((a): a is MediaAsset => !!a);
+}
+
+function applyTemplateNow(t: Template, all: MediaAsset[]): boolean {
+  const assets = all.filter((a) => a.kind === 'video' || a.kind === 'image');
   if (!assets.length) { getState().toast('Нужны видео или фото — добавь их в медиатеку'); return false; }
   getState().setPlaying(false);
   getState().commit((p) => applyTemplate(p, t, assets));
@@ -701,8 +718,95 @@ export async function saveProject(as = false): Promise<boolean> {
 export async function openProject(): Promise<void> {
   const r = await api.openProject();
   if (!r) return;
-  getState().replace(r.project, r.path);
+  await replaceProject(r.project, r.path);
   reportMissing(r.project);
+}
+
+/** Открыть проект из списка недавних. */
+export async function openRecent(file: string): Promise<boolean> {
+  const r = await api.openProjectPath(file);
+  if ('error' in r) { getState().toast(r.error, 'err'); return false; }
+  await replaceProject(r.project, r.path);
+  reportMissing(r.project);
+  return true;
+}
+
+/** В проекте есть монтаж или файлы. */
+function hasWork(p: Project): boolean {
+  return p.assets.length > 0 || p.tracks.some((t) => t.clips.length > 0);
+}
+
+/**
+ * Заменить проект другим. Если в текущем есть несохранённая работа — сначала копия в «Черновики»
+ * (видна в «Недавних» на главном экране), чтобы новый проект, демо или пример шаблона ничего не стёрли.
+ */
+export async function replaceProject(next: Project, path: string | null = null): Promise<void> {
+  const s = getState();
+  let stashed = false;
+  if (hasWork(s.project) && (!s.projectPath || s.dirty)) {
+    try { await api.stashDraft(s.project); stashed = true; } catch { /* не вышло — продолжаем */ }
+  }
+  getState().replace(next, path);
+  getState().setHome(false);
+  if (stashed) getState().toast('Прошлый проект сохранён — он в «Недавних» на главном экране', 'ok');
+}
+
+export async function loadDemoFiles(): Promise<DemoFiles> {
+  const cached = getState().demo;
+  if (cached) return cached;
+  const info = await api.homeInfo();
+  getState().setDemo(info.demo);
+  return info.demo;
+}
+
+/** Собрать пример из демо-роликов по шаблону (с демо-битом), как готовый проект. */
+async function buildExample(t: Template, name: string): Promise<boolean> {
+  const demo = await loadDemoFiles();
+  const files = [...new Set((t.demo ?? DEMO_SCENES).map((x) => demo.scenes[x]).filter(Boolean))];
+  if (!files.length) { getState().toast('Демо-ролики не найдены — переустанови Kadro', 'err'); return false; }
+  getState().setPlaying(false);
+  await replaceProject(newProject(name, t.aspect));
+  const ids = await importPaths(demo.beat ? [...files, demo.beat] : files);
+  const assets = ids.map((id) => getState().project.assets.find((a) => a.id === id)).filter((a): a is MediaAsset => !!a);
+  const media = files.map((f) => assets.find((a) => a.path === f && a.kind !== 'audio')).filter((a): a is MediaAsset => !!a);
+  if (!media.length) return false;
+  getState().commit((p) => applyTemplate(p, t, media));
+  const beat = assets.find((a) => a.kind === 'audio');
+  if (beat) {
+    const total = projectDuration(getState().project);
+    getState().commit((p) => {
+      const r = addFree(p, beat.id, 0);
+      return updateClip(r.project, r.clipId, { out: Math.min(beat.duration, total), fadeOut: 1.2 });
+    });
+  }
+  // готовый пример — без истории правок, чтобы Ctrl+Z не разбирал его по кусочкам
+  const ready = getState().project;
+  getState().replace(ready, null);
+  getState().select([]);
+  return true;
+}
+
+/** Демо-проект со стартового экрана: все демо-ролики под бит, эффекты, переходы, надписи. */
+export async function openDemo(): Promise<boolean> {
+  const ok = await buildExample(DEMO_TEMPLATE, 'Демо Kadro');
+  if (ok) getState().toast('Это демо-проект: нажми пробел, чтобы посмотреть, и меняй что угодно', 'ok');
+  return ok;
+}
+
+/** Шаблон на демо-роликах: посмотреть, как он выглядит, без своих файлов. */
+export async function tryTemplate(t: Template): Promise<boolean> {
+  const ok = await buildExample(t, `${t.name} (пример)`);
+  if (ok) getState().toast(`Шаблон «${t.name}» на демо-роликах. Чтобы поставить свои видео, нажми на шаблон во вкладке «Шаблоны» → «Свои файлы…»`, 'ok');
+  return ok;
+}
+
+/** Экспорт без окна (сборка превью шаблонов и демо-ролика). */
+export async function exportTo(outPath: string, shortSide: number, fps = 30): Promise<ExportResult> {
+  const p = getState().project;
+  const size = exportSize(p.settings.width, p.settings.height, shortSide);
+  const { layers, blank } = await renderTextLayers(p, size.w, size.h, fps, () => undefined);
+  const opts: ExportOptions = { height: shortSide as ExportOptions['height'], fps: fps as ExportOptions['fps'], quality: 'high', encoder: 'x264', outPath };
+  return api.startExport({ project: p, opts, textLayers: layers, blankPng: blank });
 }
 
 /** Предупредить о файлах, которых нет на диске. */
@@ -741,7 +845,6 @@ export function reportMissing(p: Project): void {
     : `Не найдено файлов: ${lost.length}. Верни их на место — иначе эти клипы не попадут в видео.`, 'err');
 }
 
-export function newProjectAction(): void {
-  const s = getState();
-  s.replace(newProject('Новый проект', s.project.settings.aspect));
+export async function newProjectAction(aspect?: AspectKey): Promise<void> {
+  await replaceProject(newProject('Новый проект', aspect ?? getState().project.settings.aspect));
 }

@@ -1,7 +1,7 @@
 // Состояние редактора: проект, история (отмена/повтор), выделение, плейхед, задачи ИИ, уведомления.
 import { create } from 'zustand';
 import { newProject } from '../shared/defaults';
-import type { KadroApi } from '../shared/ipc';
+import type { DemoFiles, KadroApi } from '../shared/ipc';
 import { projectDuration } from '../shared/timeline';
 import type { MediaAsset, Project } from '../shared/types';
 
@@ -33,6 +33,10 @@ interface State {
   tlHeight: number;
   /** Идёт запись голоса: с какого места таймлайна и заглушён ли звук проекта. */
   recording: { startT: number; muted: boolean } | null;
+  /** Открыт стартовый экран. */
+  home: boolean;
+  /** Демо-ролики и превью шаблонов из комплекта программы. */
+  demo: DemoFiles | null;
 
   commit: (fn: (p: Project) => Project, key?: string) => void;
   replace: (p: Project, path?: string | null) => void;
@@ -50,6 +54,8 @@ interface State {
   markSaved: (path: string) => void;
   setTlHeight: (h: number) => void;
   setRecording: (r: { startT: number; muted: boolean } | null) => void;
+  setHome: (b: boolean) => void;
+  setDemo: (d: DemoFiles) => void;
 }
 
 const HISTORY = 120;
@@ -87,6 +93,8 @@ export const useStore = create<State>((set, get) => ({
   exportOpen: false,
   tlHeight: 300,
   recording: null,
+  home: false,
+  demo: null,
 
   commit: (fn, key) => {
     const s = get();
@@ -156,6 +164,8 @@ export const useStore = create<State>((set, get) => ({
   markSaved: (path) => set({ projectPath: path, dirty: false, savedAt: Date.now() }),
   setRecording: (r) => set({ recording: r }),
   setTlHeight: (h) => set({ tlHeight: Math.min(560, Math.max(180, h)) }),
+  setHome: (b) => set(b ? { home: true, playing: false } : { home: false }),
+  setDemo: (d) => set({ demo: d }),
 }));
 
 export const getState = () => useStore.getState();

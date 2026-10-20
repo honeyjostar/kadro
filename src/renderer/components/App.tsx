@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { deleteSelection, duplicateSelection, importPaths, reportMissing, saveProject, splitAtPlayhead, groupSelection, ungroupSelection } from '../actions';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
+import { Home } from './Home';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts } from './Overlays';
@@ -20,6 +21,7 @@ function isTyping(e: KeyboardEvent): boolean {
 export function App() {
   const tlHeight = useStore((s) => s.tlHeight);
   const exportOpen = useStore((s) => s.exportOpen);
+  const home = useStore((s) => s.home);
   const loaded = useRef(false);
 
   // восстановление последнего проекта, обновления файлов из главного процесса
@@ -29,6 +31,8 @@ export function App() {
       if (r?.project?.tracks) { getState().replace(r.project, r.path); reportMissing(r.project); }
       loaded.current = true;
     }).catch(() => { loaded.current = true; });
+    // главный экран при запуске (можно выключить на нём самом)
+    api.homeInfo().then((i) => { getState().setDemo(i.demo); if (i.autoOpen) getState().setHome(true); }).catch(() => undefined);
     return off;
   }, []);
 
@@ -51,6 +55,7 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e)) return;
       const s = getState();
+      if (s.home) return;
       const ctrl = e.ctrlKey || e.metaKey;
       const fps = s.project.settings.fps;
       const k = e.key.toLowerCase();
@@ -83,6 +88,7 @@ export function App() {
       if (!e.dataTransfer?.files.length) return;
       e.preventDefault();
       const paths = [...e.dataTransfer.files].map((f) => api.pathForFile(f)).filter(Boolean);
+      getState().setHome(false);
       const empty = projectDuration(getState().project) === 0;
       void importPaths(paths, empty ? { mode: 'auto', at: 0 } : undefined);
     };
@@ -112,6 +118,7 @@ export function App() {
       <div className="splitter" onMouseDown={onSplitter} title="Потяни, чтобы изменить высоту таймлайна" />
       <Timeline />
       {exportOpen && <ExportDialog />}
+      {home && <Home />}
       <Jobs />
       <Toasts />
     </div>

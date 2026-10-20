@@ -56,6 +56,32 @@ test('снимки', async () => {
     await seekAndSettle(win, 1.5);
     await shot('filters-applied');
   }
+  if (want('home')) {
+    await K.win.evaluate(() => (window as any).__kadro.useStore.getState().setHome(true));
+    await win.waitForTimeout(2500);
+    await shot('home');
+    await win.locator('.home-main').evaluate((el) => el.scrollTo(0, 10_000));
+    await win.waitForTimeout(800);
+    await shot('home-bottom');
+    await win.getByTestId('home-tpl-party').hover();
+    await win.waitForTimeout(1500);
+    await shot('home-hover');
+    await K.win.evaluate(() => (window as any).__kadro.useStore.getState().setHome(false));
+  }
+  if (want('templates')) {
+    await win.click('[data-testid=tab-templates]');
+    await win.waitForTimeout(1500);
+    await shot('templates');
+    await win.getByTestId('tpl-birthday').getByRole('button').first().click();
+    await win.waitForTimeout(1200);
+    await shot('templates-open');
+  }
+  if (want('demo')) {
+    await K.win.evaluate(() => (window as any).__kadro.actions.openDemo());
+    await waitAssetsReady(win);
+    await seekAndSettle(win, 3);
+    await shot('demo-project');
+  }
   if (want('transitions')) {
     await importAt(win, [path.join(MEDIA, 'colors.mp4')], 'main', 99);
     await waitAssetsReady(win);

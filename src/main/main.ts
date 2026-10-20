@@ -3,7 +3,7 @@ import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell, utilityProce
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import type { AiJob, AiResponse, ExportReq, ModelInfo, VoiceInfo } from '../shared/ipc';
+import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, ModelInfo, RecentProject, VoiceInfo } from '../shared/ipc';
 import type { MediaAsset, Project } from '../shared/types';
 import { ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady } from './ai/models';
 import { denoise } from './ai/denoise';
@@ -13,8 +13,9 @@ import { freezeFrame, retime } from './retime';
 import { beautify } from './ai/beauty';
 import { runFfmpeg } from './ffrun';
 import { importLutFile, listLutFiles } from './luts';
-import { isTemplate, type Template } from '../shared/templates';
-import { cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
+import { BUILTIN_TEMPLATES, DEMO_SCENES, isTemplate, type Template } from '../shared/templates';
+import { projectDuration } from '../shared/timeline';
+import { bundledFile, cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
 import { exportProject, exportSpeechAudio, hasNvenc } from './exporter';
 import { analyze, makePeaks, makeProxy, makeThumbs } from './media';
 
@@ -324,11 +325,47 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-function readSettings(): { lastProject?: string | null } {
+interface Settings { lastProject?: string | null; recent?: string[]; showHome?: boolean }
+function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
 }
-function writeSettings(s: { lastProject?: string | null }): void {
+function writeSettings(s: Settings): void {
   try { fs.writeFileSync(settingsFile(), JSON.stringify(s, null, 2)); } catch { /* не критично */ }
+}
+/** Запомнить проект в списке недавних (сверху — последний). */
+function rememberProject(file: string): void {
+  const s = readSettings();
+  const recent = [file, ...(s.recent ?? []).filter((x) => path.resolve(x) !== path.resolve(file))].slice(0, 12);
+  writeSettings({ ...s, lastProject: file, recent });
+}
+function recentProjects(): RecentProject[] {
+  const out: RecentProject[] = [];
+  for (const file of readSettings().recent ?? []) {
+    try {
+      const st = fs.statSync(file);
+      const p = JSON.parse(fs.readFileSync(file, 'utf8')) as Project;
+      if (!p?.tracks) continue;
+      const media = p.tracks.flatMap((t) => t.clips).filter((c) => c.type === 'media');
+      const thumbOf = (id: string) => p.assets.find((a) => a.id === id)?.thumbs?.find((t) => fs.existsSync(t));
+      const thumb = media.map((c) => (c.type === 'media' ? thumbOf(c.assetId) : undefined)).find(Boolean);
+      out.push({ path: file, name: p.name || path.basename(file, '.kadro'), mtime: st.mtimeMs, clips: media.length, duration: projectDuration(p), aspect: p.settings?.aspect ?? '', thumb });
+    } catch { /* файл пропал или не читается — не показываем */ }
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+function demoFiles(): DemoFiles {
+  const has = (dir: string, name: string) => { const f = bundledFile(dir, name); return fs.existsSync(f) ? f : null; };
+  const scenes: Record<string, string> = {};
+  for (const s of DEMO_SCENES) { const f = has('demo', `${s}.mp4`); if (f) scenes[s] = f; }
+  const previews: Record<string, string> = {};
+  for (const t of BUILTIN_TEMPLATES) { const f = has('templates', `${t.id}.mp4`); if (f) previews[t.id] = f; }
+  return { scenes, beat: has('demo', 'beat.m4a'), reel: has('demo', 'reel.mp4'), previews };
+}
+async function readProjectFile(file: string): Promise<Project> {
+  const p = JSON.parse(fs.readFileSync(file, 'utf8')) as Project;
+  if (!p?.tracks || !p.assets) throw new Error('not a project');
+  return refreshProject(p);
 }
 const autosaveFile = () => path.join(dataDir(), 'autosave.kadro');
 
@@ -368,7 +405,7 @@ function registerIpc(): void {
       target = r.filePath;
     }
     writeProject(target, project);
-    writeSettings({ ...readSettings(), lastProject: target });
+    rememberProject(target);
     return target;
   });
   ipcMain.handle('project:open', async () => {
@@ -376,14 +413,50 @@ function registerIpc(): void {
     if (r.canceled || !r.filePaths[0]) return null;
     let project: Project;
     try {
-      project = await refreshProject(JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8')) as Project);
+      project = await readProjectFile(r.filePaths[0]);
     } catch {
       dialog.showErrorBox('Kadro', 'Этот файл не похож на проект Kadro или повреждён.');
       return null;
     }
-    writeSettings({ ...readSettings(), lastProject: r.filePaths[0] });
+    rememberProject(r.filePaths[0]);
     return { project, path: r.filePaths[0] };
   });
+  ipcMain.handle('project:openPath', async (_e, file: string) => {
+    if (!fs.existsSync(file)) return { error: 'Файла проекта больше нет на этом месте — его переместили или удалили.' };
+    try {
+      const project = await readProjectFile(file);
+      rememberProject(file);
+      return { project, path: file };
+    } catch {
+      return { error: 'Этот файл не похож на проект Kadro или повреждён.' };
+    }
+  });
+  // перед заменой несохранённого проекта (новый, демо, шаблон) — копия в «Черновики», чтобы ничего не потерять
+  ipcMain.handle('project:stash', async (_e, project: Project) => {
+    const dir = path.join(dataDir(), 'drafts');
+    fs.mkdirSync(dir, { recursive: true });
+    const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '-');
+    const safe = (project.name || 'Проект').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || 'Проект';
+    const file = path.join(dir, `${safe} ${stamp}.kadro`);
+    writeProject(file, project);
+    rememberProject(file);
+    // храним 20 последних черновиков
+    const all = fs.readdirSync(dir).filter((f) => f.endsWith('.kadro')).map((f) => path.join(dir, f))
+      .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+    for (const old of all.slice(20)) { try { fs.rmSync(old); } catch { /* занят — не страшно */ } }
+    return file;
+  });
+  ipcMain.on('project:forget', (_e, file: string) => {
+    const s = readSettings();
+    writeSettings({ ...s, recent: (s.recent ?? []).filter((x) => x !== file) });
+  });
+  ipcMain.handle('home:info', async (): Promise<HomeInfo> => ({
+    show: readSettings().showHome !== false,
+    autoOpen: !process.env.KADRO_SKIP_HOME && readSettings().showHome !== false,
+    demo: demoFiles(),
+    recent: recentProjects(),
+  }));
+  ipcMain.on('home:show', (_e, show: boolean) => writeSettings({ ...readSettings(), showHome: !!show }));
   ipcMain.handle('project:last', async () => {
     try {
       if (fs.existsSync(autosaveFile())) {

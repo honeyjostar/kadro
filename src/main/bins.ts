@@ -26,18 +26,23 @@ export function ffprobePath(): string {
   return `ffprobe${exe}`;
 }
 
-/** Встроенные небольшие модели (RNNoise), идут вместе с программой. */
-export function bundledModel(name: string): string {
+/** Файл, который идёт вместе с программой (resources/<dir>/<name>): в сборке — рядом с программой, при разработке — в папке проекта. */
+export function bundledFile(dir: string, name: string): string {
   const r = resourcesDir();
   const rp = process.env.KADRO_RESOURCES || (process as unknown as { resourcesPath?: string }).resourcesPath;
   const candidates = [
-    r && path.join(r, 'models', name),
-    rp && path.join(rp, 'models', name),
-    path.join(__dirname, '..', '..', 'resources', 'models', name),
-    path.join(process.cwd(), 'resources', 'models', name),
+    r && path.join(r, dir, name),
+    rp && path.join(rp, dir, name),
+    path.join(__dirname, '..', '..', 'resources', dir, name),
+    path.join(process.cwd(), 'resources', dir, name),
   ].filter(Boolean) as string[];
   for (const c of candidates) if (fs.existsSync(c)) return c;
   return candidates[candidates.length - 1];
+}
+
+/** Встроенные небольшие модели (RNNoise), идут вместе с программой. */
+export function bundledModel(name: string): string {
+  return bundledFile('models', name);
 }
 
 /** Папка для скачиваемых моделей и кэша. */

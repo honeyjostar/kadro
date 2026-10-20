@@ -33,13 +33,25 @@ export interface Template {
   swatch?: string;                // CSS-фон карточки
   thumb?: string;                 // картинка (для своих шаблонов), data: URL
   custom?: boolean;
+  demo?: DemoScene[];             // какие демо-ролики подставить в «Попробовать на примере» и в превью
+  cat?: TemplateCat;
+  poster?: number;                // секунда превью, которая видна до наведения (по умолчанию 1.2)
 }
+export type DemoScene = 'sunset' | 'city' | 'ocean' | 'synth' | 'space' | 'mountains' | 'liquid';
+export const DEMO_SCENES: DemoScene[] = ['sunset', 'city', 'ocean', 'synth', 'space', 'mountains', 'liquid'];
+export type TemplateCat = 'trend' | 'mood' | 'holiday' | 'youtube';
+export const TEMPLATE_CATS: { id: TemplateCat; label: string }[] = [
+  { id: 'trend', label: 'В тренде' },
+  { id: 'mood', label: 'Настроение' },
+  { id: 'holiday', label: 'Праздники' },
+  { id: 'youtube', label: 'YouTube и 16:9' },
+];
 
 const tr = (type: Transition['type'], duration: number): Transition => ({ type, duration });
 
 export const BUILTIN_TEMPLATES: Template[] = [
   {
-    id: 'trip', name: 'Путешествие', hint: '6 кадров, наезды, тёплый цвет', aspect: '9:16',
+    id: 'trip', name: 'Путешествие', hint: '6 кадров, наезды, тёплый цвет', aspect: '9:16', cat: 'trend', demo: ['sunset', 'ocean', 'mountains', 'city', 'synth', 'space'],
     swatch: 'linear-gradient(160deg,#f7b267 0%,#f4845f 45%,#5b6c8f 100%)',
     slots: [
       { duration: 2.2, zoom: [1.12, 1], color: { preset: 'sunset', presetAmount: 0.7 }, effects: [{ type: 'flash', amount: 0.5 }], transitionOut: tr('zoomin', 0.4) },
@@ -55,7 +67,7 @@ export const BUILTIN_TEMPLATES: Template[] = [
     ],
   },
   {
-    id: 'pulse', name: 'Ритм', hint: '8 быстрых склеек, глитч и тряска', aspect: '9:16',
+    id: 'pulse', name: 'Ритм', poster: 0.4, hint: '8 быстрых склеек, глитч и тряска', aspect: '9:16', cat: 'trend', demo: ['synth', 'city', 'liquid', 'space'],
     swatch: 'repeating-linear-gradient(115deg,#151225 0 14px,#ff3d7f 14px 18px,#151225 18px 30px,#46e0d0 30px 33px)',
     slots: Array.from({ length: 8 }, (_, i): TemplateSlot => ({
       duration: i === 7 ? 1.4 : 0.7,
@@ -69,7 +81,7 @@ export const BUILTIN_TEMPLATES: Template[] = [
     ],
   },
   {
-    id: 'vlog', name: 'Влог дня', hint: '4 сцены, мягкие переходы, подпись', aspect: '9:16',
+    id: 'vlog', name: 'Влог дня', hint: '4 сцены, мягкие переходы, подпись', aspect: '9:16', cat: 'mood', demo: ['ocean', 'sunset', 'city', 'mountains'],
     swatch: 'linear-gradient(180deg,#e9e3d5 0 55%,#c9b79c 55% 100%)',
     slots: [
       { duration: 3, zoom: [1, 1.06], color: { preset: 'warm', presetAmount: 0.6 }, transitionOut: tr('fade', 0.5) },
@@ -83,7 +95,7 @@ export const BUILTIN_TEMPLATES: Template[] = [
     ],
   },
   {
-    id: 'slides', name: 'Слайд-шоу', hint: '6 фото, плавный наезд, шторки', aspect: '1:1',
+    id: 'slides', name: 'Слайд-шоу', hint: '6 фото, плавный наезд, шторки', aspect: '1:1', cat: 'mood', demo: ['mountains', 'ocean', 'sunset', 'space', 'liquid', 'city'],
     swatch: 'linear-gradient(90deg,#4a6da6 0 33%,#d9963a 33% 66%,#5f9e6e 66%)',
     slots: Array.from({ length: 6 }, (_, i): TemplateSlot => ({
       duration: 2.5,
@@ -95,7 +107,7 @@ export const BUILTIN_TEMPLATES: Template[] = [
     ],
   },
   {
-    id: 'retro', name: 'Кассета', hint: 'VHS, зерно, дата в углу', aspect: '16:9',
+    id: 'retro', name: 'Кассета', hint: 'VHS, зерно, дата в углу', aspect: '16:9', cat: 'youtube', demo: ['sunset', 'ocean', 'city', 'synth'],
     swatch: 'repeating-linear-gradient(180deg,#5f6f8a 0 3px,#3d4a60 3px 6px)',
     slots: Array.from({ length: 4 }, (): TemplateSlot => ({
       duration: 2.5, effects: [{ type: 'vhs', amount: 0.7 }, { type: 'grain', amount: 0.35 }, { type: 'vignette', amount: 0.3 }],
@@ -106,18 +118,226 @@ export const BUILTIN_TEMPLATES: Template[] = [
     ],
   },
   {
-    id: 'cinema', name: 'Кино', hint: '3 длинных плана, затемнения, титр', aspect: '16:9',
+    id: 'cinema', name: 'Кино', poster: 2, hint: '3 длинных плана, полосы, затемнения, титр', aspect: '16:9', cat: 'youtube', demo: ['mountains', 'ocean', 'space'],
     swatch: 'linear-gradient(180deg,#000 0 18%,#2b3a4a 18% 82%,#000 82%)',
     slots: [
-      { duration: 4, zoom: [1, 1.05], color: { preset: 'drama', presetAmount: 0.7 }, effects: [{ type: 'vignette', amount: 0.5 }], transitionOut: tr('fadeblack', 0.8) },
-      { duration: 4, zoom: [1.05, 1], color: { preset: 'drama', presetAmount: 0.7 }, effects: [{ type: 'vignette', amount: 0.5 }], transitionOut: tr('fadeblack', 0.8) },
-      { duration: 4.5, zoom: [1, 1.08], color: { preset: 'drama', presetAmount: 0.7 }, effects: [{ type: 'vignette', amount: 0.5 }] },
+      { duration: 4, zoom: [1, 1.05], color: { preset: 'tealorange', presetAmount: 0.8 }, effects: [{ type: 'vignette', amount: 0.5 }, { type: 'letterbox', amount: 0.5 }], transitionOut: tr('fadeblack', 0.8) },
+      { duration: 4, zoom: [1.05, 1], color: { preset: 'tealorange', presetAmount: 0.8 }, effects: [{ type: 'vignette', amount: 0.5 }, { type: 'letterbox', amount: 0.5 }], transitionOut: tr('fadeblack', 0.8) },
+      { duration: 4.5, zoom: [1, 1.08], color: { preset: 'tealorange', presetAmount: 0.8 }, effects: [{ type: 'vignette', amount: 0.5 }, { type: 'letterbox', amount: 0.5 }] },
     ],
     texts: [
-      { start: 0.8, duration: 3, text: 'ГЛАВА ПЕРВАЯ', preset: 'classic', style: { size: 64, font: 'PT Serif', bold: false }, anim: { in: { type: 'fade', dur: 0.8 }, out: { type: 'fade', dur: 0.8 } }, y: 0.5 },
+      { start: 0.8, duration: 3, text: 'ГЛАВА ПЕРВАЯ', preset: 'classic', style: { size: 50, font: 'PT Serif', bold: false }, anim: { in: { type: 'fade', dur: 0.8 }, out: { type: 'fade', dur: 0.8 } }, y: 0.95 },
+    ],
+  },
+  {
+    id: 'birthday', name: 'С днём рождения', hint: 'конфетти, яркий цвет, пузырчатый титр', aspect: '9:16', cat: 'holiday', demo: ['liquid', 'synth', 'city', 'sunset', 'space'],
+    swatch: 'linear-gradient(135deg,#ff5e87,#ffc857)',
+    slots: [
+      { duration: 2.4, zoom: [1.12, 1], color: { preset: 'candy', presetAmount: 0.8 }, effects: [{ type: 'confetti', amount: 0.7 }], transitionOut: tr('circleopen', 0.4) },
+      { duration: 1.8, zoom: [1, 1.1], color: { preset: 'candy', presetAmount: 0.8 }, effects: [{ type: 'pulse', amount: 0.5 }], transitionOut: tr('pixelize', 0.4) },
+      { duration: 1.8, zoom: [1.1, 1], color: { preset: 'candy', presetAmount: 0.8 }, effects: [{ type: 'sparkles', amount: 0.6 }], transitionOut: tr('coverup', 0.35) },
+      { duration: 1.8, zoom: [1, 1.1], color: { preset: 'candy', presetAmount: 0.8 }, effects: [{ type: 'heartbeat', amount: 0.5 }], transitionOut: tr('circleopen', 0.4) },
+      { duration: 2.8, zoom: [1, 1.12], color: { preset: 'candy', presetAmount: 0.8 }, effects: [{ type: 'confetti', amount: 0.9 }] },
+    ],
+    texts: [
+      { start: 0.2, duration: 2.6, text: 'С ДНЁМ РОЖДЕНИЯ!', preset: 'outline', style: { size: 104, font: 'Rubik Bubbles', color: '#ffe14d' }, anim: { in: { type: 'pop', dur: 0.5 }, out: { type: 'zoom', dur: 0.3 } }, y: 0.45 },
+      { start: -2.6, duration: 2.6, text: 'загадай желание', preset: 'classic', style: { size: 84, font: 'Caveat', bold: true }, anim: { in: { type: 'typewriter', dur: 1 } }, y: 0.74 },
+    ],
+  },
+  {
+    id: 'love', name: 'Любовь', poster: 1.8, hint: 'сердечки, розовый цвет, мягкие переходы', aspect: '9:16', cat: 'holiday', demo: ['sunset', 'liquid', 'ocean', 'city'],
+    swatch: 'linear-gradient(160deg,#ffafbd,#ffc3a0)',
+    slots: [
+      { duration: 2.6, zoom: [1, 1.08], color: { preset: 'rose', presetAmount: 0.9 }, effects: [{ type: 'hearts', amount: 0.5 }, { type: 'glow', amount: 0.4 }], transitionOut: tr('fadeslow', 0.6) },
+      { duration: 2.4, zoom: [1.08, 1], color: { preset: 'rose', presetAmount: 0.9 }, effects: [{ type: 'glow', amount: 0.4 }], transitionOut: tr('smoothleft', 0.6) },
+      { duration: 2.4, zoom: [1, 1.08], color: { preset: 'rose', presetAmount: 0.9 }, effects: [{ type: 'glow', amount: 0.4 }], transitionOut: tr('fadeslow', 0.6) },
+      { duration: 3, zoom: [1.08, 1], color: { preset: 'rose', presetAmount: 0.9 }, effects: [{ type: 'hearts', amount: 0.8 }, { type: 'glow', amount: 0.4 }] },
+    ],
+    texts: [
+      { start: 0.4, duration: 3, text: 'ты и я', preset: 'outline', style: { size: 160, font: 'Marck Script', strokeColor: '#b0124f', strokeWidth: 6 }, anim: { in: { type: 'blur', dur: 0.8 }, out: { type: 'fade', dur: 0.5 } }, y: 0.5 },
+      { start: -2.8, duration: 2.8, text: 'навсегда', preset: 'outline', style: { size: 120, font: 'Marck Script', strokeColor: '#b0124f', strokeWidth: 5 }, anim: { in: { type: 'fade', dur: 0.8 } }, y: 0.78 },
+    ],
+  },
+  {
+    id: 'winter', name: 'Зимняя сказка', hint: 'снег, холодный цвет, белые вспышки', aspect: '9:16', cat: 'holiday', demo: ['mountains', 'space', 'city', 'ocean'],
+    swatch: 'linear-gradient(180deg,#d7e8f7,#8fb4d8)',
+    slots: [
+      { duration: 3, zoom: [1.1, 1], color: { preset: 'winter', presetAmount: 0.9 }, effects: [{ type: 'snow', amount: 0.7 }], transitionOut: tr('fadewhite', 0.5) },
+      { duration: 2.5, zoom: [1, 1.08], color: { preset: 'winter', presetAmount: 0.9 }, effects: [{ type: 'snow', amount: 0.7 }], transitionOut: tr('fadewhite', 0.5) },
+      { duration: 2.5, zoom: [1.08, 1], color: { preset: 'winter', presetAmount: 0.9 }, effects: [{ type: 'snow', amount: 0.7 }], transitionOut: tr('fadewhite', 0.5) },
+      { duration: 3, zoom: [1, 1.1], color: { preset: 'winter', presetAmount: 0.9 }, effects: [{ type: 'snow', amount: 1 }, { type: 'sparkles', amount: 0.4 }] },
+    ],
+    texts: [
+      { start: 0.3, duration: 2.8, text: 'ЗИМА', preset: 'classic', style: { size: 150, font: 'Unbounded', bold: true }, anim: { in: { type: 'blur', dur: 0.8 }, out: { type: 'fade', dur: 0.4 } }, y: 0.42 },
+      { start: -3, duration: 3, text: 'С Новым годом', preset: 'classic', style: { size: 90, font: 'Lobster' }, anim: { in: { type: 'slideUp', dur: 0.6 } }, y: 0.72 },
+    ],
+  },
+  {
+    id: 'party', name: 'Вечеринка', poster: 0.35, hint: '8 вспышек под бит, стробоскоп, неон', aspect: '9:16', cat: 'trend', demo: ['synth', 'city', 'liquid', 'space'],
+    swatch: 'linear-gradient(135deg,#12002b,#ff2fa0 60%,#3dd6ff)',
+    slots: Array.from({ length: 8 }, (_, i): TemplateSlot => ({
+      duration: i === 7 ? 1.6 : 0.65,
+      color: { preset: 'electric', presetAmount: 0.8 },
+      effects: i % 2 === 0 ? [{ type: 'strobe', amount: 0.5 }, { type: 'glow', amount: 0.5 }] : [{ type: 'colorpulse', amount: 0.7 }, { type: 'rgbsplit', amount: 0.4 }],
+      zoom: i % 2 === 0 ? [1.1, 1] : [1, 1.1],
+      transitionOut: i === 3 ? tr('squeezeh', 0.25) : undefined,
+    })),
+    texts: [
+      { start: 0, duration: 1.3, text: 'ВЕЧЕРИНКА', preset: 'classic', style: { size: 120, font: 'Rubik Glitch', color: '#ff4fd8' }, anim: { in: { type: 'zoom', dur: 0.25 }, out: { type: 'pop', dur: 0.2 } }, y: 0.5 },
+    ],
+  },
+  {
+    id: 'sport', name: 'Энергия', poster: 0.75, hint: 'землетрясение, наезды, вспышки, крупный титр', aspect: '9:16', cat: 'trend', demo: ['synth', 'mountains', 'city', 'space', 'ocean'],
+    swatch: 'linear-gradient(135deg,#111,#e01e37)',
+    slots: [
+      { duration: 1.6, zoom: [1.15, 1], color: { preset: 'drama', presetAmount: 0.8 }, effects: [{ type: 'flash', amount: 0.6 }, { type: 'quake', amount: 0.4 }], transitionOut: tr('zoomin', 0.3) },
+      { duration: 1.3, color: { preset: 'drama', presetAmount: 0.8 }, effects: [{ type: 'zoomin', amount: 0.8 }], transitionOut: tr('slideup', 0.25) },
+      { duration: 1.3, color: { preset: 'drama', presetAmount: 0.8 }, effects: [{ type: 'zoomout', amount: 0.8 }], transitionOut: tr('slideup', 0.25) },
+      { duration: 1.3, color: { preset: 'drama', presetAmount: 0.8 }, effects: [{ type: 'quake', amount: 0.5 }], transitionOut: tr('zoomin', 0.3) },
+      { duration: 2.2, zoom: [1, 1.12], color: { preset: 'drama', presetAmount: 0.8 }, effects: [{ type: 'flash', amount: 0.6 }] },
+    ],
+    texts: [
+      { start: 0.1, duration: 1.5, text: 'НЕ СДАВАЙСЯ', preset: 'yellow', style: { size: 110, font: 'Russo One' }, anim: { in: { type: 'slideUp', dur: 0.25 }, out: { type: 'zoom', dur: 0.2 } }, y: 0.5 },
+      { start: -2, duration: 2, text: 'ТОЛЬКО ВПЕРЁД', preset: 'yellow', style: { size: 96, font: 'Russo One' }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.5 },
+    ],
+  },
+  {
+    id: 'aesthetic', name: 'Эстетика', poster: 2, hint: 'полароид, зерно, медленный отъезд', aspect: '9:16', cat: 'mood', demo: ['liquid', 'sunset', 'ocean', 'mountains'],
+    swatch: 'linear-gradient(180deg,#efe6dd,#cdb4a6)',
+    slots: [
+      { duration: 3, color: { preset: 'polaroid', presetAmount: 1 }, effects: [{ type: 'grain', amount: 0.35 }, { type: 'zoomout', amount: 0.5 }], transitionOut: tr('fadeslow', 0.7) },
+      { duration: 3, color: { preset: 'polaroid', presetAmount: 1 }, effects: [{ type: 'grain', amount: 0.35 }, { type: 'drift', amount: 0.6 }], transitionOut: tr('fadeslow', 0.7) },
+      { duration: 3, color: { preset: 'polaroid', presetAmount: 1 }, effects: [{ type: 'grain', amount: 0.35 }, { type: 'zoomout', amount: 0.5 }], transitionOut: tr('fadeslow', 0.7) },
+      { duration: 3.5, color: { preset: 'polaroid', presetAmount: 1 }, effects: [{ type: 'grain', amount: 0.35 }, { type: 'lightleak', amount: 0.4 }] },
+    ],
+    texts: [
+      { start: 0.5, duration: 3, text: 'мои дни', preset: 'classic', style: { size: 140, font: 'Cormorant Garamond', italic: true, bold: true, color: '#3a2626', shadow: false }, anim: { in: { type: 'blur', dur: 0.9 }, out: { type: 'fade', dur: 0.6 } }, y: 0.5 },
+    ],
+  },
+  {
+    id: 'neonnight', name: 'Неоновая ночь', hint: 'ночной город, сияние, ветер', aspect: '9:16', cat: 'mood', demo: ['city', 'synth', 'space', 'liquid'],
+    swatch: 'linear-gradient(160deg,#0b0b2a,#5b2a86 60%,#ff38c8)',
+    slots: [
+      { duration: 2.6, zoom: [1.1, 1], color: { preset: 'nightcity', presetAmount: 0.9 }, effects: [{ type: 'glow', amount: 0.6 }], transitionOut: tr('hlwind', 0.5) },
+      { duration: 2.2, zoom: [1, 1.08], color: { preset: 'nightcity', presetAmount: 0.9 }, effects: [{ type: 'glow', amount: 0.6 }, { type: 'rgbsplit', amount: 0.25 }], transitionOut: tr('hlwind', 0.5) },
+      { duration: 2.2, zoom: [1.08, 1], color: { preset: 'nightcity', presetAmount: 0.9 }, effects: [{ type: 'glow', amount: 0.6 }], transitionOut: tr('hlwind', 0.5) },
+      { duration: 2.8, zoom: [1, 1.1], color: { preset: 'nightcity', presetAmount: 0.9 }, effects: [{ type: 'glow', amount: 0.6 }, { type: 'lightleak', amount: 0.4 }] },
+    ],
+    texts: [
+      { start: 0.3, duration: 2.4, text: 'НОЧЬ', preset: 'neon', style: { size: 160, font: 'Tektur', bold: true }, anim: { in: { type: 'wipe', dur: 0.5 }, out: { type: 'fade', dur: 0.4 } }, y: 0.45 },
+    ],
+  },
+  {
+    id: 'collage', name: 'Коллаж', hint: 'экраны 2×2 и полосы, сочный цвет', aspect: '9:16', cat: 'trend', demo: ['ocean', 'sunset', 'synth', 'mountains', 'city'],
+    swatch: 'conic-gradient(#ff5e87 0 25%,#ffc857 0 50%,#3dd6ff 0 75%,#7cff6b 0)',
+    slots: [
+      { duration: 1.8, color: { preset: 'pop', presetAmount: 0.7 }, effects: [{ type: 'split4', amount: 0.6 }], transitionOut: tr('coverleft', 0.35) },
+      { duration: 1.8, color: { preset: 'pop', presetAmount: 0.7 }, effects: [{ type: 'split3', amount: 0.6 }], transitionOut: tr('coverleft', 0.35) },
+      { duration: 1.8, color: { preset: 'pop', presetAmount: 0.7 }, effects: [{ type: 'split9', amount: 0.5 }], transitionOut: tr('coverleft', 0.35) },
+      { duration: 1.8, color: { preset: 'pop', presetAmount: 0.7 }, effects: [{ type: 'split2', amount: 0.6 }], transitionOut: tr('coverleft', 0.35) },
+      { duration: 2.2, zoom: [1, 1.1], color: { preset: 'pop', presetAmount: 0.7 } },
+    ],
+    texts: [
+      { start: -2.2, duration: 2.2, text: 'ВОТ ЭТО ДЕНЬ', preset: 'boxwhite', style: { size: 84, font: 'Montserrat', bold: true }, anim: { in: { type: 'pop', dur: 0.35 } }, y: 0.82 },
+    ],
+  },
+  {
+    id: 'beforeafter', name: 'До и после', poster: 2.65, hint: 'ч/б → цвет, шторка между ними', aspect: '9:16', cat: 'trend', demo: ['sunset'],
+    swatch: 'linear-gradient(90deg,#777 50%,#ff8a3d 50%)',
+    slots: [
+      { duration: 2.5, color: { preset: 'hardbw', presetAmount: 1 }, transitionOut: tr('wipeleft', 0.5) },
+      { duration: 3, zoom: [1, 1.08], color: { preset: 'vivid', presetAmount: 1 }, effects: [{ type: 'sparkles', amount: 0.4 }] },
+    ],
+    texts: [
+      { start: 0.1, duration: 2.2, text: 'ДО', preset: 'boxwhite', style: { size: 96, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.15 },
+      { start: 2.3, duration: 2.7, text: 'ПОСЛЕ', preset: 'box', style: { size: 96, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.15 },
+    ],
+  },
+  {
+    id: 'countdown', name: 'Обратный отсчёт', hint: '3, 2, 1 — и показ', aspect: '9:16', cat: 'trend', demo: ['space', 'synth', 'city', 'liquid'],
+    swatch: 'radial-gradient(circle,#ffe35a 0 20%,#15131a 21%)',
+    slots: [
+      { duration: 0.9, color: { preset: 'bw', presetAmount: 1 }, effects: [{ type: 'pulse', amount: 0.8 }] },
+      { duration: 0.9, color: { preset: 'bw', presetAmount: 1 }, effects: [{ type: 'pulse', amount: 0.8 }] },
+      { duration: 0.9, color: { preset: 'bw', presetAmount: 1 }, effects: [{ type: 'pulse', amount: 0.8 }], transitionOut: tr('fadewhite', 0.3) },
+      { duration: 3, zoom: [1.15, 1], color: { preset: 'vivid', presetAmount: 0.8 }, effects: [{ type: 'flash', amount: 0.8 }, { type: 'confetti', amount: 0.5 }] },
+    ],
+    texts: [
+      { start: 0, duration: 0.9, text: '3', preset: 'classic', style: { size: 300, font: 'Unbounded', bold: true }, anim: { in: { type: 'zoom', dur: 0.2 } }, y: 0.5 },
+      { start: 0.9, duration: 0.9, text: '2', preset: 'classic', style: { size: 300, font: 'Unbounded', bold: true }, anim: { in: { type: 'zoom', dur: 0.2 } }, y: 0.5 },
+      { start: 1.8, duration: 0.9, text: '1', preset: 'classic', style: { size: 300, font: 'Unbounded', bold: true }, anim: { in: { type: 'zoom', dur: 0.2 } }, y: 0.5 },
+      { start: 2.75, duration: 2.5, text: 'ПОЕХАЛИ!', preset: 'yellow', style: { size: 120, font: 'Russo One' }, anim: { in: { type: 'pop', dur: 0.35 } }, y: 0.5 },
+    ],
+  },
+  {
+    id: 'gaming', name: 'Геймер', poster: 1.5, hint: 'глитч, пиксели, 80-е, пиксельный шрифт', aspect: '16:9', cat: 'youtube', demo: ['synth', 'space', 'city'],
+    swatch: 'repeating-linear-gradient(90deg,#1a0033 0 8px,#3dd6ff 8px 10px,#1a0033 10px 18px,#ff2fa0 18px 20px)',
+    slots: [
+      { duration: 2, zoom: [1.1, 1], color: { preset: 'eighties', presetAmount: 0.9 }, effects: [{ type: 'glitch', amount: 0.6 }], transitionOut: tr('pixelize', 0.5) },
+      { duration: 2, zoom: [1, 1.1], color: { preset: 'eighties', presetAmount: 0.9 }, effects: [{ type: 'rgbsplit', amount: 0.5 }, { type: 'vhs', amount: 0.4 }], transitionOut: tr('pixelize', 0.5) },
+      { duration: 2.6, zoom: [1.1, 1], color: { preset: 'eighties', presetAmount: 0.9 }, effects: [{ type: 'glitch', amount: 0.6 }] },
+    ],
+    texts: [
+      { start: 0.3, duration: 2.5, text: 'LEVEL UP', preset: 'outline', style: { size: 90, font: 'Press Start 2P', color: '#7cff6b' }, anim: { in: { type: 'typewriter', dur: 0.6 }, out: { type: 'fade', dur: 0.3 } }, y: 0.5 },
+      { start: -2, duration: 2, text: 'GAME OVER?', preset: 'outline', style: { size: 70, font: 'Press Start 2P', color: '#ff4fd8' }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.5 },
+    ],
+  },
+  {
+    id: 'memories', name: 'Воспоминания', poster: 1.8, hint: 'сепия, старое кино, печатная машинка', aspect: '1:1', cat: 'mood', demo: ['sunset', 'ocean', 'mountains', 'city'],
+    swatch: 'linear-gradient(180deg,#d9c4a1,#7a5c3a)',
+    slots: [
+      { duration: 3, zoom: [1, 1.08], color: { preset: 'sepia', presetAmount: 1 }, effects: [{ type: 'grain', amount: 0.5 }, { type: 'vignette', amount: 0.5 }, { type: 'flicker', amount: 0.4 }], transitionOut: tr('fadeblack', 0.6) },
+      { duration: 3, zoom: [1.08, 1], color: { preset: 'sepia', presetAmount: 1 }, effects: [{ type: 'grain', amount: 0.5 }, { type: 'vignette', amount: 0.5 }, { type: 'flicker', amount: 0.4 }], transitionOut: tr('fadeblack', 0.6) },
+      { duration: 3.5, zoom: [1, 1.08], color: { preset: 'sepia', presetAmount: 1 }, effects: [{ type: 'grain', amount: 0.5 }, { type: 'vignette', amount: 0.5 }, { type: 'flicker', amount: 0.4 }] },
+    ],
+    texts: [
+      { start: 0.5, duration: 3, text: 'помнишь?', preset: 'classic', style: { size: 90, font: 'PT Serif', italic: true }, anim: { in: { type: 'typewriter', dur: 1 }, out: { type: 'fade', dur: 0.5 } }, y: 0.78 },
+    ],
+  },
+  {
+    id: 'ytintro', name: 'Интро для YouTube', poster: 2, hint: 'кино-полосы, бирюза и оранж, название канала', aspect: '16:9', cat: 'youtube', demo: ['space', 'synth', 'ocean'],
+    swatch: 'linear-gradient(180deg,#000 0 15%,#1e3c50 15% 85%,#000 85%)',
+    slots: [
+      { duration: 2.4, zoom: [1.12, 1], color: { preset: 'blockbuster', presetAmount: 0.9 }, effects: [{ type: 'letterbox', amount: 0.4 }, { type: 'lightleak', amount: 0.3 }], transitionOut: tr('zoomin', 0.4) },
+      { duration: 2.6, zoom: [1, 1.1], color: { preset: 'blockbuster', presetAmount: 0.9 }, effects: [{ type: 'letterbox', amount: 0.4 }] },
+    ],
+    texts: [
+      { start: 0.4, duration: 4, text: 'НАЗВАНИЕ КАНАЛА', preset: 'classic', style: { size: 88, font: 'Montserrat', bold: true }, anim: { in: { type: 'wipe', dur: 0.6 }, out: { type: 'fade', dur: 0.4 } }, y: 0.47 },
+      { start: 1.4, duration: 3, text: 'подписывайся', preset: 'classic', style: { size: 46, font: 'Montserrat' }, anim: { in: { type: 'slideUp', dur: 0.5 } }, y: 0.6 },
     ],
   },
 ];
+
+/** Демо-проект для стартового экрана: все демо-ролики, склейки ровно на сильную долю демо-бита (112 ударов в минуту). */
+export const DEMO_BPM = 112;
+const BEAT = 60 / DEMO_BPM;
+/** Окошко на n долей: переход съедает часть окошка, поэтому добавляем его длину — склейки остаются в такт. */
+const onBeat = (n: number, t?: Transition): Pick<TemplateSlot, 'duration' | 'transitionOut'> => ({ duration: n * BEAT + (t?.duration ?? 0), transitionOut: t });
+const bar = (k: number) => k * 4 * BEAT + 0.25;
+export const DEMO_TEMPLATE: Template = {
+  id: 'demo', name: 'Демо Kadro', hint: 'что умеет Kadro, за 16 секунд', aspect: '9:16',
+  demo: ['sunset', 'city', 'synth', 'ocean', 'space', 'mountains', 'liquid'],
+  slots: [
+    { ...onBeat(4, tr('circleopen', 0.4)), zoom: [1.15, 1], color: { preset: 'golden', presetAmount: 0.8 }, effects: [{ type: 'flash', amount: 0.6 }] },
+    { ...onBeat(4, tr('pixelize', 0.35)), zoom: [1, 1.1], color: { preset: 'nightcity', presetAmount: 0.9 }, effects: [{ type: 'glow', amount: 0.6 }] },
+    { ...onBeat(4, tr('hlslice', 0.4)), color: { preset: 'electric', presetAmount: 0.8 }, effects: [{ type: 'glitch', amount: 0.5 }, { type: 'heartbeat', amount: 0.6 }] },
+    { ...onBeat(4, tr('smoothup', 0.4)), zoom: [1.1, 1], color: { preset: 'ocean', presetAmount: 0.9 }, effects: [{ type: 'sparkles', amount: 0.5 }] },
+    { ...onBeat(4, tr('fadewhite', 0.4)), color: { preset: 'cinema', presetAmount: 0.8 }, effects: [{ type: 'zoomin', amount: 0.8 }] },
+    { ...onBeat(4, tr('radial', 0.5)), zoom: [1, 1.1], color: { preset: 'winter', presetAmount: 0.9 }, effects: [{ type: 'snow', amount: 0.8 }] },
+    { ...onBeat(6), zoom: [1.1, 1], color: { preset: 'candy', presetAmount: 0.8 }, effects: [{ type: 'confetti', amount: 0.7 }] },
+  ],
+  texts: [
+    { start: 0.2, duration: 1.9, text: 'KADRO', preset: 'classic', style: { size: 170, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.45 }, out: { type: 'zoom', dur: 0.3 } }, y: 0.42 },
+    { start: 0.6, duration: 1.5, text: 'бесплатный видеоредактор', preset: 'classic', style: { size: 60, font: 'Montserrat', bold: true }, anim: { in: { type: 'slideUp', dur: 0.4 } }, y: 0.55 },
+    { start: bar(1), duration: 1.8, text: '58 переходов', preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.8 },
+    { start: bar(2), duration: 1.8, text: '48 эффектов', preset: 'box', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.8 },
+    { start: bar(3), duration: 1.8, text: '47 фильтров', preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.8 },
+    { start: bar(4), duration: 1.8, text: '122 шрифта', preset: 'box', style: { size: 60, font: 'Press Start 2P' }, anim: { in: { type: 'typewriter', dur: 0.5 } }, y: 0.8 },
+    { start: bar(5), duration: 1.8, text: 'ИИ без интернета', preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.8 },
+    { start: bar(6), duration: 2.9, text: 'Сделай свой ролик', preset: 'yellow', style: { size: 84, font: 'Russo One' }, anim: { in: { type: 'zoom', dur: 0.4 } }, y: 0.5 },
+  ],
+};
+
 
 /** Сколько длится шаблон (с учётом переходов). */
 export function templateDuration(t: Template): number {
@@ -173,7 +393,13 @@ export function applyTemplate(base: Project, t: Template, assets: MediaAsset[]):
   const last = main.clips[main.clips.length - 1];
   const total = last.start + clipDuration(last);
   if (t.texts.length) {
-    const tt = newTrack('text');
+    // надписи, которые идут одновременно, — на разных дорожках (одна дорожка — одна надпись в момент времени)
+    const lanes: ReturnType<typeof newTrack>[] = [];
+    const laneFor = (c: TextClip) => {
+      let lane = lanes.find((l) => l.clips.every((o) => o.start >= c.start + c.duration - 1e-6 || o.start + clipDuration(o) <= c.start + 1e-6));
+      if (!lane) { lane = newTrack('text'); lanes.push(lane); }
+      return lane;
+    };
     for (const x of t.texts) {
       const preset = TEXT_PRESETS.find((q) => q.id === x.preset)?.style ?? {};
       const start = Math.max(0, x.start < 0 ? total + x.start : x.start);
@@ -182,10 +408,9 @@ export function applyTemplate(base: Project, t: Template, assets: MediaAsset[]):
       c.duration = Math.round(Math.min(x.duration, total - start) * 1000) / 1000;
       if (x.y !== undefined) c.y = x.y;
       if (x.anim) c.anim = structuredClone(x.anim);
-      tt.clips.push(c);
+      laneFor(c).clips.push(c);
     }
-    tt.clips.sort((a, b) => a.start - b.start);
-    p.tracks.push(tt);
+    for (const l of lanes) { l.clips.sort((a, b) => a.start - b.start); p.tracks.push(l); }
   }
   return p;
 }

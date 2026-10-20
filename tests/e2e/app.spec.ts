@@ -759,7 +759,7 @@ test('шаблоны: из медиатеки, экспорт совпадает
   await win.getByTestId('tab-templates').click();
   await win.getByTestId('tpl-name').fill('Мой тест');
   await win.getByTestId('tpl-save').click();
-  await expect(win.getByText('Мои шаблоны')).toBeVisible();
+  await expect(win.locator('.sub-head', { hasText: 'Мои шаблоны' })).toBeVisible();
   const mine = await win.evaluate(() => (window as any).kadro.listTemplates());
   expect(mine.map((t: any) => t.name)).toContain('Мой тест');
   expect(mine[0].thumb).toMatch(/^data:image\/jpeg/);
@@ -772,7 +772,7 @@ test('шаблоны: из медиатеки, экспорт совпадает
   // и удалить свой шаблон
   await win.getByTestId(`tpl-${mine[0].id}`).getByRole('button').first().click();
   await win.getByTestId(`tpl-${mine[0].id}`).getByRole('button', { name: /Удалить шаблон/ }).click();
-  await expect(win.getByText('Мои шаблоны')).toHaveCount(0);
+  await expect(win.locator('.sub-head', { hasText: 'Мои шаблоны' })).toHaveCount(0);
 });
 
 test('голос, озвучка, ритм — через интерфейс', async () => {

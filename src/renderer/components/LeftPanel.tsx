@@ -19,9 +19,11 @@ import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextSty
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
+  loadDemoFiles, tryTemplate,
 } from '../actions';
 import { listMics, recPrefs, type MicInfo } from '../recorder';
-import { BUILTIN_TEMPLATES, templateDuration, type Template } from '../../shared/templates';
+import { BUILTIN_TEMPLATES, TEMPLATE_CATS, templateDuration, type Template, type TemplateCat } from '../../shared/templates';
+import { TemplatePreview } from './Home';
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore, type LeftTab } from '../store';
 import { fmtDur, fmtTime, peakLevel } from '../util';
@@ -75,44 +77,57 @@ export function LeftPanel() {
 function TemplatesPanel() {
   const [mine, setMine] = useState<Template[]>([]);
   const [open, setOpen] = useState<string | null>(null);
+  const [hover, setHover] = useState<string | null>(null);
+  const [cat, setCat] = useState<TemplateCat | 'all' | 'mine'>('all');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const libCount = useStore((s) => s.project.assets.filter((a) => !a.derived && (a.kind === 'video' || a.kind === 'image')).length);
   const hasMain = useStore((s) => s.project.tracks[0]?.clips.length > 0);
+  const hasDemo = useStore((s) => !!s.demo && Object.keys(s.demo.scenes).length > 0);
   const refresh = () => void api.listTemplates().then(setMine);
   useEffect(refresh, []);
+  useEffect(() => { void loadDemoFiles(); }, []);
   const run = async (fn: () => Promise<unknown>) => { setBusy(true); try { await fn(); } finally { setBusy(false); } };
   const card = (t: Template) => {
     const isOpen = open === t.id;
     return (
-      <div key={t.id} className={`tpl-card ${isOpen ? 'open' : ''}`} data-testid={`tpl-${t.id}`}>
-        <button className="tpl-head" onClick={() => setOpen(isOpen ? null : t.id)} aria-expanded={isOpen}>
-          <div className={`tpl-thumb a${t.aspect.replace(':', '-')}`} style={t.thumb ? { backgroundImage: `url("${t.thumb}")` } : { background: t.swatch ?? 'var(--raised-2)' }} />
-          <div className="tpl-info">
-            <b>{t.name}</b>
-            <span className="hint small">{t.hint}</span>
-            <span className="hint small">{t.aspect} · {t.slots.length} окошек · {templateDuration(t).toFixed(1)} с</span>
-          </div>
+      <div key={t.id} className={`tpl-card ${isOpen ? 'open' : ''} ${t.aspect === '16:9' || t.aspect === '21:9' || t.aspect === '4:3' ? 'wide' : ''}`} data-testid={`tpl-${t.id}`}
+        onMouseEnter={() => setHover(t.id)} onMouseLeave={() => setHover(null)}>
+        <button className="tpl-head" onClick={() => setOpen(isOpen ? null : t.id)} aria-expanded={isOpen} title={t.hint}>
+          <TemplatePreview t={t} active={hover === t.id || isOpen} />
+          <span className="tpl-badge">{t.aspect}</span>
+          <span className="tpl-name">{t.name}</span>
+          <span className="hint small tpl-hint">{t.hint}</span>
         </button>
         {isOpen && (
           <div className="tpl-actions">
-            <button className="btn primary block" disabled={busy} onClick={() => void run(() => startFromTemplate(t, 'pick'))} data-testid="tpl-pick"><FolderOpen size={14} />Выбрать видео и фото…</button>
-            <button className="btn block" disabled={busy || !libCount} onClick={() => void run(() => startFromTemplate(t, 'library'))} data-testid="tpl-library">
-              Взять из медиатеки{libCount ? ` (${libCount})` : ''}
+            <b className="tpl-open-name">{t.name}</b>
+            <span className="hint small">{t.hint}</span>
+            <span className="hint small">{t.slots.length} кадров, {fmtDur(templateDuration(t))}</span>
+            <button className="btn primary block small" disabled={busy} onClick={() => void run(() => startFromTemplate(t, 'pick'))} data-testid="tpl-pick"><FolderOpen size={13} />Свои файлы…</button>
+            <button className="btn block small" disabled={busy || !libCount} onClick={() => void run(() => startFromTemplate(t, 'library'))} data-testid="tpl-library">
+              Из медиатеки{libCount ? ` (${libCount})` : ''}
             </button>
+            {hasDemo && <button className="btn ghost block small" disabled={busy} onClick={() => void run(() => tryTemplate(t))} data-testid="tpl-try">Пример</button>}
             {t.custom && <button className="btn ghost small" onClick={() => void api.deleteTemplate(t.id).then(refresh)}><Trash2 size={13} />Удалить шаблон</button>}
           </div>
         )}
       </div>
     );
   };
+  const list = cat === 'mine' ? mine : BUILTIN_TEMPLATES.filter((t) => cat === 'all' || t.cat === cat);
   return (
     <>
       <div className="panel-head">Шаблоны</div>
       <div className="panel-body">
-        <p className="hint">Готовый монтаж: переходы, цвет, эффекты и надписи. Выбери шаблон, потом свои видео и фото — по порядку. Текст потом правится как обычно, отмена — Ctrl+Z.</p>
-        <div className="tpl-list">{BUILTIN_TEMPLATES.map(card)}</div>
-        {mine.length > 0 && (<><div className="sub-head">Мои шаблоны</div><div className="tpl-list">{mine.map(card)}</div></>)}
+        <p className="hint">Готовый монтаж с переходами, цветом, эффектами и надписями. Наведи на шаблон, чтобы посмотреть, нажми — и выбери свои видео и фото по порядку.</p>
+        <div className="chips">
+          <button className={cat === 'all' ? 'on' : ''} onClick={() => setCat('all')}>Все</button>
+          {TEMPLATE_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'on' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
+          {mine.length > 0 && <button className={cat === 'mine' ? 'on' : ''} onClick={() => setCat('mine')}>Мои шаблоны</button>}
+        </div>
+        <div className="tpl-list">{list.map(card)}</div>
+        {cat === 'all' && mine.length > 0 && (<><div className="sub-head">Мои шаблоны</div><div className="tpl-list">{mine.map(card)}</div></>)}
         <div className="sub-head">Сохранить свой</div>
         <p className="hint small">Длительности клипов основной дорожки, переходы, цвет, эффекты, наезды и надписи станут шаблоном — без самих видео.</p>
         <div className="row-btns">

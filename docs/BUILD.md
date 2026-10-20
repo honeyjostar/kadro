@@ -64,6 +64,19 @@ npx playwright test               # всё приложение (на Linux — 
 - `KADRO_SWIFTSHADER=1 npx playwright test` — то же на программной видеокарте (проверяет WebGL-путь превью).
 - На Linux: `xvfb-run -a npx playwright test`.
 
+## Демо-ролики и превью шаблонов
+
+Всё в `resources/demo` и `resources/templates` сделано кодом, без чужих файлов, и идёт в установщик:
+
+```bash
+node scripts/make-demo.mjs              # 7 сцен (scripts/demo-scenes.js) + демо-бит → resources/demo
+npm run build
+KADRO_MAKE_PREVIEWS=1 xvfb-run -a npx playwright test previews   # демо-ролик и превью каждого шаблона
+```
+
+Превью собираются в самом Kadro: шаблон на демо-видео → экспорт → сжатие (`tests/e2e/previews.spec.ts`).
+Один шаблон: `KADRO_MAKE_PREVIEWS=trip,reel …`. После правки шаблона в `src/shared/templates.ts` его превью нужно пересобрать.
+
 ## Установщик для Windows
 
 Собирается на Linux (или в WSL). Нужны `nsis` и `unzip`:

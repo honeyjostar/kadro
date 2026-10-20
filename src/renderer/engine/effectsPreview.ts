@@ -132,8 +132,9 @@ function vignetteCanvas(w: number, h: number, amount: number): HTMLCanvasElement
 }
 
 /** Применяет эффекты к слою (canvas размера w × h) в момент local (сек от начала клипа). */
-export function applyPixelEffects(layer: HTMLCanvasElement, c: MediaClip, local: number, tableApplier: TableApplier = cpuTable): void {
-  const list = sortedEffects(c.effects);
+export function applyPixelEffects(layer: HTMLCanvasElement, c: MediaClip, local: number, tableApplier: TableApplier = cpuTable, isMain = false): void {
+  // у клипа основной дорожки кино-полосы рисуются по краям кадра (drawMainBars), а не слоя
+  const list = sortedEffects(c.effects).filter((e) => !(isMain && e.type === 'letterbox'));
   if (!list.length) return;
   let lookDone = false;
   let matrixDone = false;
@@ -361,4 +362,20 @@ export function applyPixelEffects(layer: HTMLCanvasElement, c: MediaClip, local:
     lc.globalCompositeOperation = 'source-over';
   }
   lc.restore();
+}
+
+/** Кино-полосы клипа основной дорожки — по краям кадра (как в экспорте): при заполнении кадра края слоя обрезаны. */
+export function drawMainBars(ctx: CanvasRenderingContext2D, c: MediaClip, W: number, H: number): void {
+  const lb = c.effects?.find((e) => e.type === 'letterbox' && e.amount > 0);
+  if (!lb) return;
+  const bar = letterboxBar(H, lb.amount);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.filter = 'none';
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, bar);
+  ctx.fillRect(0, H - bar, W, bar);
+  ctx.restore();
 }
