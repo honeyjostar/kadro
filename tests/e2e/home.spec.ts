@@ -170,6 +170,20 @@ test('шаблон со своими файлами — с главного эк
   expect(new Set(p.tracks[0].clips.map((c: any) => c.assetId)).size).toBe(1);
 });
 
+test('тема: тёмная → светлая → как в Windows → тёмная', async () => {
+  const theme = () => win.evaluate(() => document.documentElement.dataset.theme);
+  expect(await theme()).toBe('dark');
+  await win.getByTestId('theme-btn').click();
+  await expect.poll(theme).toBe('light');
+  await expect(win.getByTestId('theme-btn')).toContainText('Светлая');
+  await win.getByTestId('theme-btn').click();
+  await expect(win.getByTestId('theme-btn')).toContainText('Как в Windows');
+  await win.getByTestId('theme-btn').click();
+  await expect.poll(theme).toBe('dark');
+  await win.getByTestId('theme-btn').click(); // светлая — проверим после перезапуска
+  await expect.poll(theme).toBe('light');
+});
+
 test('«Показывать при запуске» и недавние сохраняются после перезапуска', async () => {
   await openHome();
   await win.getByTestId('home-show').click();
@@ -182,5 +196,7 @@ test('«Показывать при запуске» и недавние сох�
   await expect(home()).toHaveCount(0);
   await openHome();
   await expect(win.getByTestId('home-recent').getByRole('button', { name: /Демо Kadro/ })).toBeVisible();
+  // тема запомнилась
+  expect(await win.evaluate(() => document.documentElement.dataset.theme)).toBe('light');
   await win.getByTestId('home-show').click(); // вернуть как было
 });

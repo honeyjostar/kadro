@@ -43,6 +43,46 @@ export async function importPaths(paths: string[], place?: { mode: 'main' | 'ove
   }
 }
 
+/**
+ * Файлы из библиотеки — на таймлайн по порядку (от курсора или от at). Файл, который уже есть в проекте,
+ * второй раз не импортируется: берётся тот же.
+ */
+export async function placeLibraryFiles(paths: string[], place: { mode: 'main' | 'overlay' | 'auto'; at?: number } = { mode: 'auto' }): Promise<void> {
+  if (!paths.length) return;
+  const have = new Map(getState().project.assets.filter((a) => !a.derived && !a.missing).map((a) => [a.path, a.id]));
+  const fresh = paths.filter((p) => !have.has(p));
+  if (fresh.length) {
+    const ids = await importPaths(fresh);
+    ids.forEach((id) => { const a = getState().project.assets.find((x) => x.id === id); if (a) have.set(a.path, id); });
+  }
+  let at = place.at ?? getState().playhead;
+  for (const p of paths) {
+    const id = have.get(p);
+    if (!id) continue;
+    const clipId = addAssetToTimeline(id, place.mode, at);
+    const f = clipId ? findClip(getState().project, clipId) : undefined;
+    if (f) at = clipEnd(f.clip);
+  }
+}
+
+/** Папки, брошенные в окно, — в библиотеку; файлы — в проект. */
+export async function dropPaths(paths: string[]): Promise<void> {
+  if (!paths.length) return;
+  const dirs = await api.whichDirs(paths);
+  const folders = paths.filter((_, i) => dirs[i]);
+  const files = paths.filter((_, i) => !dirs[i]);
+  if (folders.length) {
+    await api.libAdd(folders);
+    getState().setLeftTab('media');
+    getState().setLibJump(folders[0]);
+    getState().toast(folders.length === 1 ? `Папка «${folders[0].split(/[\\/]/).pop()}» добавлена в библиотеку` : `Папок добавлено в библиотеку: ${folders.length}`, 'ok');
+  }
+  if (files.length) {
+    const empty = projectDuration(getState().project) === 0;
+    await importPaths(files, empty ? { mode: 'auto', at: 0 } : undefined);
+  }
+}
+
 export async function pickAndImport(place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<void> {
   const paths = await api.pickMedia();
   await importPaths(paths, place);

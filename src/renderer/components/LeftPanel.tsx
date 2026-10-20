@@ -24,6 +24,7 @@ import {
 import { listMics, recPrefs, type MicInfo } from '../recorder';
 import { BUILTIN_TEMPLATES, TEMPLATE_CATS, templateDuration, type Template, type TemplateCat } from '../../shared/templates';
 import { TemplatePreview } from './Home';
+import { LibraryView } from './Library';
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore, type LeftTab } from '../store';
 import { fmtDur, fmtTime, peakLevel } from '../util';
@@ -202,16 +203,30 @@ function useUsedAssets(): Set<string> {
 }
 
 // ---------- Медиа ----------
+let mediaView: 'project' | 'library' = 'project';
 function MediaPanel() {
   const all = useStore((s) => s.project.assets);
   const assets = all.filter((a) => !a.derived);
   const used = useUsedAssets();
   const [filter, setFilter] = useState<'all' | 'video' | 'image' | 'audio'>('all');
+  const [view, setView] = useState(mediaView);
+  const jump = useStore((s) => s.libJump);
+  useEffect(() => { mediaView = view; }, [view]);
+  useEffect(() => { if (jump) setView('library'); }, [jump]);
   const list = assets.filter((a) => filter === 'all' || a.kind === filter);
   return (
     <>
       <div className="panel-head">Медиа</div>
       <div className="panel-body">
+        <div className="media-switch" role="tablist">
+          <button role="tab" aria-selected={view === 'project'} className={view === 'project' ? 'active' : ''} onClick={() => setView('project')} data-testid="media-view-project">
+            В проекте{assets.length ? ` · ${assets.length}` : ''}
+          </button>
+          <button role="tab" aria-selected={view === 'library'} className={view === 'library' ? 'active' : ''} onClick={() => setView('library')} data-testid="media-view-library">
+            Библиотека
+          </button>
+        </div>
+        {view === 'library' ? <LibraryView /> : (<>
         <DropZone accept="any" compact={assets.length > 0} />
         {assets.length > 0 && (
           <>
@@ -225,6 +240,7 @@ function MediaPanel() {
             <p className="hint small" style={{ marginTop: 12 }}>Двойной клик или «+» — на таймлайн к курсору. Можно перетащить прямо на нужную дорожку.</p>
           </>
         )}
+        </>)}
       </div>
     </>
   );

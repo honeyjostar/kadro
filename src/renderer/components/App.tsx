@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { deleteSelection, duplicateSelection, importPaths, reportMissing, saveProject, splitAtPlayhead, groupSelection, ungroupSelection } from '../actions';
+import { deleteSelection, dropPaths, duplicateSelection, reportMissing, saveProject, splitAtPlayhead, groupSelection, ungroupSelection } from '../actions';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
@@ -89,8 +89,7 @@ export function App() {
       e.preventDefault();
       const paths = [...e.dataTransfer.files].map((f) => api.pathForFile(f)).filter(Boolean);
       getState().setHome(false);
-      const empty = projectDuration(getState().project) === 0;
-      void importPaths(paths, empty ? { mode: 'auto', at: 0 } : undefined);
+      void dropPaths(paths);
     };
     window.addEventListener('dragover', over);
     window.addEventListener('drop', drop);

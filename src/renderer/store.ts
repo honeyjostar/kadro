@@ -43,6 +43,8 @@ interface State {
   theme: 'dark' | 'light';
   /** Показывать в плеере, где интерфейс TikTok / Reels / Shorts закроет видео. */
   safeZone: Platform | null;
+  /** Папку только что бросили в окно — открыть её в библиотеке. */
+  libJump: string | null;
 
   commit: (fn: (p: Project) => Project, key?: string) => void;
   replace: (p: Project, path?: string | null) => void;
@@ -65,6 +67,7 @@ interface State {
   setThemePref: (t: ThemePref) => void;
   setTheme: (t: 'dark' | 'light') => void;
   setSafeZone: (z: Platform | null) => void;
+  setLibJump: (p: string | null) => void;
 }
 
 const HISTORY = 120;
@@ -111,9 +114,10 @@ export const useStore = create<State>((set, get) => ({
   recording: null,
   home: false,
   demo: null,
-  themePref: api?.initialTheme ?? 'dark',
-  theme: 'dark',
+  themePref: api?.initialTheme?.pref ?? 'dark',
+  theme: api?.initialTheme?.dark === false ? 'light' : 'dark',
   safeZone: readPref<Platform | null>('kadro.safeZone', null),
+  libJump: null,
 
   commit: (fn, key) => {
     const s = get();
@@ -188,6 +192,7 @@ export const useStore = create<State>((set, get) => ({
   setThemePref: (t) => { api.setTheme(t); set({ themePref: t }); },
   setTheme: (t) => set({ theme: t }),
   setSafeZone: (z) => { writePref('kadro.safeZone', z); set({ safeZone: z }); },
+  setLibJump: (p) => set({ libJump: p }),
 }));
 
 export const getState = () => useStore.getState();

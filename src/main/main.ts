@@ -3,7 +3,8 @@ import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, shell,
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, ModelInfo, RecentProject, ThemePref, VoiceInfo } from '../shared/ipc';
+import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, LibFolder, ModelInfo, RecentProject, ThemePref, VoiceInfo } from '../shared/ipc';
+import { countDeep, libMeta, listDir, searchDir } from './library';
 import type { MediaAsset, Project } from '../shared/types';
 import { ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady } from './ai/models';
 import { denoise } from './ai/denoise';
@@ -74,6 +75,8 @@ function chromeColors(): { bg: string; symbol: string } {
 }
 function applyTheme(pref: ThemePref): void {
   nativeTheme.themeSource = pref;
+  // окно не всегда узнаёт о смене через prefers-color-scheme — сообщаем явно
+  win?.webContents.send('theme:changed', { pref, dark: nativeTheme.shouldUseDarkColors });
   const c = chromeColors();
   if (win && !win.isDestroyed()) {
     win.setBackgroundColor(c.bg);
@@ -339,7 +342,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref }
+interface Settings { lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[] }
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
 }
@@ -382,6 +385,36 @@ async function readProjectFile(file: string): Promise<Project> {
   return refreshProject(p);
 }
 const autosaveFile = () => path.join(dataDir(), 'autosave.kadro');
+
+// ---------- библиотека папок ----------
+const folderCounts = new Map<string, number>();
+function libFolders(): LibFolder[] {
+  return (readSettings().library ?? []).map((p) => {
+    const exists = fs.existsSync(p);
+    if (exists && !folderCounts.has(p)) folderCounts.set(p, countDeep(p));
+    return { path: p, name: path.basename(p) || p, exists, count: folderCounts.get(p) ?? 0 };
+  });
+}
+function libAdd(paths: string[]): void {
+  const s = readSettings();
+  const list = s.library ?? [];
+  for (const raw of paths) {
+    const p = path.resolve(raw);
+    try { if (!fs.statSync(p).isDirectory()) continue; } catch { continue; }
+    if (list.some((x) => path.resolve(x).toLowerCase() === p.toLowerCase())) continue;
+    list.push(p);
+    folderCounts.delete(p);
+  }
+  writeSettings({ ...s, library: list });
+}
+/** Путь внутри одной из папок библиотеки (в другие места окно не заглядывает). */
+function inLibrary(p: string): boolean {
+  const r = path.resolve(p).toLowerCase();
+  return (readSettings().library ?? []).some((root) => {
+    const base = path.resolve(root).toLowerCase();
+    return r === base || r.startsWith(base + path.sep);
+  });
+}
 
 function writeProject(file: string, project: Project): void {
   const tmp = `${file}.tmp`;
@@ -460,6 +493,29 @@ function registerIpc(): void {
     for (const old of all.slice(20)) { try { fs.rmSync(old); } catch { /* занят — не страшно */ } }
     return file;
   });
+  ipcMain.handle('lib:folders', () => libFolders());
+  ipcMain.handle('lib:add', async (_e, paths: string[] | null) => {
+    let list = paths;
+    if (!list) {
+      if (process.env.KADRO_TEST_FOLDER) list = process.env.KADRO_TEST_FOLDER.split('|'); // автотесты: без системного окна
+      else {
+        const r = await dialog.showOpenDialog(win!, { title: 'Добавить папку в библиотеку', properties: ['openDirectory', 'multiSelections'] });
+        if (r.canceled) return libFolders();
+        list = r.filePaths;
+      }
+    }
+    libAdd(list);
+    return libFolders();
+  });
+  ipcMain.handle('lib:remove', (_e, p: string) => {
+    const s = readSettings();
+    writeSettings({ ...s, library: (s.library ?? []).filter((x) => x !== p) });
+    return libFolders();
+  });
+  ipcMain.handle('lib:list', (_e, dir: string) => (inLibrary(dir) ? listDir(dir) : { dir, dirs: [], files: [], error: 'Эта папка не в библиотеке' }));
+  ipcMain.handle('lib:search', (_e, root: string, q: string) => (inLibrary(root) ? searchDir(root, q) : []));
+  ipcMain.handle('lib:meta', (_e, file: string) => (inLibrary(file) ? libMeta(file) : { missing: true }));
+  ipcMain.handle('fs:dirs', (_e, paths: string[]) => paths.map((p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } }));
   ipcMain.on('project:forget', (_e, file: string) => {
     const s = readSettings();
     writeSettings({ ...s, recent: (s.recent ?? []).filter((x) => x !== file) });
@@ -546,7 +602,7 @@ function registerIpc(): void {
   });
   ipcMain.on('shell:show', (_e, p: string) => shell.showItemInFolder(p));
   ipcMain.on('win:title', (_e, t: string) => win?.setTitle(t));
-  ipcMain.on('theme:get', (e) => { e.returnValue = readSettings().theme ?? 'dark'; });
+  ipcMain.on('theme:get', (e) => { e.returnValue = { pref: readSettings().theme ?? 'dark', dark: nativeTheme.shouldUseDarkColors }; });
   ipcMain.on('theme:set', (_e, pref: ThemePref) => {
     if (!['dark', 'light', 'system'].includes(pref)) return;
     writeSettings({ ...readSettings(), theme: pref });

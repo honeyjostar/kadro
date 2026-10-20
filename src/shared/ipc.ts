@@ -59,6 +59,15 @@ export interface AppInfo { version: string; platform: string; nvenc: boolean; da
 
 export interface ImportResult { assets: MediaAsset[]; errors: { path: string; message: string }[] }
 
+// ---------- библиотека папок ----------
+export type LibKind = 'video' | 'image' | 'audio';
+export interface LibFolder { path: string; name: string; exists: boolean; count: number }
+export interface LibDir { path: string; name: string; count: number }
+export interface LibFile { path: string; name: string; kind: LibKind; size: number; mtime: number }
+export interface LibListing { dir: string; dirs: LibDir[]; files: LibFile[]; error?: string }
+/** Кадр-превью и сведения о файле библиотеки (появляются по мере готовности). */
+export interface LibMeta { thumb?: string; duration?: number; width?: number; height?: number; broken?: boolean; missing?: boolean }
+
 /** Тема: тёмная, светлая или как в Windows. */
 export type ThemePref = 'dark' | 'light' | 'system';
 export interface RecentProject { path: string; name: string; mtime: number; clips: number; duration: number; aspect: string; thumb?: string }
@@ -81,10 +90,21 @@ export interface KadroApi {
   /** Стартовый экран: показывать ли, недавние проекты, демо-файлы. */
   homeInfo(): Promise<HomeInfo>;
   setShowHome(show: boolean): void;
-  /** Тема при запуске (читается сразу, чтобы окно не мигало). */
-  initialTheme: ThemePref;
+  /** Тема при запуске (читается сразу, чтобы окно не мигало): выбор и тёмная ли она сейчас. */
+  initialTheme: { pref: ThemePref; dark: boolean };
   setTheme(pref: ThemePref): void;
+  onThemeChanged(cb: (t: { pref: ThemePref; dark: boolean }) => void): () => void;
   forgetRecent(path: string): void;
+  /** Библиотека: папки, которые видны в любом проекте. */
+  libFolders(): Promise<LibFolder[]>;
+  /** Добавить папки (без путей — окно выбора папки). */
+  libAdd(paths?: string[]): Promise<LibFolder[]>;
+  libRemove(path: string): Promise<LibFolder[]>;
+  libList(dir: string): Promise<LibListing>;
+  libSearch(root: string, query: string): Promise<LibFile[]>;
+  libMeta(file: string): Promise<LibMeta>;
+  /** Какие из путей — папки (для перетаскивания в окно). */
+  whichDirs(paths: string[]): Promise<boolean[]>;
   /** Сохранить копию проекта в «Черновики» (и в недавние). */
   stashDraft(project: Project): Promise<string>;
   loadLast(): Promise<{ project: Project; path: string | null } | null>;

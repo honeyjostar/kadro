@@ -27,14 +27,13 @@ window.addEventListener('unhandledrejection', (e) => {
   report(r instanceof Error ? r.stack ?? r.message : String(r));
 });
 
-// тема: главный процесс выставляет её системе окна, окно лишь следует prefers-color-scheme
-const lightQuery = window.matchMedia('(prefers-color-scheme: light)');
-const applyTheme = () => {
-  const t = lightQuery.matches ? 'light' : 'dark';
+// тема: главный процесс знает выбор и тему Windows и сообщает, тёмная она сейчас или светлая
+const applyTheme = (dark: boolean) => {
+  const t = dark ? 'dark' : 'light';
   document.documentElement.dataset.theme = t;
   getState().setTheme(t);
 };
-applyTheme();
-lightQuery.addEventListener('change', applyTheme);
+applyTheme(api.initialTheme?.dark !== false);
+api.onThemeChanged((t) => { useStore.setState({ themePref: t.pref }); applyTheme(t.dark); });
 
 createRoot(document.getElementById('root')!).render(<CrashGuard><App /></CrashGuard>);

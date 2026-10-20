@@ -8,7 +8,7 @@ import {
   addFree, addToMain, beatTimes, clipDuration, clipEnd, findClip, mainToOverlay, moveClip, projectDuration, reorderMain, setTrackFlag, trimClip,
 } from '../../shared/timeline';
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
-import { alignToBeats, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
+import { alignToBeats, placeLibraryFiles, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
 import { useSelected } from '../hooks';
 import { recPrefs } from '../recorder';
 import { keyTimesOnTimeline } from '../animEdit';
@@ -501,7 +501,7 @@ export function Timeline() {
   // бросание файлов из медиатеки или из проводника
   const onRowDragOver = (e: React.DragEvent, row: Row | null) => {
     const types = e.dataTransfer.types;
-    if (!types.includes('application/x-kadro-asset') && !types.includes('Files')) return;
+    if (!types.includes('application/x-kadro-asset') && !types.includes('application/x-kadro-paths') && !types.includes('Files')) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     setDropRow(row?.track.id ?? 'empty');
@@ -513,6 +513,12 @@ export function Timeline() {
     const t = timeAt(e.clientX);
     const assetId = e.dataTransfer.getData('application/x-kadro-asset');
     const kind = row?.track.kind;
+    const libPaths = e.dataTransfer.getData('application/x-kadro-paths');
+    if (libPaths) {
+      // из библиотеки: на дорожку под мышью (наложение — если бросили на дорожку наложений)
+      void placeLibraryFiles(JSON.parse(libPaths) as string[], { mode: kind && kind !== 'main' && kind !== 'audio' ? 'overlay' : 'auto', at: t });
+      return;
+    }
     if (assetId) {
       const a = getState().project.assets.find((x) => x.id === assetId);
       if (!a) return;

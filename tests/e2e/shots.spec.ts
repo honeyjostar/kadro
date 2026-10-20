@@ -108,6 +108,30 @@ test('снимки', async () => {
       await K.win.evaluate(() => (window as any).__kadro.useStore.getState().setSafeZone(null));
     }
   }
+  if (want('library')) {
+    // папка «Мои съёмки» из демо-роликов: подпапки, видео и музыка
+    const root = path.join(MEDIA, 'Мои съёмки');
+    fs.rmSync(root, { recursive: true, force: true });
+    const demo = path.join(__dirname, '../../resources/demo');
+    const put = (sub: string, names: string[]) => {
+      fs.mkdirSync(path.join(root, sub), { recursive: true });
+      for (const n of names) fs.copyFileSync(path.join(demo, `${n}.mp4`), path.join(root, sub, `${n}.mp4`));
+    };
+    put('Лето 2026', ['sunset', 'ocean', 'mountains']);
+    put('Город', ['city', 'synth']);
+    put('', ['space', 'liquid']);
+    fs.copyFileSync(path.join(demo, 'beat.m4a'), path.join(root, 'бит для рилса.m4a'));
+    await win.click('[data-testid=tab-media]');
+    await K.win.evaluate((r) => (window as any).__kadro.actions.dropPaths([r]), root);
+    await win.waitForTimeout(2500);
+    await shot('library');
+    await win.locator('[data-testid=lib-subdir]', { hasText: 'Лето' }).click();
+    await win.waitForTimeout(2000);
+    await shot('library-sub');
+    await win.click('[data-testid=lib-home]');
+    await win.waitForTimeout(500);
+    await shot('library-folders');
+  }
   if (want('transitions')) {
     await importAt(win, [path.join(MEDIA, 'colors.mp4')], 'main', 99);
     await waitAssetsReady(win);

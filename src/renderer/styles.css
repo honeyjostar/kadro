@@ -181,7 +181,7 @@ button { cursor: pointer; }
 .media-meta .dur { color: var(--muted); flex-shrink: 0; }
 .media-actions { position: absolute; top: 5px; right: 5px; display: flex; gap: 4px; opacity: 0; }
 .media-item:hover .media-actions { opacity: 1; }
-.media-actions button { width: 24px; height: 24px; border-radius: 5px; border: 0; background: rgba(21, 19, 26, 0.85); color: var(--text); display: flex; align-items: center; justify-content: center; }
+.media-actions button { width: 24px; height: 24px; border-radius: 5px; border: 0; background: rgba(21, 19, 26, 0.85); color: #fff; display: flex; align-items: center; justify-content: center; }
 .media-actions button:hover { background: var(--accent); }
 .used-dot { position: absolute; left: 7px; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 2px rgba(21, 19, 26, 0.85); }
 .audio-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
@@ -191,7 +191,7 @@ button { cursor: pointer; }
 .audio-name .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12.5px; }
 .mini-wave { height: 34px; display: flex; align-items: center; justify-content: center; gap: 1px; background: var(--audio); border-radius: 4px; padding: 0 3px; color: var(--audio-wave); }
 .mini-wave i { flex: 1; background: var(--audio-wave); border-radius: 1px; min-height: 2px; }
-.badge { position: absolute; left: 5px; top: 5px; font-size: 10.5px; padding: 1px 6px; border-radius: 4px; background: rgba(21, 19, 26, 0.85); color: var(--muted); }
+.badge { position: absolute; left: 5px; top: 5px; font-size: 10.5px; padding: 1px 6px; border-radius: 4px; background: rgba(21, 19, 26, 0.85); color: #d9d3e3; }
 
 .tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .tile {
@@ -651,3 +651,41 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .preflight-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 190px; overflow-y: auto; }
 .preflight-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center; font-size: 12px; line-height: 1.4; color: var(--warn-text); }
 .preflight-list li span { color: var(--text); }
+
+/* ---------- медиа: «В проекте» и «Библиотека» ---------- */
+.media-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-bottom: 12px; border-bottom: 1px solid var(--line-soft); }
+.media-switch button { border: 0; background: none; color: var(--muted); padding: 6px 4px 8px; font-size: 13px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.media-switch button:hover { color: var(--text); }
+.media-switch button.active { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }
+.lib-note { margin: 8px 0 12px; }
+.lib-folders { display: flex; flex-direction: column; gap: 6px; }
+.lib-folder { display: flex; align-items: center; gap: 2px; border: 1px solid var(--line-soft); border-radius: var(--radius-m); background: var(--bg); padding-right: 4px; }
+.lib-folder:hover { border-color: var(--line); }
+.lib-folder.missing { opacity: 0.6; }
+.lib-folder-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 9px 6px 9px 10px; border: 0; background: none; color: var(--text); text-align: left; }
+.lib-folder-open > svg:first-child { color: var(--accent); flex: none; }
+.lib-folder-open > svg:last-child { color: var(--faint); flex: none; }
+.lib-folder-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.lib-folder-text b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-size: 12px; margin-bottom: 8px; }
+.lib-crumbs button { border: 0; background: none; color: var(--accent); padding: 2px 3px; border-radius: 4px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-crumbs button:hover:not(:disabled) { background: var(--accent-soft); }
+.lib-crumbs button:disabled { color: var(--text); font-weight: 600; cursor: default; }
+.lib-crumb { display: inline-flex; align-items: center; gap: 2px; color: var(--faint); }
+.lib-search { position: relative; display: flex; align-items: center; }
+.lib-search > svg { position: absolute; left: 9px; color: var(--faint); pointer-events: none; }
+.lib-search .input { padding-left: 29px; padding-right: 28px; }
+.lib-search .icon-btn { position: absolute; right: 2px; width: 24px; height: 24px; }
+.lib-tools { margin-top: 8px; }
+.lib-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.lib-sort { border: 0; background: none; color: var(--muted); font-size: 12px; padding: 2px 0; cursor: pointer; }
+.lib-sort:hover { color: var(--text); }
+.lib-subdirs { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.lib-subdir { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid var(--line-soft); border-radius: var(--radius-s); background: var(--bg); color: var(--text); text-align: left; font-size: 12.5px; }
+.lib-subdir:hover { border-color: var(--line); }
+.lib-subdir svg { color: var(--accent); }
+.lib-grid { margin-top: 6px; }
+.lib-item { cursor: pointer; }
+.lib-item.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.lib-bar { position: sticky; bottom: -14px; margin: 10px -14px -14px; padding: 9px 14px; display: flex; align-items: center; gap: 6px; background: var(--panel); border-top: 1px solid var(--line-soft); font-size: 12.5px; }
+.lib-bar span { flex: 1; }
