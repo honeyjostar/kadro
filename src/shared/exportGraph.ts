@@ -2,6 +2,7 @@
 import { aiSource, audioSource, videoSource } from './ai';
 import { hasAnim, kfExpr, maxScale, valueAt } from './anim';
 import { animFades, animMaxScale, animMoves, clipAnimAt, clipAnimExpr } from './clipAnim';
+import { applyH, focal, hasPerspective, hasTilt, homography, pinQuad, quadSize, tiltExpr } from './perspective';
 import { effectiveColor, ffmpegColorFilter } from './color';
 import { GRADE_N, gradeActive, gradeTable, haldImage, type CubeLut } from './grade';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geometry';
@@ -76,7 +77,7 @@ function sameLook(a: MediaClip, b: MediaClip): boolean {
   if (a.anim?.in || a.anim?.out || b.anim?.in || b.anim?.out) return false;
   // эффекты тоже считаются от начала клипа (вспышка, глитч, тряска)
   if (a.effects?.length || b.effects?.length) return false;
-  const extra = (c: MediaClip) => JSON.stringify([c.opacity ?? 1, c.mask ?? null, c.blend ?? 'normal', c.chroma ?? null, c.stab?.path ?? '', c.voice?.path ?? '', c.grade ?? null]);
+  const extra = (c: MediaClip) => JSON.stringify([c.opacity ?? 1, c.mask ?? null, c.blend ?? 'normal', c.chroma ?? null, c.stab?.path ?? '', c.voice?.path ?? '', c.grade ?? null, c.tilt ?? null, c.pin ?? null]);
   if (extra(a) !== extra(b)) return false;
   return a.assetId === b.assetId && a.speed === b.speed && a.fit === b.fit &&
     JSON.stringify(a.transform) === JSON.stringify(b.transform) &&
@@ -384,7 +385,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       }
     };
 
-    const moving = (['x', 'y', 'scale', 'rotation'] as const).some((pr) => (c.keyframes?.[pr]?.length ?? 0) > 0) || fxMoves(c.effects) || animMoves(c);
+    const moving = (['x', 'y', 'scale', 'rotation'] as const).some((pr) => (c.keyframes?.[pr]?.length ?? 0) > 0) || fxMoves(c.effects) || animMoves(c) || hasPerspective(c);
     if (!moving) {
       const pl = placeOnCanvas(W, H, o2.w, o2.h, c.fit, c.transform);
       const sw = Math.max(1, Math.round(pl.w));
@@ -411,10 +412,14 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     // ---- ключевые кадры: слой в наибольшем масштабе, дальше — перспектива по кадрам ----
     const k = c.keyframes ?? {};
     const pl1 = placeOnCanvas(W, H, o2.w, o2.h, c.fit, { x: 0, y: 0, rotation: 0, scale: 1 });
-    const sm = Math.min(maxScale(c) * fxMaxScale(c.effects) * animMaxScale(c), (3 * Math.max(W, H)) / Math.max(1, pl1.w, pl1.h)); // не раздуваем слой больше 3 холстов
+    const tilted = hasTilt(c.tilt);
+    const pinQ = c.pin ? pinQuad(c.pin, W, H) : null;
+    const big = 3 * Math.max(W, H); // не раздуваем слой больше 3 холстов
+    const sm = Math.min(maxScale(c) * fxMaxScale(c.effects) * animMaxScale(c) * (tilted ? 1.35 : 1), big / Math.max(1, pl1.w, pl1.h));
     const plM = placeOnCanvas(W, H, o2.w, o2.h, c.fit, { x: 0, y: 0, rotation: 0, scale: sm });
-    const wm = Math.max(2, Math.round(plM.w));
-    const hm = Math.max(2, Math.round(plM.h));
+    const [qw, qh] = pinQ ? quadSize(pinQ) : [plM.w, plM.h];
+    const wm = Math.max(2, Math.round(Math.min(qw, big)));
+    const hm = Math.max(2, Math.round(Math.min(qh, big)));
     const m = 2;
     const PW = Math.max(W, wm + 2 * m);
     const PH = Math.max(H, hm + 2 * m);
@@ -428,9 +433,14 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const X = `(${fmt(W / 2)}+(${ex('x', c.transform.x)}+${g.dx})*${W})`;
     const Y = `(${fmt(H / 2)}+(${ex('y', c.transform.y)}+${g.dy})*${H})`;
     const R = `((${ex('rotation', c.transform.rotation)}+${g.drot})*PI/180)`;
+    const f3 = focal(W, H);
+    // «Углы»: картинка (без полей) → 4 точки; углы слоя с полями — по тому же проективному преобразованию
+    const hPin = pinQ ? homography([[m, m], [m + wm, m], [m, m + hm], [m + wm, m + hm]], pinQ) : null;
     const corner = (u: number, v: number) => {
-      const du = `(${fmt(u - m - wm / 2)}*${kk})`;
-      const dv = `(${fmt(v - m - hm / 2)}*${kk})`;
+      if (hPin) { const [px, py] = applyH(hPin, u, v); return [fmt(px), fmt(py)]; }
+      let du = `(${fmt(u - m - wm / 2)}*${kk})`;
+      let dv = `(${fmt(v - m - hm / 2)}*${kk})`;
+      if (tilted) [du, dv] = tiltExpr(du, dv, c.tilt!, f3);
       return [`${X}+${du}*cos(${R})-${dv}*sin(${R})`, `${Y}+${du}*sin(${R})+${dv}*cos(${R})`];
     };
     const [x0, y0] = corner(0, 0);

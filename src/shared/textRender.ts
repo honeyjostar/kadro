@@ -3,6 +3,7 @@
 import { hasAnim, textPropsAt } from './anim';
 import { unitScale } from './geometry';
 import { bounceOut } from './clipAnim';
+import { hasTilt, layerQuad, type Quad } from './perspective';
 import type { TextAnim, TextClip, Word } from './types';
 
 export interface TextLayout {
@@ -176,10 +177,29 @@ function pieces(ctx: Ctx, L: TextLayout, xOf: (i: number) => number): Piece[] {
  * Рисует текст. local — время от начала клипа (анимации, ключи, подсветка слова);
  * без local — статичная картинка.
  */
+/** Натягивание плоского текста на перспективу — даёт окно (WebGL); без него наклон не рисуется. */
+type TextWarper = (W: number, H: number, draw: (ctx: CanvasRenderingContext2D) => void, quad: Quad) => CanvasImageSource | null;
+let textWarper: TextWarper | null = null;
+export function setTextWarper(w: TextWarper | null): void { textWarper = w; }
+
 export function drawText(ctx: Ctx, clip: TextClip, W: number, H: number, local?: number): void {
+  if (hasTilt(clip.tilt) && textWarper) {
+    // наклон: текст рисуется ровно по центру, без поворота, а потом весь кадр натягивается на перспективу
+    const st = textStateAt(clip, local);
+    if (st.opacity <= 0.001 || st.reveal <= 0 || st.wipe <= 0.0001) return;
+    const quad = layerQuad(W / 2, H / 2, st.x * W, st.y * H, st.rotation, clip.tilt, W, H);
+    const out = textWarper(W, H, (c) => drawFlat(c, clip, W, H, local, true), quad);
+    if (out) ctx.drawImage(out, 0, 0);
+    return;
+  }
+  drawFlat(ctx, clip, W, H, local, false);
+}
+
+function drawFlat(ctx: Ctx, clip: TextClip, W: number, H: number, local: number | undefined, centered: boolean): void {
   const s = clip.style;
   const k = unitScale(W, H);
   const st = textStateAt(clip, local);
+  if (centered) { st.x = 0.5; st.y = 0.5; st.rotation = 0; }
   if (st.opacity <= 0.001 || st.reveal <= 0 || st.wipe <= 0.0001) return;
   const L = layoutText(ctx, clip, W, H, st.x, st.y);
   ctx.save();

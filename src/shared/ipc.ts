@@ -122,6 +122,13 @@ export interface KadroApi {
   pickLut(): Promise<{ path: string; name: string } | { error: string } | null>;
   listLuts(): Promise<{ path: string; name: string }[]>;
   readLut(path: string): Promise<string | null>;
+  /** 3D: выбрать файл модели (GLB, GLTF, OBJ, STL, FBX). */
+  pickModel(): Promise<string | null>;
+  /** 3D: собрать кадры RGBA (снизу вверх) в видео с прозрачным фоном. */
+  m3dBegin(w: number, h: number, fps: number): Promise<string>;
+  m3dFrame(id: string, rgba: ArrayBuffer): Promise<void>;
+  m3dEnd(id: string): Promise<{ path?: string; error?: string }>;
+  m3dCancel(id: string): void;
   /** Новый путь для отрисованной группы в папке программы. */
   groupPath(ext: 'mp4' | 'webm'): Promise<string>;
   listTemplates(): Promise<Template[]>;

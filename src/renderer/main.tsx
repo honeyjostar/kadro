@@ -10,6 +10,8 @@ import * as templates from '../shared/templates';
 import { App } from './components/App';
 import { api, getState, useStore } from './store';
 import { CrashGuard } from './components/Crash';
+import { setTextWarper } from '../shared/textRender';
+import { warper } from './engine/warp';
 
 // доступ для автотестов (window.__kadro) — в обычной работе не используется
 (window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates };
@@ -35,5 +37,8 @@ const applyTheme = (dark: boolean) => {
 };
 applyTheme(api.initialTheme?.dark !== false);
 api.onThemeChanged((t) => { useStore.setState({ themePref: t.pref }); applyTheme(t.dark); });
+
+// наклон текста в перспективе — на видеокарте (и в плеере, и для кадров экспорта)
+setTextWarper((W, H, draw, quad) => warper().warpDrawn(W, H, draw, quad));
 
 createRoot(document.getElementById('root')!).render(<CrashGuard><App /></CrashGuard>);

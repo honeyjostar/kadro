@@ -538,6 +538,48 @@ test('анимации появления и исчезновения: вкла�
   expect(bad, `не совпали:\n${bad.join('\n')}`).toEqual([]);
 });
 
+test('перспектива: наклон видео, «Углы» и наклон текста — через интерфейс, плеер совпадает с экспортом', async () => {
+  await reset(win);
+  const [img] = await act(win, 'importPaths', [patternImage()]);
+  for (let i = 0; i < 3; i++) await act(win, 'addAssetToTimeline', img, 'main', 999);
+  const [a, b] = await clipIds(win, 'main');
+  // наклон — готовой кнопкой и ползунком
+  await store(win, 'select', [a]);
+  await win.getByTestId('itab-basic').click();
+  await win.getByRole('button', { name: 'Стена справа' }).click();
+  let p = await project(win);
+  expect((p.tracks[0].clips[0] as any).tilt).toEqual({ x: 0, y: 45 });
+  // «Углы» — включить и потянуть точку мышью
+  await store(win, 'select', [b]);
+  await seekAndSettle(win, 4.5);
+  await win.getByTestId('pin-toggle').click();
+  const h = await win.getByTestId('pin-1').boundingBox();
+  await win.mouse.move(h!.x + h!.width / 2, h!.y + h!.height / 2);
+  await win.mouse.down();
+  await win.mouse.move(h!.x - 30, h!.y + 40, { steps: 6 });
+  await win.mouse.up();
+  p = await project(win);
+  const pin = (p.tracks[0].clips[1] as any).pin as number[];
+  expect(pin).toHaveLength(8);
+  // остальное — сразу: наклон с поворотом и масштабом, текст в перспективе поверх третьего клипа
+  await commit(`(tl, p, a) => {
+    let q = p;
+    const clips = q.tracks.find((t) => t.kind === 'main').clips;
+    q = tl.updateClip(q, clips[0].id, { out: 3, tilt: { x: 35, y: -25 }, transform: { x: 0.05, y: 0, scale: 0.75, rotation: 8 } });
+    q = tl.updateClip(q, clips[1].id, { out: 3 });
+    q = tl.updateClip(q, clips[2].id, { out: 3 });
+    const r = tl.addText(q, 6.2, 'ПЕРСПЕКТИВА');
+    return tl.updateClip(r.project, r.clipId, { duration: 2.5, tilt: { x: -30, y: 35 }, style: { ...tl.findClip(r.project, r.clipId).clip.style, size: 110, color: '#ffe14d' } });
+  }`);
+  await store(win, 'select', []);
+  await waitAssetsReady(win);
+  const times = [1.233, 4.233, 7.233];
+  const pngs: string[] = [];
+  for (const t of times) pngs.push(await parity(t, `persp_${t}`));
+  const out = await exportViaUi('720p');
+  times.forEach((t, i) => compareAt(pngs[i], out, t, 5));
+});
+
 test('все фильтры: плеер совпадает с экспортом, плитки ставят фильтр', async () => {
   await reset(win);
   const [img] = await act(win, 'importPaths', [patternImage()]);

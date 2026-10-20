@@ -4,11 +4,11 @@ import { newProject } from '../shared/defaults';
 import type { DemoFiles, KadroApi, ThemePref } from '../shared/ipc';
 import type { Platform } from '../shared/safezones';
 import { projectDuration } from '../shared/timeline';
-import type { MediaAsset, Project } from '../shared/types';
+import type { MediaAsset, Model3D, Project } from '../shared/types';
 
 export const api: KadroApi = (window as unknown as { kadro: KadroApi }).kadro;
 
-export type LeftTab = 'media' | 'audio' | 'text' | 'captions' | 'effects' | 'transitions' | 'filters' | 'templates' | 'ai';
+export type LeftTab = 'media' | 'audio' | 'text' | 'captions' | 'effects' | 'transitions' | 'filters' | 'templates' | 'ai' | '3d';
 
 export interface Job { id: string; label: string; progress: number; stage?: string; clipId?: string; cancellable: boolean }
 export interface Toast { id: number; text: string; kind: 'info' | 'ok' | 'err' }
@@ -45,6 +45,8 @@ interface State {
   safeZone: Platform | null;
   /** Папку только что бросили в окно — открыть её в библиотеке. */
   libJump: string | null;
+  /** Открыто окно настройки 3D-объекта (clipId — правим уже добавленный). */
+  model3dEdit: { init: Model3D; clipId?: string } | null;
 
   commit: (fn: (p: Project) => Project, key?: string) => void;
   replace: (p: Project, path?: string | null) => void;
@@ -68,6 +70,7 @@ interface State {
   setTheme: (t: 'dark' | 'light') => void;
   setSafeZone: (z: Platform | null) => void;
   setLibJump: (p: string | null) => void;
+  setModel3dEdit: (e: { init: Model3D; clipId?: string } | null) => void;
 }
 
 const HISTORY = 120;
@@ -118,6 +121,7 @@ export const useStore = create<State>((set, get) => ({
   theme: api?.initialTheme?.dark === false ? 'light' : 'dark',
   safeZone: readPref<Platform | null>('kadro.safeZone', null),
   libJump: null,
+  model3dEdit: null,
 
   commit: (fn, key) => {
     const s = get();
@@ -193,6 +197,7 @@ export const useStore = create<State>((set, get) => ({
   setTheme: (t) => set({ theme: t }),
   setSafeZone: (z) => { writePref('kadro.safeZone', z); set({ safeZone: z }); },
   setLibJump: (p) => set({ libJump: p }),
+  setModel3dEdit: (e) => set({ model3dEdit: e }),
 }));
 
 export const getState = () => useStore.getState();

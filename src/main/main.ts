@@ -5,6 +5,7 @@ import path from 'node:path';
 import { Readable } from 'node:stream';
 import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, LibFolder, ModelInfo, RecentProject, ThemePref, VoiceInfo } from '../shared/ipc';
 import { countDeep, libMeta, listDir, searchDir } from './library';
+import * as m3d from './model3d';
 import type { MediaAsset, Project } from '../shared/types';
 import { ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady } from './ai/models';
 import { denoise } from './ai/denoise';
@@ -580,6 +581,20 @@ function registerIpc(): void {
   }));
   ipcMain.handle('tpl:save', (_e, t: Template) => { if (!isTemplate(t)) return false; fs.writeFileSync(tplFile(t.id), JSON.stringify(t)); return true; });
   ipcMain.handle('tpl:delete', (_e, id: string) => { fs.rmSync(tplFile(id), { force: true }); });
+  // 3D: выбор файла модели и сборка кадров в видео с прозрачностью
+  ipcMain.handle('dialog:model', async () => {
+    if (process.env.KADRO_TEST_MODEL) return process.env.KADRO_TEST_MODEL; // автотесты: без системного окна
+    const r = await dialog.showOpenDialog(win!, {
+      title: 'Открыть 3D-модель',
+      properties: ['openFile'],
+      filters: [{ name: '3D-модели', extensions: ['glb', 'gltf', 'obj', 'stl', 'fbx'] }, { name: 'Все файлы', extensions: ['*'] }],
+    });
+    return r.canceled ? null : r.filePaths[0] ?? null;
+  });
+  ipcMain.handle('m3d:begin', (_e, w: number, h: number, fps: number) => m3d.begin(w, h, fps));
+  ipcMain.handle('m3d:frame', (_e, id: string, data: ArrayBuffer) => m3d.frame(id, data));
+  ipcMain.handle('m3d:end', (_e, id: string) => m3d.end(id));
+  ipcMain.on('m3d:cancel', (_e, id: string) => m3d.cancel(id));
   ipcMain.handle('group:path', (_e, ext: string) =>
     path.join(cacheDir('groups'), `group_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext === 'webm' ? 'webm' : 'mp4'}`));
   ipcMain.handle('lut:read', (_e, p: string) => { if (!/\.cube$/i.test(p)) return null; try { return fs.readFileSync(p, 'utf8'); } catch { return null; } });

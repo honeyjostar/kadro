@@ -15,6 +15,7 @@ const THEME = process.env.KADRO_SHOTS_THEME; // light / dark — снимки в
 const shot = (name: string) => K.win.screenshot({ path: path.join(OUT!, `${THEME ? `${THEME}-` : ''}${name}.png`) });
 
 test('снимки', async () => {
+  test.setTimeout(600_000);
   const win = K.win;
   const only = (process.env.KADRO_SHOTS_ONLY ?? '').split(',').filter(Boolean);
   const want = (n: string) => !only.length || only.includes(n);
@@ -107,6 +108,48 @@ test('снимки', async () => {
       await win.keyboard.press('Escape');
       await K.win.evaluate(() => (window as any).__kadro.useStore.getState().setSafeZone(null));
     }
+  }
+  if (want('persp')) {
+    // видео «в экран»: «Углы», плюс наклонённый текст
+    await reset(win);
+    const demo = path.join(__dirname, '../../resources/demo');
+    await importAt(win, [path.join(demo, 'city.mp4')], 'main', 0);
+    await importAt(win, [path.join(demo, 'sunset.mp4')], 'overlay', 0);
+    await waitAssetsReady(win);
+    await K.win.evaluate(() => {
+      const k = (window as any).__kadro;
+      const s = k.useStore.getState();
+      const ov = s.project.tracks.find((t: any) => t.kind === 'video').clips[0];
+      s.commit((p: any) => {
+        let q = k.timeline.updateClip(p, ov.id, { pin: [0.18, 0.2, 0.86, 0.27, 0.16, 0.62, 0.84, 0.55] });
+        const r = k.timeline.addText(q, 0, 'ПЕРСПЕКТИВА');
+        q = k.timeline.updateClip(r.project, r.clipId, { y: 0.8, tilt: { x: 50, y: 0 }, duration: 5, style: { ...k.timeline.findClip(r.project, r.clipId).clip.style, size: 120, color: '#ffe14d', bold: true } });
+        return q;
+      });
+      s.select([ov.id]);
+    });
+    await seekAndSettle(win, 1.5);
+    await win.click('[data-testid=itab-basic]');
+    await win.locator('.inspector .panel-body').evaluate((el) => el.scrollTo(0, 10_000));
+    await win.waitForTimeout(500);
+    await shot('perspective');
+  }
+  if (want('3d')) {
+    await win.click('[data-testid=tab-3d]');
+    await win.waitForTimeout(6000);
+    await shot('3d-panel');
+    await win.click('[data-testid=m3d-star]');
+    await win.waitForTimeout(4000);
+    await win.click('[data-testid=m3d-mat-metal]');
+    await win.waitForTimeout(2500);
+    await shot('3d-dialog');
+    await win.click('[data-testid=m3d-place]');
+    await win.waitForSelector('[data-testid=m3d-dialog]', { state: 'detached', timeout: 240_000 });
+    await waitAssetsReady(win);
+    const ov = await K.win.evaluate(() => (window as any).__kadro.useStore.getState().project.tracks.find((t: any) => t.kind === 'video')?.clips[0]?.id);
+    if (ov) await K.win.evaluate((id) => (window as any).__kadro.useStore.getState().select([id]), ov);
+    await seekAndSettle(win, 1.3);
+    await shot('3d-placed');
   }
   if (want('library')) {
     // папка «Мои съёмки» из демо-роликов: подпапки, видео и музыка

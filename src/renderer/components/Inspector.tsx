@@ -1,10 +1,11 @@
-import { X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
+import { Box, X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
 import { alignToBeats, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection } from '../actions';
 import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
 import { DEFAULT_MASK } from '../../shared/mask';
 import { EFFECTS } from '../../shared/effects';
 import { CLIP_ANIMS, CLIP_ANIM_DEFAULT_DUR } from '../../shared/clipAnim';
+import { pinFromTransform } from '../../shared/perspective';
 import { useEffect, useRef, useState } from 'react';
 import { FILTER_CATS, FILTER_PRESETS } from '../../shared/color';
 import { ASPECTS, DEFAULT_CHROMA, DEFAULT_COLOR, DEFAULT_TRANSFORM, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
@@ -138,6 +139,12 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
       <div className="panel-body">
         {cur === 'basic' && (
           <>
+            {clip.model3d && (
+              <div className="m3d-bar" data-testid="m3d-bar">
+                <Box size={16} /><span>3D: {clip.model3d.name}</span>
+                <button className="btn small primary" onClick={() => getState().setModel3dEdit({ init: clip.model3d!, clipId: clip.id })} data-testid="m3d-edit">Изменить 3D</button>
+              </div>
+            )}
             <Field label="Вписать в кадр">
               <Seg value={clip.fit} onChange={(v) => up({ fit: v }, 'fit')} options={[{ value: 'contain', label: 'Целиком' }, { value: 'cover', label: 'Заполнить' }]} />
             </Field>
@@ -153,6 +160,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
               <Slider label="Длительность" min={0.5} max={30} step={0.1} value={dur} format={(v) => `${v.toFixed(1)} с`}
                 onChange={(v) => up({ out: clip.in + v * clip.speed }, 'idur')} />
             )}
+            <MediaPerspective clip={clip} asset={asset} />
             <button className="btn block" onClick={() => commit((p) => clearKeyframes(updateClip(p, clip.id, { transform: { ...DEFAULT_TRANSFORM, scale: trackKind === 'main' ? 1 : 0.6 }, opacity: 1 }), clip.id), `reset-${clip.id}`)}>
               <RotateCcw size={14} />Сбросить положение и анимацию
             </button>
@@ -238,6 +246,55 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   );
 }
 let lastMediaTab: MTab | null = null;
+
+const TILT_PRESETS: { label: string; tilt: { x: number; y: number }; hint: string }[] = [
+  { label: 'Лёжа', tilt: { x: 55, y: 0 }, hint: 'Как лист на столе — верх уходит вдаль' },
+  { label: 'Стена слева', tilt: { x: 0, y: -45 }, hint: 'Левый край уходит вдаль' },
+  { label: 'Стена справа', tilt: { x: 0, y: 45 }, hint: 'Правый край уходит вдаль' },
+  { label: 'Титры', tilt: { x: 62, y: 0 }, hint: 'Уходит к горизонту, как вступление в кино' },
+];
+
+/** Наклон в перспективе: два ползунка и готовые углы. */
+function TiltFields({ tilt, onChange, disabled, testPrefix }: { tilt?: { x: number; y: number }; onChange: (t: { x: number; y: number } | undefined) => void; disabled?: boolean; testPrefix: string }) {
+  const t = tilt ?? { x: 0, y: 0 };
+  const set = (next: { x: number; y: number }) => onChange(Math.abs(next.x) < 0.05 && Math.abs(next.y) < 0.05 ? undefined : next);
+  return (
+    <div className={disabled ? 'is-disabled' : ''}>
+      <div className="chips tilt-presets">
+        {TILT_PRESETS.map((pr) => (
+          <button key={pr.label} title={pr.hint} disabled={disabled} className={t.x === pr.tilt.x && t.y === pr.tilt.y ? 'active' : ''} onClick={() => set(pr.tilt)}>{pr.label}</button>
+        ))}
+        <button disabled={disabled || (!t.x && !t.y)} onClick={() => onChange(undefined)}>Ровно</button>
+      </div>
+      <Slider label="Наклон вперёд-назад" min={-70} max={70} step={1} value={t.x} format={(v) => `${Math.round(v)}°`} testId={`${testPrefix}-x`}
+        onChange={(v) => !disabled && set({ ...t, x: v })} onReset={() => set({ ...t, x: 0 })} />
+      <Slider label="Поворот влево-вправо" min={-70} max={70} step={1} value={t.y} format={(v) => `${Math.round(v)}°`} testId={`${testPrefix}-y`}
+        onChange={(v) => !disabled && set({ ...t, y: v })} onReset={() => set({ ...t, y: 0 })} />
+    </div>
+  );
+}
+
+/** Перспектива видео и фото: наклон или «Углы» (картинка на 4 точках, точки тянутся в плеере). */
+function MediaPerspective({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
+  const commit = useStore((s) => s.commit);
+  const settings = useStore((s) => s.project.settings);
+  const up = (patch: Partial<MediaClip>, key: string) => commit((p) => updateClip(p, clip.id, patch), `${key}-${clip.id}`);
+  const pinOn = !!clip.pin;
+  return (
+    <>
+      <div className="section-title">Перспектива</div>
+      <TiltFields tilt={clip.tilt} disabled={pinOn} onChange={(t) => up({ tilt: t }, 'tilt')} testPrefix="tilt" />
+      <Toggle label="Углы — натянуть на 4 точки" hint={pinOn ? 'Тяни белые точки в окне просмотра. Подходит, чтобы вставить видео в экран телефона, на билборд или стену.' : 'Например, вставить видео в экран телефона или на стену'}
+        on={pinOn} testId="pin-toggle"
+        onChange={(v) => up({ pin: v && asset ? pinFromTransform(clip, asset.width, asset.height, settings.width, settings.height) : undefined }, 'pin')} />
+      {pinOn && (
+        <button className="btn block small" onClick={() => asset && up({ pin: pinFromTransform({ ...clip, tilt: undefined }, asset.width, asset.height, settings.width, settings.height) }, 'pinreset')}>
+          Вернуть углы ровно
+        </button>
+      )}
+    </>
+  );
+}
 
 /** Появление и исчезновение видео или фото: плитки с подписями и длительность. */
 function ClipAnimTab({ clip }: { clip: MediaClip }) {
@@ -691,6 +748,8 @@ function TextInspector({ clip }: { clip: TextClip }) {
             <div className="section-title">Строка</div>
             <Slider label="Ширина строки" min={0.3} max={1} step={0.01} value={s.maxWidth} format={pct}
               onChange={(v) => st({ maxWidth: v }, 'mw')} />
+            <div className="section-title">Наклон в перспективе</div>
+            <TiltFields tilt={clip.tilt} onChange={(t) => commit((p) => updateClip(p, clip.id, { tilt: t }), `ttilt-${clip.id}`)} testPrefix="text-tilt" />
             <p className="hint small">Текст можно двигать, растягивать и поворачивать прямо в окне просмотра.</p>
           </>
         )}

@@ -7,6 +7,8 @@ import { DEFAULT_COLOR, newProject } from '../../src/shared/defaults';
 import { FILTER_PRESETS, applyColorToPixel, effectiveColor } from '../../src/shared/color';
 import { gradePixel } from '../../src/shared/grade';
 import { CLIP_ANIMS, clipAnimAt } from '../../src/shared/clipAnim';
+import { layerQuad, type Quad } from '../../src/shared/perspective';
+import { placeOnCanvas } from '../../src/shared/geometry';
 import { addAsset, addToMain, mainTrack, updateClip } from '../../src/shared/timeline';
 import type { Effect, EffectType, MediaClip, Project } from '../../src/shared/types';
 import { assetFromFile, ff, makeSolid, near, pixelAt, probe, runExport, tmpDir } from '../helpers/media';
@@ -181,4 +183,47 @@ describe('анимации появления и исчезновения кли
       expect(Math.abs(probe(out).duration - 3), a.type).toBeLessThan(0.1);
     }
   }, 120_000);
+});
+
+describe('перспектива: наклон и «Углы» в экспорте — по той же формуле, что в плеере', () => {
+  const W = 640; const H = 360;
+  const run = (patch: Partial<MediaClip>, name: string) => {
+    let p = newProject('persp', '16:9');
+    p = addAsset(p, assetFromFile('v', f('orange.mp4'), 'video'));
+    p = addToMain(p, 'v', 0).project;
+    const id = (mainTrack(p).clips[0] as MediaClip).id;
+    p = updateClip(p, id, patch);
+    const out = f(`persp_${name}.mp4`);
+    runExport(p, out, opts);
+    return out;
+  };
+  /** Точка внутри четырёхугольника у угла i и снаружи за углом. */
+  const probe = (q: Quad, i: number, inside: boolean): [number, number] => {
+    const cx = (q[0][0] + q[1][0] + q[2][0] + q[3][0]) / 4;
+    const cy = (q[0][1] + q[1][1] + q[2][1] + q[3][1]) / 4;
+    const k = inside ? 0.85 : 1.15;
+    return [Math.round(cx + (q[i][0] - cx) * k), Math.round(cy + (q[i][1] - cy) * k)];
+  };
+  const check = (out: string, q: Quad) => {
+    for (let i = 0; i < 4; i++) {
+      const [ix, iy] = probe(q, i, true);
+      expect(near(pixelAt(out, 1, ix, iy), ORANGE, 16), `внутри у угла ${i}: ${ix},${iy}`).toBe(true);
+      const [ox, oy] = probe(q, i, false);
+      if (ox > 2 && oy > 2 && ox < W - 2 && oy < H - 2) expect(near(pixelAt(out, 1, ox, oy), [0, 0, 0], 16), `снаружи у угла ${i}: ${ox},${oy}`).toBe(true);
+    }
+  };
+  for (const [name, tilt] of [['вперёд', { x: 45, y: 0 }], ['вбок', { x: 0, y: -50 }], ['оба', { x: 30, y: 35 }]] as const) {
+    it(`наклон ${name}`, () => {
+      const transform = { x: 0.05, y: -0.03, scale: 0.6, rotation: 12 };
+      const out = run({ transform, tilt }, `tilt_${name}`);
+      const pl = placeOnCanvas(W, H, 640, 360, 'contain', transform);
+      check(out, layerQuad(pl.w / 2, pl.h / 2, pl.cx, pl.cy, 12, tilt, W, H));
+    });
+  }
+  it('«Углы»: картинка натянута на произвольный четырёхугольник', () => {
+    const pin: MediaClip['pin'] = [0.2, 0.15, 0.85, 0.3, 0.1, 0.9, 0.7, 0.75];
+    const out = run({ pin }, 'pin');
+    const q: Quad = [[pin[0] * W, pin[1] * H], [pin[2] * W, pin[3] * H], [pin[4] * W, pin[5] * H], [pin[6] * W, pin[7] * H]];
+    check(out, q);
+  });
 });

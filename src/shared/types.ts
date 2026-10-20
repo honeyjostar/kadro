@@ -170,6 +170,27 @@ export interface MediaClip {
   grade?: Grade;                // кривые, HSL, свой LUT
   group?: GroupData;            // составной клип: что внутри (для разгруппировки и пересборки)
   anim?: { in?: ClipAnim; out?: ClipAnim }; // появление и исчезновение
+  tilt?: { x: number; y: number };   // 3D-наклон, градусы (x — вперёд-назад, y — влево-вправо)
+  /** «Углы»: картинка натянута на 4 точки (доли кадра: верх-лево, верх-право, низ-лево, низ-право). */
+  pin?: [number, number, number, number, number, number, number, number];
+  model3d?: Model3D;             // клип — отрисованный 3D-объект (можно изменить и пересобрать)
+}
+
+/** 3D-объект: готовая фигура или свой файл модели, движение, угол, материал и свет. */
+export type Model3DMotion = 'spin' | 'sway' | 'float' | 'tumble' | 'pulse' | 'still';
+export type Model3DMaterial = 'model' | 'gloss' | 'metal' | 'matte' | 'glass' | 'neon';
+export type Model3DLight = 'studio' | 'soft' | 'sunset' | 'neon';
+export interface Model3D {
+  source: string;            // 'shape:heart' … или путь к файлу модели
+  name: string;
+  motion: Model3DMotion;
+  speed: number;             // 1 — обычная
+  tiltX: number;             // наклон к зрителю, градусы
+  turnY: number;             // поворот, градусы
+  material: Model3DMaterial; // 'model' — как в файле модели
+  color: string;
+  light: Model3DLight;
+  duration: number;          // секунды
 }
 
 /** Анимации появления и исчезновения видео и фото. */
@@ -247,6 +268,7 @@ export interface TextClip {
   keyframes?: Keyframes;
   anim?: { in?: TextAnim; out?: TextAnim };
   words?: Word[];      // слова со временем от начала клипа (для подсветки)
+  tilt?: { x: number; y: number }; // наклон в перспективе, градусы
 }
 
 export type Clip = MediaClip | TextClip;

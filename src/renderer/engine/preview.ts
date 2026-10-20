@@ -5,6 +5,8 @@ import { mediaPropsAt } from '../../shared/anim';
 import { maskBytes } from '../../shared/mask';
 import { fxGeometry, particleEffects, sortedEffects } from '../../shared/effects';
 import { clipAnimAt } from '../../shared/clipAnim';
+import { hasTilt, layerQuad, pinQuad, quadSize } from '../../shared/perspective';
+import { warper } from './warp';
 import { drawParticles } from '../../shared/particles';
 import { applyPixelEffects, drawMainBars } from './effectsPreview';
 import { ChromaKeyer } from './chroma';
@@ -444,10 +446,13 @@ export class PreviewEngine {
     const fx = sortedEffects(c.effects);
     const cube = lutFor(c.grade?.lut?.path, this.readLut);
     const graded = gradeActive(c.grade, !!cube, c.color);
-    if (c.mask || fx.length || graded) {
+    // перспектива: «Углы» — картинка на 4 точках; наклон — углы слоя после 3D-поворота
+    const quad = c.pin ? pinQuad(c.pin, W, H) : hasTilt(c.tilt) ? layerQuad(pl.w / 2, pl.h / 2, pl.cx, pl.cy, pl.rotation, c.tilt, W, H) : null;
+    if (c.mask || fx.length || graded || quad) {
       // слой нужного размера: цвет → эффекты → маска (destination-in) → на холст
-      const w = Math.max(1, Math.round(pl.w));
-      const h = Math.max(1, Math.round(pl.h));
+      const [qw, qh] = quad && c.pin ? quadSize(quad) : [pl.w, pl.h];
+      const w = Math.max(1, Math.round(Math.min(qw, 3 * Math.max(W, H))));
+      const h = Math.max(1, Math.round(Math.min(qh, 3 * Math.max(W, H))));
       const layer = this.canvasFor(`${c.id}:layer`, w, h);
       const lc = layer.getContext('2d', { willReadFrequently: true })!;
       lc.save();
@@ -465,7 +470,13 @@ export class PreviewEngine {
         lc.drawImage(this.maskCanvas(c.id, c.mask, w, h), 0, 0, w, h);
         lc.restore();
       }
-      c2d.drawImage(layer, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
+      if (quad) {
+        c2d.setTransform(1, 0, 0, 1, 0, 0);
+        const out = warper().warp(layer, quad, W, H);
+        if (out) c2d.drawImage(out, 0, 0);
+      } else {
+        c2d.drawImage(layer, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
+      }
     } else {
       c2d.filter = colorFilter;
       c2d.drawImage(img, -pl.w / 2, -pl.h / 2, pl.w, pl.h);

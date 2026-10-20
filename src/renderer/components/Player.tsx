@@ -13,7 +13,7 @@ import { api, getState, useStore } from '../store';
 import { fmtTime } from '../util';
 import { PLATFORMS, SAFE_ZONES, isVertical, type Platform } from '../../shared/safezones';
 
-interface Box { id: string; cx: number; cy: number; w: number; h: number; rot: number; kind: 'media' | 'text' }
+interface Box { id: string; cx: number; cy: number; w: number; h: number; rot: number; kind: 'media' | 'text'; pin?: number[] }
 
 const measure = document.createElement('canvas').getContext('2d')!;
 
@@ -25,6 +25,13 @@ function boxOf(p: Project, c: Clip, W: number, H: number, t: number): Box | null
   }
   const a = p.assets.find((x) => x.id === c.assetId);
   if (!a || a.kind === 'audio') return null;
+  if (c.pin) {
+    // «Углы»: рамка — по четырём точкам
+    const xs = [c.pin[0], c.pin[2], c.pin[4], c.pin[6]].map((v) => v * W);
+    const ys = [c.pin[1], c.pin[3], c.pin[5], c.pin[7]].map((v) => v * H);
+    const x0 = Math.min(...xs); const x1 = Math.max(...xs); const y0 = Math.min(...ys); const y1 = Math.max(...ys);
+    return { id: c.id, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0, rot: 0, kind: 'media', pin: c.pin };
+  }
   const mp = mediaPropsAt(c, t);
   const pl = placeOnCanvas(W, H, a.width, a.height, c.fit, { x: mp.x, y: mp.y, scale: mp.scale, rotation: mp.rotation });
   return { id: c.id, cx: pl.cx, cy: pl.cy, w: pl.w, h: pl.h, rot: pl.rotation, kind: 'media' };
@@ -151,7 +158,13 @@ export function Player() {
       const y = ev.clientY - rect.top;
       if (!moved && Math.hypot(x - x0, y - y0) < 2) return;
       moved = true;
-      if (mode === 'move') {
+      if (mode === 'move' && f.type === 'media' && f.pin) {
+        // «Углы»: двигаем все четыре точки вместе
+        const dx = (x - x0) / dispW;
+        const dy = (y - y0) / dispH;
+        const pin = f.pin.map((v, i) => Math.round((v + (i % 2 ? dy : dx)) * 1e4) / 1e4) as MediaClip['pin'];
+        getState().commit((p) => updateClip(p, id, { pin }), key);
+      } else if (mode === 'move') {
         let cx = (b0.cx + (x - x0)) / dispW;
         let cy = (b0.cy + (y - y0)) / dispH;
         const snapV = Math.abs(cx - 0.5) < 0.012;
@@ -188,6 +201,28 @@ export function Player() {
     window.addEventListener('pointerup', up);
   };
 
+  /** «Углы»: тянем одну из четырёх точек. */
+  const startPinDrag = (e: React.PointerEvent, corner: number) => {
+    const c0 = getState().project.tracks.flatMap((t) => t.clips).find((c) => c.id === selection[0]);
+    if (!c0 || c0.type !== 'media' || !c0.pin) return;
+    e.stopPropagation();
+    e.preventDefault();
+    getState().setPlaying(false);
+    const rect = wrapRef.current!.getBoundingClientRect();
+    const key = `pin-${c0.id}-${Date.now()}`;
+    const move = (ev: PointerEvent) => {
+      const cur = getState().project.tracks.flatMap((t) => t.clips).find((c) => c.id === c0.id);
+      if (!cur || cur.type !== 'media' || !cur.pin) return;
+      const pin = [...cur.pin] as NonNullable<MediaClip['pin']>;
+      pin[corner * 2] = Math.round(((ev.clientX - rect.left) / dispW) * 1e4) / 1e4;
+      pin[corner * 2 + 1] = Math.round(((ev.clientY - rect.top) / dispH) * 1e4) / 1e4;
+      getState().commit((p) => updateClip(p, c0.id, { pin }), key);
+    };
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
   const onStageDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const rect = wrapRef.current!.getBoundingClientRect();
@@ -217,7 +252,18 @@ export function Player() {
           )}
           {guides.v && <div className="guide v" />}
           {guides.h && <div className="guide h" />}
-          {box && (
+          {box?.pin && (
+            <>
+              <svg className="pin-outline" width={dispW} height={dispH} aria-hidden>
+                <polygon points={[0, 1, 3, 2].map((i) => `${box.pin![i * 2] * dispW},${box.pin![i * 2 + 1] * dispH}`).join(' ')} />
+              </svg>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="pin-handle" style={{ left: box.pin![i * 2] * dispW, top: box.pin![i * 2 + 1] * dispH }}
+                  onPointerDown={(e) => startPinDrag(e, i)} title="Тяни угол картинки" data-testid={`pin-${i}`} />
+              ))}
+            </>
+          )}
+          {box && !box.pin && (
             <div className="sel-box" style={{ left: box.cx - box.w / 2, top: box.cy - box.h / 2, width: box.w, height: box.h, transform: box.rot ? `rotate(${box.rot}deg)` : undefined }}
               onPointerDown={(e) => startDrag(e, 'move')} data-testid="sel-box">
               {(['nw', 'ne', 'sw', 'se'] as const).map((c) => (

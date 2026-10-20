@@ -16,6 +16,7 @@ Kadro распространяется под GNU GPL v3 или новее. В �
 | Голоса [Piper](https://github.com/rhasspy/piper) (ru_RU irina, dmitri, denis, ruslan; en_US amy, ryan) | лицензии авторов голосов (см. `MODEL_CARD` в архиве голоса) | озвучка текста, скачиваются по кнопке |
 | 122 шрифта с кириллицей через [Fontsource](https://fontsource.org/) (Google Fonts): полный список — `FONTS` в `src/shared/defaults.ts` | SIL Open Font License 1.1; Roboto Slab — Apache-2.0; Ubuntu и Ubuntu Mono — Ubuntu Font Licence 1.0 | интерфейс и текст в видео |
 | [React](https://react.dev/), [zustand](https://github.com/pmndrs/zustand), [lucide](https://lucide.dev/) | MIT / ISC | интерфейс |
+| [three.js](https://threejs.org/) (вместе с загрузчиками GLTF, OBJ, STL, FBX и RoomEnvironment) | MIT | 3D-объекты |
 
 Модели, которые скачиваются по кнопке, не входят в установщик: программа берёт их с GitHub проекта sherpa-onnx.
 

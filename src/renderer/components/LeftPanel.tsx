@@ -1,6 +1,6 @@
 import {
   Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -25,6 +25,7 @@ import { listMics, recPrefs, type MicInfo } from '../recorder';
 import { BUILTIN_TEMPLATES, TEMPLATE_CATS, templateDuration, type Template, type TemplateCat } from '../../shared/templates';
 import { TemplatePreview } from './Home';
 import { LibraryView } from './Library';
+import { Objects3DPanel } from './Objects3D';
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore, type LeftTab } from '../store';
 import { fmtDur, fmtTime, peakLevel } from '../util';
@@ -41,6 +42,7 @@ const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'filters', label: 'Фильтры', icon: <Palette size={19} /> },
   { id: 'ai', label: 'ИИ', icon: <Sparkles size={19} /> },
   { id: 'templates', label: 'Шаблоны', icon: <LayoutTemplate size={19} /> },
+  { id: '3d', label: '3D', icon: <Box size={19} /> },
 ];
 
 export function Rail() {
@@ -70,6 +72,7 @@ export function LeftPanel() {
       {tab === 'filters' && <FiltersPanel />}
       {tab === 'ai' && <AiPanel />}
       {tab === 'templates' && <TemplatesPanel />}
+      {tab === '3d' && <Objects3DPanel />}
     </aside>
   );
 }

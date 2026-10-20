@@ -11,7 +11,7 @@ import {
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
-import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
+import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
 import { api, getState, takeEarlyPatches } from './store';
 import { uidShort } from './util';
 import { VoiceRecorder } from './recorder';
@@ -888,4 +888,29 @@ export function reportMissing(p: Project): void {
 
 export async function newProjectAction(aspect?: AspectKey): Promise<void> {
   await replaceProject(newProject('Новый проект', aspect ?? getState().project.settings.aspect));
+}
+
+// ---------- 3D-объекты ----------
+/**
+ * Собрать 3D-объект в видео с прозрачным фоном и поставить на дорожку наложений у курсора
+ * (или заменить им уже добавленный 3D-клип clipId — положение, эффекты и анимация остаются).
+ */
+export async function place3D(m: Model3D, clipId?: string, onProgress?: (p: number) => void, cancelled?: () => boolean): Promise<boolean> {
+  const { renderModelVideo } = await import('./three/scene3d');
+  const file = await renderModelVideo(m, api, { onProgress, cancelled });
+  const ids = await importPaths([file]);
+  const id = ids[0];
+  const a = id ? getState().project.assets.find((x) => x.id === id) : undefined;
+  if (!a) return false;
+  getState().commit((p) => updateAsset(p, a.id, { derived: true, name: `3D: ${m.name}` }));
+  if (clipId) {
+    getState().commit((p) => updateClip(p, clipId, { assetId: a.id, in: 0, out: a.duration, model3d: m }), `m3d-${clipId}`);
+    getState().select([clipId]);
+    getState().toast('3D-объект обновлён', 'ok');
+    return true;
+  }
+  const newId = addAssetToTimeline(a.id, 'overlay', getState().playhead);
+  if (newId) getState().commit((p) => updateClip(p, newId, { model3d: m }));
+  getState().toast(`3D «${m.name}» на дорожке наложений — двигай и масштабируй его прямо в кадре`, 'ok');
+  return true;
 }
