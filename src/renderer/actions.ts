@@ -11,9 +11,10 @@ import {
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
+import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit';
 import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
-import { api, getState, takeEarlyPatches } from './store';
-import { uidShort } from './util';
+import { api, getState, takeEarlyPatches, type AutoParams } from './store';
+import { fmtDur, plural, uidShort } from './util';
 import { VoiceRecorder } from './recorder';
 
 // ---------- импорт ----------
@@ -984,4 +985,117 @@ export async function place3D(m: Model3D, clipId?: string, onProgress?: (p: numb
   if (newId) getState().commit((p) => updateClip(p, newId, { model3d: m }));
   getState().toast(`3D «${m.name}» на дорожке наложений — двигай и масштабируй его прямо в кадре`, 'ok');
   return true;
+}
+
+// ---------- авто-ролик ----------
+/** Этап сборки авто-ролика — для окна: что сейчас происходит и какая задача (её прогресс — в store.jobs). */
+export interface AutoStage { label: string; jobId?: string; step: number; steps: number }
+
+const hlMemo = new Map<string, Highlights | null>();
+let autoCancel: (() => void) | null = null;
+let autoStopped = false;
+
+/** Остановить сборку авто-ролика (текущий разбор или поиск ритма). */
+export function cancelAutoEdit(): void {
+  autoStopped = true;
+  autoCancel?.();
+}
+
+/** Файлы по путям → файлы проекта (что уже есть — берём, остальное добавляем). */
+async function assetsForPaths(paths: string[]): Promise<Map<string, MediaAsset>> {
+  const have = new Map(getState().project.assets.filter((a) => !a.derived && !a.missing).map((a) => [a.path, a] as const));
+  const fresh = [...new Set(paths.filter((p) => !have.has(p)))];
+  if (fresh.length) {
+    const ids = await importPaths(fresh);
+    for (const id of ids) { const a = getState().project.assets.find((x) => x.id === id); if (a) have.set(a.path, a); }
+  }
+  return have;
+}
+
+/**
+ * Собрать авто-ролик: файлы → (ритм музыки) → (разбор каждого видео) → монтаж.
+ * fresh — новым проектом (прошлый уйдёт в «Черновики»), иначе — вместо монтажа текущего проекта (Ctrl+Z вернёт).
+ */
+export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; seed?: number; onStage?: (s: AutoStage) => void }): Promise<AutoSummary | null> {
+  autoStopped = false;
+  const stage = opts.onStage ?? (() => undefined);
+  const s0 = getState();
+  s0.setPlaying(false);
+  if (opts.fresh) await replaceProject(newProject(params.title.trim() || 'Авто-ролик', params.aspect));
+  stage({ label: 'Добавляю файлы', step: 0, steps: 1 });
+  const paths = [...params.files, ...(params.music ? [params.music] : [])];
+  const byPath = await assetsForPaths(paths);
+  const media = params.files.map((f) => byPath.get(f)).filter((a): a is MediaAsset => !!a && (a.kind === 'image' || (a.kind === 'video' && a.hasVideo)));
+  if (!media.length) { getState().toast('Нужны видео или фото — выбери хотя бы один файл', 'err'); return null; }
+  let music = params.music ? byPath.get(params.music) ?? null : null;
+  if (music && music.kind !== 'audio') { getState().toast('Музыка — это звуковой файл (MP3, WAV, M4A…). Ролик собран без неё.', 'err'); music = null; }
+
+  const videos = [...new Map(media.filter((a) => a.kind === 'video').map((a) => [a.path, a])).values()];
+  const steps = videos.filter((a) => !hlMemo.has(a.path)).length + (music && !music.beats ? 1 : 0);
+  let step = 0;
+  const run = async (label: string, job: AiJob): Promise<AiResponse> => {
+    stage({ label, jobId: job.jobId, step: step++, steps: Math.max(1, steps) });
+    autoCancel = () => api.cancelAi(job.jobId);
+    try { return await runJob(label, job); } finally { autoCancel = null; }
+  };
+  // ритм музыки
+  if (music && !music.beats) {
+    const r = await run('Ищу ритм музыки', { kind: 'beats', jobId: `bt_${uidShort()}`, path: music.path });
+    if (autoStopped) return null;
+    if (r.ok && r.output?.kind === 'beats' && r.output.beats.length) {
+      const { beats, bpm } = r.output;
+      const id = music.id;
+      getState().commit((p) => updateAsset(p, id, { beats, bpm }));
+      music = { ...music, beats, bpm };
+    }
+  }
+  // лучшие места в видео
+  const todo = videos.filter((a) => !hlMemo.has(a.path));
+  for (const [n, a] of todo.entries()) {
+    const src = a.proxy === 'ready' && a.previewPath ? a.previewPath : a.path;
+    const r = await run(todo.length > 1 ? `Смотрю видео ${n + 1} из ${todo.length}` : 'Смотрю видео', { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration });
+    if (autoStopped) return null;
+    hlMemo.set(a.path, r.ok && r.output?.kind === 'highlights' ? r.output.hl : null);
+  }
+  if (autoStopped) return null;
+
+  stage({ label: 'Собираю ролик', step: steps, steps: Math.max(1, steps) });
+  const seed = opts.seed ?? ((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
+  let summary: AutoSummary | null = null;
+  const current = getState().project.assets;
+  const live = (a: MediaAsset) => current.find((x) => x.id === a.id) ?? a; // миниатюры и прокси могли подъехать
+  try {
+    getState().commit((p) => {
+      const r = autoEdit(p, {
+        media: media.map((a) => ({ asset: live(a), hl: hlMemo.get(a.path) ?? null })),
+        music: music ? { ...live(music), beats: music.beats, bpm: music.bpm } : null,
+        style: params.style, aspect: params.aspect, length: params.length, title: params.title, videoSound: params.videoSound, seed,
+      });
+      summary = r.summary;
+      return r.project;
+    });
+  } catch (e) {
+    getState().toast(`Не получилось собрать ролик: ${e instanceof Error ? e.message : String(e)}`, 'err');
+    return null;
+  }
+  const sum = summary as AutoSummary | null;
+  if (!sum) return null;
+  const st = getState();
+  st.setAutoLast(params);
+  st.select([]);
+  st.setPlayhead(0);
+  st.setLeftTab('templates');
+  const notes: string[] = [];
+  if (music && !sum.onBeats) notes.push('ритм в музыке не нашёлся — склейки по ровному темпу');
+  if (sum.dropped > 0) notes.push(`не поместилось файлов: ${sum.dropped} (${params.length === 'auto' ? 'музыка короче' : 'выбери длину побольше'})`);
+  if (sum.repeated) notes.push('материала мало — кадры повторяются');
+  st.toast(`Авто-ролик готов: ${sum.cuts + 1} ${plural(sum.cuts + 1, 'кадр', 'кадра', 'кадров')}${sum.onBeats ? ' в ритм музыки' : ''}, ${fmtDur(sum.duration)}.${notes.length ? ` Важно: ${notes.join('; ')}.` : ''} Не нравится — «Ещё вариант» слева или Ctrl+Z.`, 'ok');
+  return sum;
+}
+
+/** Тот же авто-ролик заново, с другими кусками и переходами (разбор видео уже есть — это быстро). */
+export async function autoVariant(): Promise<AutoSummary | null> {
+  const last = getState().autoLast;
+  if (!last) return null;
+  return buildAutoEdit({ ...last, aspect: getState().project.settings.aspect }, { fresh: false });
 }

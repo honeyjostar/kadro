@@ -1,6 +1,6 @@
 // Главный экран (как «Главная» в Premiere): новый проект нужного формата, демо-ролик и демо-проект,
 // недавние проекты, шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
-import { FolderOpen, Play, Volume2, VolumeX, X } from 'lucide-react';
+import { FolderOpen, Play, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
 import type { HomeInfo, RecentProject } from '../../shared/ipc';
@@ -114,6 +114,14 @@ export function Home() {
                   <span className="hint small">{f.where}</span>
                 </button>
               ))}
+            </div>
+            <div className="home-auto">
+              <span className="home-auto-icon"><WandSparkles size={20} /></span>
+              <span className="home-auto-text">
+                <b>Авто-ролик</b>
+                <span className="hint">Выбери видео, фото и музыку — Kadro сам возьмёт лучшие куски и смонтирует их в ритм.</span>
+              </span>
+              <button className="btn primary" disabled={busy} onClick={() => getState().setAutoOpen({ files: [], fresh: true })} data-testid="home-auto">Собрать</button>
             </div>
             <div className="home-more">
               <button className="btn" disabled={busy} onClick={() => void run(openProject)} data-testid="home-open"><FolderOpen size={15} />Открыть файл проекта…</button>

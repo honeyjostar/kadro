@@ -7,6 +7,7 @@ import { Readable } from 'node:stream';
 import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, LibFolder, ModelInfo, RecentProject, ThemePref, VoiceInfo } from '../shared/ipc';
 import { countDeep, libMeta, listDir, searchDir } from './library';
 import * as m3d from './model3d';
+import { highlights } from './highlights';
 import type { MediaAsset, Project } from '../shared/types';
 import { ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady } from './ai/models';
 import { denoise } from './ai/denoise';
@@ -243,6 +244,12 @@ async function runAi(job: AiJob): Promise<AiResponse> {
     if (job.kind === 'beats') {
       const r = await workerCall<{ beats: number[]; bpm: number }>(id, { kind: 'beats', path: job.path });
       return { ok: true, output: { kind: 'beats', beats: r.beats, bpm: r.bpm } };
+    }
+    if (job.kind === 'highlights') {
+      const ac = new AbortController();
+      aiAborts.set(id, ac);
+      const hl = await highlights(job.path, job.duration, (p) => send(p, 'Смотрю видео'), ac.signal);
+      return { ok: true, output: { kind: 'highlights', hl } };
     }
     if (job.kind === 'reframe') {
       const r = await workerCall<{ points: { t: number; x: number; y: number; found: boolean }[] }>(id, { kind: 'reframe', path: job.path, in: job.in, out: job.out, width: job.width, height: job.height });
@@ -589,6 +596,15 @@ function registerIpc(): void {
       title: 'Открыть 3D-модель',
       properties: ['openFile'],
       filters: [{ name: '3D-модели', extensions: ['glb', 'gltf', 'obj', 'stl', 'fbx'] }, { name: 'Все файлы', extensions: ['*'] }],
+    });
+    return r.canceled ? null : r.filePaths[0] ?? null;
+  });
+  ipcMain.handle('dialog:music', async () => {
+    if (process.env.KADRO_TEST_MUSIC) return process.env.KADRO_TEST_MUSIC; // автотесты: без системного окна
+    const r = await dialog.showOpenDialog(win!, {
+      title: 'Музыка для ролика',
+      properties: ['openFile'],
+      filters: [{ name: 'Музыка', extensions: ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'opus', 'flac', 'wma', 'mp4', 'webm', 'mkv', 'mov'] }, { name: 'Все файлы', extensions: ['*'] }],
     });
     return r.canceled ? null : r.filePaths[0] ?? null;
   });

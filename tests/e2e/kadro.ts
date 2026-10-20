@@ -13,7 +13,7 @@ fs.mkdirSync(MEDIA, { recursive: true });
 
 export interface Kadro { app: ElectronApplication; win: Page; data: string; errors: string[]; logs: string[] }
 
-export async function launch(opts: { data?: string; env?: Record<string, string> } = {}): Promise<Kadro> {
+export async function launch(opts: { data?: string; env?: Record<string, string>; record?: string } = {}): Promise<Kadro> {
   const data = opts.data ?? fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-data-'));
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const exe = require('electron') as unknown as string;
@@ -22,6 +22,7 @@ export async function launch(opts: { data?: string; env?: Record<string, string>
     args: ['--no-sandbox', ROOT],
     cwd: ROOT,
     env: { ...process.env, KADRO_DATA: data, KADRO_SKIP_HOME: '1', KADRO_MULTI: '1', KADRO_MODELS: MODELS, KADRO_FAKE_MEDIA: '1', KADRO_TEST_LUT: path.join(MEDIA, 'test.cube'), ...opts.env } as Record<string, string>,
+    ...(opts.record ? { recordVideo: { dir: opts.record, size: { width: 1480, height: 920 } } } : {}),
   });
   const win = await app.firstWindow();
   const errors: string[] = [];

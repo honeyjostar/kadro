@@ -4,7 +4,8 @@ import { newProject } from '../shared/defaults';
 import type { DemoFiles, KadroApi, ThemePref } from '../shared/ipc';
 import type { Platform } from '../shared/safezones';
 import { projectDuration } from '../shared/timeline';
-import type { MediaAsset, Model3D, Project } from '../shared/types';
+import type { AspectKey, MediaAsset, Model3D, Project } from '../shared/types';
+import type { AutoStyle } from '../shared/autoEdit';
 
 export const api: KadroApi = (window as unknown as { kadro: KadroApi }).kadro;
 
@@ -12,6 +13,18 @@ export type LeftTab = 'media' | 'audio' | 'text' | 'captions' | 'effects' | 'tra
 
 export interface Job { id: string; label: string; progress: number; stage?: string; clipId?: string; cancellable: boolean }
 export interface Toast { id: number; text: string; kind: 'info' | 'ok' | 'err' }
+/** Настройки авто-ролика (что выбрал человек). */
+export interface AutoParams {
+  files: string[];                 // видео и фото по порядку
+  music: string | null;            // путь к музыке
+  style: AutoStyle;
+  aspect: AspectKey;
+  length: number | 'auto';
+  title: string;
+  videoSound: 'off' | 'quiet' | 'on';
+}
+/** Окно «Авто-ролик»: заранее выбранные файлы; fresh — собрать новым проектом (с главного экрана). */
+export interface AutoOpen { files: string[]; music?: string | null; fresh: boolean }
 
 interface State {
   project: Project;
@@ -47,6 +60,10 @@ interface State {
   libJump: string | null;
   /** Открыто окно настройки 3D-объекта (clipId — правим уже добавленный). */
   model3dEdit: { init: Model3D; clipId?: string } | null;
+  /** Открыто окно «Авто-ролик». */
+  autoOpen: AutoOpen | null;
+  /** Последний собранный авто-ролик — для «Ещё вариант». */
+  autoLast: AutoParams | null;
 
   commit: (fn: (p: Project) => Project, key?: string) => void;
   replace: (p: Project, path?: string | null) => void;
@@ -71,6 +88,8 @@ interface State {
   setSafeZone: (z: Platform | null) => void;
   setLibJump: (p: string | null) => void;
   setModel3dEdit: (e: { init: Model3D; clipId?: string } | null) => void;
+  setAutoOpen: (o: AutoOpen | null) => void;
+  setAutoLast: (p: AutoParams | null) => void;
 }
 
 const HISTORY = 120;
@@ -122,6 +141,8 @@ export const useStore = create<State>((set, get) => ({
   safeZone: readPref<Platform | null>('kadro.safeZone', null),
   libJump: null,
   model3dEdit: null,
+  autoOpen: null,
+  autoLast: null,
 
   commit: (fn, key) => {
     const s = get();
@@ -198,6 +219,8 @@ export const useStore = create<State>((set, get) => ({
   setSafeZone: (z) => { writePref('kadro.safeZone', z); set({ safeZone: z }); },
   setLibJump: (p) => set({ libJump: p }),
   setModel3dEdit: (e) => set({ model3dEdit: e }),
+  setAutoOpen: (o) => set({ autoOpen: o }),
+  setAutoLast: (p) => set({ autoLast: p }),
 }));
 
 export const getState = () => useStore.getState();

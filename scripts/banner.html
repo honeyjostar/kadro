@@ -1,0 +1,50 @@
+<!doctype html>
+<!-- Обложка для README и превью ссылки на GitHub. Рисуется скриптом scripts/make-banner.mjs (Chromium → PNG). -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Unbounded'; font-weight: 700; src: url('../node_modules/@fontsource/unbounded/files/unbounded-cyrillic-700-normal.woff2') format('woff2'); unicode-range: U+0400-04FF; }
+  @font-face { font-family: 'Unbounded'; font-weight: 700; src: url('../node_modules/@fontsource/unbounded/files/unbounded-latin-700-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+2014; }
+  @font-face { font-family: 'Onest'; font-weight: 400; src: url('../node_modules/@fontsource/onest/files/onest-cyrillic-400-normal.woff2') format('woff2'); unicode-range: U+0400-04FF; }
+  @font-face { font-family: 'Onest'; font-weight: 400; src: url('../node_modules/@fontsource/onest/files/onest-latin-400-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+2014; }
+  @font-face { font-family: 'Onest'; font-weight: 600; src: url('../node_modules/@fontsource/onest/files/onest-cyrillic-600-normal.woff2') format('woff2'); unicode-range: U+0400-04FF; }
+  @font-face { font-family: 'Onest'; font-weight: 600; src: url('../node_modules/@fontsource/onest/files/onest-latin-600-normal.woff2') format('woff2'); unicode-range: U+0000-00FF, U+2014; }
+  :root { --bg: #15131a; --text: #ece8f2; --muted: #a39cb1; --accent: #ff3d7f; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { width: 1280px; height: 640px; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Onest', sans-serif; position: relative; }
+  .glow { position: absolute; inset: 0; background:
+    radial-gradient(640px 420px at 88% 8%, rgba(255, 61, 127, 0.16), transparent 70%),
+    radial-gradient(520px 360px at 6% 100%, rgba(120, 92, 255, 0.10), transparent 70%); }
+  .left { position: absolute; left: 58px; top: 0; bottom: 0; width: 470px; display: flex; flex-direction: column; justify-content: center; }
+  .brand { display: flex; align-items: center; gap: 22px; }
+  .icon { width: 84px; height: 84px; border-radius: 20px; background: #000; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.16), 0 18px 40px -12px rgba(0, 0, 0, 0.9); display: grid; place-items: center; }
+  .icon svg { width: 84px; height: 84px; }
+  .word { font: 700 74px/1 'Unbounded', sans-serif; letter-spacing: -0.04em; }
+  h1 { font: 600 38px/1.12 'Onest', sans-serif; margin: 40px 0 0; letter-spacing: -0.01em; }
+  .sub { font-size: 19px; line-height: 1.5; color: var(--muted); margin: 18px 0 0; max-width: 31em; }
+  .foot { position: absolute; left: 58px; bottom: 44px; font-size: 17px; color: var(--muted); }
+  .foot b { color: var(--text); font-weight: 600; }
+  .shot { position: absolute; left: 560px; top: 78px; width: 800px; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.09), 0 40px 90px -20px rgba(0, 0, 0, 0.85); }
+  .shot img { display: block; width: 100%; }
+  .playhead { position: absolute; left: 520px; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .playhead::before { content: ''; position: absolute; top: 24px; left: -10px; border: 11.5px solid transparent; border-top: 14px solid var(--accent); border-bottom: 0; }
+</style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="shot"><img src="SHOT" alt=""></div>
+  <div class="playhead"></div>
+  <div class="left">
+    <div class="brand">
+      <div class="icon"><svg viewBox="0 0 64 64"><rect x="12" y="12" width="40" height="4.5" rx="2.25" fill="#fff"/><rect x="12" y="47.5" width="40" height="4.5" rx="2.25" fill="#fff"/><path d="M26 23.5v17l16-8.5z" fill="#fff"/></svg></div>
+      <div class="word">Kadro</div>
+    </div>
+    <h1>Бесплатный видеоредактор с ИИ</h1>
+    <p class="sub">Авто-ролик под музыку, 58 переходов, 3D, перспектива, субтитры, удаление фона — всё работает на твоём компьютере. Без подписки и водяных знаков.</p>
+  </div>
+  <div class="foot">Открытый исходный код, автор <b>yaposspall</b></div>
+</body>
+</html>

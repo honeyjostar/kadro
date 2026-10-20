@@ -4,6 +4,7 @@ import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
 import { Model3DDialog } from './Objects3D';
+import { AutoEditDialog } from './AutoEdit';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts } from './Overlays';
@@ -24,6 +25,7 @@ export function App() {
   const exportOpen = useStore((s) => s.exportOpen);
   const home = useStore((s) => s.home);
   const m3d = useStore((s) => s.model3dEdit);
+  const autoOpen = useStore((s) => s.autoOpen);
   const loaded = useRef(false);
 
   // восстановление последнего проекта, обновления файлов из главного процесса
@@ -121,6 +123,7 @@ export function App() {
       {exportOpen && <ExportDialog />}
       {home && <Home />}
       {m3d && <Model3DDialog key={`${m3d.init.source}-${m3d.clipId ?? ''}`} />}
+      {autoOpen && <AutoEditDialog />}
       <Jobs />
       <Toasts />
     </div>

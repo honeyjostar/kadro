@@ -1,11 +1,11 @@
 // Библиотека во вкладке «Медиа»: папки с видео, фото и музыкой, добавленные один раз, — в любом проекте.
 // Внутри: подпапки, превью, поиск, фильтр; файл берётся в проект двойным кликом, кнопкой «+» или перетаскиванием на таймлайн.
-import { AudioLines, ChevronRight, Film, Folder, FolderPlus, Image as ImageIcon, Plus, Search, X } from 'lucide-react';
+import { AudioLines, ChevronRight, Film, Folder, FolderPlus, Image as ImageIcon, Plus, Search, WandSparkles, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LibFile, LibFolder, LibListing, LibMeta } from '../../shared/ipc';
 import { placeLibraryFiles } from '../actions';
 import { api, getState, useStore } from '../store';
-import { fmtDur } from '../util';
+import { fmtDur, plural } from '../util';
 import { Seg } from './controls';
 
 type Filter = 'all' | 'video' | 'image' | 'audio';
@@ -15,10 +15,6 @@ type Sort = 'name' | 'new';
 const memo: { root: string | null; dir: string | null; filter: Filter; sort: Sort } = { root: null, dir: null, filter: 'all', sort: 'name' };
 const metaCache = new Map<string, LibMeta>();
 
-const plural = (n: number, one: string, few: string, many: string) => {
-  const m10 = n % 10; const m100 = n % 100;
-  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? few : many;
-};
 const files = (n: number) => `${n} ${plural(n, 'файл', 'файла', 'файлов')}`;
 
 export function LibraryView() {
@@ -70,6 +66,12 @@ export function LibraryView() {
     try { await placeLibraryFiles(paths); } finally { setBusy(false); }
   };
 
+  /** Окно «Авто-ролик» с файлами из библиотеки: видео и фото по порядку, музыка — первая из этих файлов. */
+  const autoFrom = (fs: LibFile[]) => getState().setAutoOpen({
+    files: fs.filter((f) => f.kind !== 'audio').map((f) => f.path),
+    music: fs.find((f) => f.kind === 'audio')?.path ?? null,
+    fresh: false,
+  });
   const list = useMemo(() => {
     const src = found ?? listing?.files ?? [];
     const f = src.filter((x) => filter === 'all' || x.kind === filter);
@@ -140,6 +142,11 @@ export function LibraryView() {
       )}
       <div className="lib-head">
         <span className="hint small">{searching ? `Найдено: ${found!.length}${found!.length >= 400 ? ' (первые 400)' : ''}` : files(list.length)}</span>
+        {list.filter((f) => f.kind !== 'audio').length > 1 && (
+          <button className="btn ghost small lib-auto" title="Собрать ролик из видео и фото этой папки — под музыку из неё, если есть" onClick={() => autoFrom(list)} data-testid="lib-auto">
+            <WandSparkles size={13} />Авто-ролик
+          </button>
+        )}
         <select className="lib-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)} title="Порядок файлов" data-testid="lib-sort">
           <option value="name">По имени</option>
           <option value="new">Сначала новые</option>
@@ -160,6 +167,7 @@ export function LibraryView() {
         <div className="lib-bar">
           <span>Выбрано: {sel.length}</span>
           <button className="btn small" onClick={() => setSel([])}>Снять</button>
+          <button className="btn small" onClick={() => autoFrom(list.filter((f) => sel.includes(f.path)))} title="Собрать ролик из выбранных файлов" data-testid="lib-auto-sel"><WandSparkles size={13} />Авто-ролик</button>
           <button className="btn primary small" disabled={busy} onClick={() => void place(sel)} data-testid="lib-place">На таймлайн</button>
         </div>
       )}

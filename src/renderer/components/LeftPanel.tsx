@@ -1,6 +1,6 @@
 import {
   Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -19,7 +19,7 @@ import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextSty
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate,
+  loadDemoFiles, tryTemplate, autoVariant,
 } from '../actions';
 import { listMics, recPrefs, type MicInfo } from '../recorder';
 import { BUILTIN_TEMPLATES, TEMPLATE_CATS, templateDuration, type Template, type TemplateCat } from '../../shared/templates';
@@ -88,6 +88,7 @@ function TemplatesPanel() {
   const libCount = useStore((s) => s.project.assets.filter((a) => !a.derived && (a.kind === 'video' || a.kind === 'image')).length);
   const hasMain = useStore((s) => s.project.tracks[0]?.clips.length > 0);
   const hasDemo = useStore((s) => !!s.demo && Object.keys(s.demo.scenes).length > 0);
+  const autoLast = useStore((s) => s.autoLast);
   const refresh = () => void api.listTemplates().then(setMine);
   useEffect(refresh, []);
   useEffect(() => { void loadDemoFiles(); }, []);
@@ -124,6 +125,14 @@ function TemplatesPanel() {
     <>
       <div className="panel-head">Шаблоны</div>
       <div className="panel-body">
+        <div className="auto-card" data-testid="tpl-auto-card">
+          <b><WandSparkles size={15} />Авто-ролик</b>
+          <span className="hint small">Kadro сам возьмёт лучшие куски видео и смонтирует их в ритм музыки.</span>
+          <div className="row-btns">
+            <button className="btn primary small" disabled={busy} onClick={() => getState().setAutoOpen({ files: autoLast?.files ?? [], fresh: false })} data-testid="tpl-auto">{autoLast ? 'Настроить…' : 'Собрать…'}</button>
+            {autoLast && <button className="btn small" disabled={busy} onClick={() => void run(autoVariant)} title="Другие куски видео и переходы, те же файлы и стиль" data-testid="tpl-auto-variant"><Shuffle size={13} />Ещё вариант</button>}
+          </div>
+        </div>
         <p className="hint">Готовый монтаж с переходами, цветом, эффектами и надписями. Наведи на шаблон, чтобы посмотреть, нажми — и выбери свои видео и фото по порядку.</p>
         <div className="chips">
           <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
@@ -231,6 +240,12 @@ function MediaPanel() {
         </div>
         {view === 'library' ? <LibraryView /> : (<>
         <DropZone accept="any" compact={assets.length > 0} />
+        {assets.filter((a) => a.kind !== 'audio' && !a.missing).length > 1 && (
+          <button className="btn block auto-from-media" onClick={() => getState().setAutoOpen({
+            files: assets.filter((a) => a.kind !== 'audio' && !a.missing).map((a) => a.path),
+            music: assets.find((a) => a.kind === 'audio' && !a.missing)?.path ?? null, fresh: false,
+          })} data-testid="media-auto"><WandSparkles size={14} />Авто-ролик из этих файлов</button>
+        )}
         {assets.length > 0 && (
           <>
             <div style={{ marginTop: 12 }}>

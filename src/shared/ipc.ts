@@ -1,6 +1,7 @@
 // Контракт между интерфейсом (renderer) и главным процессом.
 import type { Cue } from './timeline';
 import type { Template } from './templates';
+import type { Highlights } from './autoEdit';
 import type { ExportOptions, MediaAsset, Project, RampPoint, VoiceEffect } from './types';
 
 export type TtsVoiceId = 'irina' | 'dmitri' | 'denis' | 'ruslan' | 'amy' | 'ryan';
@@ -33,6 +34,7 @@ export type AiJob =
   | { kind: 'ttsDownload'; jobId: string; voice: TtsVoiceId }
   | { kind: 'stab'; jobId: string; path: string; in: number; out: number; strength: number }
   | { kind: 'beats'; jobId: string; path: string }
+  | { kind: 'highlights'; jobId: string; path: string; duration: number }
   | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number }
   | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; smooth?: boolean; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
   | { kind: 'freeze'; jobId: string; path: string; t: number; fps: number; alpha: boolean }
@@ -48,6 +50,7 @@ export type AiOutput =
   | { kind: 'tts'; path: string; duration: number }
   | { kind: 'stab'; path: string; range: [number, number] }
   | { kind: 'beats'; beats: number[]; bpm: number }
+  | { kind: 'highlights'; hl: Highlights }
   | { kind: 'reframe'; points: { t: number; x: number; y: number; found: boolean }[] }
   | { kind: 'retime'; path: string; duration: number }
   | { kind: 'freeze'; path: string }
@@ -126,6 +129,7 @@ export interface KadroApi {
   extractAudio(path: string): Promise<string>;
   /** 3D: выбрать файл модели (GLB, GLTF, OBJ, STL, FBX). */
   pickModel(): Promise<string | null>;
+  pickMusic(): Promise<string | null>;
   /** 3D: собрать кадры RGBA (снизу вверх) в видео с прозрачным фоном. */
   m3dBegin(w: number, h: number, fps: number): Promise<string>;
   m3dFrame(id: string, rgba: ArrayBuffer): Promise<void>;
