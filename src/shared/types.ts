@@ -169,7 +169,12 @@ export interface MediaClip {
   retime?: Retime;              // клип показывает копию фрагмента с реверсом / кривой скорости
   grade?: Grade;                // кривые, HSL, свой LUT
   group?: GroupData;            // составной клип: что внутри (для разгруппировки и пересборки)
+  anim?: { in?: ClipAnim; out?: ClipAnim }; // появление и исчезновение
 }
+
+/** Анимации появления и исчезновения видео и фото. */
+export type ClipAnimType = 'fade' | 'zoomin' | 'zoomout' | 'pop' | 'left' | 'right' | 'top' | 'bottom' | 'drop' | 'spin';
+export interface ClipAnim { type: ClipAnimType; dur: number }
 
 /** Содержимое составного клипа: дорожки с клипами, время — от начала группы. */
 export interface GroupData {
@@ -222,7 +227,7 @@ export interface WordHighlight {
   color: string;
 }
 
-export type TextAnimType = 'fade' | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight' | 'pop' | 'zoom' | 'typewriter' | 'blur' | 'wipe';
+export type TextAnimType = 'fade' | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight' | 'pop' | 'zoom' | 'typewriter' | 'blur' | 'wipe' | 'bounce' | 'elastic' | 'spin';
 export interface TextAnim { type: TextAnimType; dur: number }
 export interface Word { text: string; start: number; end: number }
 

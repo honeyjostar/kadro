@@ -2,7 +2,7 @@ import {
   Activity, AudioLines, Blend, Copy, Eye, EyeOff, Film, Group, Layers, Maximize2, Mic, Plus, Ungroup, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
 } from 'lucide-react';
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
 import {
   addFree, addToMain, beatTimes, clipDuration, clipEnd, findClip, mainToOverlay, moveClip, projectDuration, reorderMain, setTrackFlag, trimClip,
@@ -83,6 +83,7 @@ function rulerLabel(t: number, major: number): string {
 // ---------- линейка ----------
 function Ruler({ pps, view, width, onScrub }: { pps: number; view: View; width: number; onScrub: (e: React.PointerEvent) => void }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const theme = useStore((s) => s.theme);
   useLayoutEffect(() => {
     const c = ref.current!;
     const dpr = window.devicePixelRatio || 1;
@@ -106,11 +107,22 @@ function Ruler({ pps, view, width, onScrub }: { pps: number; view: View; width: 
       ctx.fillRect(x - 0.5, isMajor ? RULER_H - 9 : RULER_H - 5, 1, isMajor ? 9 : 5);
       if (isMajor) ctx.fillText(rulerLabel(t, major), x + 4, 5);
     }
-  }, [pps, view.left, view.width]);
+  }, [pps, view.left, view.width, theme]);
   return (
     <div className="ruler" style={{ width }} onPointerDown={onScrub} data-testid="ruler">
       <canvas ref={ref} style={{ position: 'absolute', left: view.left, top: 0, width: view.width, height: RULER_H }} />
     </div>
+  );
+}
+
+// ---------- кнопка панели: значок и подпись ----------
+function Tool({ icon, label, title, onClick, disabled, on, testId, className }: {
+  icon: ReactNode; label: string; title: string; onClick: () => void; disabled?: boolean; on?: boolean; testId?: string; className?: string;
+}) {
+  return (
+    <button className={`tool ${on ? 'on' : ''} ${className ?? ''}`} title={title} onClick={onClick} disabled={disabled} data-testid={testId}>
+      {icon}<span>{label}</span>
+    </button>
   );
 }
 
@@ -119,6 +131,7 @@ function Wave({ asset, clip, pps, clipLeft, clipWidth, view, height, color, top 
   asset: MediaAsset; clip: MediaClip; pps: number; clipLeft: number; clipWidth: number; view: View; height: number; color: string; top?: number;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const theme = useStore((s) => s.theme);
   const visL = Math.max(clipLeft, view.left - 50);
   const visR = Math.min(clipLeft + clipWidth, view.left + view.width + 50);
   const w = Math.max(0, Math.floor(visR - visL));
@@ -132,7 +145,7 @@ function Wave({ asset, clip, pps, clipLeft, clipWidth, view, height, color, top 
     const ctx = c.getContext('2d')!;
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, w, height);
-    ctx.fillStyle = color;
+    ctx.fillStyle = color.startsWith('--') ? getComputedStyle(document.documentElement).getPropertyValue(color).trim() || '#5fe0c9' : color;
     const per = peaks.length / Math.max(0.001, asset.duration); // точек на секунду исходника
     const gain = clip.muted ? 0.15 : Math.min(1.6, Math.max(0.15, clip.volume));
     for (let x = 0; x < w; x += 2) {
@@ -145,7 +158,7 @@ function Wave({ asset, clip, pps, clipLeft, clipWidth, view, height, color, top 
       const h = Math.max(1, peakLevel(Math.min(1, m * gain)) * (height - 2));
       ctx.fillRect(x, (height - h) / 2, 1.5, h);
     }
-  }, [asset.peaks, asset.duration, clip.in, clip.speed, clip.volume, clip.muted, pps, visL, w, height, color, clipLeft]);
+  }, [asset.peaks, asset.duration, clip.in, clip.speed, clip.volume, clip.muted, pps, visL, w, height, color, clipLeft, theme]);
   if (!asset.peaks?.length || w <= 0) return null;
   return <canvas ref={ref} className="wave" style={{ left: visL - clipLeft, top, width: w, height }} />;
 }
@@ -211,7 +224,7 @@ const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selecte
         .filter((x) => x >= view.left - left - 4 && x <= view.left + view.width - left + 4);
       content = (
         <>
-          <Wave asset={asset} clip={clip} pps={pps} clipLeft={left} clipWidth={width} view={view} height={rowH - 8} color="#5fe0c9" />
+          <Wave asset={asset} clip={clip} pps={pps} clipLeft={left} clipWidth={width} view={view} height={rowH - 8} color="--audio-wave" />
           {beats.length > 0 && <div className="beat-marks">{beats.map((x, i) => <i key={i} style={{ left: x }} />)}</div>}
         </>
       );
@@ -536,34 +549,34 @@ export function Timeline() {
 
   return (
     <section className="timeline" data-testid="timeline">
-      <div className="tl-toolbar">
-        <button className="icon-btn" title="Отменить (Ctrl+Z)" disabled={!canUndo} onClick={() => getState().undo()} data-testid="undo"><Undo2 size={17} /></button>
-        <button className="icon-btn" title="Вернуть (Ctrl+Y)" disabled={!canRedo} onClick={() => getState().redo()} data-testid="redo"><Redo2 size={17} /></button>
+      <div className="tl-toolbar" role="toolbar" aria-label="Инструменты таймлайна">
+        <Tool icon={<Undo2 size={17} />} label="Отменить" title="Отменить последнее действие (Ctrl+Z)" disabled={!canUndo} onClick={() => getState().undo()} testId="undo" />
+        <Tool icon={<Redo2 size={17} />} label="Вернуть" title="Вернуть отменённое (Ctrl+Y)" disabled={!canRedo} onClick={() => getState().redo()} testId="redo" />
         <span className="sep" />
-        <button className="icon-btn" title="Разрезать у курсора (S)" onClick={splitAtPlayhead} disabled={noClips} data-testid="split"><Scissors size={17} /></button>
-        <button className="icon-btn" title="Удалить (Delete)" onClick={deleteSelection} disabled={!selection.length} data-testid="delete"><Trash2 size={17} /></button>
-        <button className="icon-btn" title="Копия клипа (Ctrl+D)" onClick={duplicateSelection} disabled={selection.length !== 1} data-testid="duplicate"><Copy size={17} /></button>
+        <Tool icon={<Scissors size={17} />} label="Разрезать" title="Разрезать клип там, где розовая линия времени (S)" onClick={splitAtPlayhead} disabled={noClips} testId="split" />
+        <Tool icon={<Trash2 size={17} />} label="Удалить" title="Удалить выделенное (Delete)" onClick={deleteSelection} disabled={!selection.length} testId="delete" />
+        <Tool icon={<Copy size={17} />} label="Копия" title="Сделать копию выделенного клипа (Ctrl+D)" onClick={duplicateSelection} disabled={selection.length !== 1} testId="duplicate" />
         {selClip?.group && selection.length === 1
-          ? <button className="icon-btn" title="Разгруппировать (Ctrl+Shift+G)" onClick={ungroupSelection} data-testid="tl-ungroup"><Ungroup size={17} /></button>
-          : <button className="icon-btn" title="Сгруппировать выделенные клипы (Ctrl+G)" onClick={() => void groupSelection()} disabled={selection.length < 2} data-testid="tl-group"><Group size={17} /></button>}
-        <button className="icon-btn" title="Стоп-кадр у курсора" onClick={() => void freezeFrame()} disabled={noClips} data-testid="tl-freeze"><Snowflake size={17} /></button>
-        <button className={`icon-btn ${selClip?.retime?.reverse ? 'on' : ''}`} title="Реверс выделенного клипа" disabled={!selClip || sel?.asset?.kind === 'image'}
-          onClick={() => selClip && void retimeClip(selClip.id, { reverse: !selClip.retime?.reverse })} data-testid="tl-reverse"><Rewind size={17} /></button>
-        <button className={`icon-btn ${recording ? 'rec-on' : ''}`} title={recording ? 'Остановить запись голоса' : 'Записать голос с микрофона от курсора'} data-testid="tl-rec"
-          onClick={() => { if (recording) void stopRecording(); else { getState().setLeftTab('audio'); void startRecording(recPrefs.mic, recPrefs.mute); } }}><Mic size={17} /></button>
+          ? <Tool icon={<Ungroup size={17} />} label="Разгруппировать" title="Разобрать группу обратно на клипы (Ctrl+Shift+G)" onClick={ungroupSelection} testId="tl-ungroup" />
+          : <Tool icon={<Group size={17} />} label="Группа" title="Склеить выделенные клипы в одну группу — выдели несколько с Ctrl (Ctrl+G)" onClick={() => void groupSelection()} disabled={selection.length < 2} testId="tl-group" />}
+        <Tool icon={<Snowflake size={17} />} label="Стоп-кадр" title="Остановить кадр там, где розовая линия времени" onClick={() => void freezeFrame()} disabled={noClips} testId="tl-freeze" />
+        <Tool icon={<Rewind size={17} />} label="Реверс" title="Проиграть выделенный клип задом наперёд" on={!!selClip?.retime?.reverse} disabled={!selClip || sel?.asset?.kind === 'image'}
+          onClick={() => selClip && void retimeClip(selClip.id, { reverse: !selClip.retime?.reverse })} testId="tl-reverse" />
+        <Tool icon={<Mic size={17} />} label={recording ? 'Стоп' : 'Голос'} title={recording ? 'Остановить запись голоса' : 'Записать голос с микрофона от розовой линии времени'} className={recording ? 'rec-on' : ''} testId="tl-rec"
+          onClick={() => { if (recording) void stopRecording(); else { getState().setLeftTab('audio'); void startRecording(recPrefs.mic, recPrefs.mute); } }} />
         <span className="sep" />
-        <button className="btn ghost small" title="Вырезать тишину между фразами в выделенном клипе" disabled={!canPauses}
-          onClick={() => selClip && void removePauses(selClip.id)}><Wand2 size={15} />Убрать паузы</button>
-        <button className="btn ghost small" title="Подогнать склейки основной дорожки под доли такта музыки" disabled={!hasBeats}
-          onClick={() => alignToBeats()} data-testid="tl-beats"><Activity size={15} />Под бит</button>
-        <button className="btn ghost small" title="Переход на выбранный стык" disabled={!junction && !(selClip && sel?.track.kind === 'main')}
-          onClick={() => getState().setLeftTab('transitions')}><Blend size={15} />Переход</button>
+        <Tool icon={<Wand2 size={17} />} label="Убрать паузы" title="Вырезать тишину между фразами в выделенном клипе" disabled={!canPauses}
+          onClick={() => selClip && void removePauses(selClip.id)} />
+        <Tool icon={<Activity size={17} />} label="Под бит" title="Подогнать склейки основной дорожки под доли такта музыки (сначала найди ритм во вкладке «Аудио»)" disabled={!hasBeats}
+          onClick={() => alignToBeats()} testId="tl-beats" />
+        <Tool icon={<Blend size={17} />} label="Переход" title="Выбрать переход для стыка двух клипов" disabled={!junction && !(selClip && sel?.track.kind === 'main')}
+          onClick={() => getState().setLeftTab('transitions')} />
         <div className="grow" />
-        <button className="icon-btn" title="Уменьшить (−)" onClick={() => zoomTo(pps / 1.4)}><ZoomOut size={16} /></button>
-        <input type="range" className="zoom" min={0} max={1} step={0.001} value={zoomVal} aria-label="Масштаб таймлайна"
+        <Tool icon={<ZoomOut size={17} />} label="Мельче" title="Уменьшить масштаб таймлайна (−)" onClick={() => zoomTo(pps / 1.4)} />
+        <input type="range" className="zoom" min={0} max={1} step={0.001} value={zoomVal} aria-label="Масштаб таймлайна" title="Масштаб таймлайна"
           onChange={(e) => zoomTo(MIN_PPS * Math.pow(MAX_PPS / MIN_PPS, Number(e.target.value)))} />
-        <button className="icon-btn" title="Увеличить (+)" onClick={() => zoomTo(pps * 1.4)}><ZoomIn size={16} /></button>
-        <button className="icon-btn" title="Весь ролик" onClick={fit}><Maximize2 size={15} /></button>
+        <Tool icon={<ZoomIn size={17} />} label="Крупнее" title="Увеличить масштаб таймлайна (+)" onClick={() => zoomTo(pps * 1.4)} />
+        <Tool icon={<Maximize2 size={16} />} label="Весь ролик" title="Показать весь ролик целиком" onClick={fit} />
       </div>
       <div className="tl-body">
         <div className="tl-heads">

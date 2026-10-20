@@ -5,12 +5,14 @@ import * as timeline from '../shared/timeline';
 import * as effects from '../shared/effects';
 import * as color from '../shared/color';
 import * as actions from './actions';
+import * as preflight from './preflight';
+import * as templates from '../shared/templates';
 import { App } from './components/App';
 import { api, getState, useStore } from './store';
 import { CrashGuard } from './components/Crash';
 
 // доступ для автотестов (window.__kadro) — в обычной работе не используется
-(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color };
+(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates };
 
 // ошибки вне React (обработчики, промисы) не роняют окно: в журнал и короткое сообщение
 const report = (msg: string) => {
@@ -24,5 +26,15 @@ window.addEventListener('unhandledrejection', (e) => {
   if (r instanceof DOMException && r.name === 'AbortError') return;
   report(r instanceof Error ? r.stack ?? r.message : String(r));
 });
+
+// тема: главный процесс выставляет её системе окна, окно лишь следует prefers-color-scheme
+const lightQuery = window.matchMedia('(prefers-color-scheme: light)');
+const applyTheme = () => {
+  const t = lightQuery.matches ? 'light' : 'dark';
+  document.documentElement.dataset.theme = t;
+  getState().setTheme(t);
+};
+applyTheme();
+lightQuery.addEventListener('change', applyTheme);
 
 createRoot(document.getElementById('root')!).render(<CrashGuard><App /></CrashGuard>);

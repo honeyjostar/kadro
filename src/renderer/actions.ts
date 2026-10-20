@@ -396,7 +396,7 @@ function freezeTarget(): MediaClip | null {
 
 export async function freezeFrame(dur = 2): Promise<void> {
   const c = freezeTarget();
-  if (!c) { getState().toast('Стоп-кадр берётся из кадра под белой линией времени. Передвинь её на видео и нажми ещё раз'); return; }
+  if (!c) { getState().toast('Стоп-кадр берётся из кадра под розовой линией времени. Передвинь её на видео и нажми ещё раз'); return; }
   const p = getState().project;
   const a = p.assets.find((x) => x.id === c.assetId)!;
   const t = getState().playhead;
@@ -691,7 +691,8 @@ export async function makeCaptions(model: 'multi' | 'ru', includeMusic: boolean)
   const cues = r.output.cues;
   if (!cues.length) { getState().toast('Речь не найдена. Проверь, что у видео есть звук и он не выключен.'); return false; }
   const vertical = getState().project.settings.height > getState().project.settings.width;
-  getState().commit((p) => setCaptions(p, cues, CAPTION_STYLE, vertical ? 0.72 : 0.86));
+  // на вертикальном видео — выше подписи и кнопок TikTok, Reels и Shorts
+  getState().commit((p) => setCaptions(p, cues, CAPTION_STYLE, vertical ? 0.64 : 0.86));
   getState().toast(`Готово: ${cues.length} субтитров. Их можно поправить — кликни по любому.`, 'ok');
   return true;
 }

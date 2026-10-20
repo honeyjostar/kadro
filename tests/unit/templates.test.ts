@@ -103,3 +103,13 @@ describe('шаблоны', () => {
     expect(() => applyTemplate(newProject('x'), BUILTIN_TEMPLATES[0], [asset('a', 'audio', 3)])).toThrow(/видео или фото/);
   });
 });
+
+describe('зоны соцсетей', () => {
+  it('надпись внизу попадает под подпись TikTok, в центре — никуда', async () => {
+    const { zonesHit } = await import('../../src/shared/safezones');
+    expect(zonesHit('tiktok', { x: 0.2, y: 0.82, w: 0.5, h: 0.05 }).map((z) => z.short)).toEqual(['Ник и подпись']);
+    expect(zonesHit('tiktok', { x: 0.2, y: 0.45, w: 0.6, h: 0.06 })).toEqual([]);
+    expect(zonesHit('reels', { x: 0.1, y: 0.45, w: 0.85, h: 0.05 })).toEqual([]);
+    expect(zonesHit('shorts', { x: 0.1, y: 0.5, w: 0.85, h: 0.05 }).map((z) => z.short)).toEqual(['Кнопки']);
+  });
+});

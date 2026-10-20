@@ -4,6 +4,7 @@ import { aiSource, audioSource, videoSource } from '../../shared/ai';
 import { mediaPropsAt } from '../../shared/anim';
 import { maskBytes } from '../../shared/mask';
 import { fxGeometry, particleEffects, sortedEffects } from '../../shared/effects';
+import { clipAnimAt } from '../../shared/clipAnim';
 import { drawParticles } from '../../shared/particles';
 import { applyPixelEffects, drawMainBars } from './effectsPreview';
 import { ChromaKeyer } from './chroma';
@@ -420,9 +421,13 @@ export class PreviewEngine {
     }
     if (!src) return;
     const mp = mediaPropsAt(c, t);
-    if (mp.opacity <= 0.001) { if (isMain) drawMainBars(c2d, c, W, H); return; }
     const local = t - c.start;
     const g = fxGeometry(c.effects, local, clipDuration(c));
+    // появление и исчезновение клипа — поверх эффектов движения
+    const ga = clipAnimAt(c, local, clipDuration(c));
+    g.dx += ga.dx; g.dy += ga.dy; g.drot += ga.drot; g.scale *= ga.scale;
+    mp.opacity *= ga.opacity;
+    if (mp.opacity <= 0.001) { if (isMain) drawMainBars(c2d, c, W, H); return; }
     const pl = placeOnCanvas(W, H, asset.width, asset.height, c.fit, { x: mp.x + g.dx, y: mp.y + g.dy, scale: mp.scale * g.scale, rotation: mp.rotation + g.drot });
     let img: CanvasImageSource = src.el;
     if (c.chroma) {

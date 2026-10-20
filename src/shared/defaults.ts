@@ -104,7 +104,7 @@ export function newTextClip(start: number, text = 'Текст', style: Partial<T
     text,
     style: { ...DEFAULT_TEXT_STYLE, ...style },
     x: 0.5,
-    y: role === 'caption' ? 0.72 : 0.5,
+    y: role === 'caption' ? 0.64 : 0.5,
     role,
   };
 }
@@ -336,6 +336,9 @@ export const TEXT_ANIMS: { type: TextAnimType; in: string; out: string }[] = [
   { type: 'typewriter', in: 'Печатная машинка', out: 'Стирание' },
   { type: 'blur', in: 'Из размытия', out: 'В размытие' },
   { type: 'wipe', in: 'Шторка', out: 'Шторка' },
+  { type: 'bounce', in: 'Падение с прыжком', out: 'Подброс' },
+  { type: 'elastic', in: 'Пружина', out: 'Пружина' },
+  { type: 'spin', in: 'Вращение', out: 'Вращение' },
 ];
 
 export const HIGHLIGHTS: { mode: WordHighlight['mode']; label: string }[] = [

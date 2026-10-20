@@ -1,6 +1,7 @@
 // Построение графа FFmpeg для экспорта проекта. Чистая функция — тестируется без Electron.
 import { aiSource, audioSource, videoSource } from './ai';
 import { hasAnim, kfExpr, maxScale, valueAt } from './anim';
+import { animFades, animMaxScale, animMoves, clipAnimAt, clipAnimExpr } from './clipAnim';
 import { effectiveColor, ffmpegColorFilter } from './color';
 import { GRADE_N, gradeActive, gradeTable, haldImage, type CubeLut } from './grade';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geometry';
@@ -72,6 +73,7 @@ interface Group {
 function sameLook(a: MediaClip, b: MediaClip): boolean {
   // анимация привязана ко времени клипа — такие куски не склеиваем в одну группу
   if (hasAnim(a.keyframes) || hasAnim(b.keyframes)) return false;
+  if (a.anim?.in || a.anim?.out || b.anim?.in || b.anim?.out) return false;
   // эффекты тоже считаются от начала клипа (вспышка, глитч, тряска)
   if (a.effects?.length || b.effects?.length) return false;
   const extra = (c: MediaClip) => JSON.stringify([c.opacity ?? 1, c.mask ?? null, c.blend ?? 'normal', c.chroma ?? null, c.stab?.path ?? '', c.voice?.path ?? '', c.grade ?? null]);
@@ -141,15 +143,17 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     if (col) parts.push(col);
     const D = clipDuration(c);
     const opKfs = c.keyframes?.opacity;
+    const fades = animFades(c);
     const opacityPart = () => {
-      if (opKfs?.length) {
-        // прозрачность меняется во времени: команды фильтру на каждый кадр анимации
+      if (opKfs?.length || fades) {
+        // прозрачность меняется во времени (ключи, проявление/растворение): команды фильтру на каждый кадр
         const name = `colorchannelmixer@op${labelN++}`;
         const cmds: string[] = [];
         let prev = NaN;
         const n = Math.ceil(D * F);
         for (let i = 0; i < n; i++) {
-          const v = Math.min(1, Math.max(0, valueAt(opKfs, c.opacity ?? 1, c.in + (i / F) * c.speed)));
+          const base = opKfs?.length ? valueAt(opKfs, c.opacity ?? 1, c.in + (i / F) * c.speed) : c.opacity ?? 1;
+          const v = Math.min(1, Math.max(0, base * clipAnimAt(c, i / F, D).opacity));
           if (Math.abs(v - prev) < 0.002) continue;
           prev = v;
           cmds.push(`${fmt(i === 0 ? 0 : (i - 0.5) / F)} ${name} aa ${fmt(v)}`);
@@ -380,7 +384,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       }
     };
 
-    const moving = (['x', 'y', 'scale', 'rotation'] as const).some((pr) => (c.keyframes?.[pr]?.length ?? 0) > 0) || fxMoves(c.effects);
+    const moving = (['x', 'y', 'scale', 'rotation'] as const).some((pr) => (c.keyframes?.[pr]?.length ?? 0) > 0) || fxMoves(c.effects) || animMoves(c);
     if (!moving) {
       const pl = placeOnCanvas(W, H, o2.w, o2.h, c.fit, c.transform);
       const sw = Math.max(1, Math.round(pl.w));
@@ -407,7 +411,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     // ---- ключевые кадры: слой в наибольшем масштабе, дальше — перспектива по кадрам ----
     const k = c.keyframes ?? {};
     const pl1 = placeOnCanvas(W, H, o2.w, o2.h, c.fit, { x: 0, y: 0, rotation: 0, scale: 1 });
-    const sm = Math.min(maxScale(c) * fxMaxScale(c.effects), (3 * Math.max(W, H)) / Math.max(1, pl1.w, pl1.h)); // не раздуваем слой больше 3 холстов
+    const sm = Math.min(maxScale(c) * fxMaxScale(c.effects) * animMaxScale(c), (3 * Math.max(W, H)) / Math.max(1, pl1.w, pl1.h)); // не раздуваем слой больше 3 холстов
     const plM = placeOnCanvas(W, H, o2.w, o2.h, c.fit, { x: 0, y: 0, rotation: 0, scale: sm });
     const wm = Math.max(2, Math.round(plM.w));
     const hm = Math.max(2, Math.round(plM.h));
@@ -417,7 +421,9 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const T = `((in-1)/${F})`; // in у perspective считается с единицы
     const loc = (t: number) => (t - c.in) / c.speed; // время ключа → время от начала клипа
     const ex = (prop: 'x' | 'y' | 'scale' | 'rotation', base: number) => kfExpr(k[prop], base, T, loc);
-    const g = fxGeometryExpr(c.effects, T, D);
+    const g0 = fxGeometryExpr(c.effects, T, D);
+    const ga = clipAnimExpr(c, T, D);
+    const g = { dx: `(${g0.dx}+${ga.dx})`, dy: `(${g0.dy}+${ga.dy})`, drot: `(${g0.drot}+${ga.drot})`, scale: `(${g0.scale}*${ga.scale})` };
     const kk = `((${ex('scale', c.transform.scale)})*${g.scale}/${fmt(sm)})`;
     const X = `(${fmt(W / 2)}+(${ex('x', c.transform.x)}+${g.dx})*${W})`;
     const Y = `(${fmt(H / 2)}+(${ex('y', c.transform.y)}+${g.dy})*${H})`;

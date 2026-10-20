@@ -68,6 +68,60 @@ test('демо-проект: все демо-ролики под бит, муз�
   await expect(home()).toHaveCount(0);
 });
 
+test('надписи встроенных шаблонов и демо не попадают под кнопки TikTok, Reels и Shorts', async () => {
+  const bad: string[] = await win.evaluate(async () => {
+    const k = (window as any).__kadro;
+    const asset = { id: 'a', kind: 'video', path: '/a.mp4', previewPath: '/a.mp4', name: 'a', duration: 60, width: 1080, height: 1920, fps: 30, hasVideo: true, hasAudio: false, size: 1, rotation: 0, proxy: 'none' };
+    const out: string[] = [];
+    for (const t of [...k.templates.BUILTIN_TEMPLATES, k.templates.DEMO_TEMPLATE]) {
+      const p = k.templates.applyTemplate(k.useStore.getState().project, t, [asset]);
+      await k.preflight.ensureFonts(p);
+      for (const pl of ['tiktok', 'reels', 'shorts']) {
+        for (const i of k.preflight.preflight(p, pl, 1080)) if (!i.id.startsWith('res') && i.id !== 'aspect') out.push(`${t.id} ${pl}: ${i.text}`);
+      }
+    }
+    return out;
+  });
+  expect(bad).toEqual([]);
+});
+
+test('проверка перед публикацией: демо чистое, надпись под кнопками TikTok находится и показывается', async () => {
+  // демо-проект открыт предыдущим тестом
+  await win.getByTestId('export-open').click();
+  await win.getByRole('button', { name: 'TikTok', exact: true }).click();
+  await expect(win.getByTestId('preflight-ok')).toBeVisible();
+  for (const name of ['Reels', 'Shorts']) {
+    await win.getByRole('button', { name, exact: true }).click();
+    await expect(win.getByTestId('preflight-ok'), name).toBeVisible();
+  }
+  await win.getByRole('button', { name: 'Закрыть' }).first().click();
+  // надпись внизу — под подписью и музыкой TikTok
+  const id: string = await win.evaluate(() => {
+    const k = (window as any).__kadro;
+    let id = '';
+    k.useStore.getState().commit((p: any) => { const r = k.timeline.addText(p, 1, 'ПОДПИСЬ ВНИЗУ'); id = r.clipId; return k.timeline.updateClip(r.project, id, { y: 0.86 }); });
+    return id;
+  });
+  await win.getByTestId('export-open').click();
+  await win.getByRole('button', { name: 'TikTok', exact: true }).click();
+  const issue = win.getByTestId('preflight-issue').filter({ hasText: 'ПОДПИСЬ ВНИЗУ' });
+  await expect(issue).toContainText('ник, подпись и музыка');
+  await issue.getByRole('button', { name: 'Показать' }).click();
+  await expect(win.getByTestId('export-dialog')).toHaveCount(0);
+  await expect(win.getByTestId('safe-zones')).toBeVisible();
+  expect(await state(win, 's => s.selection')).toEqual([id]);
+  // горизонтальный проект для TikTok — подсказка и починка одной кнопкой
+  await win.evaluate(() => { const k = (window as any).__kadro; k.useStore.getState().commit((p: any) => k.timeline.setSettings(p, { aspect: '16:9', width: 1920, height: 1080 })); });
+  await win.getByTestId('export-open').click();
+  await win.getByRole('button', { name: 'TikTok', exact: true }).click();
+  await win.getByRole('button', { name: 'Сделать 9:16' }).click();
+  expect((await project(win)).settings.aspect).toBe('9:16');
+  await win.getByRole('button', { name: 'Закрыть' }).first().click();
+  await win.keyboard.press('Control+z');
+  await win.keyboard.press('Control+z');
+  await win.getByTestId('safe-zone').selectOption('');
+});
+
 test('несохранённый проект не пропадает: он в «Недавних»', async () => {
   await openHome();
   await win.getByTestId('home-new-1-1').click();

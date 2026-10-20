@@ -263,6 +263,9 @@ export function splitClip(p: Project, clipId: string, t: number): AddResult {
       right.fadeIn = 0;
       c.fadeOut = 0;
       delete c.transitionOut; // переход остаётся у правой части
+      // появление остаётся у левой части, исчезновение — у правой
+      if (c.anim?.out) { c.anim = c.anim.in ? { in: c.anim.in } : undefined; }
+      if (right.anim?.in) { right.anim = right.anim.out ? { out: right.anim.out } : undefined; }
     } else if (c.type === 'text' && right.type === 'text') {
       const cut = t - c.start;
       c.duration = round(cut);
@@ -552,7 +555,7 @@ export function keepSourceRanges(p: Project, clipId: string, ranges: [number, nu
 export interface Cue { start: number; end: number; text: string; words?: { text: string; start: number; end: number }[] }
 
 /** Создать (или заменить) дорожку субтитров. */
-export function setCaptions(p: Project, cues: Cue[], style: TextStyle, y = 0.72): Project {
+export function setCaptions(p: Project, cues: Cue[], style: TextStyle, y = 0.64): Project {
   return edit(p, (d) => {
     d.tracks = d.tracks.filter((t) => !(t.kind === 'text' && t.clips.length > 0 && t.clips.every((c) => c.type === 'text' && c.role === 'caption')));
     if (cues.length === 0) return;

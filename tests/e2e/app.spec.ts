@@ -500,6 +500,44 @@ test('все эффекты: плеер совпадает с экспортом
   expect(bad, `не совпали:\n${bad.join('\n')}`).toEqual([]);
 });
 
+test('анимации появления и исчезновения: вкладка «Анимация», плеер совпадает с экспортом', async () => {
+  await reset(win);
+  const [img] = await act(win, 'importPaths', [patternImage()]);
+  const types: string[] = ['fade', 'zoomin', 'zoomout', 'pop', 'left', 'right', 'top', 'bottom', 'drop', 'spin'];
+  for (let i = 0; i < types.length; i++) await act(win, 'addAssetToTimeline', img, 'main', 999);
+  // через интерфейс — у первого клипа
+  const [first] = await clipIds(win, 'main');
+  await store(win, 'select', [first]);
+  await win.getByTestId('itab-anim').click();
+  await win.getByTestId('canim-in-pop').click();
+  await win.getByTestId('canim-out-fade').click();
+  let p = await project(win);
+  expect((p.tracks[0].clips[0] as any).anim).toEqual({ in: { type: 'pop', dur: 0.5 }, out: { type: 'fade', dur: 0.5 } });
+  // остальные — сразу всем
+  await commit(`(tl, p, a) => {
+    let q = p;
+    const clips = q.tracks.find((t) => t.kind === 'main').clips;
+    clips.forEach((c, i) => { q = tl.updateClip(q, c.id, { out: 1.2, anim: { in: { type: a[0][i], dur: 0.5 }, out: { type: a[0][(i + 3) % a[0].length], dur: 0.5 } } }); });
+    return q;
+  }`, types);
+  await store(win, 'select', []);
+  await waitAssetsReady(win);
+  const times: number[] = [];
+  // время чуть раньше кадра: -ss в FFmpeg берёт первый кадр не раньше указанного момента
+  for (let i = 0; i < types.length; i++) times.push(i * 1.2 + 0.233, i * 1.2 + 0.966);
+  const pngs: string[] = [];
+  for (const t of times) pngs.push(await parity(t, `canim_${t.toFixed(2)}`));
+  const out = await exportViaUi('720p');
+  const bad: string[] = [];
+  times.forEach((t, k) => {
+    const a = rawFrame(['-i', pngs[k]], 180, 320);
+    const b = rawFrame(['-ss', String(t), '-i', out], 180, 320);
+    const d = frameDiff(a, b);
+    if (d.mean > 6 || d.p98 > 48) bad.push(`${types[Math.floor(k / 2)]} @${t.toFixed(2)}: ${d.mean.toFixed(2)} / ${d.p98.toFixed(0)}`);
+  });
+  expect(bad, `не совпали:\n${bad.join('\n')}`).toEqual([]);
+});
+
 test('все фильтры: плеер совпадает с экспортом, плитки ставят фильтр', async () => {
   await reset(win);
   const [img] = await act(win, 'importPaths', [patternImage()]);

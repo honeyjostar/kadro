@@ -122,9 +122,9 @@ function TemplatesPanel() {
       <div className="panel-body">
         <p className="hint">Готовый монтаж с переходами, цветом, эффектами и надписями. Наведи на шаблон, чтобы посмотреть, нажми — и выбери свои видео и фото по порядку.</p>
         <div className="chips">
-          <button className={cat === 'all' ? 'on' : ''} onClick={() => setCat('all')}>Все</button>
-          {TEMPLATE_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'on' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
-          {mine.length > 0 && <button className={cat === 'mine' ? 'on' : ''} onClick={() => setCat('mine')}>Мои шаблоны</button>}
+          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
+          {TEMPLATE_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
+          {mine.length > 0 && <button className={cat === 'mine' ? 'active' : ''} onClick={() => setCat('mine')}>Мои шаблоны</button>}
         </div>
         <div className="tpl-list">{list.map(card)}</div>
         {cat === 'all' && mine.length > 0 && (<><div className="sub-head">Мои шаблоны</div><div className="tpl-list">{mine.map(card)}</div></>)}
@@ -465,7 +465,7 @@ function CaptionsPanel() {
               onChange={(v) => commit((p) => styleAllCaptions(p, { size: v }), 'capsize')} />
             <Slider label="Высота на экране" min={0.08} max={0.94} step={0.01} value={first.y} format={(v) => `${Math.round(v * 100)}%`}
               onChange={(v) => commit((p) => styleAllCaptions(p, {}, v), 'capy')}
-              onReset={() => commit((p) => styleAllCaptions(p, {}, vertical ? 0.72 : 0.86))} />
+              onReset={() => commit((p) => styleAllCaptions(p, {}, vertical ? 0.64 : 0.86))} />
             <Toggle label="Заглавными буквами" on={first.style.uppercase} onChange={(v) => commit((p) => styleAllCaptions(p, { uppercase: v }))} />
             <div className="field">
               <div className="field-row"><label>Подсветка произносимого слова</label></div>
@@ -668,7 +668,7 @@ function TransitionsPanel() {
   const [cat, setCat] = useState<TransitionCat | 'all'>('all');
   const main = mainTrack(project);
   // кому ставим переход: выбранный стык, выделенный клип основной дорожки (переход в конце клипа)
-  // или — если ничего не выбрано — стык, ближайший к белой линии времени
+  // или — если ничего не выбрано — стык, ближайший к розовой линии времени
   let targetId: string | null = junction;
   if (!targetId && selection.length === 1) {
     const i = main.clips.findIndex((c) => c.id === selection[0]);

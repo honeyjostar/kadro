@@ -1,9 +1,9 @@
 // Главный процесс Kadro: окно, доступ к файлам, импорт, экспорт, ИИ-задачи.
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell, utilityProcess, type UtilityProcess } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, shell, utilityProcess, type UtilityProcess } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, ModelInfo, RecentProject, VoiceInfo } from '../shared/ipc';
+import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, ModelInfo, RecentProject, ThemePref, VoiceInfo } from '../shared/ipc';
 import type { MediaAsset, Project } from '../shared/types';
 import { ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady } from './ai/models';
 import { denoise } from './ai/denoise';
@@ -68,17 +68,31 @@ function serveFile(req: Request): Response {
 
 let win: BrowserWindow | null = null;
 
+/** Цвета рамки окна под тему: фон и значки свернуть/закрыть (Windows рисует их поверх нашей верхней панели). */
+function chromeColors(): { bg: string; symbol: string } {
+  return nativeTheme.shouldUseDarkColors ? { bg: '#15131a', symbol: '#d9d3e3' } : { bg: '#eeedf2', symbol: '#2a2633' };
+}
+function applyTheme(pref: ThemePref): void {
+  nativeTheme.themeSource = pref;
+  const c = chromeColors();
+  if (win && !win.isDestroyed()) {
+    win.setBackgroundColor(c.bg);
+    if (process.platform === 'win32') { try { win.setTitleBarOverlay({ color: c.bg, symbolColor: c.symbol, height: 40 }); } catch { /* старая система */ } }
+  }
+}
+
 function createWindow(): void {
+  const colors = chromeColors();
   win = new BrowserWindow({
     width: 1480,
     height: 920,
     minWidth: 1100,
     minHeight: 680,
-    backgroundColor: '#15131a',
+    backgroundColor: colors.bg,
     title: 'Kadro',
     show: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
-    titleBarOverlay: process.platform === 'win32' ? { color: '#15131a', symbolColor: '#d9d3e3', height: 40 } : false,
+    titleBarOverlay: process.platform === 'win32' ? { color: colors.bg, symbolColor: colors.symbol, height: 40 } : false,
     icon: app.isPackaged ? path.join(process.resourcesPath, 'icon.png') : path.join(__dirname, '..', '..', 'resources', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload', 'preload.js'),
@@ -325,7 +339,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lastProject?: string | null; recent?: string[]; showHome?: boolean }
+interface Settings { lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref }
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
 }
@@ -532,6 +546,12 @@ function registerIpc(): void {
   });
   ipcMain.on('shell:show', (_e, p: string) => shell.showItemInFolder(p));
   ipcMain.on('win:title', (_e, t: string) => win?.setTitle(t));
+  ipcMain.on('theme:get', (e) => { e.returnValue = readSettings().theme ?? 'dark'; });
+  ipcMain.on('theme:set', (_e, pref: ThemePref) => {
+    if (!['dark', 'light', 'system'].includes(pref)) return;
+    writeSettings({ ...readSettings(), theme: pref });
+    applyTheme(pref);
+  });
   ipcMain.on('app:log', (_e, ...a: unknown[]) => log('renderer error:', ...a));
 }
 
@@ -557,6 +577,8 @@ if (!lock) {
   app.whenReady().then(() => {
     protocol.handle('kmedia', (req) => serveFile(req));
     registerIpc();
+    nativeTheme.themeSource = readSettings().theme ?? 'dark';
+    nativeTheme.on('updated', () => applyTheme(nativeTheme.themeSource as ThemePref));
     createWindow();
     setTimeout(() => { try { hasNvenc(); } catch { /* проверим позже */ } }, 3000);
     log('Kadro started', app.getVersion(), process.platform, 'ffmpeg:', ffmpegPath());

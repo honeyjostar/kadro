@@ -250,3 +250,19 @@ describe('ИИ-операции', () => {
     expect(JSON.stringify(p)).toBe(snapshot);
   });
 });
+
+describe('анимации появления и исчезновения клипа', () => {
+  it('при разрезании появление остаётся слева, исчезновение — справа', async () => {
+    const { newProject } = await import('../../src/shared/defaults');
+    const tl = await import('../../src/shared/timeline');
+    let p = newProject('a', '16:9');
+    p = tl.addAsset(p, { id: 'v', kind: 'video', path: '/v.mp4', previewPath: '/v.mp4', name: 'v', duration: 10, width: 1920, height: 1080, fps: 30, hasVideo: true, hasAudio: false, size: 1, rotation: 0, proxy: 'none' });
+    p = tl.addToMain(p, 'v', 0).project;
+    const id = tl.mainTrack(p).clips[0].id;
+    p = tl.updateClip(p, id, { anim: { in: { type: 'pop', dur: 0.5 }, out: { type: 'fade', dur: 0.5 } } });
+    const r = tl.splitClip(p, id, 4);
+    const [a, b] = tl.mainTrack(r.project).clips as import('../../src/shared/types').MediaClip[];
+    expect(a.anim).toEqual({ in: { type: 'pop', dur: 0.5 } });
+    expect(b.anim).toEqual({ out: { type: 'fade', dur: 0.5 } });
+  });
+});

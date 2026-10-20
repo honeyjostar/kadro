@@ -4,11 +4,12 @@ import { alignToBeats, findBeats, freezeFrame, rebuildGroup, retimeClip, speakTe
 import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
 import { DEFAULT_MASK } from '../../shared/mask';
 import { EFFECTS } from '../../shared/effects';
+import { CLIP_ANIMS, CLIP_ANIM_DEFAULT_DUR } from '../../shared/clipAnim';
 import { useEffect, useRef, useState } from 'react';
 import { FILTER_CATS, FILTER_PRESETS } from '../../shared/color';
 import { ASPECTS, DEFAULT_CHROMA, DEFAULT_COLOR, DEFAULT_TRANSFORM, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
 import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, styleAllCaptions, updateClip } from '../../shared/timeline';
-import type { BlendMode, ChromaKey, Mask, RampPoint, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
+import type { BlendMode, ChromaKey, ClipAnim, Mask, RampPoint, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
 import { retimeWords } from '../../shared/captions';
 import { hasKeyHere, isAnimated, keyTimesOnTimeline, propValue, toggleKey, writeProps } from '../animEdit';
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
@@ -58,6 +59,7 @@ function ProjectInspector({ multi }: { multi: number }) {
     <>
       <div className="panel-head">{multi > 1 ? `Выделено клипов: ${multi}` : 'Проект'}</div>
       <div className="panel-body">
+        {multi <= 1 && <p className="hint inspector-tip">Нажми на клип на таймлайне — здесь появятся его настройки: размер, цвет, эффекты, скорость, звук и анимация.</p>}
         <div className="section-title" style={{ marginTop: 4 }}>Формат кадра</div>
         <div className="aspect-grid">
           {(Object.keys(ASPECTS) as AspectKey[]).map((a) => (
@@ -99,7 +101,7 @@ function ProjectInspector({ multi }: { multi: number }) {
 }
 
 // ---------- видео, фото, звук ----------
-type MTab = 'basic' | 'color' | 'mask' | 'fx' | 'speed' | 'audio' | 'ai';
+type MTab = 'basic' | 'anim' | 'color' | 'mask' | 'fx' | 'speed' | 'audio' | 'ai';
 
 function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: MediaAsset; trackKind: string }) {
   const commit = useStore((s) => s.commit);
@@ -108,7 +110,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   const tabs: { id: MTab; label: string }[] = isAudio
     ? [{ id: 'audio', label: 'Звук' }, { id: 'speed', label: 'Скорость' }]
     : [
-      { id: 'basic', label: 'Кадр' }, { id: 'color', label: 'Цвет' }, { id: 'mask', label: 'Маска' },
+      { id: 'basic', label: 'Кадр' }, { id: 'anim', label: 'Анимация' }, { id: 'color', label: 'Цвет' }, { id: 'mask', label: 'Маска' },
       ...(clip.effects?.length ? [{ id: 'fx' as MTab, label: 'Эффекты' }] : []),
       ...(!isImage ? [{ id: 'speed' as MTab, label: 'Скорость' }] : []),
       ...(asset?.hasAudio ? [{ id: 'audio' as MTab, label: 'Звук' }] : []),
@@ -156,6 +158,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
             </button>
           </>
         )}
+        {cur === 'anim' && <ClipAnimTab clip={clip} />}
         {cur === 'mask' && <MaskTab clip={clip} />}
         {cur === 'fx' && (
           <>
@@ -235,6 +238,43 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   );
 }
 let lastMediaTab: MTab | null = null;
+
+/** Появление и исчезновение видео или фото: плитки с подписями и длительность. */
+function ClipAnimTab({ clip }: { clip: MediaClip }) {
+  const commit = useStore((s) => s.commit);
+  const dur = clipDuration(clip);
+  const maxDur = Math.max(0.1, Math.min(3, dur / 2));
+  const set = (kind: 'in' | 'out', a: ClipAnim | undefined) => {
+    const next = { ...clip.anim, [kind]: a };
+    commit((p) => updateClip(p, clip.id, { anim: next.in || next.out ? next : undefined }), `canim-${kind}-${clip.id}`);
+  };
+  const section = (kind: 'in' | 'out') => {
+    const cur = clip.anim?.[kind];
+    return (
+      <>
+        <div className="section-title">{kind === 'in' ? 'Появление' : 'Исчезновение'}</div>
+        <div className="anim-grid" data-testid={`canim-${kind}`}>
+          <button className={!cur ? 'active' : ''} onClick={() => set(kind, undefined)}>Нет</button>
+          {CLIP_ANIMS.map((a) => (
+            <button key={a.type} className={cur?.type === a.type ? 'active' : ''} title={a.hint} data-testid={`canim-${kind}-${a.type}`}
+              onClick={() => set(kind, { type: a.type, dur: cur?.dur ?? Math.min(CLIP_ANIM_DEFAULT_DUR, maxDur) })}>{kind === 'in' ? a.in : a.out}</button>
+          ))}
+        </div>
+        {cur && (
+          <Slider label="Длительность" min={0.1} max={maxDur} step={0.05} value={Math.min(cur.dur, maxDur)} format={(v) => `${v.toFixed(2)} с`}
+            onChange={(v) => set(kind, { ...cur, dur: v })} />
+        )}
+      </>
+    );
+  };
+  return (
+    <>
+      <p className="hint">Как клип появляется в начале и исчезает в конце. Работает и на основной дорожке, и в наложениях, вместе с переходами.</p>
+      {section('in')}
+      {section('out')}
+    </>
+  );
+}
 type ColorSub = 'basic' | 'curves' | 'hsl' | 'lut';
 let lastColorSub: ColorSub = 'basic';
 

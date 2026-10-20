@@ -59,6 +59,8 @@ export interface AppInfo { version: string; platform: string; nvenc: boolean; da
 
 export interface ImportResult { assets: MediaAsset[]; errors: { path: string; message: string }[] }
 
+/** Тема: тёмная, светлая или как в Windows. */
+export type ThemePref = 'dark' | 'light' | 'system';
 export interface RecentProject { path: string; name: string; mtime: number; clips: number; duration: number; aspect: string; thumb?: string }
 /** Демо-файлы из комплекта программы: ролики-сцены, бит, демо-ролик и превью шаблонов. Только те, что есть на диске. */
 export interface DemoFiles { scenes: Record<string, string>; beat: string | null; reel: string | null; previews: Record<string, string> }
@@ -79,6 +81,9 @@ export interface KadroApi {
   /** Стартовый экран: показывать ли, недавние проекты, демо-файлы. */
   homeInfo(): Promise<HomeInfo>;
   setShowHome(show: boolean): void;
+  /** Тема при запуске (читается сразу, чтобы окно не мигало). */
+  initialTheme: ThemePref;
+  setTheme(pref: ThemePref): void;
   forgetRecent(path: string): void;
   /** Сохранить копию проекта в «Черновики» (и в недавние). */
   stashDraft(project: Project): Promise<string>;

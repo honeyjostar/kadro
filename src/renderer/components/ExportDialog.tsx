@@ -1,5 +1,5 @@
-import { CheckCircle2, FolderOpen, TriangleAlert, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { CheckCircle2, FolderOpen, ShieldCheck, TriangleAlert, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { exportSize } from '../../shared/geometry';
 import type { AppInfo, ExportResult } from '../../shared/ipc';
 import { projectDuration } from '../../shared/timeline';
@@ -9,6 +9,10 @@ import { renderTextLayers } from '../engine/textExport';
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
 import { Field, Progress, Seg } from './controls';
+import { ASPECTS } from '../../shared/defaults';
+import { setSettings } from '../../shared/timeline';
+import { PLATFORMS, isVertical, type Platform } from '../../shared/safezones';
+import { ensureFonts, preflight, type Issue } from '../preflight';
 
 type Phase = 'setup' | 'running' | 'done' | 'error';
 
@@ -49,6 +53,19 @@ export function ExportDialog() {
     return () => window.removeEventListener('keydown', onKey);
   }, [phase]);
 
+  const [platform, setPlatform] = useState<Platform | 'other'>(() => getState().safeZone ?? (isVertical(project.settings.width, project.settings.height) ? 'tiktok' : 'other'));
+  const [fontsTick, setFontsTick] = useState(0);
+  useEffect(() => { void ensureFonts(project).then(() => setFontsTick((x) => x + 1)); }, [project]);
+  const issues = useMemo(() => preflight(project, platform === 'other' ? null : platform, opts.height), [project, platform, opts.height, fontsTick]);
+  const showIssue = (i: Issue) => {
+    close();
+    if (platform !== 'other') getState().setSafeZone(platform);
+    if (i.t !== undefined) { getState().setPlaying(false); getState().setPlayhead(i.t); }
+    if (i.clipId) getState().select([i.clipId]);
+  };
+  const fixIssue = (i: Issue) => {
+    if (i.fix === 'aspect916') getState().commit((p) => setSettings(p, { aspect: '9:16', width: ASPECTS['9:16'].w, height: ASPECTS['9:16'].h }));
+  };
   const duration = projectDuration(project);
   const size = exportSize(project.settings.width, project.settings.height, opts.height);
   const stale = staleAiClips(project);
@@ -100,6 +117,29 @@ export function ExportDialog() {
               <Seg value={opts.encoder} onChange={(v) => setOpts({ ...opts, encoder: v })}
                 options={[{ value: 'auto', label: 'Авто' }, { value: 'nvenc', label: 'Видеокарта' }, { value: 'x264', label: 'Процессор' }]} />
             </Field>
+            <Field label="Куда выкладываешь">
+              <Seg value={platform} onChange={setPlatform}
+                options={[...PLATFORMS.map((x) => ({ value: x.id as Platform | 'other', label: x.label })), { value: 'other', label: 'Другое' }]} />
+            </Field>
+            <div className="preflight" data-testid="preflight">
+              <div className="preflight-head"><ShieldCheck size={15} />Проверка перед публикацией</div>
+              {issues.length === 0
+                ? <p className="hint small" data-testid="preflight-ok">{platform === 'other'
+                  ? 'Надписи в кадре, текст читаемый, разрешение файлов подходит.'
+                  : `Всё в порядке: надписи не попадут под кнопки ${PLATFORMS.find((x) => x.id === platform)!.label}, формат и длина подходят.`}</p>
+                : (
+                  <ul className="preflight-list">
+                    {issues.map((i) => (
+                      <li key={i.id} data-testid="preflight-issue">
+                        <TriangleAlert size={14} />
+                        <span>{i.text}</span>
+                        {i.fix === 'aspect916' && <button className="btn small" onClick={() => fixIssue(i)}>Сделать 9:16</button>}
+                        {i.clipId && <button className="btn small" onClick={() => showIssue(i)}>Показать</button>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+            </div>
             <p className="hint small">Примерный размер файла: {Math.max(1, Math.round(estimateMb(size.w, size.h, opts.fps, opts.quality, duration)))} МБ</p>
             {stale.length > 0 && (
               <div className="warn"><TriangleAlert size={15} />

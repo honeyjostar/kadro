@@ -11,6 +11,7 @@ import { pickAndImport } from '../actions';
 import { PreviewEngine } from '../engine/preview';
 import { api, getState, useStore } from '../store';
 import { fmtTime } from '../util';
+import { PLATFORMS, SAFE_ZONES, isVertical, type Platform } from '../../shared/safezones';
 
 interface Box { id: string; cx: number; cy: number; w: number; h: number; rot: number; kind: 'media' | 'text' }
 
@@ -44,6 +45,8 @@ export function Player() {
   const playhead = useStore((s) => s.playhead);
   const selection = useStore((s) => s.selection);
   const recording = useStore((s) => s.recording);
+  const safeZone = useStore((s) => s.safeZone);
+  const vertical = useStore((s) => isVertical(s.project.settings.width, s.project.settings.height));
   const areaRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -203,6 +206,15 @@ export function Player() {
         <div className="canvas-wrap" ref={wrapRef} style={{ width: dispW, height: dispH }} onPointerDown={onStageDown}
           onDoubleClick={() => { if (box?.kind === 'text') window.dispatchEvent(new CustomEvent('kadro:edit-text')); }}>
           <canvas ref={canvasRef} data-testid="preview" />
+          {safeZone && vertical && (
+            <div className="safe-zones" data-testid="safe-zones" aria-hidden>
+              {SAFE_ZONES[safeZone].map((z) => (
+                <div key={z.label} className="safe-zone" title={z.label} style={{ left: `${z.x * 100}%`, top: `${z.y * 100}%`, width: `${z.w * 100}%`, height: `${z.h * 100}%` }}>
+                  <span>{z.short}</span>
+                </div>
+              ))}
+            </div>
+          )}
           {guides.v && <div className="guide v" />}
           {guides.h && <div className="guide h" />}
           {box && (
@@ -226,6 +238,7 @@ export function Player() {
           )}
         </div>
         {pending && <div className="stage-chip">Готовлю превью для тяжёлого видео…</div>}
+        {safeZone && !vertical && !pending && !recording && <div className="stage-chip">Зоны {PLATFORMS.find((x) => x.id === safeZone)!.label} показываются для вертикального кадра 9:16</div>}
         {recording && <div className="stage-chip rec" data-testid="rec-chip"><span className="rec-dot blink" />Идёт запись голоса{recording.muted ? ' · звук проекта выключен' : ''}</div>}
       </div>
       <div className="transport">
@@ -236,6 +249,12 @@ export function Player() {
           <button className="icon-btn" title="В конец (End)" onClick={() => { getState().setPlaying(false); getState().setPlayhead(duration); }}><SkipForward size={17} /></button>
         </div>
         <div className="transport-right">
+          <select className="input aspect-select zone-select" value={safeZone ?? ''} data-testid="safe-zone"
+            title="Показать, где кнопки и подписи TikTok, Reels или Shorts закроют видео"
+            onChange={(e) => getState().setSafeZone((e.target.value || null) as Platform | null)}>
+            <option value="">Зоны: нет</option>
+            {PLATFORMS.map((x) => <option key={x.id} value={x.id}>Зоны {x.label}</option>)}
+          </select>
           <select className="input aspect-select" value={aspect} title="Формат кадра" data-testid="aspect"
             onChange={(e) => {
               const a = e.target.value as AspectKey;

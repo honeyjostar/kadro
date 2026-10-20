@@ -62,8 +62,8 @@ export const BUILTIN_TEMPLATES: Template[] = [
       { duration: 2.6, zoom: [1, 1.15], color: { preset: 'sunset', presetAmount: 0.7 }, effects: [{ type: 'vignette', amount: 0.4 }] },
     ],
     texts: [
-      { start: 0.3, duration: 2.2, text: 'В ДОРОГУ', preset: 'outline', style: { size: 120, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.45 }, out: { type: 'fade', dur: 0.3 } }, y: 0.42 },
-      { start: -2.4, duration: 2.4, text: 'ещё вернёмся', preset: 'classic', style: { size: 72, italic: true }, anim: { in: { type: 'typewriter', dur: 0.9 } }, y: 0.78 },
+      { start: 0.3, duration: 2.2, text: 'В ДОРОГУ', preset: 'outline', style: { size: 96, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.45 }, out: { type: 'fade', dur: 0.3 } }, y: 0.42 },
+      { start: -2.4, duration: 2.4, text: 'ещё вернёмся', preset: 'classic', style: { size: 72, italic: true }, anim: { in: { type: 'typewriter', dur: 0.9 } }, y: 0.66 },
     ],
   },
   {
@@ -90,8 +90,8 @@ export const BUILTIN_TEMPLATES: Template[] = [
       { duration: 3.5, zoom: [1.06, 1], color: { preset: 'warm', presetAmount: 0.6 } },
     ],
     texts: [
-      { start: 0.2, duration: 2.6, text: 'мой день', preset: 'boxwhite', style: { size: 70, font: 'Rubik', bold: true }, anim: { in: { type: 'slideUp', dur: 0.4 }, out: { type: 'fade', dur: 0.3 } }, y: 0.8 },
-      { start: -2.4, duration: 2.4, text: 'до завтра', preset: 'boxwhite', style: { size: 64 }, anim: { in: { type: 'wipe', dur: 0.5 } }, y: 0.8 },
+      { start: 0.2, duration: 2.6, text: 'мой день', preset: 'boxwhite', style: { size: 70, font: 'Rubik', bold: true }, anim: { in: { type: 'slideUp', dur: 0.4 }, out: { type: 'fade', dur: 0.3 } }, y: 0.64 },
+      { start: -2.4, duration: 2.4, text: 'до завтра', preset: 'boxwhite', style: { size: 64 }, anim: { in: { type: 'wipe', dur: 0.5 } }, y: 0.64 },
     ],
   },
   {
@@ -141,7 +141,7 @@ export const BUILTIN_TEMPLATES: Template[] = [
     ],
     texts: [
       { start: 0.2, duration: 2.6, text: 'С ДНЁМ РОЖДЕНИЯ!', preset: 'outline', style: { size: 104, font: 'Rubik Bubbles', color: '#ffe14d' }, anim: { in: { type: 'pop', dur: 0.5 }, out: { type: 'zoom', dur: 0.3 } }, y: 0.45 },
-      { start: -2.6, duration: 2.6, text: 'загадай желание', preset: 'classic', style: { size: 84, font: 'Caveat', bold: true }, anim: { in: { type: 'typewriter', dur: 1 } }, y: 0.74 },
+      { start: -2.6, duration: 2.6, text: 'загадай желание', preset: 'classic', style: { size: 68, font: 'Caveat', bold: true }, anim: { in: { type: 'typewriter', dur: 1 } }, y: 0.66 },
     ],
   },
   {
@@ -155,7 +155,7 @@ export const BUILTIN_TEMPLATES: Template[] = [
     ],
     texts: [
       { start: 0.4, duration: 3, text: 'ты и я', preset: 'outline', style: { size: 160, font: 'Marck Script', strokeColor: '#b0124f', strokeWidth: 6 }, anim: { in: { type: 'blur', dur: 0.8 }, out: { type: 'fade', dur: 0.5 } }, y: 0.5 },
-      { start: -2.8, duration: 2.8, text: 'навсегда', preset: 'outline', style: { size: 120, font: 'Marck Script', strokeColor: '#b0124f', strokeWidth: 5 }, anim: { in: { type: 'fade', dur: 0.8 } }, y: 0.78 },
+      { start: -2.8, duration: 2.8, text: 'навсегда', preset: 'outline', style: { size: 120, font: 'Marck Script', strokeColor: '#b0124f', strokeWidth: 5 }, anim: { in: { type: 'fade', dur: 0.8 } }, y: 0.62 },
     ],
   },
   {
@@ -169,7 +169,7 @@ export const BUILTIN_TEMPLATES: Template[] = [
     ],
     texts: [
       { start: 0.3, duration: 2.8, text: 'ЗИМА', preset: 'classic', style: { size: 150, font: 'Unbounded', bold: true }, anim: { in: { type: 'blur', dur: 0.8 }, out: { type: 'fade', dur: 0.4 } }, y: 0.42 },
-      { start: -3, duration: 3, text: 'С Новым годом', preset: 'classic', style: { size: 90, font: 'Lobster' }, anim: { in: { type: 'slideUp', dur: 0.6 } }, y: 0.72 },
+      { start: -3, duration: 3, text: 'С Новым годом', preset: 'classic', style: { size: 90, font: 'Lobster' }, anim: { in: { type: 'slideUp', dur: 0.6 } }, y: 0.64 },
     ],
   },
   {
@@ -183,7 +183,7 @@ export const BUILTIN_TEMPLATES: Template[] = [
       transitionOut: i === 3 ? tr('squeezeh', 0.25) : undefined,
     })),
     texts: [
-      { start: 0, duration: 1.3, text: 'ВЕЧЕРИНКА', preset: 'classic', style: { size: 120, font: 'Rubik Glitch', color: '#ff4fd8' }, anim: { in: { type: 'zoom', dur: 0.25 }, out: { type: 'pop', dur: 0.2 } }, y: 0.5 },
+      { start: 0, duration: 1.3, text: 'ВЕЧЕРИНКА', preset: 'classic', style: { size: 96, font: 'Rubik Glitch', color: '#ff4fd8' }, anim: { in: { type: 'zoom', dur: 0.25 }, out: { type: 'pop', dur: 0.2 } }, y: 0.5 },
     ],
   },
   {
@@ -197,8 +197,8 @@ export const BUILTIN_TEMPLATES: Template[] = [
       { duration: 2.2, zoom: [1, 1.12], color: { preset: 'drama', presetAmount: 0.8 }, effects: [{ type: 'flash', amount: 0.6 }] },
     ],
     texts: [
-      { start: 0.1, duration: 1.5, text: 'НЕ СДАВАЙСЯ', preset: 'yellow', style: { size: 110, font: 'Russo One' }, anim: { in: { type: 'slideUp', dur: 0.25 }, out: { type: 'zoom', dur: 0.2 } }, y: 0.5 },
-      { start: -2, duration: 2, text: 'ТОЛЬКО ВПЕРЁД', preset: 'yellow', style: { size: 96, font: 'Russo One' }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.5 },
+      { start: 0.1, duration: 1.5, text: 'НЕ СДАВАЙСЯ', preset: 'yellow', style: { size: 84, font: 'Russo One' }, anim: { in: { type: 'slideUp', dur: 0.25 }, out: { type: 'zoom', dur: 0.2 } }, y: 0.5 },
+      { start: -2, duration: 2, text: 'ТОЛЬКО ВПЕРЁД', preset: 'yellow', style: { size: 76, font: 'Russo One' }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.5 },
     ],
   },
   {
@@ -238,7 +238,7 @@ export const BUILTIN_TEMPLATES: Template[] = [
       { duration: 2.2, zoom: [1, 1.1], color: { preset: 'pop', presetAmount: 0.7 } },
     ],
     texts: [
-      { start: -2.2, duration: 2.2, text: 'ВОТ ЭТО ДЕНЬ', preset: 'boxwhite', style: { size: 84, font: 'Montserrat', bold: true }, anim: { in: { type: 'pop', dur: 0.35 } }, y: 0.82 },
+      { start: -2.2, duration: 2.2, text: 'ВОТ ЭТО ДЕНЬ', preset: 'boxwhite', style: { size: 84, font: 'Montserrat', bold: true }, anim: { in: { type: 'pop', dur: 0.35 } }, y: 0.66 },
     ],
   },
   {
@@ -249,8 +249,8 @@ export const BUILTIN_TEMPLATES: Template[] = [
       { duration: 3, zoom: [1, 1.08], color: { preset: 'vivid', presetAmount: 1 }, effects: [{ type: 'sparkles', amount: 0.4 }] },
     ],
     texts: [
-      { start: 0.1, duration: 2.2, text: 'ДО', preset: 'boxwhite', style: { size: 96, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.15 },
-      { start: 2.3, duration: 2.7, text: 'ПОСЛЕ', preset: 'box', style: { size: 96, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.15 },
+      { start: 0.1, duration: 2.2, text: 'ДО', preset: 'boxwhite', style: { size: 96, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.2 },
+      { start: 2.3, duration: 2.7, text: 'ПОСЛЕ', preset: 'box', style: { size: 96, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.2 },
     ],
   },
   {
@@ -327,14 +327,14 @@ export const DEMO_TEMPLATE: Template = {
     { ...onBeat(6), zoom: [1.1, 1], color: { preset: 'candy', presetAmount: 0.8 }, effects: [{ type: 'confetti', amount: 0.7 }] },
   ],
   texts: [
-    { start: 0.2, duration: 1.9, text: 'KADRO', preset: 'classic', style: { size: 170, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.45 }, out: { type: 'zoom', dur: 0.3 } }, y: 0.42 },
-    { start: 0.6, duration: 1.5, text: 'бесплатный видеоредактор', preset: 'classic', style: { size: 60, font: 'Montserrat', bold: true }, anim: { in: { type: 'slideUp', dur: 0.4 } }, y: 0.55 },
-    { start: bar(1), duration: 1.8, text: '58 переходов', preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.8 },
-    { start: bar(2), duration: 1.8, text: '48 эффектов', preset: 'box', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.8 },
-    { start: bar(3), duration: 1.8, text: '47 фильтров', preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.8 },
-    { start: bar(4), duration: 1.8, text: '122 шрифта', preset: 'box', style: { size: 60, font: 'Press Start 2P' }, anim: { in: { type: 'typewriter', dur: 0.5 } }, y: 0.8 },
-    { start: bar(5), duration: 1.8, text: 'ИИ без интернета', preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.8 },
-    { start: bar(6), duration: 2.9, text: 'Сделай свой ролик', preset: 'yellow', style: { size: 84, font: 'Russo One' }, anim: { in: { type: 'zoom', dur: 0.4 } }, y: 0.5 },
+    { start: 0.2, duration: 1.9, text: 'KADRO', preset: 'classic', style: { size: 136, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.45 }, out: { type: 'zoom', dur: 0.3 } }, y: 0.42 },
+    { start: 0.6, duration: 1.5, text: 'бесплатный видеоредактор', preset: 'classic', style: { size: 44, font: 'Montserrat', bold: true }, anim: { in: { type: 'slideUp', dur: 0.4 } }, y: 0.55 },
+    { start: bar(1), duration: 1.8, text: '58 переходов', preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
+    { start: bar(2), duration: 1.8, text: '48 эффектов', preset: 'box', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
+    { start: bar(3), duration: 1.8, text: '47 фильтров', preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
+    { start: bar(4), duration: 1.8, text: '122 шрифта', preset: 'box', style: { size: 60, font: 'Press Start 2P' }, anim: { in: { type: 'typewriter', dur: 0.5 } }, y: 0.66 },
+    { start: bar(5), duration: 1.8, text: 'ИИ без интернета', preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
+    { start: bar(6), duration: 2.9, text: 'Сделай свой ролик', preset: 'yellow', style: { size: 64, font: 'Russo One' }, anim: { in: { type: 'zoom', dur: 0.4 } }, y: 0.5 },
   ],
 };
 

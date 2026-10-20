@@ -8,7 +8,7 @@ import { api, getState, useStore } from '../store';
 import { Seg, Slider } from './controls';
 
 type Ch = 'all' | 'r' | 'g' | 'b';
-const CH_COLOR: Record<Ch, string> = { all: '#ece8f2', r: '#ff5a5a', g: '#4fd18b', b: '#5a8cff' };
+const CH_COLOR: Record<Ch, string> = { all: 'var(--text)', r: '#ff5a5a', g: '#4fd18b', b: '#5a8cff' };
 
 function useGrade(clip: MediaClip) {
   const commit = useStore((s) => s.commit);

@@ -19,6 +19,8 @@ const api: KadroApi = {
   openProjectPath: (p) => ipcRenderer.invoke('project:openPath', p),
   homeInfo: () => ipcRenderer.invoke('home:info'),
   setShowHome: (b) => ipcRenderer.send('home:show', b),
+  initialTheme: ipcRenderer.sendSync('theme:get'),
+  setTheme: (pref) => ipcRenderer.send('theme:set', pref),
   forgetRecent: (p) => ipcRenderer.send('project:forget', p),
   stashDraft: (project) => ipcRenderer.invoke('project:stash', project),
   loadLast: () => ipcRenderer.invoke('project:last'),

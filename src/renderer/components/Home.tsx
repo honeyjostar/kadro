@@ -9,7 +9,7 @@ import type { AspectKey } from '../../shared/types';
 import { newProjectAction, openDemo, openProject, openRecent, templateFromFiles, tryTemplate } from '../actions';
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
-import { Toggle } from './controls';
+import { Seg, Toggle } from './controls';
 
 const FORMATS: { aspect: AspectKey; title: string; where: string }[] = [
   { aspect: '9:16', title: 'Вертикальное', where: 'TikTok, Reels, Shorts' },
@@ -71,6 +71,7 @@ export function Home() {
   const current = hasClips ? { name: currentName } : null;
   const currentPath = useStore((s) => s.projectPath);
   const [showAtStart, setShowAtStart] = useState(true);
+  const themePref = useStore((s) => s.themePref);
   const reel = useRef<HTMLVideoElement>(null);
 
   const load = () => void api.homeInfo().then((i) => { setInfo(i); setShowAtStart(i.show); getState().setDemo(i.demo); });
@@ -183,6 +184,11 @@ export function Home() {
 
       <footer className="home-foot">
         <Toggle label="Показывать этот экран при запуске" on={showAtStart} onChange={(v) => { setShowAtStart(v); api.setShowHome(v); }} testId="home-show" />
+        <div className="home-theme">
+          <span className="hint">Тема</span>
+          <Seg value={themePref} onChange={(v) => getState().setThemePref(v)}
+            options={[{ value: 'dark', label: 'Тёмная' }, { value: 'light', label: 'Светлая' }, { value: 'system', label: 'Как в Windows' }]} />
+        </div>
         <span className="hint">Kadro работает без интернета и регистрации, видео сохраняется без водяных знаков.</span>
       </footer>
     </div>

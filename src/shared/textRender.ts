@@ -2,6 +2,7 @@
 // поэтому текст в готовом ролике выглядит ровно как в плеере — с анимациями и подсветкой слов.
 import { hasAnim, textPropsAt } from './anim';
 import { unitScale } from './geometry';
+import { bounceOut } from './clipAnim';
 import type { TextAnim, TextClip, Word } from './types';
 
 export interface TextLayout {
@@ -73,6 +74,7 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const easeOut = (p: number) => 1 - Math.pow(1 - p, 3);
 const easeInOut = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
 const backOut = (p: number) => { const c1 = 1.70158; const c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+const elasticOut = (p: number) => (p <= 0 ? 0 : p >= 1 ? 1 : Math.pow(2, -10 * p) * Math.sin((p * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1);
 
 function applyAnim(st: TextState, a: TextAnim, e: number, chars: number): void {
   // e: 0 — текст ещё не появился (или уже исчез), 1 — полностью виден
@@ -87,6 +89,9 @@ function applyAnim(st: TextState, a: TextAnim, e: number, chars: number): void {
     case 'typewriter': st.reveal = Math.min(st.reveal, Math.floor(e * chars + 1e-6)); break;
     case 'blur': st.blur += (1 - e) * 24; st.opacity *= e; break;
     case 'wipe': st.wipe = Math.min(st.wipe, easeInOut(e)); break;
+    case 'bounce': st.y -= (1 - bounceOut(e)) * 0.25; st.opacity *= clamp01(e * 5); break;
+    case 'elastic': st.scale *= Math.max(0.01, elasticOut(e)); st.opacity *= clamp01(e * 5); break;
+    case 'spin': st.rotation -= 180 * (1 - easeOut(e)); st.scale *= 0.3 + 0.7 * easeOut(e); st.opacity *= e; break;
   }
 }
 

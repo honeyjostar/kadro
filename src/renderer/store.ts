@@ -1,7 +1,8 @@
 // Состояние редактора: проект, история (отмена/повтор), выделение, плейхед, задачи ИИ, уведомления.
 import { create } from 'zustand';
 import { newProject } from '../shared/defaults';
-import type { DemoFiles, KadroApi } from '../shared/ipc';
+import type { DemoFiles, KadroApi, ThemePref } from '../shared/ipc';
+import type { Platform } from '../shared/safezones';
 import { projectDuration } from '../shared/timeline';
 import type { MediaAsset, Project } from '../shared/types';
 
@@ -37,6 +38,11 @@ interface State {
   home: boolean;
   /** Демо-ролики и превью шаблонов из комплекта программы. */
   demo: DemoFiles | null;
+  /** Выбранная тема и та, что сейчас на экране (для «как в Windows»). */
+  themePref: ThemePref;
+  theme: 'dark' | 'light';
+  /** Показывать в плеере, где интерфейс TikTok / Reels / Shorts закроет видео. */
+  safeZone: Platform | null;
 
   commit: (fn: (p: Project) => Project, key?: string) => void;
   replace: (p: Project, path?: string | null) => void;
@@ -56,9 +62,19 @@ interface State {
   setRecording: (r: { startT: number; muted: boolean } | null) => void;
   setHome: (b: boolean) => void;
   setDemo: (d: DemoFiles) => void;
+  setThemePref: (t: ThemePref) => void;
+  setTheme: (t: 'dark' | 'light') => void;
+  setSafeZone: (z: Platform | null) => void;
 }
 
 const HISTORY = 120;
+// мелкие настройки вида (не проект) — в памяти окна; хранилище может быть недоступно — тогда просто по умолчанию
+function readPref<T>(key: string, def: T): T {
+  try { const v = localStorage.getItem(key); return v === null ? def : (JSON.parse(v) as T); } catch { return def; }
+}
+function writePref(key: string, v: unknown): void {
+  try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* не страшно */ }
+}
 let toastId = 1;
 // обновления файла (миниатюры, волна, прокси) могут прийти раньше, чем файл попал в проект
 const earlyPatches = new Map<string, Partial<MediaAsset>>();
@@ -95,6 +111,9 @@ export const useStore = create<State>((set, get) => ({
   recording: null,
   home: false,
   demo: null,
+  themePref: api?.initialTheme ?? 'dark',
+  theme: 'dark',
+  safeZone: readPref<Platform | null>('kadro.safeZone', null),
 
   commit: (fn, key) => {
     const s = get();
@@ -166,6 +185,9 @@ export const useStore = create<State>((set, get) => ({
   setTlHeight: (h) => set({ tlHeight: Math.min(560, Math.max(180, h)) }),
   setHome: (b) => set(b ? { home: true, playing: false } : { home: false }),
   setDemo: (d) => set({ demo: d }),
+  setThemePref: (t) => { api.setTheme(t); set({ themePref: t }); },
+  setTheme: (t) => set({ theme: t }),
+  setSafeZone: (z) => { writePref('kadro.safeZone', z); set({ safeZone: z }); },
 }));
 
 export const getState = () => useStore.getState();

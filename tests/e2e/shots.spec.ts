@@ -11,12 +11,17 @@ let K: Kadro;
 test.beforeAll(async () => { colorsVideo(); K = await launch(); fs.mkdirSync(OUT!, { recursive: true }); });
 test.afterAll(async () => { await K?.app.close(); });
 
-const shot = (name: string) => K.win.screenshot({ path: path.join(OUT!, `${name}.png`) });
+const THEME = process.env.KADRO_SHOTS_THEME; // light / dark — снимки в нужной теме
+const shot = (name: string) => K.win.screenshot({ path: path.join(OUT!, `${THEME ? `${THEME}-` : ''}${name}.png`) });
 
 test('снимки', async () => {
   const win = K.win;
   const only = (process.env.KADRO_SHOTS_ONLY ?? '').split(',').filter(Boolean);
   const want = (n: string) => !only.length || only.includes(n);
+  if (THEME) {
+    await win.evaluate((t) => (window as any).__kadro.useStore.getState().setThemePref(t), THEME);
+    await win.waitForTimeout(400);
+  }
   await reset(win);
   await importAt(win, [path.join(MEDIA, 'colors.mp4')], 'main', 0);
   await waitAssetsReady(win);
@@ -78,9 +83,30 @@ test('снимки', async () => {
   }
   if (want('demo')) {
     await K.win.evaluate(() => (window as any).__kadro.actions.openDemo());
+    await win.waitForFunction(() => (window as any).__kadro.useStore.getState().project.tracks[0].clips.length > 0, undefined, { timeout: 60_000 });
     await waitAssetsReady(win);
     await seekAndSettle(win, 3);
+    await K.win.evaluate(() => { const s = (window as any).__kadro.useStore.getState(); s.select([s.project.tracks[0].clips[1].id]); });
+    await win.waitForTimeout(500);
     await shot('demo-project');
+    if (want('anim')) {
+      await win.getByTestId('itab-anim').click();
+      await win.getByTestId('canim-in-pop').click();
+      await win.waitForTimeout(400);
+      await shot('anim-tab');
+    }
+    if (want('zones')) {
+      await K.win.evaluate(() => (window as any).__kadro.useStore.getState().setSafeZone('tiktok'));
+      await K.win.evaluate(() => { const k = (window as any).__kadro; k.useStore.getState().commit((p: any) => { const r = k.timeline.addText(p, 2.5, 'ПОДПИСЬ ВНИЗУ'); return k.timeline.updateClip(r.project, r.clipId, { y: 0.86 }); }); });
+      await seekAndSettle(win, 3);
+      await shot('zones');
+      await win.getByTestId('export-open').click();
+      await win.getByRole('button', { name: 'TikTok', exact: true }).click();
+      await win.waitForTimeout(600);
+      await shot('export-check');
+      await win.keyboard.press('Escape');
+      await K.win.evaluate(() => (window as any).__kadro.useStore.getState().setSafeZone(null));
+    }
   }
   if (want('transitions')) {
     await importAt(win, [path.join(MEDIA, 'colors.mp4')], 'main', 99);

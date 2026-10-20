@@ -6,6 +6,7 @@ import { EFFECTS, fxMatrixAt, letterboxBar, lookPixel, PARTICLE_EFFECTS } from '
 import { DEFAULT_COLOR, newProject } from '../../src/shared/defaults';
 import { FILTER_PRESETS, applyColorToPixel, effectiveColor } from '../../src/shared/color';
 import { gradePixel } from '../../src/shared/grade';
+import { CLIP_ANIMS, clipAnimAt } from '../../src/shared/clipAnim';
 import { addAsset, addToMain, mainTrack, updateClip } from '../../src/shared/timeline';
 import type { Effect, EffectType, MediaClip, Project } from '../../src/shared/types';
 import { assetFromFile, ff, makeSolid, near, pixelAt, probe, runExport, tmpDir } from '../helpers/media';
@@ -131,4 +132,53 @@ describe('фильтры: экспорт совпадает с расчётом 
       }
     });
   }
+});
+
+describe('анимации появления и исчезновения клипа: экспорт совпадает с расчётом', () => {
+  const run = (anim: MediaClip['anim'], name: string) => {
+    let p = newProject('anim', '16:9');
+    p = addAsset(p, assetFromFile('v', f('orange.mp4'), 'video'));
+    p = addToMain(p, 'v', 0).project;
+    const id = (mainTrack(p).clips[0] as MediaClip).id;
+    p = updateClip(p, id, { anim });
+    const out = f(`anim_${name}.mp4`);
+    runExport(p, out, opts);
+    return out;
+  };
+  const half = ORANGE.map((v) => v * 0.5);
+  it('проявление: на середине — половина яркости', () => {
+    const out = run({ in: { type: 'fade', dur: 1 } }, 'fade');
+    const op = clipAnimAt({ anim: { in: { type: 'fade', dur: 1 } } }, 0.5, 3).opacity;
+    expect(op).toBeCloseTo(0.5, 6);
+    expect(near(pixelAt(out, 0.5, 320, 180), half, 12)).toBe(true);
+    expect(near(pixelAt(out, 1.5, 320, 180), ORANGE, 10)).toBe(true);
+  });
+  it('выезд слева: правый край ещё пустой', () => {
+    const out = run({ in: { type: 'left', dur: 1 } }, 'left');
+    const g = clipAnimAt({ anim: { in: { type: 'left', dur: 1 } } }, 0.5, 3);
+    const edge = 640 * (1 + g.dx); // правый край клипа
+    expect(near(pixelAt(out, 0.5, Math.round(edge + 20), 180), [0, 0, 0], 12)).toBe(true);
+    expect(near(pixelAt(out, 0.5, Math.round(edge - 20), 180), ORANGE, 14)).toBe(true);
+  });
+  it('из далёкого: по краям рамка, внутри — полупрозрачный кадр', () => {
+    const out = run({ in: { type: 'zoomin', dur: 1 } }, 'zoomin');
+    const g = clipAnimAt({ anim: { in: { type: 'zoomin', dur: 1 } } }, 0.5, 3);
+    const margin = (640 * (1 - g.scale)) / 2;
+    expect(near(pixelAt(out, 0.5, Math.max(1, Math.round(margin - 8)), 180), [0, 0, 0], 12)).toBe(true);
+    expect(near(pixelAt(out, 0.5, Math.round(margin + 12), 180), ORANGE.map((v) => v * g.opacity), 14)).toBe(true);
+  });
+  it('исчезновение «подброс»: в конце кадр уезжает вверх с отскоком', () => {
+    const out = run({ out: { type: 'drop', dur: 1 } }, 'drop');
+    const g = clipAnimAt({ anim: { out: { type: 'drop', dur: 1 } } }, 2.5, 3);
+    const bottom = 360 * (1 + g.dy);
+    expect(g.dy).toBeLessThan(-0.1);
+    expect(near(pixelAt(out, 2.5, 320, Math.round(bottom + 15)), [0, 0, 0], 12)).toBe(true);
+    expect(near(pixelAt(out, 2.5, 320, Math.round(bottom - 15)), ORANGE, 14)).toBe(true);
+  });
+  it('все анимации собираются в видео нужной длины', () => {
+    for (const a of CLIP_ANIMS) {
+      const out = run({ in: { type: a.type, dur: 0.6 }, out: { type: a.type, dur: 0.6 } }, `all_${a.type}`);
+      expect(Math.abs(probe(out).duration - 3), a.type).toBeLessThan(0.1);
+    }
+  }, 120_000);
 });

@@ -111,4 +111,24 @@ describe('ключевые кадры', () => {
     expect(activeWordAt(words, 5)).toBe(2);
     void newMediaClip;
   });
+
+  it('новые анимации текста: прыжок, пружина, вращение — с начала до конца без скачков', () => {
+    for (const type of ['bounce', 'elastic', 'spin'] as const) {
+      const c = newTextClip(0, 'раз');
+      c.duration = 3;
+      c.anim = { in: { type, dur: 0.6 }, out: { type, dur: 0.6 } };
+      const calm = textStateAt(c, 1.5);
+      const end = textStateAt(c, 0.6);
+      expect(end.y).toBeCloseTo(calm.y, 6);
+      expect(end.scale).toBeCloseTo(calm.scale, 6);
+      expect(end.rotation).toBeCloseTo(calm.rotation, 6);
+      expect(textStateAt(c, 0).opacity).toBe(0);
+      // по пути нет NaN и масштаб не уходит в ноль
+      for (let t = 0; t <= 3; t += 0.05) {
+        const st = textStateAt(c, t);
+        expect(Number.isFinite(st.y + st.scale + st.rotation + st.opacity), `${type} @${t}`).toBe(true);
+        expect(st.scale).toBeGreaterThan(0);
+      }
+    }
+  });
 });
