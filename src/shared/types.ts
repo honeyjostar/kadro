@@ -224,6 +224,10 @@ export interface Retime {
   reverse: boolean;
   ramp?: RampPoint[];
   preset?: string;              // id пресета или 'custom'
+  /** Плавное замедление: промежуточные кадры дорисованы. Тогда ramp — итоговая скорость (кривая × speed). */
+  smooth?: boolean;
+  speed?: number;               // постоянная скорость, вшитая в копию (при smooth)
+  userRamp?: RampPoint[];       // кривая, которую выбрал пользователь (при smooth)
 }
 
 export interface TextStyle {

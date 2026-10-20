@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { applyColorToPixel, effectiveColor } from '../../src/shared/color';
 import { DEFAULT_COLOR } from '../../src/shared/defaults';
 import {
-  beatMp3, greenVideo, patternImage, shakyVideo, walkVideo, RGB, act, clipIds, colorsVideo, frameDiff, grayImage, importAt, launch, MEDIA, near, personVideo, PHRASES, previewPixel, probe,
+  beatMp3, greenVideo, patternImage, media, ff, shakyVideo, walkVideo, RGB, act, clipIds, colorsVideo, frameDiff, grayImage, importAt, launch, MEDIA, near, personVideo, PHRASES, previewPixel, probe,
   project, rawFrame, reset, rotatedVideo, seekAndSettle, setSlider, solidVideo, state, store, talkVideo, toneMp3, waitAssetsReady, type Kadro,
 } from './kadro';
 
@@ -578,6 +578,59 @@ test('перспектива: наклон видео, «Углы» и накл�
   for (const t of times) pngs.push(await parity(t, `persp_${t}`));
   const out = await exportViaUi('720p');
   times.forEach((t, i) => compareAt(pngs[i], out, t, 5));
+});
+
+test('извлечь звук и плавное замедление — через интерфейс', async () => {
+  // звук — на отдельную дорожку
+  await reset(win);
+  await importAt(win, [colorsVideo()]);
+  await waitAssetsReady(win);
+  const [v] = await clipIds(win, 'main');
+  await store(win, 'select', [v]);
+  await win.getByTestId('tl-extract').click();
+  await expect.poll(async () => (await clipIds(win, 'audio')).length, { timeout: 30_000 }).toBe(1);
+  let p = await project(win);
+  const vid = p.tracks[0].clips[0] as any;
+  const au = p.tracks.find((t) => t.kind === 'audio')!.clips[0] as any;
+  expect(vid.muted).toBe(true);
+  expect([au.start, au.in, au.out]).toEqual([vid.start, vid.in, vid.out]);
+  const aa = p.assets.find((a) => a.id === au.assetId)!;
+  expect(aa.kind).toBe('audio');
+  expect(aa.name).toContain('звук');
+  const out = await exportViaUi('720p');
+  expect(probe(out).hasAudio).toBe(true);
+  const vol = spawnSync('ffmpeg', ['-hide_banner', '-i', out, '-af', 'volumedetect', '-vn', '-f', 'null', '-'], { encoding: 'utf8' }).stderr;
+  expect(Number(/mean_volume: (-?[\d.]+)/.exec(vol)?.[1] ?? -99)).toBeGreaterThan(-35); // звук слышен — его даёт новая дорожка
+
+  // плавное замедление: 0.5× → дорисовка кадров
+  await reset(win);
+  const moving = media('moving.mp4', (f) => ff(['-f', 'lavfi', '-i', 'testsrc2=s=640x360:r=30:d=3', '-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=48000:duration=3',
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', f]));
+  await importAt(win, [moving]);
+  await waitAssetsReady(win);
+  const [m] = await clipIds(win, 'main');
+  await store(win, 'select', [m]);
+  await win.getByTestId('itab-speed').click();
+  await win.getByRole('button', { name: '0.5×', exact: true }).click();
+  await win.getByTestId('smooth').click();
+  await expect.poll(async () => ((await project(win)).tracks[0].clips[0] as any).retime?.smooth ?? false, { timeout: 120_000 }).toBe(true);
+  p = await project(win);
+  const c = p.tracks[0].clips[0] as any;
+  expect(c.speed).toBe(1);
+  expect(c.retime.speed).toBe(0.5);
+  expect(Math.abs((c.out - c.in) - 6)).toBeLessThan(0.1);
+  expect(p.assets.find((a) => a.id === c.assetId)!.path).toMatch(/smooth_/);
+  // в инспекторе по-прежнему 0.5×
+  await expect(win.getByTestId('speed')).toHaveValue('0.5');
+  await waitAssetsReady(win);
+  const pngs = [await parity(1.233, 'smooth1'), await parity(4.233, 'smooth2')];
+  const out2 = await exportViaUi('720p');
+  compareAt(pngs[0], out2, 1.233, 5);
+  compareAt(pngs[1], out2, 4.233, 5);
+  // выключить — клип снова обычный 0.5×
+  await win.getByTestId('smooth').click();
+  await expect.poll(async () => ((await project(win)).tracks[0].clips[0] as any).retime ?? null, { timeout: 60_000 }).toBe(null);
+  expect(((await project(win)).tracks[0].clips[0] as any).speed).toBe(0.5);
 });
 
 test('все фильтры: плеер совпадает с экспортом, плитки ставят фильтр', async () => {

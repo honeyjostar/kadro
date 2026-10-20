@@ -713,3 +713,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .m3d-controls .section-title:first-child { margin-top: 0; }
 .m3d-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin: 0 0 10px; border-radius: var(--radius-s); background: var(--accent-soft); }
 .m3d-bar span { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.smooth-box { margin: 10px 0 4px; padding: 2px 10px 6px; border-radius: var(--radius-m); border: 1px solid var(--line-soft); background: var(--bg); }
+.smooth-box.on { border-color: var(--accent); background: var(--accent-soft); }
+.smooth-box .hint { margin: 0 0 4px; }

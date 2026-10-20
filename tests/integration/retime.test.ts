@@ -115,6 +115,43 @@ describe('кривая скорости', () => {
   });
 });
 
+describe('плавное замедление', () => {
+  /** Средняя яркость каждого кадра (сырые значения, без округления до номера). */
+  function lumas(file: string): number[] {
+    const r = spawnSync(FFMPEG, ['-v', 'error', '-i', file, '-f', 'rawvideo', '-pix_fmt', 'yuv420p', '-'], { maxBuffer: 256 << 20 });
+    const buf = r.stdout as Buffer;
+    const fr = 160 * 96 * 1.5;
+    const out: number[] = [];
+    for (let o = 0; o + fr <= buf.length; o += fr) {
+      let s = 0;
+      for (let i = o + 2000; i < o + 3000; i++) s += buf[i];
+      out.push(s / 1000);
+    }
+    return out;
+  }
+  const job = (smooth: boolean): RetimeJob => ({
+    path: counter('counter_smooth.mp4', 3, 30), in: 0.5, out: 1.5, reverse: false, ramp: [{ x: 0, v: 0.5 }, { x: 1, v: 0.5 }], smooth,
+    hasVideo: true, hasAudio: true, width: 160, height: 96, fps: 30,
+  });
+  it('0.5×: без дорисовки кадры повторяются парами, с дорисовкой — каждый кадр новый', async () => {
+    const plain = await retime(job(false));
+    const smooth = await retime(job(true));
+    expect(Math.abs(probe(smooth.path).duration - 2)).toBeLessThan(0.1);
+    const steps = (l: number[]) => l.slice(4, -4).map((v, i, a) => (i ? Math.abs(v - a[i - 1]) : 1)).slice(1);
+    const sp = steps(lumas(plain.path));
+    const ss = steps(lumas(smooth.path));
+    const still = (xs: number[]) => xs.filter((d) => d < 0.3).length / xs.length;
+    expect(still(sp), 'без дорисовки примерно половина кадров — повтор предыдущего').toBeGreaterThan(0.35);
+    expect(still(ss), 'с дорисовкой повторов почти нет').toBeLessThan(0.1);
+    // яркость растёт плавно: шаг около половины шага исходника
+    const mean = ss.reduce((a, b) => a + b, 0) / ss.length;
+    expect(mean).toBeGreaterThan(0.6);
+    expect(mean).toBeLessThan(1.4);
+    // звук тоже замедлен и на месте
+    expect(probe(smooth.path).hasAudio).toBe(true);
+  }, 120_000);
+});
+
 describe('стоп-кадр', () => {
   it('берёт ближайший кадр', async () => {
     const png = await freezeFrame(f('c30.mp4'), 1.5, 30, false);

@@ -356,39 +356,64 @@ export async function autoReframe(clipId: string): Promise<void> {
  * Меняет реверс и/или кривую скорости клипа. ramp: undefined — оставить как есть, null — убрать.
  * Копия фрагмента строится из исходника заново; без реверса и кривой клип возвращается к исходнику.
  */
-export async function retimeClip(clipId: string, opts: { reverse?: boolean; ramp?: RampPoint[] | null; preset?: string }): Promise<void> {
+/** Кривая, которую видит пользователь (при плавном замедлении в копию вшита кривая × скорость). */
+export function userCurve(r: Retime | undefined): RampPoint[] | undefined {
+  return r?.smooth ? r.userRamp : r?.ramp;
+}
+/** Скорость клипа, как её видит пользователь. */
+export function userSpeed(c: MediaClip): number {
+  return c.retime?.smooth ? c.retime.speed ?? 1 : c.speed;
+}
+
+export async function retimeClip(clipId: string, opts: { reverse?: boolean; ramp?: RampPoint[] | null; preset?: string; smooth?: boolean; speed?: number }): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m || gifBlocked(m.p, m.clip, 'Реверс и кривая скорости')) return;
+  if (!m || gifBlocked(m.p, m.clip, 'Реверс, кривая скорости и плавное замедление')) return;
   const c = m.clip;
   const orig = originalRange(c);
   const src = m.p.assets.find((a) => a.id === orig.assetId);
-  if (!src || src.kind === 'image') { getState().toast('Реверс и кривая скорости работают с видео и звуком'); return; }
+  if (!src || src.kind === 'image') { getState().toast('Реверс, кривая скорости и плавное замедление работают с видео и звуком'); return; }
   if (src.missing) { getState().toast(`Файл «${src.name}» не найден на диске`, 'err'); return; }
   const reverse = opts.reverse ?? c.retime?.reverse ?? false;
-  const ramp = opts.ramp === undefined ? c.retime?.ramp : opts.ramp ?? undefined;
+  const ramp = opts.ramp === undefined ? userCurve(c.retime) : opts.ramp ?? undefined;
   const preset = opts.ramp === undefined ? c.retime?.preset : opts.ramp ? opts.preset ?? 'custom' : undefined;
+  const smooth = (opts.smooth ?? c.retime?.smooth ?? false) && src.hasVideo;
+  const speed = opts.speed ?? userSpeed(c);
   const same = (q: Project) => {
     const f = findClip(q, clipId);
     if (!f || f.clip.type !== 'media') return false;
     const o = originalRange(f.clip);
     return o.assetId === orig.assetId && Math.abs(o.in - orig.in) < 1e-3 && Math.abs(o.out - orig.out) < 1e-3;
   };
-  if (!reverse && !ramp) {
-    getState().commit((p) => setRetime(p, clipId, undefined, orig.assetId, orig.in, orig.out));
+  if (!reverse && !ramp && !smooth) {
+    getState().commit((p) => updateClip(setRetime(p, clipId, undefined, orig.assetId, orig.in, orig.out), clipId, { speed }));
     await reprocessAi(clipId);
     return;
   }
-  const r: Retime = { assetId: orig.assetId, in: orig.in, out: orig.out, reverse, ramp: ramp && normalizeRamp(ramp), preset };
-  const res = await runJob(reverse && !ramp ? 'Переворачиваю клип' : 'Меняю скорость', {
-    kind: 'retime', jobId: `rt_${uidShort()}`, path: src.path, in: r.in, out: r.out, reverse, ramp: r.ramp,
-    hasVideo: src.hasVideo, hasAudio: src.hasAudio, width: src.width, height: src.height, fps: src.fps || getState().project.settings.fps,
+  // плавно: скорость клипа вшивается в копию (кривая × скорость), а сам клип играет её 1:1
+  const userRamp = ramp && normalizeRamp(ramp);
+  const effRamp = smooth ? normalizeRamp((userRamp ?? [{ x: 0, v: 1 }, { x: 1, v: 1 }]).map((q) => ({ x: q.x, v: q.v * speed }))) : userRamp;
+  const r: Retime = {
+    assetId: orig.assetId, in: orig.in, out: orig.out, reverse, ramp: effRamp, preset,
+    ...(smooth ? { smooth: true, speed, userRamp } : {}),
+  };
+  const label = smooth ? 'Плавное замедление' : reverse && !ramp ? 'Переворачиваю клип' : 'Меняю скорость';
+  const res = await runJob(label, {
+    kind: 'retime', jobId: `rt_${uidShort()}`, path: src.path, in: r.in, out: r.out, reverse, ramp: r.ramp, smooth,
+    hasVideo: src.hasVideo, hasAudio: src.hasAudio, width: src.width, height: src.height,
+    // плавное — сразу в частоте проекта (дорисованные кадры как раз на неё); иначе — как у исходника
+    fps: smooth ? getState().project.settings.fps || src.fps : src.fps || getState().project.settings.fps,
   }, clipId);
   if (!res.ok || res.output?.kind !== 'retime') { if (res.error !== 'Отменено') getState().toast(`Не получилось: ${res.error}`, 'err'); return; }
   const out = res.output;
-  const asset = await importDerived(out.path, `${src.name} · ${reverse && ramp ? 'реверс, кривая' : reverse ? 'реверс' : 'кривая скорости'}`);
+  const what = [reverse && 'реверс', smooth && 'плавно', !smooth && ramp && 'кривая скорости'].filter(Boolean).join(', ');
+  const asset = await importDerived(out.path, `${src.name} · ${what}`);
   if (!asset) return;
   if (!same(getState().project)) { getState().toast('Клип изменился, пока шла обработка — повтори действие'); return; }
-  getState().commit((p) => setRetime(addAsset(p, asset), clipId, r, asset.id, 0, Math.min(asset.duration || out.duration, out.duration)));
+  getState().commit((p) => {
+    const q = setRetime(addAsset(p, asset), clipId, r, asset.id, 0, Math.min(asset.duration || out.duration, out.duration));
+    // только реверс без кривой — скорость остаётся у клипа
+    return r.ramp ? q : updateClip(q, clipId, { speed });
+  });
   takeEarlyPatches([asset.id]);
   await reprocessAi(clipId);
 }
@@ -413,6 +438,52 @@ async function reprocessAi(clipId: string): Promise<void> {
   if (mediaClip(clipId)?.clip.removeBg.enabled && aiStale(mediaClip(clipId)!.clip, 'removeBg')) await removeBackground(clipId);
   if (mediaClip(clipId)?.clip.denoise.enabled && aiStale(mediaClip(clipId)!.clip, 'denoise')) await enhanceVoice(clipId);
   else await refreshVoice(clipId);
+}
+
+// ---------- извлечь звук ----------
+/**
+ * Звук видеоклипа — отдельным клипом на аудиодорожке: тот же кусок, скорость, громкость и затухания,
+ * эффект голоса и чистый голос переносятся (обработка повторится для нового клипа). У видео звук выключается.
+ */
+export async function extractAudio(clipId: string): Promise<string | null> {
+  const m = mediaClip(clipId);
+  if (!m) return null;
+  const c = m.clip;
+  const a = m.p.assets.find((x) => x.id === c.assetId);
+  if (!a || a.kind === 'audio') { getState().toast('Выдели видеоклип — у звукового клипа звук и так отдельно'); return null; }
+  if (!a.hasAudio) { getState().toast('У этого клипа нет звука'); return null; }
+  if (a.missing) { getState().toast(`Файл «${a.name}» не найден на диске`, 'err'); return null; }
+  const jobId = `xa_${uidShort()}`;
+  getState().setJob({ id: jobId, label: 'Извлекаю звук', progress: 0.3, cancellable: false, clipId });
+  let file: string;
+  try { file = await api.extractAudio(a.path); } catch (e) {
+    getState().toast(`Не получилось извлечь звук: ${e instanceof Error ? e.message : String(e)}`, 'err');
+    return null;
+  } finally { getState().setJob(null, jobId); }
+  const r = await api.importMedia([file]);
+  const au = r.assets[0];
+  if (!au) { getState().toast('Не получилось открыть извлечённый звук', 'err'); return null; }
+  let newId = '';
+  getState().commit((p) => {
+    let q = addAsset(p, au);
+    const f = findClip(q, clipId);
+    if (!f || f.clip.type !== 'media') return p;
+    const v = f.clip;
+    const add = addFree(q, au.id, v.start);
+    newId = add.clipId;
+    q = updateClip(add.project, newId, {
+      in: v.in, out: Math.min(v.out, au.duration), speed: v.speed, volume: v.volume, fadeIn: v.fadeIn, fadeOut: v.fadeOut,
+      denoise: { ...v.denoise, status: 'none', path: undefined, range: undefined },
+      ...(v.voice ? { voice: { ...v.voice, status: 'none', path: undefined, range: undefined } } : {}),
+    });
+    return updateClip(q, clipId, { muted: true });
+  });
+  takeEarlyPatches([au.id]);
+  if (!newId) return null;
+  getState().select([newId]);
+  getState().toast('Звук на отдельной дорожке — его можно резать, двигать и обрабатывать отдельно. У видео звук выключен', 'ok');
+  await reprocessAi(newId);
+  return newId;
 }
 
 // ---------- стоп-кадр ----------

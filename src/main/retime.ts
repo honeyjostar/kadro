@@ -10,6 +10,7 @@ import type { RampPoint } from '../shared/types';
 export interface RetimeJob {
   path: string; in: number; out: number;
   reverse: boolean; ramp?: RampPoint[];
+  smooth?: boolean;               // дорисовать промежуточные кадры (плавное замедление)
   hasVideo: boolean; hasAudio: boolean;
   width: number; height: number; fps: number;
 }
@@ -26,7 +27,7 @@ export async function retime(job: RetimeJob, onProgress?: (p: number) => void, s
   const work = path.join(cacheDir('tmp'), `rt_${uniq()}`);
   fs.mkdirSync(work, { recursive: true });
   const ext = job.hasVideo ? 'mp4' : 'm4a';
-  const out = path.join(cacheDir('clips'), `${job.reverse ? 'rev' : 'ramp'}_${uniq()}.${ext}`);
+  const out = path.join(cacheDir('clips'), `${job.reverse ? 'rev' : job.smooth ? 'smooth' : 'ramp'}_${uniq()}.${ext}`);
   const L = job.out - job.in;
   const fps = Math.min(60, Math.max(1, job.fps || 30));
   try {
@@ -44,7 +45,9 @@ export async function retime(job: RetimeJob, onProgress?: (p: number) => void, s
     const total = new RampMap(ramp, L).total;
     const lines: string[] = [];
     if (job.hasVideo) {
-      lines.push(`[0:v]setpts='(${rampPtsExpr(ramp, L)})/TB',fps=${fps},tpad=stop_mode=clone:stop_duration=1,trim=duration=${fmt(total)},setpts=PTS-STARTPTS[v]`);
+      // плавно: кадры между исходными дорисовываются по движению (оптический поток), а не повторяются
+      const rate = job.smooth ? `minterpolate=fps=${fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1,fps=${fps}` : `fps=${fps}`;
+      lines.push(`[0:v]setpts='(${rampPtsExpr(ramp, L)})/TB',${rate},tpad=stop_mode=clone:stop_duration=1,trim=duration=${fmt(total)},setpts=PTS-STARTPTS[v]`);
     }
     if (job.hasAudio) {
       const { first, cmds } = rampTempoCommands(ramp, L);

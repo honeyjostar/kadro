@@ -34,7 +34,7 @@ export type AiJob =
   | { kind: 'stab'; jobId: string; path: string; in: number; out: number; strength: number }
   | { kind: 'beats'; jobId: string; path: string }
   | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number }
-  | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
+  | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; smooth?: boolean; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
   | { kind: 'freeze'; jobId: string; path: string; t: number; fps: number; alpha: boolean }
   | { kind: 'beauty'; jobId: string; path: string; in: number; out: number; offset: number; smooth: number; bright: number; width: number; height: number };
 
@@ -122,6 +122,8 @@ export interface KadroApi {
   pickLut(): Promise<{ path: string; name: string } | { error: string } | null>;
   listLuts(): Promise<{ path: string; name: string }[]>;
   readLut(path: string): Promise<string | null>;
+  /** Звук файла — отдельным файлом FLAC (для «Извлечь звук»). */
+  extractAudio(path: string): Promise<string>;
   /** 3D: выбрать файл модели (GLB, GLTF, OBJ, STL, FBX). */
   pickModel(): Promise<string | null>;
   /** 3D: собрать кадры RGBA (снизу вверх) в видео с прозрачным фоном. */

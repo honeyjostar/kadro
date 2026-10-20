@@ -8,7 +8,7 @@ import {
   addFree, addToMain, beatTimes, clipDuration, clipEnd, findClip, mainToOverlay, moveClip, projectDuration, reorderMain, setTrackFlag, trimClip,
 } from '../../shared/timeline';
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
-import { alignToBeats, placeLibraryFiles, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
+import { alignToBeats, extractAudio, placeLibraryFiles, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
 import { useSelected } from '../hooks';
 import { recPrefs } from '../recorder';
 import { keyTimesOnTimeline } from '../animEdit';
@@ -568,6 +568,8 @@ export function Timeline() {
         <Tool icon={<Snowflake size={17} />} label="Стоп-кадр" title="Остановить кадр там, где розовая линия времени" onClick={() => void freezeFrame()} disabled={noClips} testId="tl-freeze" />
         <Tool icon={<Rewind size={17} />} label="Реверс" title="Проиграть выделенный клип задом наперёд" on={!!selClip?.retime?.reverse} disabled={!selClip || sel?.asset?.kind === 'image'}
           onClick={() => selClip && void retimeClip(selClip.id, { reverse: !selClip.retime?.reverse })} testId="tl-reverse" />
+        <Tool icon={<AudioLines size={17} />} label="Звук отдельно" title="Извлечь звук видео на отдельную аудиодорожку (у видео звук выключится)"
+          disabled={!selClip || !sel?.asset?.hasAudio || sel.asset.kind === 'audio'} onClick={() => selClip && void extractAudio(selClip.id)} testId="tl-extract" />
         <Tool icon={<Mic size={17} />} label={recording ? 'Стоп' : 'Голос'} title={recording ? 'Остановить запись голоса' : 'Записать голос с микрофона от розовой линии времени'} className={recording ? 'rec-on' : ''} testId="tl-rec"
           onClick={() => { if (recording) void stopRecording(); else { getState().setLeftTab('audio'); void startRecording(recPrefs.mic, recPrefs.mute); } }} />
         <span className="sep" />

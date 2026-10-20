@@ -1,6 +1,6 @@
-import { Box, X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
+import { AudioLines, Box, X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
-import { alignToBeats, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection } from '../actions';
+import { alignToBeats, extractAudio, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection, userCurve, userSpeed } from '../actions';
 import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
 import { DEFAULT_MASK } from '../../shared/mask';
 import { EFFECTS } from '../../shared/effects';
@@ -235,6 +235,11 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
               onChange={(v) => up({ fadeIn: v }, 'fi')} onReset={() => up({ fadeIn: 0 }, 'fi')} />
             <Slider label="Плавное затухание" min={0} max={Math.min(10, dur / 2)} step={0.05} value={clip.fadeOut} format={(v) => `${v.toFixed(1)} с`}
               onChange={(v) => up({ fadeOut: v }, 'fo')} onReset={() => up({ fadeOut: 0 }, 'fo')} />
+            {!isAudio && (
+              <button className="btn block" onClick={() => void extractAudio(clip.id)} data-testid="extract-audio" style={{ marginTop: 6 }}>
+                <AudioLines size={14} />Извлечь звук на отдельную дорожку
+              </button>
+            )}
             {!isAudio && <p className="hint small">Шум, паузы и эффекты голоса — во вкладке «ИИ».</p>}
             {isAudio && asset && <BeatBox asset={asset} />}
             {isAudio && <AiTools compact />}
@@ -341,34 +346,60 @@ function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
   const up = (patch: Partial<MediaClip>, key: string) => commit((p) => updateClip(p, clip.id, patch), `${key}-${clip.id}`);
   const busy = !!useClipJob(clip.id);
   const r = clip.retime;
-  const active = r?.ramp ? r.preset ?? 'custom' : 'none';
+  const smooth = !!r?.smooth;
+  const userRamp = userCurve(r);
+  const active = userRamp ? r?.preset ?? 'custom' : 'none';
   const [draft, setDraft] = useState<RampPoint[] | null>(null);
-  const curve = draft ?? r?.ramp ?? null;
+  const curve = draft ?? userRamp ?? null;
   const srcLen = r ? r.out - r.in : clip.out - clip.in;
   const dur = clipDuration(clip);
   const isVideo = asset?.kind === 'video';
+  // при плавном замедлении скорость вшита в копию: новую скорость применяем, когда ползунок отпустили
+  const [speedDraft, setSpeedDraft] = useState<number | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const speed = speedDraft ?? userSpeed(clip);
+  const setSpeed = (v: number) => {
+    if (!smooth) { up({ speed: v }, 'speed'); return; }
+    setSpeedDraft(v);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { void retimeClip(clip.id, { speed: v }).finally(() => setSpeedDraft(null)); }, 700);
+  };
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const slowSomewhere = speed < 0.999 || (userRamp ?? []).some((q) => q.v * speed < 0.999);
   const pick = (id: string) => {
     setDraft(null);
-    if (id === 'none') { if (r?.ramp) void retimeClip(clip.id, { ramp: null }); return; }
-    if (id === 'custom') { setDraft(r?.ramp ?? [{ x: 0, v: 1 }, { x: 0.5, v: 1 }, { x: 1, v: 1 }]); return; }
+    if (id === 'none') { if (userRamp) void retimeClip(clip.id, { ramp: null }); return; }
+    if (id === 'custom') { setDraft(userRamp ?? [{ x: 0, v: 1 }, { x: 0.5, v: 1 }, { x: 1, v: 1 }]); return; }
     const pr = RAMP_PRESETS.find((x) => x.id === id)!;
     void retimeClip(clip.id, { ramp: pr.points, preset: pr.id });
   };
   return (
     <>
       <Field label="Скорость">
-        <Seg value={clip.speed} onChange={(v) => up({ speed: v }, 'speedp')} options={[0.5, 1, 1.5, 2, 3].map((v) => ({ value: v, label: `${v}×` }))} />
+        <Seg value={speed} onChange={setSpeed} options={[0.25, 0.5, 1, 1.5, 2, 3].map((v) => ({ value: v, label: `${v}×` }))} />
       </Field>
-      <Slider label="Точно" min={0.25} max={4} step={0.05} value={clip.speed} format={(v) => `${v.toFixed(2)}×`} testId="speed"
-        onChange={(v) => up({ speed: v }, 'speed')} onReset={() => up({ speed: 1 }, 'speed')} />
+      <Slider label="Точно" min={0.25} max={4} step={0.05} value={speed} format={(v) => `${v.toFixed(2)}×`} testId="speed"
+        onChange={setSpeed} onReset={() => setSpeed(1)} />
       <p className="hint">Длина на таймлайне: {fmtDur(dur)}. Высота голоса сохраняется.</p>
+      {isVideo && (
+        <div className={`smooth-box ${smooth ? 'on' : ''}`}>
+          <Toggle label="Плавное замедление" on={smooth} testId="smooth"
+            hint={smooth
+              ? 'Промежуточные кадры дорисованы по движению — замедление без рывков. Новая скорость или кривая пересоберёт копию.'
+              : slowSomewhere
+                ? 'Сейчас кадры при замедлении повторяются и картинка дёргается. Kadro дорисует промежуточные кадры по движению.'
+                : 'Пригодится, когда замедляешь клип (скорость меньше 1×) или ставишь кривую со слоу-мо.'}
+            onChange={(v) => { if (!busy) void retimeClip(clip.id, { smooth: v }); }} />
+          {!smooth && slowSomewhere && <p className="hint small">Дорисовка занимает время — примерно столько же, сколько длится клип, или дольше.</p>}
+        </div>
+      )}
 
       <div className="sub-head">Кривая скорости</div>
       <div className="ramp-grid">
         {[{ id: 'none', label: 'Нет', hint: 'Без кривой', points: null as RampPoint[] | null }, ...RAMP_PRESETS, { id: 'custom', label: 'Своя', hint: 'Нарисуй кривую сам', points: null }].map((pr) => (
           <button key={pr.id} className={`ramp-tile ${(draft ? 'custom' : active) === pr.id ? 'active' : ''}`} title={pr.hint} disabled={busy}
             onClick={() => pick(pr.id)} data-testid={`ramp-${pr.id}`}>
-            <RampThumb points={pr.id === 'custom' ? r?.preset === 'custom' ? r.ramp ?? null : null : pr.points} />
+            <RampThumb points={pr.id === 'custom' ? r?.preset === 'custom' ? userRamp ?? null : null : pr.points} />
             <span>{pr.label}</span>
           </button>
         ))}
@@ -378,7 +409,7 @@ function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
           <RampEditor points={curve} onChange={setDraft} disabled={busy} />
           <p className="hint small">
             Тяни точки вверх — быстрее, вниз — медленнее. Двойной клик добавляет точку, двойной клик по точке — убирает.
-            {' '}Длина станет {fmtDur(new RampMap(normalizeRamp(curve), srcLen).total / clip.speed)}.
+            {' '}Длина станет {fmtDur(new RampMap(normalizeRamp(curve), srcLen).total / (smooth ? 1 : clip.speed))}.
           </p>
           {draft && (
             <div className="row-btns">
@@ -398,7 +429,7 @@ function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
         </button>
       )}
       <p className="hint small" style={{ marginTop: 8 }}>
-        Реверс и кривая создают копию фрагмента — это занимает немного времени. Обрезка и разрезание работают как обычно.
+        Реверс, кривая и плавное замедление создают копию фрагмента — это занимает немного времени. Обрезка и разрезание работают как обычно.
       </p>
     </>
   );

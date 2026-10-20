@@ -46,6 +46,7 @@ const api: KadroApi = {
   readLut: (p) => ipcRenderer.invoke('lut:read', p),
   groupPath: (ext) => ipcRenderer.invoke('group:path', ext),
   pickModel: () => ipcRenderer.invoke('dialog:model'),
+  extractAudio: (p) => ipcRenderer.invoke('audio:extract', p),
   m3dBegin: (w, h, fps) => ipcRenderer.invoke('m3d:begin', w, h, fps),
   m3dFrame: (id, rgba) => ipcRenderer.invoke('m3d:frame', id, rgba),
   m3dEnd: (id) => ipcRenderer.invoke('m3d:end', id),

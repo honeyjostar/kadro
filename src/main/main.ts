@@ -1,5 +1,6 @@
 // Главный процесс Kadro: окно, доступ к файлам, импорт, экспорт, ИИ-задачи.
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, shell, utilityProcess, type UtilityProcess } from 'electron';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -250,7 +251,7 @@ async function runAi(job: AiJob): Promise<AiResponse> {
     if (job.kind === 'retime') {
       const ac = new AbortController();
       aiAborts.set(id, ac);
-      const r = await retime(job, (p) => send(p, job.reverse ? 'Переворачиваю' : 'Меняю скорость'), ac.signal);
+      const r = await retime(job, (p) => send(p, job.smooth ? 'Дорисовываю кадры' : job.reverse ? 'Переворачиваю' : 'Меняю скорость'), ac.signal);
       return { ok: true, output: { kind: 'retime', path: r.path, duration: r.duration } };
     }
     if (job.kind === 'beauty') {
@@ -598,6 +599,19 @@ function registerIpc(): void {
   ipcMain.handle('group:path', (_e, ext: string) =>
     path.join(cacheDir('groups'), `group_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext === 'webm' ? 'webm' : 'mp4'}`));
   ipcMain.handle('lut:read', (_e, p: string) => { if (!/\.cube$/i.test(p)) return null; try { return fs.readFileSync(p, 'utf8'); } catch { return null; } });
+  // «Извлечь звук»: дорожка звука файла — отдельным файлом без потерь (один раз на файл)
+  ipcMain.handle('audio:extract', async (_e, src: string) => {
+    const st = fs.statSync(src);
+    const key = crypto.createHash('sha1').update(`${src}|${st.size}|${st.mtimeMs}`).digest('hex').slice(0, 16);
+    const dir = path.join(cacheDir('audio'), key);
+    fs.mkdirSync(dir, { recursive: true });
+    const out = path.join(dir, `${path.basename(src, path.extname(src))} — звук.flac`);
+    if (fs.existsSync(out) && fs.statSync(out).size > 0) return out;
+    const tmp = path.join(dir, 'tmp.flac');
+    await runFfmpeg(['-hide_banner', '-y', '-i', src, '-map', '0:a:0', '-vn', '-c:a', 'flac', tmp]);
+    fs.renameSync(tmp, out);
+    return out;
+  });
   ipcMain.handle('rec:save', async (_e, data: ArrayBuffer) => {
     const dir = cacheDir('recordings');
     const stem = `voice_${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)}_${Math.random().toString(36).slice(2, 6)}`;
