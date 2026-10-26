@@ -63,7 +63,7 @@ export function SourceView() {
     if (v.paused) {
       // с конца куска — играем кусок сначала
       if (v.currentTime >= range.out - 0.05 || v.currentTime < range.in) v.currentTime = range.in;
-      void v.play();
+      v.play().catch(() => undefined); // пауза во время запуска — не ошибка
     } else v.pause();
   };
   const markIn = (x = t) => setRange((r) => ({ in: Math.min(x, dur - MIN_PIECE), out: r.out - Math.min(x, dur - MIN_PIECE) < MIN_PIECE ? dur : r.out }));
