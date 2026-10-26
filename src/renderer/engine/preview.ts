@@ -93,16 +93,25 @@ export class PreviewEngine {
     this.dirty = true;
   }
 
+  /** Сколько видео- и аудиоэлементов сейчас создано (для тестов: их не должно быть по одному на каждый клип). */
+  get elementCount(): number {
+    let n = this.idle.length;
+    for (const e of this.media.values()) if (e.kind !== 'image') n += 1 + (e.fallback ? 1 : 0);
+    return n;
+  }
+
   seek(t: number): void {
     this.t = Math.max(0, t);
     this.tStart = this.t;
     this.wallStart = performance.now();
     this.dirty = true;
+    if (this.project) this.syncElements();
   }
 
   async play(from?: number): Promise<void> {
     if (!this.project) return;
     if (from !== undefined) this.seek(from);
+    this.syncElements();
     const dur = projectDuration(this.project);
     if (this.t >= dur - 0.02) this.seek(0);
     this.ensureAudio();
@@ -122,6 +131,8 @@ export class PreviewEngine {
   destroy(): void {
     cancelAnimationFrame(this.raf);
     for (const e of this.media.values()) { this.dropFallback(e); this.dispose(e); }
+    for (const e of this.idle) this.dispose(e);
+    this.idle = [];
     this.media.clear();
     void this.ac?.close();
   }
@@ -168,6 +179,36 @@ export class PreviewEngine {
     } catch {
       /* элемент уже подключён */
     }
+  }
+
+  /**
+   * Свободные элементы: клип ушёл из окна — его <video> не выбрасываем, а оставляем загруженным.
+   * Следующий клип из того же файла берёт его сразу (без загрузки и чёрной вспышки), а одновременно
+   * открытых видео — несколько, а не по одному на каждый кусок: видеокарта не тянет десятки декодеров.
+   */
+  private idle: Entry[] = [];
+  private static readonly IDLE_MAX = 8;
+
+  private release(e: Entry): void {
+    if (e.kind === 'image' || !e.ready || e.fallback) { this.dropFallback(e); this.dispose(e); return; }
+    const m = e.el as HTMLMediaElement;
+    if (!m.paused) m.pause();
+    if (e.gain) e.gain.gain.value = 0;
+    m.loop = false;
+    this.idle.push(e);
+    while (this.idle.length > PreviewEngine.IDLE_MAX) this.dispose(this.idle.shift()!);
+  }
+
+  private take(key: string, kind: Entry['kind'], path: string, offset: number): Entry {
+    const src = this.mediaUrl(path);
+    const i = this.idle.findIndex((x) => x.src === src && x.kind === kind);
+    if (i >= 0) {
+      const e = this.idle.splice(i, 1)[0];
+      e.key = key;
+      e.offset = offset;
+      return e;
+    }
+    return this.makeEntry(key, kind, path, offset);
   }
 
   private dispose(e: Entry): void {
@@ -223,14 +264,21 @@ export class PreviewEngine {
     e.fallback = undefined;
   }
 
-  /** Какие элементы нужны каждому клипу: картинка/видео и, при чистке голоса, отдельный звук. */
+  /**
+   * Какие элементы нужны клипам рядом с курсором: картинка/видео и, при чистке голоса, отдельный звук.
+   * Только окно вокруг текущего времени (при воспроизведении — на несколько секунд вперёд, чтобы следующий
+   * кусок успел загрузиться и перемотаться), а не все клипы проекта сразу.
+   */
   private wanted(): Map<string, { kind: Entry['kind']; path: string; offset: number }> {
     const want = new Map<string, { kind: Entry['kind']; path: string; offset: number }>();
     const p = this.project;
     if (!p) return want;
+    const t = this.t;
+    const ahead = this.playing ? PreviewEngine.AHEAD_PLAY : PreviewEngine.AHEAD_PAUSE;
     for (const track of p.tracks) {
       for (const c of track.clips) {
         if (c.type !== 'media') continue;
+        if (c.start > t + ahead || clipEnd(c) < t - PreviewEngine.BEHIND) continue;
         const a = p.assets.find((x) => x.id === c.assetId);
         if (!a) continue;
         if (a.kind === 'image') { want.set(`${c.id}:v`, { kind: 'image', path: a.previewPath || a.path, offset: 0 }); continue; }
@@ -249,13 +297,22 @@ export class PreviewEngine {
     return want;
   }
 
+  private static readonly AHEAD_PLAY = 3;
+  private static readonly AHEAD_PAUSE = 1.5;
+  private static readonly BEHIND = 1;
+  private lastSync = 0;
+
   private syncElements(): void {
+    this.lastSync = performance.now();
     const want = this.wanted();
     for (const [key, e] of this.media) {
       const w = want.get(key);
-      if (!w || this.mediaUrl(w.path) !== e.src || w.kind !== e.kind) {
+      if (!w) {
         this.media.delete(key);
-        if (w && w.kind === e.kind && e.kind !== 'audio' && (e.ready || e.fallback)) {
+        this.release(e);
+      } else if (this.mediaUrl(w.path) !== e.src || w.kind !== e.kind) {
+        this.media.delete(key);
+        if (w.kind === e.kind && e.kind !== 'audio' && (e.ready || e.fallback)) {
           // файл клипа сменился (прокси готов, фон удалён): старый кадр держим до готовности нового
           const n = this.makeEntry(key, w.kind, w.path, w.offset);
           n.fallback = e.ready ? e : e.fallback;
@@ -272,7 +329,7 @@ export class PreviewEngine {
       }
     }
     for (const [key, w] of want) {
-      if (!this.media.has(key)) this.media.set(key, this.makeEntry(key, w.kind, w.path, w.offset));
+      if (!this.media.has(key)) this.media.set(key, this.take(key, w.kind, w.path, w.offset));
     }
   }
 
@@ -318,9 +375,10 @@ export class PreviewEngine {
     } else if (performance.now() > this.settleUntil) {
       return;
     }
+    // окно клипов сдвигается вместе со временем
+    if (performance.now() - this.lastSync > (this.playing ? 200 : 120)) this.syncElements();
     this.syncPlayback(this.t);
-    this.render(this.t);
-    this.dirty = false;
+    if (this.render(this.t)) this.dirty = false;
   }
   private settleUntil = 0;
 
@@ -375,7 +433,7 @@ export class PreviewEngine {
                 m.playbackRate = c.speed * (1 - k);
               }
             }
-          } else if (this.playing && t < start && start - t < 0.8) {
+          } else if (this.playing && t < start && start - t < 1.5) {
             if (!m.paused) m.pause();
             const pre = wrap(c.in - e.offset);
             if (Math.abs(m.currentTime - pre) > 0.04) m.currentTime = Math.max(0, pre);
@@ -512,10 +570,44 @@ export class PreviewEngine {
     return cv;
   }
 
-  private render(t: number): void {
+  /**
+   * Кадр клипа готов: видео загружено и не перематывается. Перематывающийся элемент показывает старый кадр —
+   * возможно, из другого куска того же файла, поэтому такой кадр не рисуем.
+   */
+  private frameReady(clipId: string): boolean {
+    const cur = this.media.get(`${clipId}:v`);
+    if (!cur) return false;
+    const e = cur.ready ? cur : cur.fallback?.ready ? cur.fallback : undefined;
+    if (!e) return false;
+    if (e.kind === 'image') return (e.el as HTMLImageElement).complete;
+    const v = e.el as HTMLVideoElement;
+    return v.readyState >= 2 && !v.seeking && !!v.videoWidth;
+  }
+  private holdSince = 0;
+  private drewOnce = false;
+  /** Сколько можно держать прошлый кадр, пока новый не готов (дальше — рисуем как есть, например без пропавшего файла). */
+  private static readonly HOLD_MAX = 1500;
+
+  /** Рисует кадр. false — кадр отложен: видео ещё не готово, на экране остаётся прошлый (вместо чёрного). */
+  private render(t: number): boolean {
     const p = this.project!;
     const { ctx, W, H } = this;
-    if (!W || !H) return;
+    if (!W || !H) return true;
+    const visible: string[] = [];
+    for (const track of p.tracks) {
+      if (track.hidden || track.kind === 'audio' || track.kind === 'text') continue;
+      for (const c of track.clips) {
+        if (c.type !== 'media' || t < c.start - EPS || t >= clipEnd(c) - EPS) continue;
+        if (p.assets.find((a) => a.id === c.assetId)?.kind !== 'audio') visible.push(c.id);
+      }
+    }
+    if (this.drewOnce && !visible.every((id) => this.frameReady(id))) {
+      const now = performance.now();
+      if (!this.holdSince) this.holdSince = now;
+      if (now - this.holdSince < PreviewEngine.HOLD_MAX) return false;
+    }
+    this.holdSince = 0;
+    this.drewOnce = true;
     ctx.save();
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
@@ -563,5 +655,6 @@ export class PreviewEngine {
       }
     }
     ctx.restore();
+    return true;
   }
 }

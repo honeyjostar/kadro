@@ -80,6 +80,30 @@ test('с главного экрана: свои файлы + демо-бит �
   await expect(win.getByText(/Авто-ролик готов/)).toBeVisible();
 });
 
+test('воспроизведение ролика из многих кусков: без чёрных кадров, видео открыто немного', async () => {
+  const n = (await mainClips()).length;
+  expect(n).toBeGreaterThanOrEqual(8);
+  // раньше на каждый кусок создавался свой <video> — на десятках кусков видеокарта не успевала, и шёл чёрный экран
+  const els = () => win.evaluate(() => (window as any).__kadroEngine.elementCount as number);
+  expect(await els()).toBeLessThanOrEqual(8);
+  const lit = () => win.evaluate(() => {
+    const c = document.querySelector('[data-testid=preview]') as HTMLCanvasElement;
+    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+    let s = 0; let k = 0;
+    for (let i = 0; i < d.length; i += 4 * 211) { s += d[i] + d[i + 1] + d[i + 2]; k++; }
+    return s / k;
+  });
+  await store(win, 'setPlayhead', 0);
+  await win.waitForTimeout(800);
+  await win.getByTestId('play').click();
+  const samples: number[] = [];
+  let maxEls = 0;
+  for (let i = 0; i < 40; i++) { samples.push(await lit()); maxEls = Math.max(maxEls, await els()); await win.waitForTimeout(150); }
+  await win.getByTestId('play').click();
+  expect(samples.filter((x) => x < 20), `яркость кадров: ${samples.map(Math.round).join(' ')}`).toEqual([]);
+  expect(maxEls).toBeLessThanOrEqual(10);
+});
+
 test('«Ещё вариант» — другие куски и переходы, Ctrl+Z возвращает прошлый', async () => {
   const before = JSON.stringify((await mainClips()).map((c) => [c.assetId, c.in.toFixed(2), c.transitionOut?.type ?? '']));
   await win.getByTestId('tpl-auto-variant').click();
