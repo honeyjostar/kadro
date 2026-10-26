@@ -1,8 +1,9 @@
 // Окно «Настройки»: тема, цвет акцента, значок программы (окно и ярлыки Windows), размер интерфейса,
-// своё оформление (custom.css и theme.json в папке данных — подхватываются на лету).
-import { BookOpen, FolderOpen, ImagePlus, Settings as Gear, TriangleAlert, X } from 'lucide-react';
+// своё оформление (custom.css и theme.json в папке данных — подхватываются на лету), качество превью и кэш.
+import { BookOpen, FolderOpen, HardDrive, ImagePlus, Settings as Gear, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ACCENTS, APP_ICONS, UI_SCALES, type Appearance } from '../../shared/appearance';
+import { collectPaths, fmtBytes, type CacheInfo } from '../../shared/cache';
 import { api, getState, useStore } from '../store';
 import { Seg, Toggle } from './controls';
 import { LogoMark } from './Home';
@@ -11,6 +12,7 @@ export function SettingsDialog() {
   const a = useStore((s) => s.appearance);
   const themePref = useStore((s) => s.themePref);
   const custom = useStore((s) => s.customStatus);
+  const previewQuality = useStore((s) => s.previewQuality);
   const [note, setNote] = useState('');
   const [dir, setDir] = useState(custom?.dir ?? '');
   const close = () => getState().setSettingsOpen(false);
@@ -94,8 +96,55 @@ export function SettingsDialog() {
           {custom?.error && <div className="warn"><TriangleAlert size={15} /><span>{custom.error}</span></div>}
           {custom?.on && custom.skipped?.length ? <p className="hint">Пропущено в theme.json: {custom.skipped.join(', ')}</p> : null}
         </section>
+
+        <section className="settings-sec">
+          <b>Качество превью</b>
+          <Seg value={previewQuality} onChange={(v) => getState().setPreviewQuality(v)}
+            options={[{ value: 'high', label: 'Высокое' }, { value: 'medium', label: 'Среднее' }, { value: 'low', label: 'Быстрое' }]} />
+          <p className="hint">Картинка в плеере. «Быстрое» — плавнее на слабом компьютере и ноутбуке. На экспорт не влияет.</p>
+        </section>
+
+        <CacheSection />
       </div>
     </div>
+  );
+}
+
+/** Место на диске: превью и миниатюры (пересоздаются сами) и служебные копии (реверс, ИИ, группы). */
+function CacheSection() {
+  const [info, setInfo] = useState<CacheInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  useEffect(() => { void api.cacheInfo().then(setInfo); }, []);
+  const clear = async (what: 'preview' | 'derived') => {
+    setBusy(true);
+    try {
+      // не трогаем то, что нужно открытому проекту — и его истории правок (Ctrl+Z)
+      const s = getState();
+      const refs = [...collectPaths([s.project, s.past, s.future])];
+      const r = await api.clearCache(what, refs);
+      setInfo(r.info);
+      setNote(r.removed ? `Освобождено ${fmtBytes(r.freed)}.` : 'Удалять нечего — всё нужно проектам.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="settings-sec" data-testid="cache">
+      <b><HardDrive size={14} />Место на диске</b>
+      <div className="cache-row">
+        <div><span>Превью и миниатюры</span><em data-testid="cache-preview">{info ? fmtBytes(info.preview) : '…'}</em></div>
+        <button className="btn small" disabled={busy || !info?.preview} onClick={() => void clear('preview')} data-testid="cache-clear-preview">Очистить</button>
+      </div>
+      <p className="hint">Лёгкие копии видео для плеера, кадры на таймлайне, волны звука. Пересоздаются сами, когда понадобятся; файлы открытого проекта не удаляются.</p>
+      <div className="cache-row">
+        <div><span>Служебные копии</span><em data-testid="cache-derived">{info ? fmtBytes(info.derived) : '…'}</em></div>
+        <button className="btn small" disabled={busy || !info?.derived} onClick={() => void clear('derived')} data-testid="cache-clear-derived">Удалить ненужные</button>
+      </div>
+      <p className="hint">Реверс и замедление, результаты ИИ, группы, 3D, озвучка. Удаляются только копии, которых нет ни в открытом, ни в недавних проектах, ни в черновиках.</p>
+      {!!info?.kept && <p className="hint">Записи голоса и журналы — {fmtBytes(info.kept)}, не удаляются.</p>}
+      {note && <p className="hint" data-testid="cache-note">{note}</p>}
+    </section>
   );
 }
 

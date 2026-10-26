@@ -5,7 +5,8 @@ import {
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
 import {
-  addFree, addToMain, beatTimes, clipDuration, clipEnd, findClip, mainToOverlay, moveClip, projectDuration, reorderMain, setTrackFlag, trimClip,
+  addFree, addToMain, beatTimes, clipDuration, clipEnd, findClip, mainToOverlay, moveClip, moveClipsBy, projectDuration, reorderMain, reorderMainMany,
+  setTrackFlag, trimClip,
 } from '../../shared/timeline';
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
 import { alignToBeats, extractAudio, placeLibraryFiles, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
@@ -31,7 +32,10 @@ interface DragState {
   rowTrackId: string;      // над какой дорожкой ('new' — новая дорожка сверху)
   insertIndex?: number;    // для перестановки на основной
   snap?: number;           // время линии привязки
+  multi?: { ids: string[]; dt: number }; // тянем несколько выделенных клипов: все сдвигаются на dt
 }
+/** Рамка выделения мышью — в координатах содержимого таймлайна (y — от верха дорожек). */
+interface Box { x0: number; y0: number; x1: number; y1: number }
 
 const xOf = (t: number, pps: number) => PAD + t * pps;
 
@@ -47,10 +51,11 @@ function displayRows(p: Project): Row[] {
   });
 }
 
-function snapPoints(p: Project, excludeId: string, playhead: number): number[] {
+function snapPoints(p: Project, exclude: string | string[], playhead: number): number[] {
   const pts = [0, playhead, ...beatTimes(p)];
+  const ex = Array.isArray(exclude) ? exclude : [exclude];
   for (const t of p.tracks) for (const c of t.clips) {
-    if (c.id === excludeId) continue;
+    if (ex.includes(c.id)) continue;
     pts.push(c.start, clipEnd(c));
   }
   return pts;
@@ -299,10 +304,38 @@ export function Timeline() {
   const [drag, setDrag] = useState<DragState | null>(null);
   const [trimSnap, setTrimSnap] = useState<number | null>(null);
   const [dropRow, setDropRow] = useState<string | null>(null);
+  const [box, setBox] = useState<Box | null>(null);
   const zoomAnchor = useRef<{ t: number; px: number } | null>(null);
 
   const rows = useMemo(() => displayRows(project), [project]);
   const rowsH = TOP_PAD + rows.reduce((s, r) => s + r.height, 0);
+
+  // «показать клип»: только что добавленный или найденный по файлу — прокрутить к нему и подсветить
+  const reveal = useStore((s) => s.reveal);
+  useEffect(() => {
+    const el = scrollRef.current;
+    const f = reveal ? findClip(getState().project, reveal.id) : undefined;
+    if (!reveal || !el || !f) return;
+    const pps0 = getState().pxPerSec;
+    const x0 = xOf(f.clip.start, pps0);
+    const x1 = xOf(clipEnd(f.clip), pps0);
+    if (x0 < el.scrollLeft + 10 || x0 > el.scrollLeft + el.clientWidth - 80 || (x1 < el.scrollLeft + 10)) el.scrollLeft = Math.max(0, x0 - 80);
+    let top = TOP_PAD;
+    const all = displayRows(getState().project);
+    for (const r of all) { if (r.track.id === f.track.id) break; top += r.height; }
+    const h = all.find((r) => r.track.id === f.track.id)?.height ?? 40;
+    if (top < el.scrollTop || top + h > el.scrollTop + el.clientHeight - RULER_H) el.scrollTop = Math.max(0, top - 10);
+    let off = 0;
+    const t = window.setTimeout(() => {
+      const n = el.querySelector(`[data-clip="${reveal.id}"]`);
+      if (!n) return;
+      n.classList.remove('flash');
+      void (n as HTMLElement).offsetWidth; // перезапуск анимации
+      n.classList.add('flash');
+      off = window.setTimeout(() => n.classList.remove('flash'), 1300);
+    }, 40);
+    return () => { clearTimeout(t); clearTimeout(off); };
+  }, [reveal]);
   const duration = projectDuration(project);
   const contentW = Math.max(view.width, xOf(duration + Math.max(20, view.width / pps / 3), pps));
   const contentH = rowsH + 40;
@@ -401,12 +434,127 @@ export function Timeline() {
     window.addEventListener('pointerup', up);
   };
 
+  /** Пустое место: щелчок — перемотка, протянуть — рамка выделения (с Ctrl или Shift — добавить к выделенному). */
   const onEmptyDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const s = getState();
-    s.select([]);
+    const add = e.ctrlKey || e.metaKey || e.shiftKey;
+    const base = add ? s.selection.slice() : [];
+    if (!add) s.select([]);
     s.setPlaying(false);
     s.setPlayhead(Math.min(projectDuration(s.project), timeAt(e.clientX)));
+    const el = scrollRef.current!;
+    const pos = (ev: { clientX: number; clientY: number }) => {
+      const r = el.getBoundingClientRect();
+      return { x: ev.clientX - r.left + el.scrollLeft, y: ev.clientY - r.top + el.scrollTop - RULER_H };
+    };
+    const a = pos(e);
+    let started = false;
+    const move = (ev: PointerEvent) => {
+      const b = pos(ev);
+      if (!started && Math.abs(b.x - a.x) < 5 && Math.abs(b.y - a.y) < 5) return;
+      started = true;
+      const bx = { x0: Math.min(a.x, b.x), y0: Math.min(a.y, b.y), x1: Math.max(a.x, b.x), y1: Math.max(a.y, b.y) };
+      setBox(bx);
+      const pps0 = getState().pxPerSec;
+      const hit: string[] = [];
+      for (const r of rows) {
+        if (r.top + r.height < bx.y0 || r.top > bx.y1) continue;
+        for (const c of r.track.clips) {
+          const x0 = xOf(c.start, pps0);
+          const x1 = xOf(clipEnd(c), pps0);
+          if (x1 >= bx.x0 && x0 <= bx.x1) hit.push(c.id);
+        }
+      }
+      getState().select([...new Set([...base, ...hit])]);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setBox(null);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  /** Shift+щелчок: все клипы от прошлого выделенного до этого (на одной дорожке — по порядку, на разных — по времени). */
+  const rangeSelect = (clip: Clip, track: Track) => {
+    const s = getState();
+    const anchorId = s.selection[s.selection.length - 1];
+    const anchor = anchorId ? findClip(s.project, anchorId) : undefined;
+    if (!anchor) { s.select([clip.id]); return; }
+    let ids: string[];
+    if (anchor.track.id === track.id) {
+      const i0 = track.clips.findIndex((c) => c.id === anchorId);
+      const i1 = track.clips.findIndex((c) => c.id === clip.id);
+      ids = track.clips.slice(Math.min(i0, i1), Math.max(i0, i1) + 1).map((c) => c.id);
+    } else {
+      const t0 = Math.min(anchor.clip.start, clip.start);
+      const t1 = Math.max(clipEnd(anchor.clip), clipEnd(clip));
+      const tracks = rows.slice(Math.min(rows.findIndex((r) => r.track.id === anchor.track.id), rows.findIndex((r) => r.track.id === track.id)),
+        Math.max(rows.findIndex((r) => r.track.id === anchor.track.id), rows.findIndex((r) => r.track.id === track.id)) + 1);
+      ids = tracks.flatMap((r) => r.track.clips.filter((c) => clipEnd(c) > t0 + 1e-6 && c.start < t1 - 1e-6).map((c) => c.id));
+    }
+    s.select([...new Set([...s.selection, ...ids])]);
+  };
+
+  /** Тянем один из нескольких выделенных клипов — двигаются все. */
+  const startMultiDrag = (e: React.PointerEvent, clip: Clip, track: Track) => {
+    const s = getState();
+    const ids = s.selection.slice();
+    const p0 = s.project;
+    const mainT = p0.tracks.find((t) => t.kind === 'main');
+    const mainIds = ids.filter((id) => mainT?.clips.some((c) => c.id === id));
+    const freeIds = ids.filter((id) => !mainIds.includes(id));
+    const isMain = track.kind === 'main';
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    const pps0 = s.pxPerSec;
+    const thr = 8 / pps0;
+    const pts = snapPoints(p0, ids, s.playhead);
+    const freeStarts = freeIds.map((id) => findClip(p0, id)?.clip.start ?? 0);
+    const minFree = freeStarts.length ? Math.min(...freeStarts) : 0;
+    const dur = clipDuration(clip);
+    let started = false;
+    let last: DragState | null = null;
+    const move = (ev: PointerEvent) => {
+      const dx = ev.clientX - x0;
+      if (!started && Math.abs(dx) < 3 && Math.abs(ev.clientY - y0) < 3) return;
+      started = true;
+      const raw = clip.start + dx / pps0;
+      let start = raw;
+      let line: number | undefined;
+      const a = snapTo(raw, pts, thr);
+      const b = snapTo(raw + dur, pts, thr);
+      if (a.line !== undefined) { start = a.t; line = a.line; } else if (b.line !== undefined) { start = b.t - dur; line = b.line; }
+      let dt = start - clip.start;
+      dt = Math.max(dt, -minFree);
+      if (isMain && mainT) {
+        const others = mainT.clips.filter((c) => !mainIds.includes(c.id));
+        const tPtr = raw + dur / 2;
+        let idx = others.findIndex((c) => tPtr < c.start + clipDuration(c) / 2);
+        if (idx < 0) idx = others.length;
+        last = { id: clip.id, mode: 'reorder', start: Math.max(0, raw), rowTrackId: track.id, insertIndex: idx, multi: { ids, dt } };
+      } else {
+        last = { id: clip.id, mode: 'move', start: Math.max(0, clip.start + dt), rowTrackId: track.id, snap: line, multi: { ids, dt } };
+      }
+      setDrag(last);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setDrag(null);
+      const d = last;
+      if (!started || !d) { getState().select([clip.id]); return; } // просто щелчок — выделить один
+      getState().commit((p) => {
+        let q = p;
+        if (isMain && mainIds.length && d.insertIndex !== undefined) q = reorderMainMany(q, mainIds, d.insertIndex);
+        if (freeIds.length && Math.abs(d.multi!.dt) > 1e-6) q = moveClipsBy(q, freeIds, d.multi!.dt);
+        return q;
+      });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   };
 
   // перетаскивание клипа и обрезка краёв
@@ -416,10 +564,12 @@ export function Timeline() {
     e.preventDefault();
     const s = getState();
     s.setPlaying(false);
-    if (e.shiftKey || e.ctrlKey) {
+    if (e.ctrlKey || e.metaKey) {
       s.select(s.selection.includes(clip.id) ? s.selection.filter((x) => x !== clip.id) : [...s.selection, clip.id]);
       return;
     }
+    if (e.shiftKey) { rangeSelect(clip, track); return; }
+    if (mode === 'body' && s.selection.includes(clip.id) && s.selection.length > 1) { startMultiDrag(e, clip, track); return; }
     if (!s.selection.includes(clip.id) || s.selection.length > 1) s.select([clip.id]);
     const p0 = s.project;
     const x0 = e.clientX;
@@ -544,6 +694,18 @@ export function Timeline() {
     return { id: a.id, x: xOf(center, pps), has };
   }) : [];
 
+  // кнопка «+» (добавить переход) — только у стыка под мышью, чтобы не мешала резать и подрезать;
+  // стыки с переходом видны всегда
+  const [hoverJ, setHoverJ] = useState<string | null>(null);
+  const onMainHover = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (drag || e.buttons) { if (hoverJ) setHoverJ(null); return; }
+    const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
+    let best: string | null = null;
+    let bd = 14;
+    for (const j of junctions) { const d = Math.abs(j.x - x); if (d <= bd) { bd = d; best = j.id; } }
+    if (best !== hoverJ) setHoverJ(best);
+  };
+
   const selClip = sel?.clip.type === 'media' ? (sel.clip as MediaClip) : null;
   const recording = useStore((s) => s.recording);
   const hasBeats = project.assets.some((a) => a.beats?.length);
@@ -608,9 +770,13 @@ export function Timeline() {
                 return (
                   <div key={r.track.id} className={`track-row ${r.track.kind} ${isDropTarget ? 'drop' : ''}`} style={{ height: r.height }}
                     data-track={r.track.kind}
+                    onPointerMove={r.track.kind === 'main' ? (e) => onMainHover(e) : undefined}
+                    onPointerLeave={r.track.kind === 'main' ? () => setHoverJ(null) : undefined}
                     onDragOver={(e) => { e.stopPropagation(); onRowDragOver(e, r); }} onDrop={(e) => onRowDrop(e, r)}>
                     {r.track.clips.map((c) => {
                       if (drag && c.id === drag.id) return null;
+                      // несколько выделенных: движущиеся клипы рисуем ниже — призраками на новом месте
+                      if (drag?.multi?.ids.includes(c.id) && (r.track.kind !== 'main' ? Math.abs(drag.multi.dt) > 1e-6 : drag.mode === 'reorder')) return null;
                       return <ClipView key={c.id} clip={c} track={r.track} asset={c.type === 'media' ? assets.get(c.assetId) : undefined}
                         pps={pps} view={view} selected={selection.includes(c.id)} rowH={r.height} onDown={onClipDown} />;
                     })}
@@ -618,7 +784,13 @@ export function Timeline() {
                       <ClipView clip={dragClip.clip} track={r.track} asset={dragClip.clip.type === 'media' ? assets.get(dragClip.clip.assetId) : undefined}
                         pps={pps} view={view} selected rowH={r.height} ghost left={xOf(drag.start, pps)} onDown={onClipDown} />
                     )}
-                    {r.track.kind === 'main' && !drag && junctions.map((j) => (
+                    {drag?.multi && r.track.kind !== 'main' && Math.abs(drag.multi.dt) > 1e-6 && r.track.clips
+                      .filter((c) => c.id !== drag.id && drag.multi!.ids.includes(c.id))
+                      .map((c) => (
+                        <ClipView key={`g-${c.id}`} clip={c} track={r.track} asset={c.type === 'media' ? assets.get(c.assetId) : undefined}
+                          pps={pps} view={view} selected rowH={r.height} ghost left={xOf(c.start + drag.multi!.dt, pps)} onDown={onClipDown} />
+                      ))}
+                    {r.track.kind === 'main' && !drag && junctions.filter((j) => j.has || j.id === hoverJ || j.id === junction).map((j) => (
                       <button key={j.id} className={`junction ${j.has ? 'has' : ''} ${junction === j.id ? 'active' : ''}`} style={{ left: j.x }}
                         title={j.has ? 'Переход — нажми, чтобы изменить' : 'Добавить переход'} data-testid="junction"
                         onPointerDown={(e) => e.stopPropagation()}
@@ -627,7 +799,7 @@ export function Timeline() {
                       </button>
                     ))}
                     {r.track.kind === 'main' && drag?.mode === 'reorder' && drag.insertIndex !== undefined && (() => {
-                      const others = r.track.clips.filter((c) => c.id !== drag.id);
+                      const others = r.track.clips.filter((c) => c.id !== drag.id && !drag.multi?.ids.includes(c.id));
                       const tIns = drag.insertIndex < others.length ? others[drag.insertIndex].start : others.length ? clipEnd(others[others.length - 1]) : 0;
                       return <div className="insert-mark" style={{ left: xOf(tIns, pps) }} />;
                     })()}
@@ -639,6 +811,7 @@ export function Timeline() {
               })}
             </div>
             {snapLine !== null && snapLine !== undefined && <div className="snap-line" style={{ left: xOf(snapLine, pps), top: RULER_H, height: contentH }} />}
+            {box && <div className="tl-marquee" data-testid="tl-marquee" style={{ left: box.x0, top: box.y0 + RULER_H, width: box.x1 - box.x0, height: box.y1 - box.y0 }} />}
             <Playhead pps={pps} height={Math.min(view.height, contentH + RULER_H)} scrollRef={scrollRef} view={view} />
           </div>
         </div>

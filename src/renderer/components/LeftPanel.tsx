@@ -1,6 +1,6 @@
 import {
   Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -10,7 +10,7 @@ import { drawTransition } from '../../shared/transitions';
 import { retimeWords } from '../../shared/captions';
 import type { ModelInfo } from '../../shared/ipc';
 import {
-  addText, animAllCaptions, clipEnd, findClip, mainTrack, removeAsset, setTransition, styleAllCaptions, updateClip,
+  addText, animAllCaptions, clipEnd, findClip, mainTrack, projectDuration, removeAsset, setTransition, styleAllCaptions, updateClip,
 } from '../../shared/timeline';
 import { EFFECT_CATS, EFFECTS, fxGeometry, particleEffects, type EffectCat } from '../../shared/effects';
 import { drawParticles } from '../../shared/particles';
@@ -19,8 +19,9 @@ import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextSty
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline,
 } from '../actions';
+import { useMenu, type MenuEntry } from './Menu';
 import { listMics, recPrefs, type MicInfo } from '../recorder';
 import { BUILTIN_TEMPLATES, TEMPLATE_CATS, templateDuration, type Template, type TemplateCat } from '../../shared/templates';
 import { TemplatePreview } from './Home';
@@ -165,11 +166,11 @@ function DropZone({ accept, children, compact = false }: { accept: 'any' | 'audi
         e.stopPropagation();
         setOver(false);
         const paths = [...e.dataTransfer.files].map((f) => api.pathForFile(f)).filter(Boolean);
-        void importPaths(paths);
+        void (accept === 'audio' ? importAudio(paths) : importPaths(paths));
       }}
     >
       {children}
-      <button className="btn primary" onClick={() => void pickAndImport()} data-testid="import-btn">
+      <button className="btn primary" onClick={() => void (accept === 'audio' ? importAudio() : pickAndImport())} data-testid="import-btn">
         <Upload size={15} />{accept === 'audio' ? 'Добавить музыку' : 'Добавить файлы'}
       </button>
       <span className="hint small">{compact ? 'или перетащи файлы сюда' : accept === 'audio' ? 'MP3, WAV, M4A, FLAC — или перетащи сюда' : 'или перетащи сюда видео, фото, музыку'}</span>
@@ -184,27 +185,55 @@ function assetBadge(a: MediaAsset): string {
   return a.kind === 'video' ? fmtDur(a.duration) : a.kind === 'audio' ? fmtDur(a.duration) : 'Фото';
 }
 
-function MediaItem({ a, used }: { a: MediaAsset; used: boolean }) {
+/** Что можно сделать с файлом проекта: правая кнопка мыши или «⋯». */
+function assetMenu(a: MediaAsset, used: boolean): MenuEntry[] {
+  const audio = a.kind === 'audio';
+  const remove = () => {
+    if (!used || confirm(`Убрать «${a.name}» из проекта? Клипы с этим файлом пропадут с таймлайна.`)) getState().commit((p) => removeAsset(p, a.id));
+  };
+  const piece: MenuEntry[] = a.kind === 'image' ? [] : [
+    { label: 'Взять кусок…', hint: 'начало и конец', icon: <Scissors size={14} />, onClick: () => getState().setSourceView(a.id), disabled: a.missing, testId: 'menu-piece' },
+  ];
+  return [
+    ...piece,
+    ...(audio ? [
+      { label: 'На таймлайн с начала ролика', icon: <SkipBack size={14} />, onClick: () => addAssetToTimeline(a.id, 'auto', 0), testId: 'menu-start', disabled: a.missing },
+      { label: 'На таймлайн к курсору', icon: <Plus size={14} />, onClick: () => addAssetToTimeline(a.id, 'auto'), testId: 'menu-cursor', disabled: a.missing },
+    ] : [
+      { label: 'На таймлайн к курсору', icon: <Plus size={14} />, onClick: () => addAssetToTimeline(a.id, 'auto'), testId: 'menu-cursor', disabled: a.missing },
+      { label: 'В конец ролика', icon: <ArrowRightToLine size={14} />, onClick: () => addAssetToTimeline(a.id, 'main', projectDuration(getState().project)), testId: 'menu-end', disabled: a.missing },
+      { label: 'Поверх видео', hint: 'картинка в картинке', icon: <Layers size={14} />, onClick: () => addAssetToTimeline(a.id, 'overlay'), testId: 'menu-overlay', disabled: a.missing },
+    ]),
+    'sep',
+    { label: 'Найти на таймлайне', icon: <Search size={14} />, onClick: () => findOnTimeline(a.id), disabled: !used, testId: 'menu-find' },
+    { label: 'Показать в папке', icon: <FolderOpen size={14} />, onClick: () => api.showInFolder(a.path), disabled: a.missing, testId: 'menu-folder' },
+    'sep',
+    { label: 'Убрать из проекта', icon: <Trash2 size={14} />, onClick: remove, danger: true, testId: 'menu-remove' },
+  ];
+}
+
+function MediaItem({ a, used, selected, onSelect }: { a: MediaAsset; used: boolean; selected: boolean; onSelect: (e: React.MouseEvent) => void }) {
   const thumb = a.thumbs?.[Math.floor((a.thumbs.length - 1) / 2)] ?? (a.kind === 'image' ? a.previewPath || a.path : undefined);
-  const commit = useStore((s) => s.commit);
+  const menu = useMenu();
   return (
     <div
-      className={`media-item ${a.missing ? 'missing' : ''}`} draggable data-testid="media-item" title={a.missing ? `Файл не найден: ${a.path}` : a.name}
+      className={`media-item ${a.missing ? 'missing' : ''} ${selected ? 'selected' : ''}`} draggable data-testid="media-item" title={a.missing ? `Файл не найден: ${a.path}` : a.name}
+      onClick={onSelect}
       onDragStart={(e) => { e.dataTransfer.setData('application/x-kadro-asset', a.id); e.dataTransfer.effectAllowed = 'copy'; }}
-      onDoubleClick={() => addAssetToTimeline(a.id, 'auto')}
+      onDoubleClick={() => addAssetToTimeline(a.id, 'auto', a.kind === 'audio' && getState().audioPlace === 'start' ? 0 : undefined)}
+      onContextMenu={(e) => menu.open(e, assetMenu(a, used))}
     >
       <div className="media-thumb" style={thumb ? { backgroundImage: `url("${api.mediaUrl(thumb)}")` } : undefined}>
         {!thumb && (a.kind === 'audio' ? <AudioLines size={22} /> : a.kind === 'image' ? <ImageIcon size={22} /> : <Film size={22} />)}
       </div>
       {used && <span className="used-dot" title="Уже на таймлайне" />}
       <div className="media-actions">
-        <button title="Добавить на таймлайн" onClick={() => addAssetToTimeline(a.id, 'auto')} data-testid="media-add"><Plus size={14} /></button>
-        {a.kind !== 'audio' && <button title="Добавить поверх (картинка в картинке)" onClick={() => addAssetToTimeline(a.id, 'overlay')}><Layers size={14} /></button>}
-        <button title="Убрать из проекта" onClick={() => {
-          if (!used || confirm(`Убрать «${a.name}» из проекта? Клипы с этим файлом пропадут с таймлайна.`)) commit((p) => removeAsset(p, a.id));
-        }}><Trash2 size={14} /></button>
+        <button title={a.kind === 'audio' ? 'На таймлайн' : 'На таймлайн к курсору'} onClick={(e) => { e.stopPropagation(); addAssetToTimeline(a.id, 'auto', a.kind === 'audio' && getState().audioPlace === 'start' ? 0 : undefined); }} data-testid="media-add"><Plus size={14} /></button>
+        {a.kind !== 'image' && !a.missing && <button title="Взять кусок: отметить начало и конец" onClick={(e) => { e.stopPropagation(); getState().setSourceView(a.id); }} data-testid="media-piece"><Scissors size={14} /></button>}
+        <button title="Ещё: куда добавить, найти на таймлайне, показать в папке, убрать" onClick={(e) => { e.stopPropagation(); menu.open(e, assetMenu(a, used)); }} data-testid="media-more"><MoreHorizontal size={14} /></button>
       </div>
       <div className="media-meta"><span className="name">{a.name}</span><span className="dur">{assetBadge(a)}</span></div>
+      {menu.node}
     </div>
   );
 }
@@ -226,6 +255,37 @@ function MediaPanel() {
   useEffect(() => { mediaView = view; }, [view]);
   useEffect(() => { if (jump) setView('library'); }, [jump]);
   const list = assets.filter((a) => filter === 'all' || a.kind === filter);
+  // выбор нескольких файлов: Ctrl — добавить/убрать, Shift — диапазон
+  const [sel, setSel] = useState<string[]>([]);
+  const last = useRef<string | null>(null);
+  useEffect(() => { setSel((s) => s.filter((id) => all.some((a) => a.id === id))); }, [all]);
+  const onSelect = (a: MediaAsset, e: React.MouseEvent) => {
+    if (e.shiftKey && last.current) {
+      const i0 = list.findIndex((x) => x.id === last.current);
+      const i1 = list.findIndex((x) => x.id === a.id);
+      if (i0 >= 0 && i1 >= 0) {
+        const ids = list.slice(Math.min(i0, i1), Math.max(i0, i1) + 1).map((x) => x.id);
+        setSel((s) => (e.ctrlKey || e.metaKey ? [...new Set([...s, ...ids])] : ids));
+        return;
+      }
+    }
+    last.current = a.id;
+    if (e.ctrlKey || e.metaKey) setSel((s) => (s.includes(a.id) ? s.filter((x) => x !== a.id) : [...s, a.id]));
+    else setSel((s) => (s.length === 1 && s[0] === a.id ? [] : [a.id]));
+  };
+  const placeSel = (mode: 'auto' | 'end') => {
+    let at = mode === 'end' ? projectDuration(getState().project) : getState().playhead;
+    const ids = list.filter((a) => sel.includes(a.id) && !a.missing).map((a) => a.id);
+    const added: string[] = [];
+    for (const id of ids) {
+      const c = addAssetToTimeline(id, mode === 'end' ? 'main' : 'auto', at);
+      const f = c ? findClip(getState().project, c) : undefined;
+      if (c) added.push(c);
+      if (f && f.track.kind !== 'audio') at = clipEnd(f.clip);
+    }
+    if (added.length) { getState().select(added); getState().toast(`На таймлайне файлов: ${added.length}`, 'ok'); }
+    setSel([]);
+  };
   return (
     <>
       <div className="panel-head">Медиа</div>
@@ -253,9 +313,17 @@ function MediaPanel() {
                 { value: 'all', label: 'Все' }, { value: 'video', label: 'Видео' }, { value: 'image', label: 'Фото' }, { value: 'audio', label: 'Звук' },
               ]} />
             </div>
-            <div className="media-grid">{list.map((a) => <MediaItem key={a.id} a={a} used={used.has(a.id)} />)}</div>
+            <div className="media-grid">{list.map((a) => <MediaItem key={a.id} a={a} used={used.has(a.id)} selected={sel.includes(a.id)} onSelect={(e) => onSelect(a, e)} />)}</div>
+            {sel.length > 0 && (
+              <div className="lib-bar media-bar" data-testid="media-bar">
+                <span>Выбрано: {sel.length}</span>
+                <button className="btn small" onClick={() => setSel([])}>Снять</button>
+                <button className="btn small" onClick={() => placeSel('end')} data-testid="media-place-end">В конец</button>
+                <button className="btn primary small" onClick={() => placeSel('auto')} data-testid="media-place">На таймлайн</button>
+              </div>
+            )}
             {!list.length && <p className="hint">Здесь пока пусто.</p>}
-            <p className="hint small" style={{ marginTop: 12 }}>Двойной клик или «+» — на таймлайн к курсору. Можно перетащить прямо на нужную дорожку.</p>
+            <p className="hint small" style={{ marginTop: 12 }}>Двойной клик или «+» — на таймлайн к курсору. Ножницы — взять из видео только кусок. Щелчок с Ctrl или Shift — выбрать несколько. Правая кнопка мыши — всё, что можно сделать с файлом.</p>
           </>
         )}
         </>)}
@@ -265,30 +333,50 @@ function MediaPanel() {
 }
 
 // ---------- Аудио ----------
+function AudioRow({ a, used }: { a: MediaAsset; used: boolean }) {
+  const menu = useMenu();
+  const place = useStore((s) => s.audioPlace);
+  const add = () => addAssetToTimeline(a.id, 'auto', place === 'start' ? 0 : undefined);
+  return (
+    <div className={`audio-row ${a.missing ? 'missing' : ''}`} draggable title={a.missing ? `Файл не найден: ${a.path}` : a.name} data-testid="audio-row"
+      onDragStart={(e) => { e.dataTransfer.setData('application/x-kadro-asset', a.id); e.dataTransfer.effectAllowed = 'copy'; }}
+      onDoubleClick={add} onContextMenu={(e) => menu.open(e, assetMenu(a, used))}>
+      <MiniWave peaks={a.peaks} />
+      <div className="audio-name">
+        <span className="name">{a.name}</span>
+        <span className="hint small">{fmtTime(a.duration)}{used ? ' · на таймлайне' : a.missing ? ' · файл не найден' : ' · только в списке'}</span>
+      </div>
+      {used && <button className="icon-btn" title="Найти на таймлайне" onClick={() => findOnTimeline(a.id)} data-testid="audio-find"><Search size={15} /></button>}
+      <button className="icon-btn" title={place === 'start' ? 'На таймлайн с начала ролика' : 'На таймлайн к курсору'} onClick={add} data-testid="audio-add"><Plus size={16} /></button>
+      <button className="icon-btn" title="Ещё" onClick={(e) => menu.open(e, assetMenu(a, used))} data-testid="audio-more"><MoreHorizontal size={16} /></button>
+      {menu.node}
+    </div>
+  );
+}
+
 function AudioPanel() {
   const assets = useStore((s) => s.project.assets).filter((a) => a.kind === 'audio' && !a.derived);
   const used = useUsedAssets();
+  const place = useStore((s) => s.audioPlace);
   return (
     <>
       <div className="panel-head">Аудио</div>
       <div className="panel-body">
         <RecordBox />
+        <div className="audio-place">
+          <span className="hint small">Куда класть добавленную музыку</span>
+          <Seg value={place} onChange={(v) => getState().setAudioPlace(v)} options={[
+            { value: 'start', label: 'С начала' }, { value: 'cursor', label: 'К курсору' }, { value: 'list', label: 'Только в список' },
+          ]} />
+        </div>
         <DropZone accept="audio" compact={assets.length > 0} />
         {assets.length > 0 ? (
-          <div className="audio-list">
-            {assets.map((a) => (
-              <div key={a.id} className="audio-row" draggable title={a.name}
-                onDragStart={(e) => { e.dataTransfer.setData('application/x-kadro-asset', a.id); e.dataTransfer.effectAllowed = 'copy'; }}
-                onDoubleClick={() => addAssetToTimeline(a.id, 'auto')}>
-                <MiniWave peaks={a.peaks} />
-                <div className="audio-name">
-                  <span className="name">{a.name}</span>
-                  <span className="hint small">{fmtTime(a.duration)}{used.has(a.id) ? ' · на таймлайне' : ''}</span>
-                </div>
-                <button className="icon-btn" title="Добавить к курсору" onClick={() => addAssetToTimeline(a.id, 'auto')}><Plus size={16} /></button>
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="audio-list">
+              {assets.map((a) => <AudioRow key={a.id} a={a} used={used.has(a.id)} />)}
+            </div>
+            <p className="hint small" style={{ marginTop: 10 }}>Звук — на дорожках под видео. «Лупа» — показать, где файл на таймлайне. Правая кнопка мыши — все действия с файлом.</p>
+          </>
         ) : (
           <p className="hint" style={{ marginTop: 14 }}>Музыка и звуки ложатся на отдельные дорожки под видео. Громкость, затухание и скорость — справа, когда клип выделен.</p>
         )}

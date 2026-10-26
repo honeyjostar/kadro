@@ -147,7 +147,7 @@ export function AutoEditDialog() {
         </div>
 
         {note && <div className="warn"><TriangleAlert size={15} /><span>{note}</span></div>}
-        {open.fresh && !busy && <p className="hint small auto-fresh">Ролик откроется новым проектом. Текущий, если в нём есть несохранённое, останется в «Недавних».</p>}
+        {open.fresh && !busy && <p className="hint small auto-fresh">Ролик откроется новым проектом. Текущий, если в нём есть несохранённое, останется в «Моих проектах».</p>}
         {stage && (<div className="auto-progress" data-testid="auto-progress"><span>{stage.label}…</span><Progress value={progress} /></div>)}
         <div className="actions">
           <button className="btn" onClick={close} data-testid="auto-cancel">{busy ? 'Остановить' : 'Отмена'}</button>

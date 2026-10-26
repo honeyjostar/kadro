@@ -1,5 +1,6 @@
 // Запуск ffmpeg с прогрессом и отменой.
 import { spawn, type ChildProcess } from 'node:child_process';
+import os from 'node:os';
 import { ffmpegPath } from './bins';
 
 export interface RunOpts {
@@ -7,6 +8,7 @@ export interface RunOpts {
   onProgress?: (p: number) => void;        // 0..1
   signal?: AbortSignal;
   cwd?: string;
+  low?: boolean;                           // фоновая задача: пониженный приоритет, чтобы не тормозить монтаж
 }
 
 export class FfmpegError extends Error {
@@ -19,6 +21,7 @@ export function runFfmpeg(args: string[], o: RunOpts = {}): Promise<void> {
     let proc: ChildProcess;
     try {
       proc = spawn(ffmpegPath(), args, { windowsHide: true, cwd: o.cwd });
+      if (o.low) lowerPriority(proc.pid);
     } catch (e) {
       reject(e);
       return;
@@ -56,10 +59,22 @@ function lastErrorLine(stderr: string): string {
   return lines.slice(-3).join('\n');
 }
 
+/** Процесс — с приоритетом «ниже среднего» (Windows) / nice 10: окно и плеер остаются отзывчивыми. */
+export function lowerPriority(pid: number | undefined): void {
+  if (!pid) return;
+  try { os.setPriority(pid, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch { /* нет прав — не страшно */ }
+}
+
+/** Потоков кодирования для фоновых прокси: половина ядер — вторая половина остаётся окну и плееру. */
+export function backgroundThreads(): string {
+  return String(Math.max(2, Math.floor(os.cpus().length / 2)));
+}
+
 /** Читает весь stdout ffmpeg как Buffer (для PCM, сырых кадров). */
-export function ffmpegToBuffer(args: string[], signal?: AbortSignal): Promise<Buffer> {
+export function ffmpegToBuffer(args: string[], signal?: AbortSignal, low = false): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const proc = spawn(ffmpegPath(), args, { windowsHide: true });
+    if (low) lowerPriority(proc.pid);
     const chunks: Buffer[] = [];
     let err = '';
     proc.stdout.on('data', (d: Buffer) => chunks.push(d));

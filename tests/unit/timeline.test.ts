@@ -3,7 +3,7 @@ import { newProject } from '../../src/shared/defaults';
 import {
   activeClipsAt, addAsset, addFree, addText, addToMain, clipDuration, clipEnd, deleteClips, duplicateClip,
   findClip, keepSourceRanges, mainTrack, moveClip, projectDuration, reorderMain, setCaptions, setTransition,
-  splitClip, trimClip, updateClip, mainToOverlay, styleAllCaptions, sourceTimeAt,
+  splitClip, trimClip, updateClip, mainToOverlay, styleAllCaptions, sourceTimeAt, moveClipsBy, reorderMainMany,
 } from '../../src/shared/timeline';
 import { CAPTION_STYLE } from '../../src/shared/defaults';
 import type { MediaAsset, MediaClip, Project } from '../../src/shared/types';
@@ -264,5 +264,40 @@ describe('анимации появления и исчезновения кли
     const [a, b] = tl.mainTrack(r.project).clips as import('../../src/shared/types').MediaClip[];
     expect(a.anim).toEqual({ in: { type: 'pop', dur: 0.5 } });
     expect(b.anim).toEqual({ out: { type: 'fade', dur: 0.5 } });
+  });
+});
+
+describe('несколько клипов сразу', () => {
+  it('сдвиг наложений и звука вместе: на своих дорожках, не раньше нуля, при наложении — на свободную дорожку', () => {
+    let p = base();
+    let r = addFree(p, 'img', 1); p = r.project; const a = r.clipId;
+    r = addFree(p, 'img', 5); p = r.project; const b = r.clipId;
+    r = addFree(p, 'mus', 2); p = r.project; const m = r.clipId;
+    r = addFree(p, 'img', 12); p = r.project; const blocker = r.clipId; // стоит на пути
+    const q = moveClipsBy(p, [a, b, m], 2.5);
+    expect(findClip(q, a)!.clip.start).toBe(3.5);
+    expect(findClip(q, b)!.clip.start).toBe(7.5);
+    expect(findClip(q, m)!.clip.start).toBe(4.5);
+    expect(findClip(q, m)!.track.kind).toBe('audio');
+    expect(findClip(q, a)!.track.id).toBe(findClip(p, a)!.track.id);
+    expect(findClip(q, blocker)!.clip.start).toBe(12);
+    // влево дальше нуля — упираемся в ноль, расстояния между клипами сохраняются
+    const z = moveClipsBy(p, [a, b], -10);
+    expect(findClip(z, a)!.clip.start).toBe(0);
+    expect(findClip(z, b)!.clip.start).toBe(4);
+    // наехал на чужой клип — уходит на свободную дорожку
+    const c = moveClipsBy(p, [b], 6);
+    expect(findClip(c, b)!.track.id).not.toBe(findClip(c, blocker)!.track.id);
+  });
+  it('блок клипов основной дорожки переставляется целиком, в своём порядке', () => {
+    let p = base();
+    for (const id of ['v10', 'v6', 'img', 'v6']) p = addToMain(p, id, projectDuration(p)).project;
+    const ids = mainClips(p).map((c) => c.id);
+    p = setTransition(p, ids[1], { type: 'fade', duration: 0.5 });
+    const q = reorderMainMany(p, [ids[0], ids[1]], 2);
+    expect(mainClips(q).map((c) => c.id)).toEqual([ids[2], ids[3], ids[0], ids[1]]);
+    expect(mainClips(q)[0].start).toBe(0);
+    expect(mainClips(q)[3].transitionOut).toBeUndefined(); // последний в ролике — без перехода
+    expect(projectDuration(q)).toBeCloseTo(projectDuration(p) + 0.5, 3); // переход у блока сняли — ролик длиннее на его длину
   });
 });

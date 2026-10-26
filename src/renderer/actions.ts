@@ -2,19 +2,19 @@
 import { aiCovers, aiSource, aiStale, videoInputFor, videoSource } from '../shared/ai';
 import { normalizeRamp, originalRange } from '../shared/retime';
 import { reframeKeyframes } from '../shared/reframe';
-import { CAPTION_STYLE, newProject } from '../shared/defaults';
+import { CAPTION_STYLE, newProject, shortSideOf, sizeFor } from '../shared/defaults';
 import { exportSize } from '../shared/geometry';
 import type { AiJob, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
 import {
   addAsset, addFree, addToMain, alignMainToBeats, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
-  splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip,
+  splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip, setSettings, type SourceRange,
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
 import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit';
 import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
-import { fmtDur, plural, uidShort } from './util';
+import { fmtDur, fmtTime, plural, uidShort } from './util';
 import { VoiceRecorder } from './recorder';
 
 // ---------- импорт ----------
@@ -90,19 +90,48 @@ export async function pickAndImport(place?: { mode: 'main' | 'overlay' | 'auto';
 }
 
 /** Добавить файл из медиатеки на таймлайн. auto: видео/фото — на основную, звук — на аудиодорожку. */
-export function addAssetToTimeline(assetId: string, mode: 'main' | 'overlay' | 'auto', at?: number): string | null {
+export function addAssetToTimeline(assetId: string, mode: 'main' | 'overlay' | 'auto', at?: number, range?: SourceRange): string | null {
   const s = getState();
   const a = s.project.assets.find((x) => x.id === assetId);
   if (!a) return null;
   const t = at ?? s.playhead;
   let clipId: string | null = null;
   s.commit((p) => {
-    const r = a.kind === 'audio' || mode === 'overlay' ? addFree(p, assetId, t) : addToMain(p, assetId, t);
+    const r = a.kind === 'audio' || mode === 'overlay' ? addFree(p, assetId, t, range) : addToMain(p, assetId, t, range);
     clipId = r.clipId;
     return r.project;
   });
-  if (clipId) s.select([clipId]);
+  if (clipId) { s.select([clipId]); s.revealClip(clipId); }
   return clipId;
+}
+
+/**
+ * Музыка и звуки из раздела «Аудио»: сразу на таймлайн — с начала ролика или к курсору (как выбрано),
+ * или только в список. Добавленный клип выделяется, таймлайн прокручивается к нему.
+ */
+export async function importAudio(paths?: string[]): Promise<string[]> {
+  const files = paths ?? await api.pickMedia();
+  if (!files.length) return [];
+  const where = getState().audioPlace;
+  const ids = await importPaths(files, where === 'list' ? undefined : { mode: 'auto', at: where === 'start' ? 0 : getState().playhead });
+  if (!ids.length) return ids;
+  const s = getState();
+  if (where === 'list') s.toast(ids.length === 1 ? 'Файл в списке — перетащи его на таймлайн или нажми «+»' : `Файлов в списке: ${ids.length}`, 'ok');
+  else s.toast(`На дорожке звука${where === 'start' ? ' с начала ролика' : ` с ${fmtTime(s.playhead)}`}`, 'ok');
+  return ids;
+}
+
+/** Где этот файл на таймлайне: выделить его клипы, курсор — к первому. */
+export function findOnTimeline(assetId: string): boolean {
+  const s = getState();
+  const clips = s.project.tracks.flatMap((t) => t.clips).filter((c) => c.type === 'media' && (c.assetId === assetId || c.retime?.assetId === assetId))
+    .sort((a, b) => a.start - b.start);
+  if (!clips.length) { s.toast('Этого файла на таймлайне нет'); return false; }
+  s.select(clips.map((c) => c.id));
+  s.setPlaying(false);
+  s.setPlayhead(clips[0].start);
+  s.revealClip(clips[0].id);
+  return true;
 }
 
 // ---------- правка ----------
@@ -828,11 +857,54 @@ export async function saveProject(as = false): Promise<boolean> {
   return true;
 }
 
+/** «Открыть»: проект .kadro — открывается; видео, фото, звук — добавляются в проект (с главного экрана — в новый). */
 export async function openProject(): Promise<void> {
   const r = await api.openProject();
   if (!r) return;
+  if ('media' in r) { await openFiles(r.media, { fresh: getState().home }); return; }
   await replaceProject(r.project, r.path);
   reportMissing(r.project);
+}
+
+/** Формат кадра под первое видео или фото (как в CapCut: проект подстраивается под материал). */
+export function aspectFor(w: number, h: number): AspectKey {
+  if (!w || !h) return '16:9';
+  const r = w / h;
+  const opts: [AspectKey, number][] = [['16:9', 16 / 9], ['9:16', 9 / 16], ['1:1', 1], ['4:5', 4 / 5], ['4:3', 4 / 3], ['3:4', 3 / 4], ['21:9', 21 / 9]];
+  return opts.reduce((b, x) => (Math.abs(Math.log(x[1] / r)) < Math.abs(Math.log(b[1] / r)) ? x : b))[0];
+}
+
+/**
+ * Открыть файлы: .kadro — как проект; видео, фото и звук — на таймлайн (видео и фото — на основную дорожку
+ * в конец, звук — на аудиодорожку). fresh — новым проектом, формат кадра — по первому видео.
+ */
+export async function openFiles(paths: string[], opts: { fresh?: boolean } = {}): Promise<void> {
+  if (!paths.length) return;
+  const kadro = paths.find((p) => p.toLowerCase().endsWith('.kadro'));
+  if (kadro) { await openRecent(kadro); return; }
+  const fresh = opts.fresh || getState().project.tracks.every((t) => !t.clips.length) && !getState().project.assets.length;
+  if (fresh) await replaceProject(newProject('Новый проект', getState().project.settings.aspect));
+  getState().setHome(false);
+  const at = projectDuration(getState().project);
+  const ids = await importPaths(paths, { mode: 'auto', at });
+  if (!ids.length) return;
+  if (fresh) {
+    const first = getState().project.assets.find((a) => ids.includes(a.id) && a.kind !== 'audio');
+    if (first) {
+      const aspect = aspectFor(first.width, first.height);
+      getState().commit((p) => setSettings(p, { aspect, ...sizeFor(aspect, shortSideOf(p.settings)) }));
+    }
+  }
+  getState().toast(ids.length === 1 ? 'Файл добавлен на таймлайн' : `Добавлено на таймлайн файлов: ${ids.length}`, 'ok');
+}
+
+/** Брошено на главный экран: папки — в библиотеку, файлы — новым проектом. */
+export async function dropOnHome(paths: string[]): Promise<void> {
+  const dirs = await api.whichDirs(paths);
+  const folders = paths.filter((_, i) => dirs[i]);
+  const files = paths.filter((_, i) => !dirs[i]);
+  if (folders.length) await dropPaths(folders);
+  if (files.length) await openFiles(files, { fresh: true });
 }
 
 /** Открыть проект из списка недавних. */
@@ -851,7 +923,7 @@ function hasWork(p: Project): boolean {
 
 /**
  * Заменить проект другим. Если в текущем есть несохранённая работа — сначала копия в «Черновики»
- * (видна в «Недавних» на главном экране), чтобы новый проект, демо или пример шаблона ничего не стёрли.
+ * (видна в «Моих проектах» на главном экране), чтобы новый проект, демо или пример шаблона ничего не стёрли.
  */
 export async function replaceProject(next: Project, path: string | null = null): Promise<void> {
   const s = getState();
@@ -861,7 +933,7 @@ export async function replaceProject(next: Project, path: string | null = null):
   }
   getState().replace(next, path);
   getState().setHome(false);
-  if (stashed) getState().toast('Прошлый проект сохранён — он в «Недавних» на главном экране', 'ok');
+  if (stashed) getState().toast('Прошлый проект сохранён — он в «Моих проектах» на главном экране', 'ok');
 }
 
 export async function loadDemoFiles(): Promise<DemoFiles> {

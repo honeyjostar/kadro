@@ -122,7 +122,7 @@ test('проверка перед публикацией: демо чистое,
   await win.getByTestId('safe-zone').selectOption('');
 });
 
-test('несохранённый проект не пропадает: он в «Недавних»', async () => {
+test('несохранённый проект не пропадает: он в «Моих проектах»', async () => {
   await openHome();
   await win.getByTestId('home-new-1-1').click();
   expect((await project(win)).tracks[0].clips).toHaveLength(0);

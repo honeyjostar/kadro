@@ -18,6 +18,25 @@ export const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }>
   '21:9': { w: 2520, h: 1080, label: '21:9 · Кино' },
 };
 
+/** Разрешение проекта — по короткой стороне кадра (720p, 1080p, 2K, 4K). */
+export const RESOLUTIONS: { short: number; label: string }[] = [
+  { short: 720, label: '720p' }, { short: 1080, label: '1080p' }, { short: 1440, label: '2K' }, { short: 2160, label: '4K' },
+];
+export const FPS_LIST = [24, 25, 30, 50, 60] as const;
+
+/** Размер кадра для формата и короткой стороны (стороны чётные — так любит H.264). */
+export function sizeFor(aspect: AspectKey, short = 1080): { width: number; height: number } {
+  const a = ASPECTS[aspect];
+  const k = short / Math.min(a.w, a.h);
+  const even = (v: number) => Math.max(2, 2 * Math.round(v / 2));
+  return { width: even(a.w * k), height: even(a.h * k) };
+}
+/** Короткая сторона кадра проекта (ближайшая из списка разрешений). */
+export function shortSideOf(s: Pick<ProjectSettings, 'width' | 'height'>): number {
+  const m = Math.min(s.width, s.height);
+  return RESOLUTIONS.reduce((b, r) => (Math.abs(r.short - m) < Math.abs(b - m) ? r.short : b), 1080);
+}
+
 export function settingsFor(aspect: AspectKey, fps = 30, background: ProjectSettings['background'] = 'black'): ProjectSettings {
   const a = ASPECTS[aspect];
   return { aspect, width: a.w, height: a.h, fps, background };

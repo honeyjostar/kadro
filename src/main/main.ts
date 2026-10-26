@@ -2,10 +2,14 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, shell, utilityProcess, type UtilityProcess } from 'electron';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, LibFolder, ModelInfo, RecentProject, ThemePref, VoiceInfo } from '../shared/ipc';
-import { countDeep, libMeta, listDir, searchDir } from './library';
+import { countDeep, forgetLibMeta, libMeta, listDir, searchDir } from './library';
+import { cacheInfo, cleanTempOnStart, clearCache, knownProjectPaths } from './cache';
+import { normPath } from '../shared/cache';
+import { copyName, safeFileName } from '../shared/projects';
 import * as m3d from './model3d';
 import { highlights } from './highlights';
 import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
@@ -23,7 +27,8 @@ import { BUILTIN_TEMPLATES, DEMO_SCENES, isTemplate, type Template } from '../sh
 import { projectDuration } from '../shared/timeline';
 import { bundledFile, cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
 import { exportProject, exportSpeechAudio, hasNvenc } from './exporter';
-import { analyze, makePeaks, makeProxy, makeThumbs } from './media';
+import { MEDIA_EXT, analyze, coverIfReady, makeCover, makePeaks, makeProxy, makeThumbs } from './media';
+import { Queue, backgroundLimit } from '../shared/queue';
 
 void net;
 const isDev = !app.isPackaged;
@@ -73,6 +78,17 @@ function serveFile(req: Request): Response {
 }
 
 let win: BrowserWindow | null = null;
+
+/** Файлы, с которыми Kadro запустили («Открыть с помощью», двойной щелчок по .kadro, перетаскивание на ярлык). */
+function filesFromArgv(argv: string[]): string[] {
+  if (process.env.KADRO_OPEN_FILES) return process.env.KADRO_OPEN_FILES.split('|'); // автотесты
+  const ok = new Set(['kadro', ...MEDIA_EXT]);
+  return argv.slice(1).filter((a) => {
+    if (!a || a.startsWith('-')) return false;
+    try { return fs.statSync(a).isFile() && ok.has(path.extname(a).slice(1).toLowerCase()); } catch { return false; }
+  });
+}
+let pendingOpen: string[] = filesFromArgv(process.argv);
 const customStyles = new CustomStyles(() => win, (st) => win?.webContents.send('appearance:custom', st));
 
 /** Цвета рамки окна под тему: фон и значки свернуть/закрыть (Windows рисует их поверх нашей верхней панели). */
@@ -305,8 +321,14 @@ async function importMedia(paths: string[]) {
   return { assets, errors };
 }
 
-/** После импорта: прокси (если нужен), миниатюры и волна — в фоне, с обновлениями в интерфейс. */
-async function postImport(asset: MediaAsset, plan: 'none' | 'audio' | 'video'): Promise<void> {
+/** Фоновая обработка файлов — по несколько сразу, а не все разом (см. Queue). */
+const bgQueue = new Queue(backgroundLimit(os.cpus().length));
+
+/** После импорта: прокси (если нужен), миниатюры и волна — в фоне, в очереди, с обновлениями в интерфейс. */
+function postImport(asset: MediaAsset, plan: 'none' | 'audio' | 'video'): Promise<void> {
+  return bgQueue.run(() => postImportNow(asset, plan));
+}
+async function postImportNow(asset: MediaAsset, plan: 'none' | 'audio' | 'video'): Promise<void> {
   const upd = (patch: Partial<MediaAsset>) => win?.webContents.send('asset:update', asset.id, patch);
   let a = asset;
   if (plan !== 'none') {
@@ -370,8 +392,23 @@ function writeSettings(s: Settings): void {
 /** Запомнить проект в списке недавних (сверху — последний). */
 function rememberProject(file: string): void {
   const s = readSettings();
-  const recent = [file, ...(s.recent ?? []).filter((x) => path.resolve(x) !== path.resolve(file))].slice(0, 12);
+  const recent = [file, ...(s.recent ?? []).filter((x) => path.resolve(x) !== path.resolve(file))].slice(0, MAX_PROJECTS);
   writeSettings({ ...s, lastProject: file, recent });
+}
+const MAX_PROJECTS = 60;
+/** Обложка готова — главный экран перечитает список (несколько обложек подряд — одно обновление). */
+let coverTimer: ReturnType<typeof setTimeout> | null = null;
+const coversPending = new Set<string>(); // обложки, которые уже делаются или не получились — второй раз не запускаем
+function coverReady(): void {
+  if (coverTimer) return;
+  coverTimer = setTimeout(() => { coverTimer = null; win?.webContents.send('home:covers'); }, 400);
+}
+/** Заменить путь проекта в списке (переименовали файл). */
+function replaceRecent(from: string, to: string | null): void {
+  const s = readSettings();
+  const same = (x: string) => path.resolve(x) === path.resolve(from);
+  const recent = (s.recent ?? []).flatMap((x) => (same(x) ? (to ? [to] : []) : [x]));
+  writeSettings({ ...s, recent, lastProject: s.lastProject && same(s.lastProject) ? to : s.lastProject });
 }
 function recentProjects(): RecentProject[] {
   const out: RecentProject[] = [];
@@ -382,10 +419,25 @@ function recentProjects(): RecentProject[] {
       if (!p?.tracks) continue;
       const media = p.tracks.flatMap((t) => t.clips).filter((c) => c.type === 'media');
       const thumbOf = (id: string) => p.assets.find((a) => a.id === id)?.thumbs?.find((t) => fs.existsSync(t));
-      const thumb = media.map((c) => (c.type === 'media' ? thumbOf(c.assetId) : undefined)).find(Boolean);
-      out.push({ path: file, name: p.name || path.basename(file, '.kadro'), mtime: st.mtimeMs, clips: media.length, duration: projectDuration(p), aspect: p.settings?.aspect ?? '', thumb });
+      // обложка — кадр первого клипа основной дорожки (крупный, делается в фоне); пока её нет — миниатюра
+      const mainT = p.tracks.find((t) => t.kind === 'main');
+      const firstClip = [...(mainT?.clips ?? []), ...media].find((c) => c.type === 'media' && p.assets.some((a) => a.id === c.assetId && a.kind !== 'audio' && !a.derived));
+      let thumb: string | undefined;
+      if (firstClip?.type === 'media') {
+        const a = p.assets.find((x) => x.id === firstClip.assetId)!;
+        const at = firstClip.in + Math.min(1, (firstClip.out - firstClip.in) / 3);
+        thumb = coverIfReady(a, at);
+        const ck = `${a.path}|${at}`;
+        if (!thumb && !coversPending.has(ck) && fs.existsSync(a.path)) {
+          coversPending.add(ck);
+          void bgQueue.run(() => makeCover(a, at)).then((f) => { if (fs.existsSync(f)) coverReady(); }, (e) => log('cover failed', e));
+        }
+      }
+      thumb ??= media.map((c) => (c.type === 'media' ? thumbOf(c.assetId) : undefined)).find(Boolean);
+      const draft = path.resolve(path.dirname(file)) === path.resolve(dataDir(), 'drafts');
+      out.push({ path: file, name: p.name || path.basename(file, '.kadro'), mtime: st.mtimeMs, clips: media.length, duration: projectDuration(p), aspect: p.settings?.aspect ?? '', thumb, size: st.size, draft });
     } catch { /* файл пропал или не читается — не показываем */ }
-    if (out.length >= 8) break;
+    if (out.length >= MAX_PROJECTS) break;
   }
   return out;
 }
@@ -452,7 +504,7 @@ function registerIpc(): void {
       title: 'Добавить файлы',
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: 'Видео, фото и звук', extensions: ['mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', 'wmv', 'mts', 'm2ts', '3gp', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'heic', 'mp3', 'wav', 'm4a', 'aac', 'ogg', 'opus', 'flac', 'wma'] },
+        { name: 'Видео, фото и звук', extensions: MEDIA_EXT },
         { name: 'Все файлы', extensions: ['*'] },
       ],
     });
@@ -474,17 +526,44 @@ function registerIpc(): void {
     return target;
   });
   ipcMain.handle('project:open', async () => {
-    const r = await dialog.showOpenDialog(win!, { title: 'Открыть проект', properties: ['openFile'], filters: [{ name: 'Проект Kadro', extensions: ['kadro'] }] });
-    if (r.canceled || !r.filePaths[0]) return null;
+    // проект или видео, фото, звук: видео сразу попадут в проект
+    let files: string[];
+    if (process.env.KADRO_TEST_OPEN) files = process.env.KADRO_TEST_OPEN.split('|'); // автотесты: без системного окна
+    else {
+      const r = await dialog.showOpenDialog(win!, {
+        title: 'Открыть проект или видео',
+        properties: ['openFile', 'multiSelections'],
+        filters: [
+          { name: 'Проекты Kadro, видео, фото и звук', extensions: ['kadro', ...MEDIA_EXT] },
+          { name: 'Проект Kadro', extensions: ['kadro'] },
+          { name: 'Видео, фото и звук', extensions: MEDIA_EXT },
+          { name: 'Все файлы', extensions: ['*'] },
+        ],
+      });
+      if (r.canceled || !r.filePaths.length) return null;
+      files = r.filePaths;
+    }
+    const kadro = files.find((f) => f.toLowerCase().endsWith('.kadro'));
+    if (!kadro) return { media: files };
     let project: Project;
     try {
-      project = await readProjectFile(r.filePaths[0]);
+      project = await readProjectFile(kadro);
     } catch {
       dialog.showErrorBox('Kadro', 'Этот файл не похож на проект Kadro или повреждён.');
       return null;
     }
-    rememberProject(r.filePaths[0]);
-    return { project, path: r.filePaths[0] };
+    rememberProject(kadro);
+    return { project, path: kadro };
+  });
+  ipcMain.handle('app:pendingFiles', () => { const f = pendingOpen; pendingOpen = []; return f; });
+  // кэш: размер и очистка. refs — пути, на которые ссылается открытый проект (и его история правок)
+  ipcMain.handle('cache:info', () => cacheInfo());
+  ipcMain.handle('cache:clear', (_e, what: 'preview' | 'derived', refs: string[]) => {
+    const keep = new Set(refs.map(normPath));
+    if (what === 'derived') for (const p of knownProjectPaths(readSettings().recent ?? [])) keep.add(p);
+    const r = clearCache(what, keep);
+    if (what === 'preview') forgetLibMeta();
+    return { ...r, info: cacheInfo() };
   });
   ipcMain.handle('project:openPath', async (_e, file: string) => {
     if (!fs.existsSync(file)) return { error: 'Файла проекта больше нет на этом месте — его переместили или удалили.' };
@@ -534,6 +613,48 @@ function registerIpc(): void {
   ipcMain.handle('lib:search', (_e, root: string, q: string) => (inLibrary(root) ? searchDir(root, q) : []));
   ipcMain.handle('lib:meta', (_e, file: string) => (inLibrary(file) ? libMeta(file) : { missing: true }));
   ipcMain.handle('fs:dirs', (_e, paths: string[]) => paths.map((p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } }));
+  // экран проектов: переименовать (файл и название внутри), копия, удалить в корзину
+  ipcMain.handle('projects:rename', (_e, file: string, name: string) => {
+    try {
+      const p = JSON.parse(fs.readFileSync(file, 'utf8')) as Project;
+      const clean = name.trim().slice(0, 120) || 'Проект';
+      const target = path.join(path.dirname(file), `${safeFileName(clean)}.kadro`);
+      if (path.resolve(target) !== path.resolve(file) && fs.existsSync(target)) {
+        // Windows: «Проект» и «проект» — один и тот же файл, переименование только регистра разрешаем
+        if (target.toLowerCase() !== file.toLowerCase()) return { error: `Проект «${safeFileName(clean)}» уже есть в этой папке` };
+      }
+      writeProject(file, { ...p, name: clean });
+      if (path.resolve(target) !== path.resolve(file)) fs.renameSync(file, target);
+      replaceRecent(file, target);
+      return { path: target };
+    } catch (e) {
+      return { error: `Не получилось переименовать: ${e instanceof Error ? e.message : String(e)}` };
+    }
+  });
+  ipcMain.handle('projects:duplicate', (_e, file: string) => {
+    try {
+      const p = JSON.parse(fs.readFileSync(file, 'utf8')) as Project;
+      const dir = path.dirname(file);
+      const name = copyName(p.name || path.basename(file, '.kadro'), (n) => fs.existsSync(path.join(dir, `${safeFileName(n)}.kadro`)));
+      const target = path.join(dir, `${safeFileName(name)}.kadro`);
+      writeProject(target, { ...p, name });
+      rememberProject(target);
+      return { path: target };
+    } catch (e) {
+      return { error: `Не получилось сделать копию: ${e instanceof Error ? e.message : String(e)}` };
+    }
+  });
+  ipcMain.handle('projects:trash', async (_e, file: string) => {
+    try {
+      // автотесты: «корзина» — обычная папка
+      if (process.env.KADRO_TEST_TRASH) fs.renameSync(file, path.join(process.env.KADRO_TEST_TRASH, path.basename(file)));
+      else await shell.trashItem(file);
+      replaceRecent(file, null);
+      return { ok: true as const };
+    } catch (e) {
+      return { error: `Не получилось переместить в корзину: ${e instanceof Error ? e.message : String(e)}` };
+    }
+  });
   ipcMain.on('project:forget', (_e, file: string) => {
     const s = readSettings();
     writeSettings({ ...s, recent: (s.recent ?? []).filter((x) => x !== file) });
@@ -732,7 +853,13 @@ const lock = process.env.KADRO_MULTI ? true : app.requestSingleInstanceLock();
 if (!lock) {
   app.quit();
 } else {
-  app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+  app.on('second-instance', (_e, argv) => {
+    if (!win) return;
+    if (win.isMinimized()) win.restore();
+    win.focus();
+    const files = filesFromArgv(argv);
+    if (files.length) win.webContents.send('app:openFiles', files);
+  });
   app.whenReady().then(() => {
     protocol.handle('kmedia', (req) => serveFile(req));
     registerIpc();
@@ -741,6 +868,7 @@ if (!lock) {
     createWindow();
     customStyles.setEnabled(appearance().custom);
     setTimeout(() => { try { hasNvenc(); } catch { /* проверим позже */ } }, 3000);
+    setTimeout(cleanTempOnStart, 6000); // временные файлы прошлых сеансов
     // установщик пересоздаёт ярлыки со значком по умолчанию — возвращаем выбранный
     if (app.isPackaged) setTimeout(() => { try { applyShortcutIcons(appearance()); } catch (e) { log('shortcut icons', e); } }, 4000);
     log('Kadro started', app.getVersion(), process.platform, 'ffmpeg:', ffmpegPath());

@@ -8,7 +8,7 @@ import { CLIP_ANIMS, CLIP_ANIM_DEFAULT_DUR } from '../../shared/clipAnim';
 import { pinFromTransform } from '../../shared/perspective';
 import { useEffect, useRef, useState } from 'react';
 import { FILTER_CATS, FILTER_PRESETS } from '../../shared/color';
-import { ASPECTS, DEFAULT_CHROMA, DEFAULT_COLOR, DEFAULT_TRANSFORM, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
+import { ASPECTS, FPS_LIST, RESOLUTIONS, shortSideOf, sizeFor, DEFAULT_CHROMA, DEFAULT_COLOR, DEFAULT_TRANSFORM, HIGHLIGHTS, TEXT_ANIMS, TEXT_PRESETS } from '../../shared/defaults';
 import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, styleAllCaptions, updateClip } from '../../shared/timeline';
 import type { BlendMode, ChromaKey, ClipAnim, Mask, RampPoint, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
 import { retimeWords } from '../../shared/captions';
@@ -64,7 +64,7 @@ function ProjectInspector({ multi }: { multi: number }) {
         <div className="section-title" style={{ marginTop: 4 }}>Формат кадра</div>
         <div className="aspect-grid">
           {(Object.keys(ASPECTS) as AspectKey[]).map((a) => (
-            <button key={a} className={`aspect-tile ${settings.aspect === a ? 'active' : ''}`} onClick={() => set({ aspect: a, width: ASPECTS[a].w, height: ASPECTS[a].h })}
+            <button key={a} className={`aspect-tile ${settings.aspect === a ? 'active' : ''}`} onClick={() => set({ aspect: a, ...sizeFor(a, shortSideOf(settings)) })}
               title={ASPECTS[a].label} data-testid={`aspect-${a}`}>
               <AspectIcon a={a} /><span>{a}</span>
             </button>
@@ -76,8 +76,11 @@ function ProjectInspector({ multi }: { multi: number }) {
             { value: 'black', label: 'Чёрный' }, { value: 'blur', label: 'Размытие' }, { value: 'white', label: 'Белый' },
           ]} />
         </Field>
+        <Field label="Разрешение" right={<span className="value">{settings.width}×{settings.height}</span>}>
+          <Seg value={shortSideOf(settings)} onChange={(v) => set(sizeFor(settings.aspect, v))} options={RESOLUTIONS.map((r) => ({ value: r.short, label: r.label }))} />
+        </Field>
         <Field label="Кадров в секунду">
-          <Seg value={settings.fps} onChange={(v) => set({ fps: v })} options={[24, 25, 30, 50, 60].map((f) => ({ value: f, label: String(f) }))} />
+          <Seg value={settings.fps} onChange={(v) => set({ fps: v })} options={FPS_LIST.map((f) => ({ value: f as number, label: String(f) }))} />
         </Field>
         <div className="stats">
           <div><span>Длительность</span><b>{fmtDur(projectDuration(project))}</b></div>
@@ -90,6 +93,7 @@ function ProjectInspector({ multi }: { multi: number }) {
           <dt>S или Ctrl+B</dt><dd>разрезать у курсора</dd>
           <dt>Delete</dt><dd>удалить выделенное</dd>
           <dt>Ctrl+D</dt><dd>копия клипа</dd>
+          <dt>Ctrl/Shift+щелчок</dt><dd>выделить несколько (Ctrl+A — все)</dd>
           <dt>Ctrl+G</dt><dd>сгруппировать (с Shift — разгруппировать)</dd>
           <dt>Ctrl+S / Ctrl+E</dt><dd>сохранить проект / экспорт</dd>
           <dt>Ctrl+Z / Ctrl+Y</dt><dd>отменить / вернуть</dd>

@@ -3,6 +3,7 @@ import type { Cue } from './timeline';
 import type { Template } from './templates';
 import type { Highlights } from './autoEdit';
 import type { Appearance } from './appearance';
+import type { CacheInfo } from './cache';
 export interface AppearanceResult { appearance?: Appearance; shortcuts?: number; windows?: boolean }
 export interface CustomStatus { on: boolean; dir: string; error?: string; skipped?: string[] }
 import type { ExportOptions, MediaAsset, Project, RampPoint, VoiceEffect } from './types';
@@ -76,7 +77,7 @@ export interface LibMeta { thumb?: string; duration?: number; width?: number; he
 
 /** Тема: тёмная, светлая или как в Windows. */
 export type ThemePref = 'dark' | 'light' | 'system';
-export interface RecentProject { path: string; name: string; mtime: number; clips: number; duration: number; aspect: string; thumb?: string }
+export interface RecentProject { path: string; name: string; mtime: number; clips: number; duration: number; aspect: string; thumb?: string; size?: number; draft?: boolean }
 /** Демо-файлы из комплекта программы: ролики-сцены, бит, демо-ролик и превью шаблонов. Только те, что есть на диске. */
 export interface DemoFiles { scenes: Record<string, string>; beat: string | null; reel: string | null; previews: Record<string, string> }
 /** show — настройка «показывать при запуске», autoOpen — открыть ли сейчас (в автотестах выключено). */
@@ -90,7 +91,17 @@ export interface KadroApi {
   mediaUrl(path: string): string;
   pathForFile(file: File): string;
   saveProject(project: Project, path?: string | null): Promise<string | null>;
-  openProject(): Promise<{ project: Project; path: string } | null>;
+  /** Открыть проект или видео: { media } — выбрали видео, фото, звук (не проект). */
+  openProject(): Promise<{ project: Project; path: string } | { media: string[] } | null>;
+  /** Файлы, с которыми запустили Kadro («Открыть с помощью»), — один раз. */
+  pendingFiles(): Promise<string[]>;
+  onCoversReady(cb: () => void): () => void;
+  renameProjectFile(file: string, name: string): Promise<{ path: string } | { error: string }>;
+  duplicateProject(file: string): Promise<{ path: string } | { error: string }>;
+  trashProject(file: string): Promise<{ ok: true } | { error: string }>;
+  cacheInfo(): Promise<CacheInfo>;
+  clearCache(what: 'preview' | 'derived', refs: string[]): Promise<{ freed: number; removed: number; info: CacheInfo }>;
+  onOpenFiles(cb: (files: string[]) => void): () => void;
   /** Открыть проект по пути (из списка недавних). */
   openProjectPath(path: string): Promise<{ project: Project; path: string } | { error: string }>;
   /** Стартовый экран: показывать ли, недавние проекты, демо-файлы. */

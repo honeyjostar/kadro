@@ -12,6 +12,8 @@ import type { CustomStatus } from '../shared/ipc';
 export const api: KadroApi = (window as unknown as { kadro: KadroApi }).kadro;
 
 export type LeftTab = 'media' | 'audio' | 'text' | 'captions' | 'effects' | 'transitions' | 'filters' | 'templates' | 'ai' | '3d';
+export type AudioPlace = 'start' | 'cursor' | 'list';
+export type PreviewQuality = 'high' | 'medium' | 'low';
 
 export interface Job { id: string; label: string; progress: number; stage?: string; clipId?: string; cancellable: boolean }
 export interface Toast { id: number; text: string; kind: 'info' | 'ok' | 'err' }
@@ -70,6 +72,14 @@ interface State {
   appearance: Appearance;
   customStatus: CustomStatus | null;
   settingsOpen: boolean;
+  /** Куда класть добавленную музыку: с начала ролика, к курсору или только в список. */
+  audioPlace: AudioPlace;
+  /** Показать клип на таймлайне: прокрутить к нему и подсветить (n — чтобы сработало повторно). */
+  reveal: { id: string; n: number } | null;
+  /** Качество превью в плеере: ниже — быстрее на слабом компьютере (на экспорт не влияет). */
+  previewQuality: PreviewQuality;
+  /** Открыт просмотр файла — «Взять кусок» (in/out исходника). */
+  sourceView: string | null;
 
   commit: (fn: (p: Project) => Project, key?: string) => void;
   replace: (p: Project, path?: string | null) => void;
@@ -99,6 +109,10 @@ interface State {
   setAppearance: (a: Appearance) => void;
   setCustomStatus: (s: CustomStatus | null) => void;
   setSettingsOpen: (b: boolean) => void;
+  setAudioPlace: (p: AudioPlace) => void;
+  revealClip: (id: string) => void;
+  setPreviewQuality: (q: PreviewQuality) => void;
+  setSourceView: (assetId: string | null) => void;
 }
 
 const HISTORY = 120;
@@ -155,6 +169,10 @@ export const useStore = create<State>((set, get) => ({
   appearance: normalizeAppearance(api?.initialAppearance),
   customStatus: null,
   settingsOpen: false,
+  audioPlace: readPref<AudioPlace>('kadro.audioPlace', 'start'),
+  reveal: null,
+  previewQuality: readPref<PreviewQuality>('kadro.previewQuality', 'high'),
+  sourceView: null,
 
   commit: (fn, key) => {
     const s = get();
@@ -236,6 +254,10 @@ export const useStore = create<State>((set, get) => ({
   setAppearance: (a) => set({ appearance: a }),
   setCustomStatus: (st) => set({ customStatus: st }),
   setSettingsOpen: (b) => set({ settingsOpen: b }),
+  setAudioPlace: (pl) => { writePref('kadro.audioPlace', pl); set({ audioPlace: pl }); },
+  revealClip: (id) => set((st) => ({ reveal: { id, n: (st.reveal?.n ?? 0) + 1 } })),
+  setPreviewQuality: (q) => { writePref('kadro.previewQuality', q); set({ previewQuality: q }); },
+  setSourceView: (id) => set(id ? { sourceView: id, playing: false } : { sourceView: null }),
 }));
 
 export const getState = () => useStore.getState();

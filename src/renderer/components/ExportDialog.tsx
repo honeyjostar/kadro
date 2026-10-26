@@ -9,7 +9,7 @@ import { renderTextLayers } from '../engine/textExport';
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
 import { Field, Progress, Seg } from './controls';
-import { ASPECTS } from '../../shared/defaults';
+import { shortSideOf, sizeFor } from '../../shared/defaults';
 import { setSettings } from '../../shared/timeline';
 import { PLATFORMS, isVertical, type Platform } from '../../shared/safezones';
 import { ensureFonts, preflight, type Issue } from '../preflight';
@@ -30,9 +30,12 @@ export function ExportDialog() {
   const project = useStore((s) => s.project);
   const close = () => getState().setExportOpen(false);
   const [info, setInfo] = useState<AppInfo | null>(null);
-  const [opts, setOpts] = useState<Omit<ExportOptions, 'outPath'>>(() => lastOpts ?? {
-    height: 1080, fps: ([24, 25, 30, 50, 60].includes(project.settings.fps) ? project.settings.fps : 30) as ExportOptions['fps'], quality: 'high', encoder: 'auto',
-  });
+  // разрешение и частота — из настроек проекта (формат кадра под плеером), качество и кодер — как в прошлый раз
+  const [opts, setOpts] = useState<Omit<ExportOptions, 'outPath'>>(() => ({
+    quality: 'high', encoder: 'auto', ...lastOpts,
+    height: shortSideOf(project.settings) as ExportOptions['height'],
+    fps: ([24, 25, 30, 50, 60].includes(project.settings.fps) ? project.settings.fps : 30) as ExportOptions['fps'],
+  }));
   const [phase, setPhase] = useState<Phase>('setup');
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState('');
@@ -64,7 +67,7 @@ export function ExportDialog() {
     if (i.clipId) getState().select([i.clipId]);
   };
   const fixIssue = (i: Issue) => {
-    if (i.fix === 'aspect916') getState().commit((p) => setSettings(p, { aspect: '9:16', width: ASPECTS['9:16'].w, height: ASPECTS['9:16'].h }));
+    if (i.fix === 'aspect916') getState().commit((p) => setSettings(p, { aspect: '9:16', ...sizeFor('9:16', shortSideOf(p.settings)) }));
   };
   const duration = projectDuration(project);
   const size = exportSize(project.settings.width, project.settings.height, opts.height);

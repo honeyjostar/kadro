@@ -21,6 +21,14 @@ const RES = path.join(APP_DIR, 'resources');
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', ...opts });
 const cp = (a, b) => fs.cpSync(a, b, { recursive: true, dereference: true });
 const step = (s) => console.log(`\n▸ ${s}`);
+// «Открыть с помощью → Kadro» для видео, фото и звука (список — как в src/main/media.ts)
+const OPEN_WITH = ['mp4', 'mov', 'm4v', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mts', 'm2ts', 'ts', 'mpg', 'mpeg', '3gp', 'vob', 'mxf',
+  'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'heic', 'tif', 'tiff', 'mp3', 'wav', 'm4a', 'aac', 'ogg', 'opus', 'flac', 'wma'];
+const regOpenWith = OPEN_WITH.map((e) => [
+  `  WriteRegStr HKCU "Software\\Classes\\.${e}\\OpenWithProgids" "Kadro.Media" ""`,
+  `  WriteRegStr HKCU "Software\\Classes\\Applications\\Kadro.exe\\SupportedTypes" ".${e}" ""`,
+].join('\n')).join('\n');
+const unregOpenWith = OPEN_WITH.map((e) => `  DeleteRegValue HKCU "Software\\Classes\\.${e}\\OpenWithProgids" "Kadro.Media"`).join('\n');
 
 fs.rmSync(APP_DIR, { recursive: true, force: true });
 fs.mkdirSync(APP_DIR, { recursive: true });
@@ -186,6 +194,17 @@ Section "Kadro" SecMain
   WriteRegDWORD HKCU "\${UNINST}" "NoModify" 1
   WriteRegDWORD HKCU "\${UNINST}" "NoRepair" 1
   WriteRegDWORD HKCU "\${UNINST}" "EstimatedSize" ${sizeKb}
+  ; проекты .kadro открываются двойным щелчком, видео — «Открыть с помощью → Kadro»
+  WriteRegStr HKCU "Software\\Classes\\.kadro" "" "Kadro.Project"
+  WriteRegStr HKCU "Software\\Classes\\Kadro.Project" "" "Проект Kadro"
+  WriteRegStr HKCU "Software\\Classes\\Kadro.Project\\DefaultIcon" "" "$INSTDIR\\Kadro.exe,0"
+  WriteRegStr HKCU "Software\\Classes\\Kadro.Project\\shell\\open\\command" "" '"$INSTDIR\\Kadro.exe" "%1"'
+  WriteRegStr HKCU "Software\\Classes\\Kadro.Media" "" "Медиафайл"
+  WriteRegStr HKCU "Software\\Classes\\Kadro.Media\\DefaultIcon" "" "$INSTDIR\\Kadro.exe,0"
+  WriteRegStr HKCU "Software\\Classes\\Kadro.Media\\shell\\open\\command" "" '"$INSTDIR\\Kadro.exe" "%1"'
+  WriteRegStr HKCU "Software\\Classes\\Applications\\Kadro.exe\\shell\\open\\command" "" '"$INSTDIR\\Kadro.exe" "%1"'
+${regOpenWith}
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
 SectionEnd
 
 Section "Uninstall"
@@ -195,6 +214,12 @@ Section "Uninstall"
   RMDir /r "$INSTDIR"
   DeleteRegKey HKCU "\${UNINST}"
   DeleteRegKey HKCU "Software\\Kadro"
+  DeleteRegKey HKCU "Software\\Classes\\.kadro"
+  DeleteRegKey HKCU "Software\\Classes\\Kadro.Project"
+  DeleteRegKey HKCU "Software\\Classes\\Kadro.Media"
+  DeleteRegKey HKCU "Software\\Classes\\Applications\\Kadro.exe"
+${unregOpenWith}
+  System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
   ; проекты, черновик и скачанные модели (%USERPROFILE%\\.kadro) не трогаем
 SectionEnd
 `);

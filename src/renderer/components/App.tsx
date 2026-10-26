@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { deleteSelection, dropPaths, duplicateSelection, reportMissing, saveProject, splitAtPlayhead, groupSelection, ungroupSelection } from '../actions';
+import { deleteSelection, dropOnHome, dropPaths, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, ungroupSelection } from '../actions';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
 import { Model3DDialog } from './Objects3D';
 import { AutoEditDialog } from './AutoEdit';
 import { SettingsDialog } from './Settings';
+import { SourceView } from './SourceView';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts } from './Overlays';
@@ -28,6 +29,7 @@ export function App() {
   const m3d = useStore((s) => s.model3dEdit);
   const autoOpen = useStore((s) => s.autoOpen);
   const settingsOpen = useStore((s) => s.settingsOpen);
+  const sourceView = useStore((s) => s.sourceView);
   const loaded = useRef(false);
 
   // восстановление последнего проекта, обновления файлов из главного процесса
@@ -72,6 +74,7 @@ export function App() {
       if (ctrl && (k === 'e' || k === 'у')) { e.preventDefault(); s.setExportOpen(true); return; }
       if (ctrl && (k === 'd' || k === 'в')) { e.preventDefault(); duplicateSelection(); return; }
       if (ctrl && (k === 'b' || k === 'и')) { e.preventDefault(); splitAtPlayhead(); return; }
+      if (ctrl && (k === 'a' || k === 'ф')) { e.preventDefault(); s.select(s.project.tracks.flatMap((t) => t.clips.map((c) => c.id))); return; }
       if (ctrl && (k === 'g' || k === 'п')) { e.preventDefault(); if (e.shiftKey) ungroupSelection(); else void groupSelection(); return; }
       if (!ctrl && (k === 's' || k === 'ы')) { e.preventDefault(); splitAtPlayhead(); return; }
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelection(); return; }
@@ -94,12 +97,16 @@ export function App() {
       if (!e.dataTransfer?.files.length) return;
       e.preventDefault();
       const paths = [...e.dataTransfer.files].map((f) => api.pathForFile(f)).filter(Boolean);
-      getState().setHome(false);
+      // на главный экран — новым проектом (текущий не трогаем), в редактор — в текущий
+      if (getState().home) { void dropOnHome(paths); return; }
       void dropPaths(paths);
     };
     window.addEventListener('dragover', over);
     window.addEventListener('drop', drop);
-    return () => { window.removeEventListener('dragover', over); window.removeEventListener('drop', drop); };
+    // Kadro открыли с файлом («Открыть с помощью», двойной щелчок по проекту) или передали файл уже запущенному
+    void api.pendingFiles().then((files) => { if (files.length) void openFiles(files, { fresh: true }); });
+    const offOpen = api.onOpenFiles((files) => void openFiles(files, { fresh: getState().home }));
+    return () => { window.removeEventListener('dragover', over); window.removeEventListener('drop', drop); offOpen(); };
   }, []);
 
   const onSplitter = (e: React.MouseEvent) => {
@@ -127,6 +134,7 @@ export function App() {
       {m3d && <Model3DDialog key={`${m3d.init.source}-${m3d.clipId ?? ''}`} />}
       {autoOpen && <AutoEditDialog />}
       {settingsOpen && <SettingsDialog />}
+      {sourceView && <SourceView />}
       <Jobs />
       <Toasts />
     </div>

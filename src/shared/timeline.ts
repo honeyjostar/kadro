@@ -152,7 +152,18 @@ export function removeAsset(p: Project, id: string): Project {
 export interface AddResult { project: Project; clipId: string }
 
 /** Видео/фото на основную дорожку: после клипа под плейхедом (или в конец). */
-export function addToMain(p: Project, assetId: string, at: number): AddResult {
+/** Кусок файла (с какой по какую секунду исходника) — для «Взять кусок». */
+export interface SourceRange { in: number; out: number }
+function applyRange(clip: MediaClip, asset: MediaAsset, range?: SourceRange): void {
+  if (!range || asset.kind === 'image') return;
+  const len = clip.out;
+  const a = Math.max(0, Math.min(range.in, len - MIN_CLIP));
+  const b = Math.max(a + MIN_CLIP, Math.min(range.out, len));
+  clip.in = a;
+  clip.out = b;
+}
+
+export function addToMain(p: Project, assetId: string, at: number, range?: SourceRange): AddResult {
   let clipId = '';
   const project = edit(p, (d) => {
     const asset = d.assets.find((a) => a.id === assetId);
@@ -160,6 +171,7 @@ export function addToMain(p: Project, assetId: string, at: number): AddResult {
     if (asset.kind === 'audio') throw new Error('Аудио нельзя положить на основную дорожку');
     const t = mainTrack(d);
     const clip = newMediaClip(asset);
+    applyRange(clip, asset, range);
     clipId = clip.id;
     let idx = t.clips.length;
     for (let i = 0; i < t.clips.length; i++) {
@@ -173,12 +185,13 @@ export function addToMain(p: Project, assetId: string, at: number): AddResult {
 }
 
 /** Картинка/видео поверх (картинка-в-картинке) или аудио: свободная дорожка, начиная с плейхеда. */
-export function addFree(p: Project, assetId: string, at: number): AddResult {
+export function addFree(p: Project, assetId: string, at: number, range?: SourceRange): AddResult {
   let clipId = '';
   const project = edit(p, (d) => {
     const asset = d.assets.find((a) => a.id === assetId);
     if (!asset) throw new Error('Нет такого файла в проекте');
     const clip = newMediaClip(asset, Math.max(0, at));
+    applyRange(clip, asset, range);
     if (asset.kind !== 'audio') clip.transform.scale = 0.6;
     clipId = clip.id;
     placeFree(d, asset.kind === 'audio' ? 'audio' : 'video', clip);
@@ -424,6 +437,50 @@ export function moveClip(p: Project, clipId: string, start: number, targetTrackI
       placeFree(d, target.kind as Exclude<TrackKind, 'main'>, c, undefined);
     }
     cleanupEmptyTracks(d);
+  });
+}
+
+/**
+ * Сдвиг нескольких клипов наложения, текста и звука на dt — всех вместе, на своих дорожках
+ * (не влез на свою — на свободную дорожку того же вида). Клипы основной дорожки пропускаются.
+ */
+export function moveClipsBy(p: Project, ids: string[], dt: number): Project {
+  return edit(p, (d) => {
+    const home = new Map<string, Track>();
+    const moving: Clip[] = [];
+    for (const t of d.tracks) {
+      if (t.kind === 'main') continue;
+      for (const c of t.clips) if (ids.includes(c.id)) { home.set(c.id, t); moving.push(c); }
+    }
+    if (!moving.length) return;
+    const shift = Math.max(-Math.min(...moving.map((c) => c.start)), dt); // раньше нуля не уезжает
+    for (const t of d.tracks) if (t.kind !== 'main') t.clips = t.clips.filter((c) => !home.has(c.id));
+    moving.sort((a, b) => a.start - b.start);
+    for (const c of moving) {
+      c.start = round(c.start + shift);
+      const t = home.get(c.id)!;
+      if (!overlaps(t, c.start, c.start + clipDuration(c), c.id)) {
+        t.clips.push(c);
+        t.clips.sort((a, b) => a.start - b.start);
+      } else {
+        placeFree(d, t.kind as Exclude<TrackKind, 'main'>, c, t.id);
+      }
+    }
+    cleanupEmptyTracks(d);
+  });
+}
+
+/** Несколько клипов основной дорожки — одним блоком, в их порядке, на место index среди остальных. */
+export function reorderMainMany(p: Project, ids: string[], index: number): Project {
+  return edit(p, (d) => {
+    const t = mainTrack(d);
+    const block = t.clips.filter((c) => ids.includes(c.id));
+    if (!block.length) return;
+    const rest = t.clips.filter((c) => !ids.includes(c.id));
+    const last = block[block.length - 1];
+    if (last.type === 'media') delete last.transitionOut;
+    const i = Math.max(0, Math.min(index, rest.length));
+    t.clips = [...rest.slice(0, i), ...block, ...rest.slice(i)];
   });
 }
 

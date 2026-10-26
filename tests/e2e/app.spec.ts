@@ -203,7 +203,11 @@ test('перестановка клипов основной дорожки и �
   expect(await clipIds(win, 'main')).toEqual([ids[1], ids[0]]);
   await win.keyboard.press('Control+z');
   ids = await clipIds(win, 'main');
-  // переход: кнопка на стыке → «Растворение» → длительность 1 с
+  // переход: «+» на стыке появляется, только когда мышь рядом; → «Растворение» → длительность 1 с
+  await expect(win.getByTestId('junction')).toHaveCount(0);
+  const c0 = await clipBox(ids[0]);
+  await win.mouse.move(c0.x + c0.width - 30, c0.y + c0.height / 2);
+  await win.mouse.move(c0.x + c0.width + 4, c0.y + c0.height / 2, { steps: 4 });
   await win.getByTestId('junction').first().click();
   await win.getByTestId('tr-fade').click();
   await commit('(tl, p, a) => tl.setTransition(p, a[0], { type: "fade", duration: 1 })', ids[0]);

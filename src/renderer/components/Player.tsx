@@ -1,16 +1,19 @@
 import { Maximize2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ASPECTS } from '../../shared/defaults';
 import { placeOnCanvas } from '../../shared/geometry';
 import { mediaPropsAt } from '../../shared/anim';
 import { textBounds } from '../../shared/textRender';
 import { propValue, writeProps } from '../animEdit';
-import { activeClipsAt, projectDuration, setSettings, updateClip } from '../../shared/timeline';
-import type { AspectKey, Clip, MediaClip, Project, TextClip } from '../../shared/types';
+import { activeClipsAt, projectDuration, updateClip } from '../../shared/timeline';
+import type { Clip, MediaClip, Project, TextClip } from '../../shared/types';
 import { pickAndImport } from '../actions';
 import { PreviewEngine } from '../engine/preview';
-import { api, getState, useStore } from '../store';
+import { api, getState, useStore, type PreviewQuality } from '../store';
+
+const PREVIEW_SCALE: Record<PreviewQuality, number> = { high: 1, medium: 0.6, low: 0.4 };
+const PREVIEW_CAP: Record<PreviewQuality, number> = { high: 1080, medium: 720, low: 480 };
 import { fmtTime } from '../util';
+import { FormatMenu } from './FormatMenu';
 import { PLATFORMS, SAFE_ZONES, isVertical, type Platform } from '../../shared/safezones';
 
 interface Box { id: string; cx: number; cy: number; w: number; h: number; rot: number; kind: 'media' | 'text'; pin?: number[] }
@@ -61,7 +64,7 @@ export function Player() {
   const [area, setArea] = useState({ w: 0, h: 0 });
   const [guides, setGuides] = useState<{ v: boolean; h: boolean }>({ v: false, h: false });
   const [fontsTick, setFontsTick] = useState(0);
-  const { width: PW, height: PH, aspect } = project.settings;
+  const { width: PW, height: PH } = project.settings;
   const duration = projectDuration(project);
 
   // движок превью живёт всё время работы окна
@@ -103,14 +106,18 @@ export function Player() {
   const dispW = Math.floor(Math.min(availW, availH * k));
   const dispH = Math.floor(dispW / k);
 
+  // качество превью: холст плеера считается в меньшем размере и растягивается — быстрее на слабом компьютере
+  const quality = useStore((s) => s.previewQuality);
   useEffect(() => {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    let cw = dispW * dpr;
-    let ch = dispH * dpr;
+    const k = PREVIEW_SCALE[quality];
+    let cw = dispW * dpr * k;
+    let ch = dispH * dpr * k;
     const short = Math.min(cw, ch);
-    if (short > 1080) { cw = (cw * 1080) / short; ch = (ch * 1080) / short; }
+    const cap = PREVIEW_CAP[quality];
+    if (short > cap) { cw = (cw * cap) / short; ch = (ch * cap) / short; }
     engineRef.current?.setSize(cw, ch);
-  }, [dispW, dispH]);
+  }, [dispW, dispH, quality]);
 
   // рамка выделенного клипа, если он виден в текущий момент
   const box = useMemo(() => {
@@ -288,7 +295,16 @@ export function Player() {
         {recording && <div className="stage-chip rec" data-testid="rec-chip"><span className="rec-dot blink" />Идёт запись голоса{recording.muted ? ' · звук проекта выключен' : ''}</div>}
       </div>
       <div className="transport">
-        <div className="timecode" data-testid="timecode"><b>{fmtTime(playhead, fps, true)}</b> / {fmtTime(duration, fps, true)}</div>
+        <div className="transport-left">
+          <div className="timecode" data-testid="timecode"><b>{fmtTime(playhead, fps, true)}</b> / {fmtTime(duration, fps, true)}</div>
+          <select className="input aspect-select quality-select" value={quality} data-testid="preview-quality"
+            title="Качество превью в плеере. «Быстрое» — плавнее на слабом компьютере; на экспорт не влияет"
+            onChange={(e) => getState().setPreviewQuality(e.target.value as PreviewQuality)}>
+            <option value="high">Превью: высокое</option>
+            <option value="medium">Превью: среднее</option>
+            <option value="low">Превью: быстрое</option>
+          </select>
+        </div>
         <div className="transport-center">
           <button className="icon-btn" title="В начало (Home)" onClick={() => { getState().setPlaying(false); getState().setPlayhead(0); }}><SkipBack size={17} /></button>
           <button className="play-btn" onClick={toggle} title="Пуск / пауза (пробел)" data-testid="play">{playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" style={{ marginLeft: 2 }} />}</button>
@@ -301,13 +317,7 @@ export function Player() {
             <option value="">Зоны: нет</option>
             {PLATFORMS.map((x) => <option key={x.id} value={x.id}>Зоны {x.label}</option>)}
           </select>
-          <select className="input aspect-select" value={aspect} title="Формат кадра" data-testid="aspect"
-            onChange={(e) => {
-              const a = e.target.value as AspectKey;
-              getState().commit((p) => setSettings(p, { aspect: a, width: ASPECTS[a].w, height: ASPECTS[a].h }));
-            }}>
-            {(Object.keys(ASPECTS) as AspectKey[]).map((a) => <option key={a} value={a}>{ASPECTS[a].label}</option>)}
-          </select>
+          <FormatMenu />
           <button className="icon-btn" title="Во весь экран" onClick={() => void wrapRef.current?.requestFullscreen()}><Maximize2 size={16} /></button>
         </div>
       </div>

@@ -24,7 +24,7 @@ export function TopBar() {
   const th = THEMES[themePref];
   return (
     <header className="topbar">
-      <button className="logo logo-btn" onClick={() => setHome(true)} title="Главный экран: новый проект, недавние, демо, шаблоны"><LogoMark />Kadro</button>
+      <button className="logo logo-btn" onClick={() => setHome(true)} title="Главный экран: новый проект, мои проекты, демо, шаблоны"><LogoMark />Kadro</button>
       <button className="btn ghost small" onClick={() => setHome(true)} data-testid="home-open-btn"><House size={14} />Главная</button>
       <input
         className="project-name" value={name} aria-label="Название проекта" data-testid="project-name"
@@ -35,8 +35,8 @@ export function TopBar() {
       <button className="btn ghost small" title={`${th.label}. Нажми, чтобы переключить: тёмная → светлая → как в Windows`}
         onClick={() => setThemePref(th.next)} data-testid="theme-btn">{th.icon}{th.short}</button>
       <button className="icon-btn" title="Настройки: тема, цвет акцента, значок программы, размер интерфейса, своё оформление" onClick={() => getState().setSettingsOpen(true)} data-testid="topbar-settings"><Settings size={16} /></button>
-      <button className="btn ghost small" title="Новый пустой проект. Текущий не пропадёт — он останется в «Недавних»" onClick={() => void newProjectAction()}><FilePlus2 size={15} />Новый</button>
-      <button className="btn ghost small" title="Открыть файл проекта .kadro" onClick={() => void openProject()}><FolderOpen size={15} />Открыть</button>
+      <button className="btn ghost small" title="Новый пустой проект. Текущий не пропадёт — он останется в «Моих проектах»" onClick={() => void newProjectAction()}><FilePlus2 size={15} />Новый</button>
+      <button className="btn ghost small" title="Открыть проект .kadro или добавить видео, фото, звук" onClick={() => void openProject()}><FolderOpen size={15} />Открыть</button>
       <button className="btn ghost small" title="Сохранить проект (Ctrl+S)" onClick={() => void saveProject()}><Save size={15} />Сохранить</button>
       <button className="btn primary" data-testid="export-open" onClick={() => setExportOpen(true)}><Upload size={15} />Экспорт</button>
     </header>

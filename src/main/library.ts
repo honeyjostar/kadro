@@ -101,6 +101,8 @@ export function countDeep(root: string): number {
 
 // ---------- превью: кадр + длительность, с кэшем на диске ----------
 const metaCache = new Map<string, Promise<LibMeta>>();
+/** После очистки кэша — забыть превью библиотеки в памяти (файлы пересоздадутся). */
+export function forgetLibMeta(): void { metaCache.clear(); }
 let running = 0;
 const queue: (() => void)[] = [];
 async function slot<T>(fn: () => Promise<T>): Promise<T> {
@@ -137,7 +139,7 @@ async function makeMeta(file: string, key: string): Promise<LibMeta> {
       const at = kind === 'video' && pr.duration > 1 ? Math.min(1, pr.duration * 0.25) : 0;
       // кадр 240 px по ширине; повёрнутое видео с телефона FFmpeg развернёт сам
       await runFfmpeg(['-hide_banner', '-y', ...(at > 0 ? ['-ss', at.toFixed(2)] : []), '-i', file, '-frames:v', '1',
-        '-vf', 'scale=240:-2:flags=bicubic', '-q:v', '5', thumb]);
+        '-vf', 'scale=240:-2:flags=bicubic', '-q:v', '5', thumb], { low: true });
       if (fs.existsSync(thumb)) meta.thumb = thumb;
     }
   } catch {

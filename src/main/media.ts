@@ -7,13 +7,15 @@ import { promisify } from 'node:util';
 import type { MediaAsset, MediaKind } from '../shared/types';
 import { uid } from '../shared/defaults';
 import { cacheDir, ffprobePath } from './bins';
-import { ffmpegToBuffer, runFfmpeg } from './ffrun';
+import { backgroundThreads, ffmpegToBuffer, runFfmpeg } from './ffrun';
 
 const execFileP = promisify(execFile);
 
-export const IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif', '.tif', '.tiff', '.heic', '.avif'];
-export const VIDEO_EXT = ['.mp4', '.mov', '.m4v', '.mkv', '.webm', '.avi', '.wmv', '.flv', '.3gp', '.mts', '.m2ts', '.ts', '.mpg', '.mpeg', '.ogv'];
-export const AUDIO_EXT = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.oga', '.opus', '.flac', '.wma', '.aiff', '.aif'];
+export const IMAGE_EXT = ['.png', '.jpg', '.jpeg', '.jfif', '.webp', '.bmp', '.gif', '.tif', '.tiff', '.heic', '.heif', '.avif'];
+export const VIDEO_EXT = ['.mp4', '.mov', '.m4v', '.mkv', '.webm', '.avi', '.wmv', '.flv', '.f4v', '.3gp', '.3g2', '.mts', '.m2ts', '.ts', '.mpg', '.mpeg', '.m2v', '.vob', '.mxf', '.dv', '.asf', '.divx', '.ogv'];
+export const AUDIO_EXT = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.oga', '.opus', '.flac', '.wma', '.aiff', '.aif', '.amr', '.ac3', '.mka', '.weba'];
+/** Всё, что Kadro открывает как видео, фото или звук (без точки — для окон выбора файла). */
+export const MEDIA_EXT = [...VIDEO_EXT, ...IMAGE_EXT, ...AUDIO_EXT].map((e) => e.slice(1));
 
 interface ProbeStream {
   codec_type: string; codec_name?: string; width?: number; height?: number; pix_fmt?: string;
@@ -94,7 +96,7 @@ export function proxyPlan(kind: MediaKind, pr: ProbeResult, file: string): 'none
   const v = pr.video!;
   const vOk = PLAYABLE_V.includes(v.codec_name ?? '') && (v.codec_name !== 'h264' || OK_PIX.includes(v.pix_fmt ?? ''));
   const aOk = !pr.audio || PLAYABLE_A.includes(pr.audio.codec_name ?? '');
-  const containerOk = /mov|mp4|webm|matroska/.test(pr.format) && !['.avi', '.wmv', '.flv', '.mts', '.m2ts', '.ts', '.mpg', '.mpeg'].includes(ext);
+  const containerOk = /mov|mp4|webm|matroska/.test(pr.format) && !['.avi', '.wmv', '.flv', '.f4v', '.mts', '.m2ts', '.ts', '.mpg', '.mpeg', '.m2v', '.vob', '.mxf', '.dv', '.asf', '.divx'].includes(ext);
   return vOk && aOk && containerOk ? 'none' : 'video';
 }
 
@@ -143,7 +145,7 @@ export async function makeProxy(asset: MediaAsset, plan: 'audio' | 'video', onPr
   const key = fileKey(asset.path);
   if (asset.kind === 'image') {
     const out = path.join(cacheDir('proxy'), `${key}.png`);
-    if (!fs.existsSync(out)) await runFfmpeg(['-hide_banner', '-y', '-i', asset.path, '-frames:v', '1', out], { signal });
+    if (!fs.existsSync(out)) await runFfmpeg(['-hide_banner', '-y', '-i', asset.path, '-frames:v', '1', out], { signal, low: true });
     return out;
   }
   if (plan === 'audio') {
@@ -151,7 +153,7 @@ export async function makeProxy(asset: MediaAsset, plan: 'audio' | 'video', onPr
     if (fs.existsSync(out)) return out;
     const tmp = out + '.part.m4a';
     await runFfmpeg(['-hide_banner', '-y', '-i', asset.path, '-vn', '-c:a', 'aac', '-b:a', '192k', '-progress', 'pipe:1', '-nostats', tmp],
-      { duration: asset.duration, onProgress, signal });
+      { duration: asset.duration, onProgress, signal, low: true });
     fs.renameSync(tmp, out);
     return out;
   }
@@ -163,8 +165,8 @@ export async function makeProxy(asset: MediaAsset, plan: 'audio' | 'video', onPr
     await runFfmpeg([
       '-hide_banner', '-y', '-i', asset.path, '-map', '0:v:0', '-an',
       '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-b:v', '0', '-crf', '28', '-deadline', 'good', '-cpu-used', '4',
-      '-row-mt', '1', '-auto-alt-ref', '0', '-g', '15', '-progress', 'pipe:1', '-nostats', gtmp,
-    ], { duration: asset.duration, onProgress, signal });
+      '-row-mt', '1', '-auto-alt-ref', '0', '-g', '15', '-threads', backgroundThreads(), '-progress', 'pipe:1', '-nostats', gtmp,
+    ], { duration: asset.duration, onProgress, signal, low: true });
     fs.renameSync(gtmp, gout);
     return gout;
   }
@@ -175,11 +177,28 @@ export async function makeProxy(asset: MediaAsset, plan: 'audio' | 'video', onPr
   const scale = short > 720 ? (asset.width < asset.height ? 'scale=720:-2' : 'scale=-2:720') : 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
   await runFfmpeg([
     '-hide_banner', '-y', '-i', asset.path, '-map', '0:v:0', '-map', '0:a:0?',
-    '-vf', `${scale},format=yuv420p`, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-g', '15',
+    '-vf', `${scale},format=yuv420p`, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23', '-g', '15', '-threads', backgroundThreads(),
     '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', '-progress', 'pipe:1', '-nostats', tmp,
-  ], { duration: asset.duration, onProgress, signal });
+  ], { duration: asset.duration, onProgress, signal, low: true });
   fs.renameSync(tmp, out);
   return out;
+}
+
+/** Обложка проекта для экрана проектов: кадр высотой 360 px (миниатюры таймлайна для неё слишком мелкие). */
+export async function makeCover(asset: MediaAsset, t: number): Promise<string> {
+  const out = path.join(cacheDir('covers'), `${fileKey(asset.path)}_${Math.round(t * 10)}.jpg`);
+  if (fs.existsSync(out)) return out;
+  const src = asset.kind === 'image' ? asset.path : asset.previewPath || asset.path;
+  await runFfmpeg(['-hide_banner', '-y', ...(asset.kind === 'image' ? [] : ['-ss', t.toFixed(2)]), '-i', src, '-frames:v', '1',
+    '-vf', 'scale=-2:360:flags=bicubic', '-q:v', '4', out], { low: true });
+  return out;
+}
+/** Путь обложки, если она уже сделана (без запуска ffmpeg). */
+export function coverIfReady(asset: MediaAsset, t: number): string | undefined {
+  try {
+    const out = path.join(cacheDir('covers'), `${fileKey(asset.path)}_${Math.round(t * 10)}.jpg`);
+    return fs.existsSync(out) ? out : undefined;
+  } catch { return undefined; }
 }
 
 /** Миниатюры для таймлайна: count кадров равномерно по длительности, высота 80px. */
@@ -188,7 +207,7 @@ export async function makeThumbs(asset: MediaAsset, count?: number): Promise<str
   const dir = cacheDir(path.join('thumbs', key));
   if (asset.kind === 'image') {
     const out = path.join(dir, 't0.jpg');
-    if (!fs.existsSync(out)) await runFfmpeg(['-hide_banner', '-y', '-i', asset.path, '-vf', 'scale=-2:80', '-frames:v', '1', out]);
+    if (!fs.existsSync(out)) await runFfmpeg(['-hide_banner', '-y', '-i', asset.path, '-vf', 'scale=-2:80', '-frames:v', '1', out], { low: true });
     return [out];
   }
   const n = count ?? Math.max(4, Math.min(60, Math.ceil(asset.duration / 2)));
@@ -199,7 +218,7 @@ export async function makeThumbs(asset: MediaAsset, count?: number): Promise<str
     const out = path.join(dir, `t${i}.jpg`);
     if (!fs.existsSync(out)) {
       try {
-        await runFfmpeg(['-hide_banner', '-y', '-ss', String(Math.max(0, t)), '-i', src, '-frames:v', '1', '-vf', 'scale=-2:80', '-q:v', '5', out]);
+        await runFfmpeg(['-hide_banner', '-y', '-ss', String(Math.max(0, t)), '-i', src, '-frames:v', '1', '-vf', 'scale=-2:80', '-q:v', '5', out], { low: true });
       } catch {
         continue;
       }
@@ -218,7 +237,7 @@ export async function makePeaks(asset: MediaAsset): Promise<number[]> {
     try { return JSON.parse(fs.readFileSync(cache, 'utf8')); } catch { /* пересчитаем */ }
   }
   const rate = 4000;
-  const pcm = await ffmpegToBuffer(['-hide_banner', '-v', 'error', '-i', asset.path, '-vn', '-ac', '1', '-ar', String(rate), '-f', 's16le', '-']);
+  const pcm = await ffmpegToBuffer(['-hide_banner', '-v', 'error', '-i', asset.path, '-vn', '-ac', '1', '-ar', String(rate), '-f', 's16le', '-'], undefined, true);
   const samples = Math.floor(pcm.length / 2);
   const n = Math.max(1, Math.min(4000, Math.round(asset.duration * 40)));
   const per = Math.max(1, Math.floor(samples / n));
