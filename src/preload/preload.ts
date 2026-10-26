@@ -48,6 +48,7 @@ const api: KadroApi = {
   stashDraft: (project) => ipcRenderer.invoke('project:stash', project),
   loadLast: () => ipcRenderer.invoke('project:last'),
   autosave: (project, path) => ipcRenderer.send('project:autosave', project, path),
+  autosaveNow: (project, path) => { ipcRenderer.sendSync('project:autosaveNow', project, path); },
   pickExportPath: (name) => ipcRenderer.invoke('dialog:exportPath', name),
   startExport: (req) => ipcRenderer.invoke('export:start', req),
   cancelExport: () => ipcRenderer.send('export:cancel'),

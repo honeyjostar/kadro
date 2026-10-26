@@ -134,6 +134,8 @@ export interface KadroApi {
   stashDraft(project: Project): Promise<string>;
   loadLast(): Promise<{ project: Project; path: string | null } | null>;
   autosave(project: Project, path: string | null): void;
+  /** То же, но дожидается записи — при закрытии окна. */
+  autosaveNow(project: Project, path: string | null): void;
   pickExportPath(defaultName: string): Promise<string | null>;
   startExport(req: ExportReq): Promise<ExportResult>;
   cancelExport(): void;

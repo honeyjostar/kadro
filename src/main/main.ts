@@ -679,6 +679,11 @@ function registerIpc(): void {
   ipcMain.on('project:autosave', (_e, project: Project, file: string | null) => {
     try { fs.writeFileSync(autosaveFile(), JSON.stringify({ project, path: file })); } catch (e) { log('autosave failed', e); }
   });
+  // окно закрывается — последние правки записываем сразу, окно ждёт ответа
+  ipcMain.on('project:autosaveNow', (e, project: Project, file: string | null) => {
+    try { fs.writeFileSync(autosaveFile(), JSON.stringify({ project, path: file })); } catch (err) { log('autosave failed', err); }
+    e.returnValue = true;
+  });
   ipcMain.handle('dialog:exportPath', async (_e, name: string) => {
     if (process.env.KADRO_TEST_EXPORT) return process.env.KADRO_TEST_EXPORT; // автотесты: без системного окна
     const r = await dialog.showSaveDialog(win!, {

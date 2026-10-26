@@ -47,15 +47,30 @@ export function App() {
   // автосохранение и заголовок окна
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let since = 0; // когда появились несохранённые изменения
+    const save = () => { since = 0; api.autosave(getState().project, getState().projectPath); };
     const unsub = useStore.subscribe((s, prev) => {
       if (s.project !== prev.project || s.projectPath !== prev.projectPath || s.dirty !== prev.dirty) {
         api.setTitle(`${s.project.name}${s.dirty ? ' •' : ''} — Kadro`);
       }
       if (s.project === prev.project || !loaded.current) return;
       clearTimeout(timer);
-      timer = setTimeout(() => api.autosave(getState().project, getState().projectPath), 1200);
+      // через 1,2 с после последней правки, но не реже раза в 3 с: пока в фоне идут миниатюры и прокси,
+      // проект меняется постоянно — без этого черновик не сохранялся бы, пока они не доделаются
+      const now = Date.now();
+      if (!since) since = now;
+      if (now - since > 3000) { save(); return; }
+      timer = setTimeout(save, 1200);
     });
-    return () => { unsub(); clearTimeout(timer); };
+    // закрыли окно раньше, чем сработал таймер, — сохраняем сразу
+    const onClose = () => {
+      if (!since) return;
+      clearTimeout(timer);
+      since = 0;
+      api.autosaveNow(getState().project, getState().projectPath);
+    };
+    window.addEventListener('beforeunload', onClose);
+    return () => { unsub(); clearTimeout(timer); window.removeEventListener('beforeunload', onClose); };
   }, []);
 
   // горячие клавиши
