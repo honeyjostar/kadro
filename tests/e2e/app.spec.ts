@@ -261,7 +261,8 @@ async function exportViaUi(res: '720p' | '1080p'): Promise<string> {
   const out = path.join(MEDIA, 'out.mp4');
   fs.rmSync(out, { force: true });
   await win.getByTestId('export-open').click();
-  await win.getByRole('button', { name: res, exact: true }).click();
+  // в окне экспорта: такие же кнопки разрешения есть в настройках проекта справа
+  await win.getByTestId('export-dialog').getByRole('button', { name: res, exact: true }).click();
   await win.getByTestId('export-start').click();
   await expect(win.getByTestId('export-show')).toBeVisible({ timeout: 180_000 });
   await win.getByRole('button', { name: 'Закрыть' }).last().click();
@@ -328,7 +329,7 @@ test('отмена экспорта не оставляет файла', async (
   const out = path.join(MEDIA, 'out.mp4');
   fs.rmSync(out, { force: true });
   await win.getByTestId('export-open').click();
-  await win.getByRole('button', { name: '4K', exact: true }).click();
+  await win.getByTestId('export-dialog').getByRole('button', { name: '4K', exact: true }).click();
   await win.getByRole('button', { name: 'Процессор' }).click();
   await win.getByTestId('export-start').click();
   await win.waitForTimeout(1500);
