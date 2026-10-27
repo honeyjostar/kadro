@@ -1,6 +1,6 @@
 import {
   Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -134,6 +134,13 @@ function TemplatesPanel() {
           <div className="row-btns">
             <button className="btn primary small" disabled={busy} onClick={() => getState().setAutoOpen({ files: autoLast?.files ?? [], fresh: false })} data-testid="tpl-auto">{autoLast ? 'Настроить…' : 'Собрать…'}</button>
             {autoLast && <button className="btn small" disabled={busy} onClick={() => void run(autoVariant)} title="Другие куски видео и переходы, те же файлы и стиль" data-testid="tpl-auto-variant"><Shuffle size={13} />Ещё вариант</button>}
+          </div>
+        </div>
+        <div className="auto-card" data-testid="tpl-script-card">
+          <b><FileText size={15} />Ролик по сценарию</b>
+          <span className="hint small">Текст → озвучка, кадры из твоих видео и субтитры точно по тексту.</span>
+          <div className="row-btns">
+            <button className="btn small" disabled={busy} onClick={() => getState().setScriptOpen(true)} data-testid="tpl-script">Написать сценарий…</button>
           </div>
         </div>
         <p className="hint">Готовый монтаж с переходами, цветом, эффектами и надписями. Наведи на шаблон, чтобы посмотреть, нажми — и выбери свои видео и фото по порядку.</p>

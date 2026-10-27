@@ -66,6 +66,8 @@ interface State {
   model3dEdit: { init: Model3D; clipId?: string } | null;
   /** Открыто окно «Авто-ролик». */
   autoOpen: AutoOpen | null;
+  /** Открыто окно «Ролик по сценарию». */
+  scriptOpen: boolean;
   /** Последний собранный авто-ролик — для «Ещё вариант». */
   autoLast: AutoParams | null;
   /** Оформление (акцент, значок, размер интерфейса, своё оформление) и окно настроек. */
@@ -105,6 +107,7 @@ interface State {
   setLibJump: (p: string | null) => void;
   setModel3dEdit: (e: { init: Model3D; clipId?: string } | null) => void;
   setAutoOpen: (o: AutoOpen | null) => void;
+  setScriptOpen: (b: boolean) => void;
   setAutoLast: (p: AutoParams | null) => void;
   setAppearance: (a: Appearance) => void;
   setCustomStatus: (s: CustomStatus | null) => void;
@@ -165,6 +168,7 @@ export const useStore = create<State>((set, get) => ({
   libJump: null,
   model3dEdit: null,
   autoOpen: null,
+  scriptOpen: false,
   autoLast: null,
   appearance: normalizeAppearance(api?.initialAppearance),
   customStatus: null,
@@ -250,6 +254,7 @@ export const useStore = create<State>((set, get) => ({
   setLibJump: (p) => set({ libJump: p }),
   setModel3dEdit: (e) => set({ model3dEdit: e }),
   setAutoOpen: (o) => set({ autoOpen: o }),
+  setScriptOpen: (b) => set({ scriptOpen: b }),
   setAutoLast: (p) => set({ autoLast: p }),
   setAppearance: (a) => set({ appearance: a }),
   setCustomStatus: (st) => set({ customStatus: st }),

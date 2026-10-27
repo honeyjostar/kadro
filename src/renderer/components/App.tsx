@@ -7,6 +7,7 @@ import { Model3DDialog } from './Objects3D';
 import { AutoEditDialog } from './AutoEdit';
 import { SettingsDialog } from './Settings';
 import { SourceView } from './SourceView';
+import { ScriptDialog } from './ScriptDialog';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts } from './Overlays';
@@ -30,6 +31,7 @@ export function App() {
   const autoOpen = useStore((s) => s.autoOpen);
   const settingsOpen = useStore((s) => s.settingsOpen);
   const sourceView = useStore((s) => s.sourceView);
+  const scriptOpen = useStore((s) => s.scriptOpen);
   const loaded = useRef(false);
 
   // восстановление последнего проекта, обновления файлов из главного процесса
@@ -150,6 +152,7 @@ export function App() {
       {autoOpen && <AutoEditDialog />}
       {settingsOpen && <SettingsDialog />}
       {sourceView && <SourceView />}
+      {scriptOpen && <ScriptDialog />}
       <Jobs />
       <Toasts />
     </div>

@@ -13,6 +13,7 @@ import { renderTextLayers } from './engine/textExport';
 import { renderGlSegments } from './engine/glExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
 import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit';
+import { readingTime, scriptBase, scriptEdit, splitScript, type ScriptScene, type ScriptSummary } from '../shared/scriptVideo';
 import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
 import { fmtDur, fmtTime, plural, uidShort } from './util';
@@ -1164,6 +1165,91 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
   if (sum.dropped > 0) notes.push(`не поместилось файлов: ${sum.dropped} (${params.length === 'auto' ? 'музыка короче' : 'выбери длину побольше'})`);
   if (sum.repeated) notes.push('материала мало — кадры повторяются');
   st.toast(`Авто-ролик готов: ${sum.cuts + 1} ${plural(sum.cuts + 1, 'кадр', 'кадра', 'кадров')}${sum.onBeats ? ' в ритм музыки' : ''}, ${fmtDur(sum.duration)}.${notes.length ? ` Важно: ${notes.join('; ')}.` : ''} Не нравится — «Ещё вариант» слева или Ctrl+Z.`, 'ok');
+  return sum;
+}
+
+// ---------- ролик по сценарию ----------
+export interface ScriptParams {
+  text: string;
+  voice: TtsVoiceId | null;     // null — без голоса (длина сцен по скорости чтения)
+  speed: number;                // темп речи
+  files: string[];
+  music: string | null;
+  aspect: AspectKey;
+  title: string;
+  captions: boolean;
+}
+
+/** Текст → сцены → озвучка → кадры из своих видео и фото → субтитры и музыка. Новым проектом (прошлый — в «Мои проекты»). */
+export async function buildScriptVideo(params: ScriptParams, onStage?: (s: AutoStage) => void): Promise<ScriptSummary | null> {
+  autoStopped = false;
+  const stage = onStage ?? (() => undefined);
+  const texts = splitScript(params.text);
+  if (!texts.length) { getState().toast('Напиши сценарий — хотя бы одну фразу', 'err'); return null; }
+  getState().setPlaying(false);
+  await replaceProject(scriptBase(params.aspect, params.title));
+  stage({ label: 'Добавляю файлы', step: 0, steps: 1 });
+  const byPath = await assetsForPaths([...params.files, ...(params.music ? [params.music] : [])]);
+  const media = params.files.map((f) => byPath.get(f)).filter((a): a is MediaAsset => !!a && (a.kind === 'image' || (a.kind === 'video' && a.hasVideo)));
+  if (!media.length) { getState().toast('Нужны видео или фото — выбери хотя бы один файл', 'err'); return null; }
+  const music = params.music ? byPath.get(params.music) ?? null : null;
+  const videos = [...new Map(media.filter((a) => a.kind === 'video').map((a) => [a.path, a])).values()].filter((a) => !hlMemo.has(a.path));
+  const steps = videos.length + (params.voice ? texts.length + 1 : 0);
+  let step = 0;
+  const run = async (label: string, job: AiJob): Promise<AiResponse> => {
+    stage({ label, jobId: job.jobId, step: step++, steps: Math.max(1, steps) });
+    autoCancel = () => api.cancelAi(job.jobId);
+    try { return await runJob(label, job); } finally { autoCancel = null; }
+  };
+  // озвучка: каждая сцена — свой файл (длина сцены = длина речи + короткая пауза)
+  const scenes: ScriptScene[] = [];
+  if (params.voice) {
+    stage({ label: 'Готовлю голос', step: step++, steps });
+    if (!(await ensureVoice(params.voice))) return null;
+    for (const [i, text] of texts.entries()) {
+      const r = await run(texts.length > 1 ? `Озвучиваю сцену ${i + 1} из ${texts.length}` : 'Озвучиваю', { kind: 'tts', jobId: `tts_${uidShort()}`, text, voice: params.voice, speed: params.speed });
+      if (autoStopped) return null;
+      if (!r.ok || r.output?.kind !== 'tts') { getState().toast(`Не получилось озвучить: ${r.error ?? 'ошибка'}`, 'err'); return null; }
+      const imp = await api.importMedia([r.output.path]);
+      const a = imp.assets[0];
+      if (!a) { getState().toast('Не получилось добавить озвучку', 'err'); return null; }
+      a.name = `Голос ${i + 1}: ${text.slice(0, 24)}${text.length > 24 ? '…' : ''}`;
+      scenes.push({ text, dur: Math.round((r.output.duration + 0.3) * 100) / 100, voice: a });
+    }
+  } else {
+    for (const text of texts) scenes.push({ text, dur: Math.round((readingTime(text) / Math.max(0.5, params.speed)) * 100) / 100 });
+  }
+  // лучшие места в видео (как у авто-ролика; разбор запоминается)
+  for (const [n, a] of videos.entries()) {
+    const src = a.proxy === 'ready' && a.previewPath ? a.previewPath : a.path;
+    const r = await run(videos.length > 1 ? `Смотрю видео ${n + 1} из ${videos.length}` : 'Смотрю видео', { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration });
+    if (autoStopped) return null;
+    hlMemo.set(a.path, r.ok && r.output?.kind === 'highlights' ? r.output.hl : null);
+  }
+  stage({ label: 'Собираю ролик', step: steps, steps: Math.max(1, steps) });
+  const current = getState().project.assets;
+  const live = (a: MediaAsset) => current.find((x) => x.id === a.id) ?? a;
+  let summary: ScriptSummary | null = null;
+  try {
+    getState().commit((p) => {
+      const r = scriptEdit(p, {
+        scenes, media: media.map((a) => ({ asset: live(a), hl: hlMemo.get(a.path) ?? null })), music: music && music.kind === 'audio' ? live(music) : null,
+        aspect: params.aspect, title: params.title, captions: params.captions, shot: 2.6, seed: (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0,
+      });
+      summary = r.summary;
+      return r.project;
+    });
+  } catch (e) {
+    getState().toast(`Не получилось собрать ролик: ${e instanceof Error ? e.message : String(e)}`, 'err');
+    return null;
+  }
+  const sum = summary as ScriptSummary | null;
+  if (!sum) return null;
+  for (const sc of scenes) if (sc.voice) takeEarlyPatches([sc.voice.id]);
+  const st = getState();
+  st.select([]);
+  st.setPlayhead(0);
+  st.toast(`Ролик по сценарию готов: ${sum.scenes} ${plural(sum.scenes, 'сцена', 'сцены', 'сцен')}, ${sum.shots} ${plural(sum.shots, 'кадр', 'кадра', 'кадров')}, ${fmtDur(sum.duration)}.${sum.repeated ? ' Видео мало — некоторые куски повторяются.' : ''} Кадр не тот — перетащи другой файл на его место или «Взять кусок».`, 'ok');
   return sum;
 }
 

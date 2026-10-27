@@ -1,6 +1,6 @@
 // Главный экран (как «Главная» в Premiere): новый проект нужного формата, демо-ролик и демо-проект,
 // мои проекты (как в CapCut), шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
-import { FolderOpen, Play, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
+import { FileText, FolderOpen, Play, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
 import { APP_ICONS, type IconId } from '../../shared/appearance';
@@ -113,6 +113,14 @@ export function Home() {
                 <span className="hint">Выбери видео, фото и музыку — Kadro сам возьмёт лучшие куски и смонтирует их в ритм.</span>
               </span>
               <button className="btn primary" disabled={busy} onClick={() => getState().setAutoOpen({ files: [], fresh: true })} data-testid="home-auto">Собрать</button>
+            </div>
+            <div className="home-auto">
+              <span className="home-auto-icon"><FileText size={20} /></span>
+              <span className="home-auto-text">
+                <b>Ролик по сценарию</b>
+                <span className="hint">Вставь текст — Kadro озвучит его, подберёт кадры из твоих видео и поставит субтитры.</span>
+              </span>
+              <button className="btn" disabled={busy} onClick={() => getState().setScriptOpen(true)} data-testid="home-script">Написать</button>
             </div>
             <div className="home-more">
               <button className="btn" disabled={busy} onClick={() => void run(openProject)} data-testid="home-open"><FolderOpen size={15} />Открыть проект или видео…</button>

@@ -913,3 +913,10 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .plugin-list span { color: var(--faint); }
 .settings-sec .warn span { white-space: pre-wrap; word-break: break-word; }
 .fx-gl .field { margin-bottom: 4px; }
+
+/* ролик по сценарию */
+.script-modal .script-text { width: 100%; resize: vertical; min-height: 190px; font: inherit; font-size: 13px; line-height: 1.5; padding: 10px 12px; }
+.script-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.script-head .faint { font-weight: 400; color: var(--faint); }
+.script-modal .toggle { margin: 10px 0 8px; }
+.home-auto + .home-auto { margin-top: 10px; }
