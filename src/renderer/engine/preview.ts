@@ -62,15 +62,66 @@ export class PreviewEngine {
   onTime?: (t: number) => void;
   onEnded?: () => void;
 
-  constructor(private canvas: HTMLCanvasElement, private mediaUrl: (p: string) => string, private readLut: (p: string) => Promise<string | null> = async () => null) {
-    setLutListener(() => { this.dirty = true; });
+  /** offline — для экспорта по кадрам: без своего цикла и без звука, кадр рисуется по запросу (renderAt). */
+  constructor(private canvas: HTMLCanvasElement, private mediaUrl: (p: string) => string, private readLut: (p: string) => Promise<string | null> = async () => null,
+    private readonly offline = false) {
+    if (!offline) setLutListener(() => { this.dirty = true; });
     this.ctx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
     this.filterDefs = document.querySelector('#kadro-filters defs');
+    if (offline) return;
     const loop = () => {
       this.raf = requestAnimationFrame(loop);
       this.frame();
     };
     this.raf = requestAnimationFrame(loop);
+  }
+
+  /**
+   * Кадр в момент t — точно (для экспорта шейдеров): все видео перемотаны и показывают нужный кадр,
+   * только потом рисуем. Ждём не дольше timeout мс — пропавший файл не вешает экспорт.
+   */
+  async renderAt(t: number, timeout = 8000): Promise<void> {
+    if (!this.project) return;
+    this.t = Math.max(0, t);
+    this.syncElements();
+    const before = new Map<HTMLVideoElement, number>();
+    for (const e of this.media.values()) if (e.kind === 'video') before.set(e.el as HTMLVideoElement, (e.el as HTMLVideoElement).currentTime);
+    this.syncPlayback(this.t);
+    // видео, которые перемотали: ждём, когда они действительно покажут новый кадр (requestVideoFrameCallback)
+    const waits: Promise<void>[] = [];
+    for (const [v0, was] of before) {
+      const v = v0 as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number };
+      if (v.currentTime === was && !v.seeking) continue;
+      waits.push(new Promise<void>((res) => {
+        let done = false;
+        const fin = () => { if (!done) { done = true; res(); } };
+        v.requestVideoFrameCallback?.(fin);
+        if (!v.requestVideoFrameCallback) v.addEventListener('seeked', () => setTimeout(fin, 30), { once: true });
+        setTimeout(fin, 500);
+      }));
+    }
+    const visible = this.visibleClips(this.t);
+    const t0 = performance.now();
+    while (!visible.every((id) => this.frameReady(id)) && performance.now() - t0 < timeout) {
+      await new Promise((r) => setTimeout(r, 5));
+      this.syncPlayback(this.t);
+    }
+    await Promise.all(waits);
+    this.drewOnce = false;
+    this.render(this.t);
+  }
+
+  private visibleClips(t: number): string[] {
+    const p = this.project!;
+    const out: string[] = [];
+    for (const track of p.tracks) {
+      if (track.hidden || track.kind === 'audio' || track.kind === 'text') continue;
+      for (const c of track.clips) {
+        if (c.type !== 'media' || t < c.start - EPS || t >= clipEnd(c) - EPS) continue;
+        if (p.assets.find((a) => a.id === c.assetId)?.kind !== 'audio') out.push(c.id);
+      }
+    }
+    return out;
   }
 
   get time(): number { return this.t; }
@@ -283,12 +334,14 @@ export class PreviewEngine {
         if (!a) continue;
         if (a.kind === 'image') { want.set(`${c.id}:v`, { kind: 'image', path: a.previewPath || a.path, offset: 0 }); continue; }
         if (a.kind === 'audio') {
+          if (this.offline) continue;
           const as = audioSource(c);
           want.set(`${c.id}:a`, { kind: 'audio', path: as ? as.path : a.previewPath || a.path, offset: as ? as.offset : 0 });
           continue;
         }
         const vs = videoSource(c);
         want.set(`${c.id}:v`, { kind: 'video', path: vs ? vs.path : a.previewPath || a.path, offset: vs ? vs.offset : 0 });
+        if (this.offline) continue;
         const as = audioSource(c);
         if (as) want.set(`${c.id}:a`, { kind: 'audio', path: as.path, offset: as.offset });
         else if (vs && a.hasAudio) want.set(`${c.id}:a`, { kind: 'audio', path: a.previewPath || a.path, offset: 0 });

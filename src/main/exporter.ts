@@ -13,6 +13,33 @@ import { loadLuts } from './luts';
 
 let nvencCache: Promise<boolean> | undefined;
 
+/** Папки с кадрами шейдеров (окно рисует, экспорт накладывает). Токен — чтобы окно не писало куда попало. */
+export const glFrames = {
+  dirs: new Map<string, string>(),
+  begin(): string {
+    const token = `gl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const dir = path.join(cacheDir('export'), token);
+    fs.mkdirSync(dir, { recursive: true });
+    this.dirs.set(token, dir);
+    return token;
+  },
+  write(token: string, seg: number, k: number, png: Uint8Array): boolean {
+    const dir = this.dirs.get(token);
+    if (!dir || !Number.isInteger(seg) || !Number.isInteger(k) || seg < 0 || k < 0) return false;
+    fs.writeFileSync(path.join(dir, `s${seg}_${String(k).padStart(5, '0')}.png`), Buffer.from(png));
+    return true;
+  },
+  pattern(token: string, seg: number): string | null {
+    const dir = this.dirs.get(token);
+    return dir ? path.join(dir, `s${seg}_%05d.png`) : null;
+  },
+  drop(token: string): void {
+    const dir = this.dirs.get(token);
+    this.dirs.delete(token);
+    if (dir) fs.rmSync(dir, { recursive: true, force: true });
+  },
+};
+
 /** Проверка, работает ли аппаратный кодер NVIDIA (пробное кодирование 0.2 с). Не блокирует окно. */
 export function hasNvenc(): Promise<boolean> {
   nvencCache ??= new Promise<boolean>((resolve) => {
@@ -81,7 +108,11 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
       fs.writeFileSync(file, rgbPng(bytes, w, h));
       return file;
     };
-    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha });
+    // куски с шейдерами — кадры, нарисованные окном
+    const glSegments = req.glToken && !opts.alpha
+      ? (req.glSegments ?? []).flatMap((s, i) => { const pattern = glFrames.pattern(req.glToken!, i); return pattern ? [{ ...s, pattern }] : []; })
+      : [];
+    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments });
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);
     fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });
@@ -112,6 +143,7 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   } finally {
     fs.rmSync(job, { recursive: true, force: true });
+    if (req.glToken) glFrames.drop(req.glToken);
   }
 }
 

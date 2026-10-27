@@ -6,6 +6,7 @@ import { projectDuration } from '../../shared/timeline';
 import type { ExportOptions } from '../../shared/types';
 import { staleAiClips } from '../actions';
 import { renderTextLayers } from '../engine/textExport';
+import { renderGlSegments, type GlRender } from '../engine/glExport';
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
 import { Field, Progress, Seg } from './controls';
@@ -41,6 +42,7 @@ export function ExportDialog() {
   const [stage, setStage] = useState('');
   const [result, setResult] = useState<ExportResult | null>(null);
   const started = useRef(0);
+  const cancelled = useRef(false);
   const [eta, setEta] = useState<number | null>(null);
 
   useEffect(() => { void api.info().then(setInfo); }, []);
@@ -81,15 +83,22 @@ export function ExportDialog() {
     setProgress(0);
     setEta(null);
     started.current = Date.now();
+    cancelled.current = false;
+    let gl: GlRender | null = null;
     try {
       setStage('Готовлю текст');
       const { layers, blank } = await renderTextLayers(project, size.w, size.h, opts.fps, (p) => setProgress(p * 0.05));
+      // переходы и эффекты-шейдеры: эти кадры рисует сам Kadro (FFmpeg шейдеры не умеет)
+      gl = await renderGlSegments(project, size.w, size.h, opts.fps, (f, d, n) => { setStage(`Рисую шейдеры: кадр ${d} из ${n}`); setProgress(f); }, () => cancelled.current);
       setStage('Сохраняю видео');
-      const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: layers, blankPng: blank });
+      setProgress(0);
+      const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: layers, blankPng: blank, glToken: gl?.token, glSegments: gl?.segments });
       setResult(r);
       setPhase(r.ok ? 'done' : 'error');
     } catch (e) {
-      setResult({ ok: false, error: e instanceof Error ? e.message : String(e) });
+      if (gl) api.glFramesDrop(gl.token);
+      const aborted = e instanceof DOMException && e.name === 'AbortError';
+      setResult({ ok: false, error: aborted ? 'Экспорт отменён' : e instanceof Error ? e.message : String(e) });
       setPhase('error');
     }
   };
@@ -161,7 +170,7 @@ export function ExportDialog() {
             <p className="hint">{stage}… {Math.round(progress * 100)}%{eta !== null ? ` · осталось ~${fmtDur(eta)}` : ''}</p>
             <Progress value={progress} />
             <div className="actions">
-              <button className="btn" onClick={() => api.cancelExport()} data-testid="export-cancel">Остановить</button>
+              <button className="btn" onClick={() => { cancelled.current = true; api.cancelExport(); }} data-testid="export-cancel">Остановить</button>
             </div>
           </>
         )}

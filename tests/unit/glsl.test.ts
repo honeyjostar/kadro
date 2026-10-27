@@ -88,3 +88,58 @@ vec4 effect(vec2 uv) { return getColor(uv); }`);
     expect(paramsFromJson({ dir: [1, 0] }, { dir: 'vec2', tex: 'sampler2D' }, '')).toEqual([{ name: 'dir', type: 'vec2', value: [1, 0], min: undefined, max: undefined, label: undefined }]);
   });
 });
+
+describe('экспорт шейдеров: куски и граф', async () => {
+  const { newProject } = await import('../../src/shared/defaults');
+  const { addAsset, addFree, addToMain, setTransition, updateClip } = await import('../../src/shared/timeline');
+  const { glRanges } = await import('../../src/shared/gl/ranges');
+  const { buildGraph } = await import('../../src/shared/exportGraph');
+  const asset = (id: string, d: number) => ({ id, kind: 'video', path: `/v/${id}.mp4`, name: `${id}.mp4`, duration: d, width: 640, height: 360, hasAudio: false, fps: 30 }) as any;
+  const proj = () => {
+    let p = newProject('t', '16:9');
+    for (const a of [asset('a', 3), asset('b', 3), asset('c', 3)]) p = addAsset(p, a);
+    p = addToMain(p, 'a', 0).project;
+    p = addToMain(p, 'b', 99).project;
+    p = addToMain(p, 'c', 99).project;
+    return p;
+  };
+
+  it('нет шейдеров — нет кусков; переход-шейдер — кусок длиной перехода, выровненный по кадрам', () => {
+    let p = proj();
+    expect(glRanges(p, 30)).toEqual([]);
+    const [a, b] = p.tracks[0].clips;
+    p = setTransition(p, a.id, { type: 'fade', duration: 0.5 });
+    expect(glRanges(p, 30)).toEqual([]);
+    p = setTransition(p, b.id, { type: 'gl:Cube', duration: 0.5 });
+    // a: 0…3, b: 2.5…5.5, c: 5…8 → переход b→c: 5…5.5
+    expect(glRanges(p, 30)).toEqual([{ start: 5, end: 5.5, frames: 15 }]);
+  });
+
+  it('эффект-шейдер — весь клип; соседние куски сливаются; наложение тоже считается', () => {
+    let p = proj();
+    const [a, b] = p.tracks[0].clips;
+    p = setTransition(p, a.id, { type: 'gl:WipeLeft', duration: 1 });      // 2…3
+    p = updateClip(p, b.id, { effects: [{ type: 'gl:wave', amount: 0.5 }] }); // b: 2…5
+    const r = addFree(p, 'c', 6.02);
+    p = updateClip(r.project, r.clipId, { effects: [{ type: 'plug:e/x', amount: 1 }, { type: 'glow', amount: 1 }] });
+    expect(glRanges(p, 30)).toEqual([{ start: 2, end: 5, frames: 90 }, { start: 6, end: 9.02, frames: 91 }]); // начало — по кадру, конец — конец ролика
+    // эффект с силой 0 — не в счёт
+    p = updateClip(p, r.clipId, { effects: [{ type: 'plug:e/x', amount: 0 }] });
+    expect(glRanges(p, 30)).toHaveLength(1);
+  });
+
+  it('граф: кадры шейдеров — поверх всего, по своему времени; переход-шейдер в xfade — простое растворение', () => {
+    let p = proj();
+    p = setTransition(p, p.tracks[0].clips[0].id, { type: 'gl:Cube', duration: 1 });
+    const g = buildGraph(p, { width: 640, height: 360, fps: 30, textLayers: [], glSegments: [{ start: 2, frames: 30, pattern: '/job/s0_%05d.png' }] });
+    expect(g.filter).toContain('xfade=transition=fade:duration=1');
+    expect(g.filter).not.toContain('gl:Cube');
+    const inp = g.inputs.find((i) => i.includes('/job/s0_%05d.png'))!;
+    expect(inp).toEqual(['-framerate', '30', '-start_number', '0', '-i', '/job/s0_%05d.png']);
+    expect(g.filter).toMatch(/setpts=PTS-STARTPTS\+2\/TB\[gl\d*\]/);
+    expect(g.filter).toMatch(/overlay=x=0:y=0:eof_action=pass:enable='between\(t\\,2\\,2\.983333\)'/);
+    // наложение шейдеров — последнее перед выходом
+    const lines = g.filter.split(';\n');
+    expect(lines[lines.findIndex((l) => l.includes('[vout]')) - 1]).toContain("between(t\\,2\\,");
+  });
+});

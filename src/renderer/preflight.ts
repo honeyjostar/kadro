@@ -1,6 +1,8 @@
 // Проверка перед публикацией: то, что CapCut и Premiere не подсказывают, а зрители замечают сразу —
 // надписи под кнопками TikTok/Reels/Shorts, мелкий текст, текст за краем, не тот формат, слишком длинный ролик,
 // видео с низким разрешением, растянутое на большой экспорт.
+import { isGlType } from '../shared/gl/glsl';
+import { glCatalogLoaded, glDef } from './glRegistry';
 import { exportSize } from '../shared/geometry';
 import { PLATFORMS, isVertical, zonesHit, type Platform } from '../shared/safezones';
 import { textBounds } from '../shared/textRender';
@@ -51,6 +53,18 @@ export function preflight(p: Project, platform: Platform | null, exportShort: nu
     out.push({ id: 'aspect', text: `Для ${pf.label} нужен вертикальный кадр 9:16, а у проекта ${p.settings.aspect}. По бокам будут чёрные полосы.`, fix: 'aspect916' });
   }
   if (pf && dur > pf.maxSec) out.push({ id: 'long', text: `Ролик длится ${fmtDur(dur)}. ${pf.maxNote}.` });
+
+  // плагины-шейдеры, которых нет на этом компьютере (проект открыли на другом)
+  const lost = new Map<string, { clipId: string; t: number }>();
+  for (const t of p.tracks) for (const c of t.clips) {
+    if (c.type !== 'media') continue;
+    const types = [...(c.effects ?? []).map((e) => e.type), ...(c.transitionOut ? [c.transitionOut.type] : [])];
+    for (const ty of types) if (isGlType(ty) && (ty.startsWith('plug:') || glCatalogLoaded()) && !glDef(ty) && !lost.has(ty)) lost.set(ty, { clipId: c.id, t: c.start + 0.1 });
+  }
+  for (const [ty, at] of lost) {
+    const name = ty.replace(/^plug:[te]\//, '').replace(/^gl:/, '');
+    out.push({ id: `plug-${ty}`, text: `Плагин «${name}» не найден на этом компьютере — ${ty.startsWith('plug:t/') ? 'вместо перехода будет растворение' : 'эффект не попадёт в видео'}. Положи файл плагина в папку плагинов (Настройки → Плагины).`, clipId: at.clipId, t: at.t });
+  }
 
   // надписи
   const cap = { hit: 0, total: 0, first: undefined as TextClip | undefined, zone: '' };

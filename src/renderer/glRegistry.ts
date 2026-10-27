@@ -67,6 +67,7 @@ export function glDef(id: string | undefined | null): GlDef | undefined {
 export const glTransitions = (): GlDef[] => [...transitions, ...plugins.filter((d) => d.kind === 'transition')];
 export const glEffects = (): GlDef[] => [...effects, ...plugins.filter((d) => d.kind === 'effect')];
 export const glPlugins = (): GlDef[] => plugins;
+export const glCatalogLoaded = (): boolean => transitions.length > 0;
 export const glPluginErrors = (): PluginIssue[] => pluginErrors;
 
 /** Перерисовать компонент, когда каталог или плагины поменялись. */

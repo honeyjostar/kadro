@@ -23,6 +23,13 @@ void main(){
 const luts = new Map<string, CubeLut | 'loading' | 'missing'>();
 let onLutLoaded: (() => void) | null = null;
 export function setLutListener(cb: () => void): void { onLutLoaded = cb; }
+/** Дождаться загрузки LUT (для экспорта по кадрам: кадр должен быть сразу с LUT). */
+export async function preloadLuts(paths: string[], read: (p: string) => Promise<string | null>): Promise<void> {
+  for (const p of paths) {
+    lutFor(p, read);
+    for (let i = 0; i < 200 && luts.get(p) === 'loading'; i++) await new Promise((r) => setTimeout(r, 10));
+  }
+}
 /** LUT по пути: null — ещё грузится или нет файла (тогда без него). */
 export function lutFor(path: string | undefined, read: (p: string) => Promise<string | null>): CubeLut | null {
   if (!path) return null;

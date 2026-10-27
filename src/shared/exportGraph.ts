@@ -35,6 +35,8 @@ export interface BuildOpts {
   luts?: Record<string, CubeLut>;
   /** Прозрачный фон (для группы из наложений): основная дорожка должна быть пустой. */
   transparent?: boolean;
+  /** Куски с шейдерами: последовательности PNG W×H (кадры start, start+1/F, …) — поверх всего готового кадра. */
+  glSegments?: { start: number; frames: number; pattern: string }[];
 }
 
 export interface BuiltGraph {
@@ -627,6 +629,16 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     for (const l of o.textLayers) {
       if (typeof l === 'string') overlayText(l);
       else if (!p.tracks.some((t) => t.id === l.trackId)) overlayText(l.list);
+    }
+    // ---------- куски с шейдерами: кадр целиком нарисован движком Kadro ----------
+    for (const g of o.glSegments ?? []) {
+      const idx = addInput(['-framerate', String(F), '-start_number', '0', '-i', g.pattern]);
+      const gl = L('gl');
+      const end = g.start + g.frames / F;
+      chains.push(`[${idx}:v]format=rgba,setpts=PTS-STARTPTS+${fmt(g.start)}/TB[${gl}]`);
+      const nv = L('v');
+      chains.push(`[${v}][${gl}]overlay=x=0:y=0:eof_action=pass${ovf}:enable='between(t\\,${fmt(g.start)}\\,${fmt(end - 1 / (2 * F))})'[${nv}]`);
+      v = nv;
     }
     chains.push(`[${v}]format=${clear ? 'yuva420p' : 'yuv420p'},trim=duration=${fmt(total)},setpts=PTS-STARTPTS[vout]`);
 

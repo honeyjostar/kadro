@@ -27,7 +27,7 @@ import { importLutFile, listLutFiles } from './luts';
 import { BUILTIN_TEMPLATES, DEMO_SCENES, isTemplate, type Template } from '../shared/templates';
 import { projectDuration } from '../shared/timeline';
 import { bundledFile, cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
-import { exportProject, exportSpeechAudio, hasNvenc } from './exporter';
+import { exportProject, exportSpeechAudio, glFrames, hasNvenc } from './exporter';
 import { MEDIA_EXT, analyze, coverIfReady, makeCover, makePeaks, makeProxy, makeThumbs } from './media';
 import { Queue, backgroundLimit } from '../shared/queue';
 
@@ -703,6 +703,10 @@ function registerIpc(): void {
     return r;
   });
   ipcMain.on('export:cancel', () => exportAbort?.abort());
+  // кадры шейдеров для экспорта: окно рисует их по одному, здесь они ложатся в папку задания
+  ipcMain.handle('export:glBegin', () => glFrames.begin());
+  ipcMain.handle('export:glFrame', (_e, token: string, seg: number, k: number, png: Uint8Array) => glFrames.write(token, seg, k, png));
+  ipcMain.on('export:glDrop', (_e, token: string) => glFrames.drop(token));
   ipcMain.handle('ai:models', async (): Promise<ModelInfo[]> =>
     Object.values(ASR_MODELS).map((m) => ({ id: m.id, label: m.label, note: m.note, sizeMb: m.sizeMb, ready: asrModelReady(m.id) })));
   ipcMain.handle('ai:voices', async (): Promise<VoiceInfo[]> =>

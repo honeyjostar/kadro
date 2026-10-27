@@ -110,3 +110,46 @@ test('правка файла плагина — сразу в программ�
   await expect.poll(() => win.evaluate(() => !!(window as any).__kadro.gl.glDef('plug:e/broken')), { timeout: 10_000 }).toBe(true);
   expect(await win.evaluate(() => (window as any).__kadro.gl.glPluginErrors().length)).toBe(0);
 });
+
+test('экспорт: переход-шейдер и эффект-шейдер в MP4 совпадают с плеером', async () => {
+  test.setTimeout(240_000);
+  const { colorsVideo, frameDiff, patternImage, rawFrame, act, waitAssetsReady, MEDIA, reset } = await import('./kadro');
+  await reset(win);
+  await importAt(win, [colorsVideo(), patternImage(), solidVideo('blue3.mp4', 'blue', 3)], 'main', 0);
+  const ids = (await project(win)).tracks[0].clips.map((c) => c.id);
+  await commitTr(ids[0], 'gl:Cube', 1);           // куб между цветами и узором
+  await commitTr(ids[1], 'gl:WipeRight', 0.5);    // шторка между узором и синим
+  // эффект-шейдер на узоре
+  await win.evaluate((id) => { const k = (window as any).__kadro; k.useStore.getState().commit((p: any) => k.timeline.updateClip(p, id, { effects: [{ type: 'gl:fisheye', amount: 0.8 }] })); }, ids[1]);
+  await waitAssetsReady(win);
+  // моменты: середина куба (3…4 с → 3.5), внутри клипа с эффектом (4.5), середина шторки
+  const p = await project(win);
+  const c1 = p.tracks[0].clips[1] as any;
+  const c2 = p.tracks[0].clips[2] as any;
+  const times = [3.533, 4.5 + 0.033, c2.start + 0.25 + 0.033];
+  expect(c1.start).toBeCloseTo(3, 3);
+  const pngs: string[] = [];
+  for (const t of times) {
+    await seekAndSettle(win, t);
+    const snap: string = await win.evaluate(() => (window as any).__kadroEngine.snapshot());
+    const f = path.join(MEDIA, `glprev_${t.toFixed(2)}.png`);
+    fs.writeFileSync(f, Buffer.from(snap.split(',')[1], 'base64'));
+    pngs.push(f);
+  }
+  const out = path.join(MEDIA, 'gl_out.mp4');
+  fs.rmSync(out, { force: true });
+  const r = await act(win, 'exportTo', out, 720, 30);
+  expect(r.ok, r.error).toBe(true);
+  const bad: string[] = [];
+  times.forEach((t, k) => {
+    const a = rawFrame(['-i', pngs[k]], 180, 320);
+    const b = rawFrame(['-ss', String(t), '-i', out], 180, 320);
+    const d = frameDiff(a, b);
+    if (d.mean > 6 || d.p98 > 48) bad.push(`@${t}: ${d.mean.toFixed(2)} / ${d.p98.toFixed(0)}`);
+  });
+  expect(bad, `не совпали:\n${bad.join('\n')}`).toEqual([]);
+  // и это действительно шейдер: кадр куба не похож на простое растворение цветов и узора
+  const fadeLike = rawFrame(['-ss', '3.533', '-i', out], 180, 320);
+  const plainA = rawFrame(['-ss', '3.0', '-i', out], 180, 320);
+  expect(frameDiff(fadeLike, plainA).mean).toBeGreaterThan(10);
+});

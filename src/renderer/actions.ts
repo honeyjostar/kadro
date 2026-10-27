@@ -10,6 +10,7 @@ import {
   splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip, setSettings, type SourceRange,
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
+import { renderGlSegments } from './engine/glExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
 import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit';
 import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
@@ -990,8 +991,9 @@ export async function exportTo(outPath: string, shortSide: number, fps = 30): Pr
   const p = getState().project;
   const size = exportSize(p.settings.width, p.settings.height, shortSide);
   const { layers, blank } = await renderTextLayers(p, size.w, size.h, fps, () => undefined);
+  const gl = await renderGlSegments(p, size.w, size.h, fps);
   const opts: ExportOptions = { height: shortSide as ExportOptions['height'], fps: fps as ExportOptions['fps'], quality: 'high', encoder: 'x264', outPath };
-  return api.startExport({ project: p, opts, textLayers: layers, blankPng: blank });
+  return api.startExport({ project: p, opts, textLayers: layers, blankPng: blank, glToken: gl?.token, glSegments: gl?.segments });
 }
 
 /** Предупредить о файлах, которых нет на диске. */

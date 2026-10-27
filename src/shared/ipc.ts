@@ -23,6 +23,9 @@ export interface ExportReq {
   opts: ExportOptions;
   textLayers: TextLayerReq[];
   blankPng: Uint8Array; // прозрачный кадр размера экспорта
+  /** Куски с шейдерами: кадры уже нарисованы окном (glFrame) в папку задания glToken. */
+  glToken?: string;
+  glSegments?: { start: number; frames: number }[];
 }
 
 export interface ExportResult { ok: boolean; path?: string; error?: string; encoder?: string; seconds?: number }
@@ -97,6 +100,9 @@ export interface KadroApi {
   openProject(): Promise<{ project: Project; path: string } | { media: string[] } | null>;
   /** Файлы, с которыми запустили Kadro («Открыть с помощью»), — один раз. */
   pendingFiles(): Promise<string[]>;
+  glFramesBegin(): Promise<string>;
+  glFrame(token: string, seg: number, k: number, png: Uint8Array): Promise<boolean>;
+  glFramesDrop(token: string): void;
   onCoversReady(cb: () => void): () => void;
   renameProjectFile(file: string, name: string): Promise<{ path: string } | { error: string }>;
   duplicateProject(file: string): Promise<{ path: string } | { error: string }>;
