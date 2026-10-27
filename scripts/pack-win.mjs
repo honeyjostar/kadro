@@ -132,6 +132,8 @@ const sizeKb = Math.round(Number(execFileSync('du', ['-sk', APP_DIR], { encoding
 const nsi = path.join(OUT, 'kadro.nsi');
 const setup = path.join(OUT, `Kadro-Setup-${pkg.version}.exe`);
 fs.copyFileSync(path.join(ROOT, 'build/icon.ico'), path.join(OUT, 'icon.ico'));
+// оформление установщика: боковая картинка и шапка (scripts/make-installer-art.mjs)
+for (const f of ['wizard.bmp', 'header.bmp']) fs.copyFileSync(path.join(ROOT, 'resources/installer', f), path.join(OUT, f));
 fs.writeFileSync(nsi, `Unicode true
 ManifestDPIAware true
 SetCompressor /SOLID lzma
@@ -146,7 +148,7 @@ OutFile "${setup}"
 InstallDir "$LOCALAPPDATA\\Programs\\Kadro"
 InstallDirRegKey HKCU "Software\\Kadro" "InstallDir"
 RequestExecutionLevel user
-BrandingText "Kadro \${VER}"
+BrandingText "Kadro \${VER} — бесплатный видеоредактор"
 VIProductVersion "\${VER}.0"
 VIAddVersionKey "ProductName" "Kadro"
 VIAddVersionKey "FileDescription" "Установка Kadro"
@@ -156,8 +158,23 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 !define MUI_ICON "icon.ico"
 !define MUI_UNICON "icon.ico"
 !define MUI_ABORTWARNING
+; оформление: тёмная панель с таймлайном Kadro слева, знак Kadro в шапке
+!define MUI_WELCOMEFINISHPAGE_BITMAP "wizard.bmp"
+!define MUI_UNWELCOMEFINISHPAGE_BITMAP "wizard.bmp"
+!define MUI_HEADERIMAGE
+!define MUI_HEADERIMAGE_RIGHT
+!define MUI_HEADERIMAGE_BITMAP "header.bmp"
+!define MUI_HEADERIMAGE_UNBITMAP "header.bmp"
+!define MUI_WELCOMEPAGE_TITLE "Установка Kadro \${VER}"
+!define MUI_WELCOMEPAGE_TEXT "Бесплатный видеоредактор для Windows: монтаж, авто-ролик под музыку, субтитры и ИИ-инструменты — без водяного знака, всё работает на твоём компьютере.$\\r$\\n$\\r$\\nУстановка займёт около минуты, права администратора не нужны. Если Kadro уже стоит, он обновится — проекты и настройки сохранятся.$\\r$\\n$\\r$\\nНажми «Далее»."
+!define MUI_DIRECTORYPAGE_TEXT_TOP "Kadro будет установлен в эту папку. Обычно её менять не нужно — нажми «Установить»."
+!define MUI_FINISHPAGE_TITLE "Kadro установлен"
+!define MUI_FINISHPAGE_TEXT "Ярлык — на рабочем столе и в меню «Пуск».$\\r$\\n$\\r$\\nВидео открываются из Проводника через «Открыть с помощью», проекты .kadro — двойным щелчком."
 !define MUI_FINISHPAGE_RUN "$INSTDIR\\Kadro.exe"
 !define MUI_FINISHPAGE_RUN_TEXT "Запустить Kadro"
+!define MUI_FINISHPAGE_LINK "Руководство: как пользоваться Kadro"
+!define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/honeyjostar/kadro/blob/master/docs/GUIDE.md"
+!define MUI_FINISHPAGE_LINK_COLOR "D81B60"
 !insertmacro MUI_PAGE_WELCOME
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE DirLeave
 !insertmacro MUI_PAGE_DIRECTORY

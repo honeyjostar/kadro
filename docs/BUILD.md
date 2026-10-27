@@ -107,6 +107,7 @@ node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip
 
 Результат — `release/Kadro-Setup-<версия>.exe` (около 195 МБ; после установки программа занимает около 700 МБ) и папка `release/win-unpacked` с готовой программой.
 Скрипт сам подкладывает Windows-версии нативных модулей (sherpa-onnx, ONNX Runtime), FFmpeg, встроенные модели, значок и лицензии.
+Оформление установщика — картинки `resources/installer/wizard.bmp` (боковая панель) и `header.bmp` (шапка); их рисует `node scripts/make-installer-art.mjs` (HTML со шрифтами Kadro → снимок в 2× → BMP).
 
 ### Выпуск новой версии
 
