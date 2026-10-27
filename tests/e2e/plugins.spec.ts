@@ -30,7 +30,7 @@ test.beforeAll(async () => {
   plug('transitions', 'green-flash.glsl', GREEN_T);
   plug('effects', 'negative.glsl', INVERT_E);
   plug('effects', 'broken.glsl', 'vec4 effect(vec2 uv) { return getColor(uv) + 1; }\n');
-  K = await launch({ data });
+  K = await launch({ data, env: { KADRO_TEST_EXPORT: path.join(os.tmpdir(), 'kadro-e2e', 'gl_ui.mp4') } });
   win = K.win;
 });
 test.afterAll(async () => { await K?.app.close(); });
@@ -152,4 +152,22 @@ test('экспорт: переход-шейдер и эффект-шейдер �
   const fadeLike = rawFrame(['-ss', '3.533', '-i', out], 180, 320);
   const plainA = rawFrame(['-ss', '3.0', '-i', out], 180, 320);
   expect(frameDiff(fadeLike, plainA).mean).toBeGreaterThan(10);
+});
+
+test('экспорт через окно: этап «Рисую шейдеры», «Остановить» — файла нет, кадры удалены', async () => {
+  // эффект-шейдер на всём ролике — кадров много, успеем остановить
+  const ids = (await project(win)).tracks[0].clips.map((c) => c.id);
+  for (const id of ids) {
+    await win.evaluate((i) => { const k = (window as any).__kadro; k.useStore.getState().commit((p: any) => k.timeline.updateClip(p, i, { effects: [{ type: 'gl:haze', amount: 1 }] })); }, id);
+  }
+  const out = path.join(os.tmpdir(), 'kadro-e2e', 'gl_ui.mp4');
+  fs.rmSync(out, { force: true });
+  await win.getByTestId('export-open').click();
+  await win.getByTestId('export-start').click();
+  await expect(win.getByTestId('export-dialog')).toContainText('Рисую шейдеры', { timeout: 20_000 });
+  await win.getByTestId('export-cancel').click();
+  await expect(win.getByText('Экспорт остановлен')).toBeVisible({ timeout: 30_000 });
+  expect(fs.existsSync(out)).toBe(false);
+  await expect.poll(() => fs.readdirSync(path.join(data, 'cache', 'export')).filter((f) => f.startsWith('gl_'))).toEqual([]);
+  await win.getByRole('button', { name: 'Закрыть' }).last().click();
 });
