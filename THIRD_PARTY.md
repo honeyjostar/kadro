@@ -17,6 +17,7 @@ Kadro распространяется под GNU GPL v3 или новее. В �
 | 122 шрифта с кириллицей через [Fontsource](https://fontsource.org/) (Google Fonts): полный список — `FONTS` в `src/shared/defaults.ts` | SIL Open Font License 1.1; Roboto Slab — Apache-2.0; Ubuntu и Ubuntu Mono — Ubuntu Font Licence 1.0 | интерфейс и текст в видео |
 | [React](https://react.dev/), [zustand](https://github.com/pmndrs/zustand), [lucide](https://lucide.dev/) | MIT / ISC | интерфейс |
 | [three.js](https://threejs.org/) (вместе с загрузчиками GLTF, OBJ, STL, FBX и RoomEnvironment) | MIT | 3D-объекты |
+| [gl-transitions](https://github.com/gl-transitions/gl-transitions) — 123 перехода (npm `gl-transitions` 2.0.0) | MIT; InvertedPageCurl — BSD-3-Clause (Hewlett-Packard), StereoViewer — BSD-2-Clause (Theodore K Schundler); авторы и лицензии всех переходов — [docs/licenses/gl-transitions.md](docs/licenses/gl-transitions.md), тексты BSD — в коде этих переходов | переходы-шейдеры |
 
 Модели, которые скачиваются по кнопке, не входят в установщик: программа берёт их с GitHub проекта sherpa-onnx.
 

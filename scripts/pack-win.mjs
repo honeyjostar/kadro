@@ -84,6 +84,7 @@ fs.copyFileSync(path.join(ROOT, 'resources/icon.png'), path.join(RES, 'icon.png'
 cp(path.join(ROOT, 'resources/icons'), path.join(RES, 'icons')); // значки разных цветов (Настройки → Значок)
 
 step('Лицензии');
+cp(path.join(ROOT, 'docs/licenses'), path.join(APP_DIR, 'licenses')); // авторы и лицензии переходов gl-transitions
 fs.writeFileSync(path.join(APP_DIR, 'NOTICE.txt'), [
   `Kadro ${pkg.version} — свободный видеоредактор. Лицензия: GNU GPL v3 или новее.`,
   '',
@@ -95,6 +96,7 @@ fs.writeFileSync(path.join(APP_DIR, 'NOTICE.txt'), [
   '- Silero VAD (MIT)',
   '- RobustVideoMatting (GPL-3.0)',
   '- RNNoise / arnndn-models (BSD-3-Clause)',
+  '- gl-transitions — 123 перехода-шейдера (MIT; InvertedPageCurl — BSD-3-Clause, Hewlett-Packard; StereoViewer — BSD-2-Clause, Theodore K Schundler); авторы и тексты лицензий — licenses/gl-transitions.md',
   '- Модели распознавания речи скачиваются при первом использовании: NVIDIA Parakeet TDT v3 (CC-BY-4.0), GigaAM v2 (MIT)',
   '- Шрифты Fontsource: Onest, Unbounded, Montserrat, Rubik, Russo One, Oswald, Comfortaa, Lobster, Caveat, PT Serif, Press Start 2P (SIL OFL 1.1)',
   '',
