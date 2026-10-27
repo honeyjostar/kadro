@@ -13,9 +13,16 @@ import { CrashGuard } from './components/Crash';
 import { setTextWarper } from '../shared/textRender';
 import type { Appearance } from '../shared/appearance';
 import { warper } from './engine/warp';
+import * as glReg from './glRegistry';
+import { glRunner } from './engine/gl';
 
 // доступ для автотестов (window.__kadro) — в обычной работе не используется
-(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates };
+(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates, gl: { ...glReg, runner: glRunner } };
+// каталог шейдеров (переходы gl-transitions) — в фоне, не задерживая окно
+void glReg.loadGlCatalog();
+// плагины пользователя (папка %USERPROFILE%\\.kadro\\plugins) — при запуске и после каждой правки файла
+void api.plugins?.().then(glReg.applyPluginFiles).catch(() => undefined);
+api.onPluginsChanged?.(glReg.applyPluginFiles);
 
 // ошибки вне React (обработчики, промисы) не роняют окно: в журнал и короткое сообщение
 const report = (msg: string) => {

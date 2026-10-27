@@ -905,3 +905,11 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .source-actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
 .source-modal kbd, .source-marks kbd { font: inherit; font-size: 10.5px; padding: 0 5px; border-radius: 4px; border: 1px solid currentColor; opacity: 0.6; margin-left: 4px; }
 .source-modal .hint b { color: var(--text); font-weight: 500; }
+
+/* плагины в настройках */
+.plugin-list { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.plugin-list li { display: flex; gap: 8px; align-items: baseline; }
+.plugin-list em { font-style: normal; font-size: 11px; color: var(--muted); min-width: 56px; }
+.plugin-list span { color: var(--faint); }
+.settings-sec .warn span { white-space: pre-wrap; word-break: break-word; }
+.fx-gl .field { margin-bottom: 4px; }

@@ -4,6 +4,8 @@ import type { Template } from './templates';
 import type { Highlights } from './autoEdit';
 import type { Appearance } from './appearance';
 import type { CacheInfo } from './cache';
+/** Файл плагина-шейдера из папки пользователя. */
+export interface PluginFile { kind: 'transition' | 'effect'; file: string; src: string }
 export interface AppearanceResult { appearance?: Appearance; shortcuts?: number; windows?: boolean }
 export interface CustomStatus { on: boolean; dir: string; error?: string; skipped?: string[] }
 import type { ExportOptions, MediaAsset, Project, RampPoint, VoiceEffect } from './types';
@@ -116,7 +118,10 @@ export interface KadroApi {
   setAppearance(patch: Partial<Appearance>): Promise<AppearanceResult>;
   pickAppIcon(): Promise<AppearanceResult & { ok: boolean; error?: string }>;
   openCustomDir(): Promise<string>;
-  openDocs(page: 'customize' | 'guide'): void;
+  openDocs(page: 'customize' | 'guide' | 'plugins'): void;
+  plugins(): Promise<PluginFile[]>;
+  openPluginsDir(): Promise<string>;
+  onPluginsChanged(cb: (list: PluginFile[]) => void): () => void;
   onAppearanceChanged(cb: (a: Appearance) => void): () => void;
   onCustomStatus(cb: (s: CustomStatus) => void): () => void;
   forgetRecent(path: string): void;

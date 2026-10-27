@@ -13,6 +13,7 @@ import {
   LEAK_PERIOD, SPLIT_EFFECTS, blurSigma, flashDuration, fxGeometryExpr, fxMatrixAt, fxMaxScale, fxMoves, glowOpacity, glowSigma, hueMatrix, leakBytes,
   leakOpacity, letterboxBar, lookKey, lookTable, pixelBlock, rainbowAngle, rgbShiftAt, scanlines, sortedEffects, splitLayout, vignetteBytes,
 } from './effects';
+import { isGlType } from './gl/glsl';
 import { saturateMatrix } from './color';
 
 export interface BuildOpts {
@@ -549,7 +550,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
         const tr = groups[i - 1].clips[groups[i - 1].clips.length - 1].transitionOut;
         const nl = L('m');
         if (tr && tr.duration > 0) {
-          chains.push(`[${acc}][${segLabels[i]}]xfade=transition=${tr.type}:duration=${fmt(tr.duration)}:offset=${fmt(accDur - tr.duration)}[${nl}]`);
+          chains.push(`[${acc}][${segLabels[i]}]xfade=transition=${isGlType(tr.type) ? 'fade' : tr.type}:duration=${fmt(tr.duration)}:offset=${fmt(accDur - tr.duration)}[${nl}]`);
           accDur += groups[i].duration - tr.duration;
         } else {
           // concat отдаёт время в микросекундах, а xfade требует одинаковую шкалу у обоих входов — возвращаем 1/F

@@ -1,6 +1,7 @@
 // Окно «Настройки»: тема, цвет акцента, значок программы (окно и ярлыки Windows), размер интерфейса,
 // своё оформление (custom.css и theme.json в папке данных — подхватываются на лету), качество превью и кэш.
-import { BookOpen, FolderOpen, HardDrive, ImagePlus, Settings as Gear, TriangleAlert, X } from 'lucide-react';
+import { BookOpen, FolderOpen, HardDrive, ImagePlus, Puzzle, Settings as Gear, TriangleAlert, X } from 'lucide-react';
+import { glPluginErrors, glPlugins, useGlCatalog } from '../glRegistry';
 import { useEffect, useState } from 'react';
 import { ACCENTS, APP_ICONS, UI_SCALES, type Appearance } from '../../shared/appearance';
 import { collectPaths, fmtBytes, type CacheInfo } from '../../shared/cache';
@@ -97,6 +98,8 @@ export function SettingsDialog() {
           {custom?.on && custom.skipped?.length ? <p className="hint">Пропущено в theme.json: {custom.skipped.join(', ')}</p> : null}
         </section>
 
+        <PluginsSection />
+
         <section className="settings-sec">
           <b>Качество превью</b>
           <Seg value={previewQuality} onChange={(v) => getState().setPreviewQuality(v)}
@@ -107,6 +110,34 @@ export function SettingsDialog() {
         <CacheSection />
       </div>
     </div>
+  );
+}
+
+/** Плагины-шейдеры: папка, что подключено, ошибки в файлах. */
+function PluginsSection() {
+  useGlCatalog();
+  const [dir, setDir] = useState('');
+  const list = glPlugins();
+  const errors = glPluginErrors();
+  return (
+    <section className="settings-sec" data-testid="plugins">
+      <b><Puzzle size={14} />Плагины</b>
+      <p className="hint">
+        Свои переходы и эффекты на GLSL: положи файл .glsl в папку плагинов — он сразу появится в разделе «Переходы» или «Эффекты» → «Плагины».
+        Подходит любой переход с gl-transitions.com.
+      </p>
+      <div className="custom-row">
+        <button className="btn small" onClick={() => void api.openPluginsDir().then(setDir)} data-testid="plugins-open"><FolderOpen size={13} />Открыть папку плагинов</button>
+        <button className="btn ghost small" onClick={() => api.openDocs('plugins')}><BookOpen size={13} />Как написать плагин</button>
+      </div>
+      {dir && <p className="custom-path" data-testid="plugins-dir">{dir}</p>}
+      {list.length > 0 && (
+        <ul className="plugin-list" data-testid="plugins-list">
+          {list.map((d) => <li key={d.id}><em>{d.kind === 'transition' ? 'переход' : 'эффект'}</em>{d.name}{d.author ? <span> · {d.author}</span> : null}</li>)}
+        </ul>
+      )}
+      {errors.map((e) => <div key={e.file + e.message} className="warn" data-testid="plugin-error" title={e.file}><TriangleAlert size={15} /><span>{e.message}</span></div>)}
+    </section>
   );
 }
 

@@ -13,6 +13,8 @@ import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, st
 import type { BlendMode, ChromaKey, ClipAnim, Mask, RampPoint, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
 import { retimeWords } from '../../shared/captions';
 import { hasKeyHere, isAnimated, keyTimesOnTimeline, propValue, toggleKey, writeProps } from '../animEdit';
+import { isGlType } from '../../shared/gl/glsl';
+import { glDef } from '../glRegistry';
 import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
@@ -181,14 +183,25 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
                   onClick={() => up({ effects: clip.effects!.filter((x) => x.type !== e.type) }, 'fxdel')}><X size={13} /></button>
               );
               if (def?.toggle) return <div key={e.type} className="field-row fx-toggle-row"><label>{def.label}</label>{del}</div>;
+              const gl = isGlType(e.type) ? glDef(e.type) : undefined;
+              const label = def?.label ?? gl?.name ?? (isGlType(e.type) ? `Плагин не найден: ${e.type.replace(/^plug:e\//, '')}` : e.type);
+              const setParam = (name: string, v: number) => up({ effects: clip.effects!.map((x) => (x.type === e.type ? { ...x, params: { ...x.params, [name]: v } } : x)) }, `fxp-${e.type}-${name}`);
               return (
-                <Slider key={e.type} label={def?.label ?? e.type} min={0} max={1} step={0.01} value={e.amount} format={pct}
-                  testId={`fxamt-${e.type}`} extra={del}
-                  onChange={(v) => up({ effects: clip.effects!.map((x) => (x.type === e.type ? { ...x, amount: v } : x)) }, `fx-${e.type}`)} />
+                <div key={e.type} className={gl ? 'fx-gl' : undefined}>
+                  <Slider label={label} min={0} max={1} step={0.01} value={e.amount} format={pct}
+                    testId={`fxamt-${e.type}`} extra={del}
+                    onChange={(v) => up({ effects: clip.effects!.map((x) => (x.type === e.type ? { ...x, amount: v } : x)) }, `fx-${e.type}`)} />
+                  {gl?.params.filter((prm) => prm.type === 'float' && prm.min !== undefined && prm.max !== undefined).map((prm) => {
+                    const cur = e.params?.[prm.name];
+                    const val = typeof cur === 'number' ? cur : (prm.value as number);
+                    return <Slider key={prm.name} label={`· ${prm.label ?? prm.name}`} min={prm.min!} max={prm.max!} step={(prm.max! - prm.min!) / 100} value={val}
+                      format={(v) => (Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(2))} onChange={(v) => setParam(prm.name, v)} />;
+                  })}
+                </div>
               );
             })}
             {!(clip.effects ?? []).length && <p className="hint">Эффектов пока нет.</p>}
-            <p className="hint small">Новые эффекты — в разделе «Эффекты» слева: {EFFECTS.length} штук, наведи мышь, чтобы посмотреть.</p>
+            <p className="hint small">Новые эффекты — в разделе «Эффекты» слева, наведи мышь, чтобы посмотреть. Шейдеры и свои плагины — там же, «Шейдеры» и «Плагины».</p>
           </>
         )}
         {cur === 'color' && (

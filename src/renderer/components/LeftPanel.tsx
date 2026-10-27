@@ -6,7 +6,9 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
 import { gradePixel } from '../../shared/grade';
 import { DEFAULT_COLOR, FONT_CATS, FONTS, HIGHLIGHTS, type FontCat, TEXT_ANIMS, TEXT_PRESETS, TRANSITION_CATS, TRANSITIONS, type TransitionCat, VOICE_FX } from '../../shared/defaults';
-import { drawTransition } from '../../shared/transitions';
+import { GL_TRANSITION_CATS } from '../../shared/gl/glsl';
+import { applyGlEffects, drawAnyTransition } from '../engine/glDraw';
+import { glEffects, glTransitions, useGlCatalog } from '../glRegistry';
 import { retimeWords } from '../../shared/captions';
 import type { ModelInfo } from '../../shared/ipc';
 import {
@@ -670,6 +672,7 @@ function EffectThumb({ type }: { type: EffectType }) {
       lc.drawImage(scene, 0, 0);
       lc.globalCompositeOperation = 'source-over';
       applyPixelEffects(layer, fake, t);
+      applyGlEffects(layer, fake, t, 3);
       const g = fxGeometry(fake.effects, t, 3);
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, THUMB_W, THUMB_H);
@@ -695,7 +698,7 @@ function EffectThumb({ type }: { type: EffectType }) {
 function EffectsPanel() {
   const sel = useSelected();
   const commit = useStore((s) => s.commit);
-  const [cat, setCat] = useState<EffectCat | 'all'>('all');
+  const [cat, setCat] = useState<EffectCat | 'shader' | 'plugins' | 'all'>('all');
   const clip = sel?.clip.type === 'media' && sel.asset?.kind !== 'audio' ? (sel.clip as MediaClip) : null;
   const toggle = (type: EffectType) => {
     if (!clip) { getState().toast('Сначала выдели видео или фото на таймлайне — эффект встанет на него'); return; }
@@ -704,15 +707,22 @@ function EffectsPanel() {
     const effects = has ? clip.effects!.filter((e) => e.type !== type) : [...(clip.effects ?? []), { type, amount: def?.toggle ? 1 : 0.6 }];
     commit((p) => updateClip(p, clip.id, { effects: effects.length ? effects : undefined }));
   };
-  const list = EFFECTS.filter((e) => cat === 'all' || e.cat === cat);
+  useGlCatalog();
+  // встроенные эффекты + шейдеры (свои Kadro и плагины пользователя)
+  const shaders = glEffects().map((d) => ({ type: d.id as EffectType, label: d.name, hint: d.description ?? '', cat: (d.source ? 'plugins' : 'shader') as EffectCat | 'shader' | 'plugins' }));
+  const all: { type: EffectType; label: string; hint: string; cat: EffectCat | 'shader' | 'plugins' }[] = [...EFFECTS, ...shaders];
+  const list = all.filter((e) => cat === 'all' || e.cat === cat);
+  const hasPlugins = shaders.some((x) => x.cat === 'plugins');
   return (
     <>
-      <div className="panel-head">Эффекты · {EFFECTS.length}</div>
+      <div className="panel-head">Эффекты · {all.length}</div>
       <div className="panel-body">
         <p className="hint">{clip ? 'Нажми — эффект добавится, ещё раз — уберётся. Наведи мышь, чтобы посмотреть. Сила — справа, во вкладке «Эффекты».' : 'Выдели клип на таймлайне — эффекты применяются к нему. Наведи мышь на эффект, чтобы посмотреть.'}</p>
         <div className="chips" style={{ margin: '10px 0 8px' }}>
           <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
           {EFFECT_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
+          <button className={cat === 'shader' ? 'active' : ''} onClick={() => setCat('shader')} data-testid="fxcat-shader">Шейдеры</button>
+          {hasPlugins && <button className={cat === 'plugins' ? 'active' : ''} onClick={() => setCat('plugins')} data-testid="fxcat-plugins">Плагины</button>}
         </div>
         <div className="tile-grid fx-grid">
           {list.map((e) => {
@@ -765,7 +775,7 @@ function TransitionThumb({ type }: { type: TransitionType | null }) {
     const [a, b] = sampleFrames();
     const draw = (p: number) => {
       if (!type) { ctx.drawImage(p < 0.5 ? a : b, 0, 0); return; }
-      drawTransition(ctx, type, p, a, b, THUMB_W, THUMB_H, scratch);
+      drawAnyTransition(ctx, type, p, a, b, THUMB_W, THUMB_H, scratch);
     };
     if (!hover) { draw(type === 'circlecrop' || type === 'rectcrop' ? 0.15 : 0.45); return; }
     let raf = 0;
@@ -787,7 +797,8 @@ function TransitionsPanel() {
   const selection = useStore((s) => s.selection);
   const playhead = useStore((s) => s.playhead);
   const commit = useStore((s) => s.commit);
-  const [cat, setCat] = useState<TransitionCat | 'all'>('all');
+  const [cat, setCat] = useState<string>('all');
+  useGlCatalog();
   const main = mainTrack(project);
   // кому ставим переход: выбранный стык, выделенный клип основной дорожки (переход в конце клипа)
   // или — если ничего не выбрано — стык, ближайший к розовой линии времени
@@ -820,10 +831,15 @@ function TransitionsPanel() {
     getState().toast('Переход поставлен на все стыки', 'ok');
   };
   const joints = Math.max(0, main.clips.length - 1);
-  const list = TRANSITIONS.filter((t) => cat === 'all' || t.cat === cat);
+  // встроенные + 123 шейдера gl-transitions + плагины пользователя
+  const shaders = glTransitions().map((d) => ({ type: d.id as TransitionType, label: d.name, cat: d.source ? 'plugins' : d.cat, hint: d.author ? `${d.name} — автор ${d.author}` : d.name }));
+  const all: { type: TransitionType; label: string; cat: string; hint?: string }[] = [...TRANSITIONS, ...shaders];
+  const list = all.filter((t) => cat === 'all' || t.cat === cat);
+  const glCats = GL_TRANSITION_CATS.filter((c) => shaders.some((x) => x.cat === c.id));
+  const hasPlugins = shaders.some((x) => x.cat === 'plugins');
   return (
     <>
-      <div className="panel-head">Переходы · {TRANSITIONS.length}</div>
+      <div className="panel-head">Переходы · {all.length}</div>
       <div className="panel-body">
         <p className="hint">
           {joints === 0 ? 'Переходы ставятся между двумя клипами на основной дорожке. Добавь хотя бы два.' :
@@ -832,6 +848,8 @@ function TransitionsPanel() {
         <div className="chips" style={{ margin: '10px 0 8px' }}>
           <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
           {TRANSITION_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
+          {glCats.map((c) => <button key={c.id} className={`gl ${cat === c.id ? 'active' : ''}`} onClick={() => setCat(c.id)} data-testid={`trcat-${c.id}`}>{c.label}</button>)}
+          {hasPlugins && <button className={cat === 'plugins' ? 'active' : ''} onClick={() => setCat('plugins')} data-testid="trcat-plugins">Плагины</button>}
         </div>
         <div className="tile-grid">
           <button className={`tile ${target && !cur ? 'active' : ''}`} onClick={() => apply(null)} disabled={!target}>
@@ -839,7 +857,7 @@ function TransitionsPanel() {
             <span className="label">Без перехода</span>
           </button>
           {list.map((t) => (
-            <button key={t.type} className={`tile ${cur?.type === t.type ? 'active' : ''}`} onClick={() => apply(t.type)} disabled={!target} data-testid={`tr-${t.type}`}>
+            <button key={t.type} className={`tile ${cur?.type === t.type ? 'active' : ''}`} onClick={() => apply(t.type)} disabled={!target} data-testid={`tr-${t.type}`} title={t.hint}>
               <TransitionThumb type={t.type} />
               <span className="label">{t.label}</span>
             </button>

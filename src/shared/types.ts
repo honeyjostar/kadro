@@ -75,11 +75,14 @@ export type TransitionType =
   | 'diagtl' | 'diagtr' | 'diagbl' | 'diagbr'
   | 'hlslice' | 'hrslice' | 'vuslice' | 'vdslice'
   | 'hlwind' | 'hrwind' | 'vuwind' | 'vdwind'
-  | 'squeezeh' | 'squeezev';
+  | 'squeezeh' | 'squeezev'
+  // шейдеры: gl:<имя> — встроенные (gl-transitions), plug:t/<файл> — плагины пользователя
+  | `gl:${string}` | `plug:${string}`;
 
 export interface Transition {
   type: TransitionType;
   duration: number; // сек
+  params?: Record<string, number | boolean | number[]>; // параметры шейдера (если отличаются от заданных в нём)
 }
 
 export type AiStatus = 'none' | 'processing' | 'ready' | 'error';
@@ -124,8 +127,10 @@ export type EffectType =
   // кадр
   | 'mirrorv' | 'kaleido' | 'split2' | 'split3' | 'split4' | 'split9' | 'letterbox'
   // частицы поверх кадра
-  | 'snow' | 'rain' | 'confetti' | 'hearts' | 'sparkles' | 'bubbles';
-export interface Effect { type: EffectType; amount: number } // amount 0..1
+  | 'snow' | 'rain' | 'confetti' | 'hearts' | 'sparkles' | 'bubbles'
+  // шейдеры: gl:<имя> — встроенные, plug:e/<файл> — плагины пользователя
+  | `gl:${string}` | `plug:${string}`;
+export interface Effect { type: EffectType; amount: number; params?: Record<string, number | boolean | number[]> } // amount 0..1
 
 export type VoiceEffect = 'none' | 'chipmunk' | 'deep' | 'robot' | 'echo' | 'hall' | 'radio' | 'phone' | 'megaphone';
 

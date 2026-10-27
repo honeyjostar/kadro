@@ -8,6 +8,7 @@ import { Readable } from 'node:stream';
 import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, LibFolder, ModelInfo, RecentProject, ThemePref, VoiceInfo } from '../shared/ipc';
 import { countDeep, forgetLibMeta, libMeta, listDir, searchDir } from './library';
 import { cacheInfo, cleanTempOnStart, clearCache, knownProjectPaths } from './cache';
+import { ensurePluginDirs, listPlugins, watchPlugins } from './plugins';
 import { normPath } from '../shared/cache';
 import { copyName, safeFileName } from '../shared/projects';
 import * as m3d from './model3d';
@@ -834,9 +835,16 @@ function registerIpc(): void {
     if (!process.env.KADRO_NO_OPEN) await shell.openPath(dir);
     return dir;
   });
-  ipcMain.on('app:docs', (_e, page: 'customize' | 'guide') => {
-    const url = page === 'customize' ? 'https://github.com/honeyjostar/kadro/blob/master/docs/CUSTOMIZE.md' : 'https://github.com/honeyjostar/kadro/blob/master/docs/GUIDE.md';
-    void shell.openExternal(url);
+  ipcMain.on('app:docs', (_e, page: 'customize' | 'guide' | 'plugins') => {
+    const doc = page === 'customize' ? 'CUSTOMIZE' : page === 'plugins' ? 'PLUGINS' : 'GUIDE';
+    void shell.openExternal(`https://github.com/honeyjostar/kadro/blob/master/docs/${doc}.md`);
+  });
+  // плагины-шейдеры: список файлов и папка
+  ipcMain.handle('plugins:list', () => { try { ensurePluginDirs(); } catch { /* папка данных только для чтения */ } return listPlugins(); });
+  ipcMain.handle('plugins:open', async () => {
+    const dir = ensurePluginDirs();
+    if (!process.env.KADRO_NO_OPEN) await shell.openPath(dir);
+    return dir;
   });
 }
 
@@ -848,6 +856,9 @@ if (process.env.KADRO_FAKE_MEDIA) {
   app.commandLine.appendSwitch('use-fake-device-for-media-stream');
   app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 }
+// шейдеры (переходы, эффекты, хромакей) на WebGL: если видеокарта недоступна или в чёрном списке Chromium —
+// программная отрисовка вместо отказа (Kadro не открывает чужие сайты, так что это безопасно)
+app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 // автотесты на машине без видеокарты: программная видеокарта (SwiftShader), чтобы проверить WebGL-хромакей
 if (process.env.KADRO_SWIFTSHADER) {
   app.commandLine.appendSwitch('use-angle', 'swiftshader');
@@ -874,6 +885,8 @@ if (!lock) {
     customStyles.setEnabled(appearance().custom);
     setTimeout(() => { try { hasNvenc(); } catch { /* проверим позже */ } }, 3000);
     setTimeout(cleanTempOnStart, 6000); // временные файлы прошлых сеансов
+    // плагины: правка файла в папке — сразу в окне
+    try { ensurePluginDirs(); watchPlugins((list) => win?.webContents.send('plugins:changed', list)); } catch (e) { log('plugins', e); }
     // установщик пересоздаёт ярлыки со значком по умолчанию — возвращаем выбранный
     if (app.isPackaged) setTimeout(() => { try { applyShortcutIcons(appearance()); } catch (e) { log('shortcut icons', e); } }, 4000);
     log('Kadro started', app.getVersion(), process.platform, 'ffmpeg:', ffmpegPath());

@@ -16,7 +16,7 @@ import { GradeProcessor, lutFor, setLutListener } from './grade';
 import { BLUR_SIGMA_1080, placeOnCanvas, unitScale } from '../../shared/geometry';
 import { drawText } from '../../shared/textRender';
 import { clipDuration, clipEnd, projectDuration } from '../../shared/timeline';
-import { drawTransition } from '../../shared/transitions';
+import { applyGlEffects, drawAnyTransition, glEffectsOf } from './glDraw';
 import type { BlendMode, Mask, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
 
 const COMPOSITE: Record<Exclude<BlendMode, 'normal'>, GlobalCompositeOperation> = {
@@ -502,11 +502,12 @@ export class PreviewEngine {
     if (pl.rotation) c2d.rotate((pl.rotation * Math.PI) / 180);
     c2d.imageSmoothingQuality = 'high';
     const fx = sortedEffects(c.effects);
+    const glFx = glEffectsOf(c.effects);
     const cube = lutFor(c.grade?.lut?.path, this.readLut);
     const graded = gradeActive(c.grade, !!cube, c.color);
     // перспектива: «Углы» — картинка на 4 точках; наклон — углы слоя после 3D-поворота
     const quad = c.pin ? pinQuad(c.pin, W, H) : hasTilt(c.tilt) ? layerQuad(pl.w / 2, pl.h / 2, pl.cx, pl.cy, pl.rotation, c.tilt, W, H) : null;
-    if (c.mask || fx.length || graded || quad) {
+    if (c.mask || fx.length || glFx.length || graded || quad) {
       // слой нужного размера: цвет → эффекты → маска (destination-in) → на холст
       const [qw, qh] = quad && c.pin ? quadSize(quad) : [pl.w, pl.h];
       const w = Math.max(1, Math.round(Math.min(qw, 3 * Math.max(W, H))));
@@ -522,6 +523,7 @@ export class PreviewEngine {
       lc.restore();
       if (graded) this.grader().apply(layer, c.grade ?? {}, cube, c.color);
       if (fx.length) applyPixelEffects(layer, c, local, (l, key, tb) => this.grader().applyTable(l, key, tb), isMain);
+      if (glFx.length) applyGlEffects(layer, c, local, clipDuration(c));
       if (c.mask) {
         lc.save();
         lc.globalCompositeOperation = 'destination-in';
@@ -626,7 +628,7 @@ export class PreviewEngine {
         const cb = this.layerB.getContext('2d')!;
         if (aA) this.drawLayer(ca, A, aA, true, t);
         if (aB) this.drawLayer(cb, B, aB, true, t);
-        if (tr) drawTransition(ctx, tr.type, (t - B.start) / tr.duration, this.layerA, this.layerB, W, H, this.scratch);
+        if (tr) drawAnyTransition(ctx, tr.type, (t - B.start) / tr.duration, this.layerA, this.layerB, W, H, this.scratch, tr.params);
         else ctx.drawImage(this.layerB, 0, 0);
       } else if (act.length === 1) {
         const c = main.clips[act[0]] as MediaClip;
