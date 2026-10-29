@@ -66,7 +66,7 @@ export type AiOutput =
   | { kind: 'voice'; path: string; range: [number, number] }
   | { kind: 'tts'; path: string; duration: number }
   | { kind: 'stab'; path: string; range: [number, number] }
-  | { kind: 'beats'; beats: number[]; bpm: number }
+  | { kind: 'beats'; beats: number[]; bpm: number; shape?: import('./beats').MusicShape }
   | { kind: 'highlights'; hl: Highlights }
   | { kind: 'reframe'; points: { t: number; x: number; y: number; found: boolean }[] }
   | { kind: 'retime'; path: string; duration: number }

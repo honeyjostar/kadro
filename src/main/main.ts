@@ -287,8 +287,8 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       return { ok: true, output: { kind: 'translate', texts: r.texts } };
     }
     if (job.kind === 'beats') {
-      const r = await workerCall<{ beats: number[]; bpm: number }>(id, { kind: 'beats', path: job.path });
-      return { ok: true, output: { kind: 'beats', beats: r.beats, bpm: r.bpm } };
+      const r = await workerCall<{ beats: number[]; bpm: number; shape?: import('../shared/beats').MusicShape }>(id, { kind: 'beats', path: job.path });
+      return { ok: true, output: { kind: 'beats', beats: r.beats, bpm: r.bpm, shape: r.shape } };
     }
     if (job.kind === 'highlights') {
       const ac = new AbortController();

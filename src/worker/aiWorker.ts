@@ -72,13 +72,15 @@ port.on('message', async (e) => {
       result = { duration: synthesize(m.text, m.voice, m.speed, m.outPath) };
     } else if (m.kind === 'beats') {
       const { ffmpegToBuffer } = await import('../main/ffrun');
-      const { detectBeats } = await import('../shared/beats');
+      const { detectBeats, musicShape } = await import('../shared/beats');
       progress(0.1, tx('Слушаю ритм'));
       const sr = 22050;
       const buf = await ffmpegToBuffer(['-v', 'error', '-i', m.path, '-vn', '-ac', '1', '-ar', String(sr), '-f', 'f32le', '-'], ac.signal);
       const pcm = new Float32Array(buf.buffer.slice(buf.byteOffset, buf.byteOffset + Math.floor(buf.length / 4) * 4));
       progress(0.5, tx('Ищу доли такта'));
-      result = detectBeats(pcm, sr);
+      const found = detectBeats(pcm, sr);
+      progress(0.8, tx('Слушаю, где музыка громче'));
+      result = { ...found, shape: found.beats.length ? musicShape(pcm, sr, found.beats) : undefined };
     } else if (m.kind === 'reframe') {
       const { trackPerson } = await import('../main/ai/matting');
       result = { points: await trackPerson({ src: m.path, ss: m.in, dur: m.out - m.in, width: m.width, height: m.height, onProgress: (p) => progress(p, tx('Слежу за человеком')), signal: ac.signal }) };

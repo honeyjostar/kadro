@@ -126,3 +126,81 @@ export function detectBeats(pcm: Float32Array, sr: number): { beats: number[]; b
   beats.reverse();
   return { beats: beats.map((b) => Math.round(b * 1000) / 1000), bpm: Math.round(((fr * 60) / P) * 10) / 10 };
 }
+
+/** Форма музыки: громкость по времени (0..1), «дропы» (музыка резко становится громче и плотнее) и сильная доля. */
+export interface MusicShape {
+  step: number;        // сек на значение energy
+  energy: number[];    // 0 — самое тихое место песни, 1 — самое громкое
+  drops: number[];     // сек — на долях
+  phase: number;       // какая из первых четырёх долей — сильная (начало такта), 0..3
+}
+
+const MS_STEP = 0.2;
+
+/** Громкость, дропы и сильная доля по звуку (моно, sr) и найденным долям. */
+export function musicShape(pcm: Float32Array, sr: number, beats: number[]): MusicShape {
+  const hop = Math.max(1, Math.round(sr * MS_STEP));
+  const n = Math.floor(pcm.length / hop);
+  const raw = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = 0;
+    for (let k = i * hop; k < (i + 1) * hop; k++) s += pcm[k] * pcm[k];
+    raw[i] = 10 * Math.log10(s / hop + 1e-9);
+  }
+  const sorted = [...raw].sort((a, b) => a - b);
+  const q = (x: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * x)))] ?? 0;
+  const lo = q(0.08); const hi = q(0.98);
+  const norm = [...raw].map((v) => Math.min(1, Math.max(0, (v - lo) / Math.max(1, hi - lo))));
+  // сглаживаем на ~0,6 с: громкость «раздела», а не отдельных ударов
+  const w = 1;
+  const energy = norm.map((_, i) => {
+    let s = 0; let c = 0;
+    for (let k = i - w; k <= i + w; k++) if (k >= 0 && k < n) { s += norm[k]; c++; }
+    return Math.round((s / Math.max(1, c)) * 100) / 100;
+  });
+  const at = (t: number) => energy[Math.min(n - 1, Math.max(0, Math.round(t / MS_STEP)))] ?? 0;
+  const mean = (a: number, b: number) => {
+    let s = 0; let c = 0;
+    for (let t = a; t < b; t += MS_STEP) { s += at(t); c++; }
+    return c ? s / c : 0;
+  };
+  // дроп: после доли заметно громче, чем было 4 секунды до неё, и это громкий раздел песни
+  const cands: { t: number; v: number }[] = [];
+  for (const b of beats) {
+    if (b < 3 || b > n * MS_STEP - 2) continue;
+    const pre = mean(b - 4, b - 0.2);
+    const post = mean(b + 0.1, b + 3);
+    const jump = post - pre;
+    if (jump > 0.2 && post > 0.62) cands.push({ t: b, v: jump });
+  }
+  const drops: number[] = [];
+  for (const c of cands.sort((a, b) => b.v - a.v)) {
+    if (drops.length >= 4) break;
+    if (drops.every((d) => Math.abs(d - c.t) > 10)) drops.push(c.t);
+  }
+  drops.sort((a, b) => a - b);
+  // сильная доля: где в такте из четырёх долей атаки (бочка) обычно сильнее
+  // (доля из detectBeats — центр окна анализа: кадр огибающей = (b·sr − 512) / 256)
+  const env = onsetEnvelope(pcm, sr);
+  const peaks: number[] = []; const rms: number[] = [];
+  for (const b of beats) {
+    const f = Math.round((b * sr - 512) / 256);
+    let m = 0;
+    for (let k = f - 2; k <= f + 2; k++) if (k >= 0 && k < env.length) m = Math.max(m, env[k]);
+    peaks.push(m);
+    let e = 0; let c = 0;
+    for (let k = Math.max(0, Math.floor((b - 0.03) * sr)); k < Math.min(pcm.length, Math.floor((b + 0.07) * sr)); k++) { e += pcm[k] * pcm[k]; c++; }
+    rms.push(Math.sqrt(e / Math.max(1, c)));
+  }
+  // громкость удара — относительно соседних долей (песня то тише, то громче)
+  const rel = rms.map((v, i) => {
+    let s = 0; let c = 0;
+    for (let k = i - 4; k <= i + 4; k++) if (k >= 0 && k < rms.length) { s += rms[k]; c++; }
+    return v / Math.max(1e-6, s / c);
+  });
+  const sums = [0, 0, 0, 0]; const cnt = [0, 0, 0, 0];
+  beats.forEach((_, i) => { sums[i % 4] += peaks[i] + rel[i]; cnt[i % 4]++; });
+  let phase = 0;
+  for (let k = 1; k < 4; k++) if (sums[k] / Math.max(1, cnt[k]) > sums[phase] / Math.max(1, cnt[phase]) * 1.04) phase = k;
+  return { step: MS_STEP, energy, drops: drops.map((d) => Math.round(d * 1000) / 1000), phase };
+}

@@ -4,7 +4,18 @@ import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
 import { Film, FolderOpen, Image as ImageIcon, Music, TriangleAlert, WandSparkles, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { AUTO_STYLES, type AutoStyle } from '../../shared/autoEdit';
+import { AUTO_STYLES, type AutoStyle, type AutoStyleDef } from '../../shared/autoEdit';
+
+/** Длины первых кадров стиля (для полоски ритма на карточке). */
+function rhythmOf(s: AutoStyleDef): number[] {
+  const out: number[] = [];
+  for (let j = 0, sum = 0; sum < 12 && j < 24; j++) {
+    const k = s.cut * s.pattern[j % s.pattern.length] * (j === 0 ? s.first : 1);
+    out.push(k);
+    sum += k;
+  }
+  return out;
+}
 import type { AspectKey } from '../../shared/types';
 import { buildAutoEdit, cancelAutoEdit, loadDemoFiles, type AutoStage } from '../actions';
 import { api, getState, useStore } from '../store';
@@ -131,13 +142,16 @@ export function AutoEditDialog() {
             <div className="section-title">{tx('Стиль')}</div>
             <div className="auto-styles">
               {AUTO_STYLES.map((s) => (
-                <button key={s.id} className={`auto-style ${style === s.id ? 'active' : ''}`} disabled={busy} onClick={() => setStyle(s.id)} data-testid={`auto-style-${s.id}`}>
-                  <span className="sw" style={{ background: s.swatch }} />
+                <button key={s.id} className={`auto-style ${style === s.id ? 'active' : ''}`} disabled={busy} onClick={() => setStyle(s.id)} data-testid={`auto-style-${s.id}`} title={s.hint}>
+                  <span className="sw" style={{ background: s.swatch }}>
+                    {/* ритм склеек стиля: ширина полоски — длина кадра */}
+                    <span className="rhythm" aria-hidden>{rhythmOf(s).map((w, i) => <i key={i} style={{ flexGrow: w }} />)}</span>
+                  </span>
                   <b>{s.label}</b>
-                  <span className="hint small">{s.hint}</span>
                 </button>
               ))}
             </div>
+            <p className="hint small auto-style-hint" data-testid="auto-style-hint">{AUTO_STYLES.find((x) => x.id === style)?.hint}</p>
             <div className="section-title">{tx('Формат')}</div>
             <div className="chips">{ASPECTS.map((x) => <button key={x.value} className={aspect === x.value ? 'active' : ''} disabled={busy} title={x.where} onClick={() => setAspect(x.value)} data-testid={`auto-aspect-${x.value.replace(':', '-')}`}>{x.label} <span className="faint">{x.where}</span></button>)}</div>
             <div className="section-title">{tx('Длина')}</div>

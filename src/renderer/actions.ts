@@ -400,9 +400,9 @@ export async function findBeats(assetId: string): Promise<boolean> {
   if (!a || !a.hasAudio) { getState().toast(tx('В этом файле нет звука')); return false; }
   const r = await runJob(tx('Ищу ритм'), { kind: 'beats', jobId: `bt_${uidShort()}`, path: a.path });
   if (!r.ok || r.output?.kind !== 'beats') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return false; }
-  const { beats, bpm } = r.output;
+  const { beats, bpm, shape } = r.output;
   if (!beats.length) { getState().toast(tx('Ритм не найден — слишком тихо или нет ударных')); return false; }
-  getState().commit((p) => updateAsset(p, assetId, { beats, bpm }));
+  getState().commit((p) => updateAsset(p, assetId, { beats, bpm, shape }));
   getState().toast(tx('Ритм найден: {0} ударов в минуту, {1} долей', Math.round(bpm), beats.length), 'ok');
   return true;
 }
@@ -1212,7 +1212,8 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
   if (music && music.kind !== 'audio') { getState().toast(tx('Музыка — это звуковой файл (MP3, WAV, M4A…). Ролик собран без неё.'), 'err'); music = null; }
 
   const videos = [...new Map(media.filter((a) => a.kind === 'video').map((a) => [a.path, a])).values()];
-  const steps = videos.filter((a) => !hlMemo.has(a.path)).length + (music && !music.beats ? 1 : 0);
+  const needBeats = !!music && (!music.beats || !music.shape); // форма музыки (громкость, дропы) — для ритма монтажа
+  const steps = videos.filter((a) => !hlMemo.has(a.path)).length + (needBeats ? 1 : 0);
   let step = 0;
   const run = async (label: string, job: AiJob): Promise<AiResponse> => {
     stage({ label, jobId: job.jobId, step: step++, steps: Math.max(1, steps) });
@@ -1220,14 +1221,14 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
     try { return await runJob(label, job); } finally { autoCancel = null; }
   };
   // ритм музыки
-  if (music && !music.beats) {
+  if (music && needBeats) {
     const r = await run(tx('Ищу ритм музыки'), { kind: 'beats', jobId: `bt_${uidShort()}`, path: music.path });
     if (autoStopped) return null;
     if (r.ok && r.output?.kind === 'beats' && r.output.beats.length) {
-      const { beats, bpm } = r.output;
+      const { beats, bpm, shape } = r.output;
       const id = music.id;
-      getState().commit((p) => updateAsset(p, id, { beats, bpm }));
-      music = { ...music, beats, bpm };
+      getState().commit((p) => updateAsset(p, id, { beats, bpm, shape }));
+      music = { ...music, beats, bpm, shape };
     }
   }
   // лучшие места в видео
@@ -1249,7 +1250,7 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
     getState().commit((p) => {
       const r = autoEdit(p, {
         media: media.map((a) => ({ asset: live(a), hl: hlMemo.get(a.path) ?? null })),
-        music: music ? { ...live(music), beats: music.beats, bpm: music.bpm } : null,
+        music: music ? { ...live(music), beats: music.beats, bpm: music.bpm, shape: music.shape } : null,
         style: params.style, aspect: params.aspect, length: params.length, title: params.title, videoSound: params.videoSound, seed,
       });
       summary = r.summary;

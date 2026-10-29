@@ -36,6 +36,7 @@ export interface MediaAsset {
   missing?: boolean;         // файл пропал с диска (проект открыт на другом компьютере, файл перемещён)
   beats?: number[];          // доли такта (время исходника), если искали ритм
   bpm?: number;
+  shape?: { step: number; energy: number[]; drops: number[]; phase: number }; // громкость, дропы, сильная доля (с ритмом)
   alpha?: boolean;           // видео с прозрачностью (VP8/VP9 WebM)
   loop?: boolean;            // анимированный GIF: клип можно растянуть, анимация повторяется по кругу
   derived?: boolean;         // служебная копия (реверс, кривая скорости, стоп-кадр) — не показывается в медиатеке

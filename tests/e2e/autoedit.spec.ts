@@ -175,3 +175,41 @@ test('экспорт авто-ролика: длина как на таймла�
   expect(Math.abs(pr.duration - total)).toBeLessThan(0.2);
   expect(pr.hasAudio).toBe(true);
 });
+
+test('новые стили: «Велосити» — ускорение и замедление; у демо-бита найдена громкость; «3D-зум» экспортируется', async () => {
+  await win.getByTestId('tab-templates').click();
+  await win.getByTestId('tpl-auto').click();
+  await expect(win.getByTestId('auto-style-velocity')).toBeVisible();
+  await win.getByTestId('auto-music-demo').click();
+  await win.getByTestId('auto-style-velocity').click();
+  await expect(win.getByTestId('auto-style-hint')).toContainText('замедлении');
+  await win.getByTestId('auto-len-15').click();
+  await win.getByTestId('auto-build').click();
+  await expect(dialog()).toHaveCount(0, { timeout: 60_000 });
+  let p = await project(win);
+  const music = p.assets.find((a) => a.kind === 'audio' && a.beats?.length)!;
+  expect(music.shape?.energy.length).toBeGreaterThan(20);
+  expect(music.shape!.phase).toBeGreaterThanOrEqual(0);
+  const clips = p.tracks[0].clips as MediaClip[];
+  expect(clips.some((c) => c.speed > 1.2)).toBe(true);
+  expect(clips.some((c) => c.speed < 0.8)).toBe(true);
+  await onBeats();
+
+  await win.getByTestId('tab-templates').click();
+  await win.getByTestId('tpl-auto').click();
+  await win.getByTestId('auto-music-demo').click();
+  await win.getByTestId('auto-style-zoom3d').click();
+  await win.getByTestId('auto-len-15').click();
+  await win.getByTestId('auto-build').click();
+  await expect(dialog()).toHaveCount(0, { timeout: 60_000 });
+  p = await project(win);
+  const z = p.tracks[0].clips as MediaClip[];
+  expect(z.some((c) => c.transitionOut?.type.startsWith('gl:'))).toBe(true);
+  expect(z.some((c) => (c.keyframes?.scale?.length ?? 0) >= 4)).toBe(true); // удары на долях
+  const total = Math.max(...z.map((c) => c.start + (c.out - c.in) / c.speed));
+  const out = path.join(os.tmpdir(), 'kadro-e2e', 'auto_zoom3d.mp4');
+  fs.rmSync(out, { force: true });
+  const r = await act(win, 'exportTo', out, 360, 30);
+  expect(r.ok, r.error).toBe(true);
+  expect(Math.abs(probe(out).duration - total)).toBeLessThan(0.25);
+});

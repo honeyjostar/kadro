@@ -13,18 +13,29 @@ import type {
 export const HL_W = 80;
 export const HL_H = 45;
 
-/** b — средняя яркость 0..255, s — резкость (средний модуль лапласиана), m — движение (средняя разница с прошлым кадром), c — контраст. */
-export interface FrameStat { b: number; s: number; m: number; c: number }
-/** Оценка видео по времени: score[i] — насколько хорош момент i·step (0..1); cuts — где внутри видео склейки. */
-export interface Highlights { step: number; score: number[]; cuts: number[] }
+/**
+ * b — средняя яркость 0..255, s — резкость (средний модуль лапласиана), m — движение (средняя разница с прошлым кадром),
+ * c — контраст, g — «отпечаток» кадра: средняя яркость в клетках 4×4 (чтобы не брать два одинаковых куска).
+ */
+export interface FrameStat { b: number; s: number; m: number; c: number; g?: number[] }
+/**
+ * Оценка видео по времени: score[i] — насколько хорош момент i·step (0..1); cuts — где внутри видео склейки;
+ * sig — отпечатки кадров подряд по 16 чисел (может не быть у старых разборов).
+ */
+export interface Highlights { step: number; score: number[]; cuts: number[]; sig?: number[] }
+export const SIG_N = 16;
 
 export function frameStat(g: ArrayLike<number>, prev: ArrayLike<number> | null, w = HL_W, h = HL_H): FrameStat {
   const n = w * h;
   let sum = 0; let sum2 = 0; let diff = 0; let lap = 0;
+  const cell = new Array<number>(SIG_N).fill(0);
+  const cnt = new Array<number>(SIG_N).fill(0);
   for (let i = 0; i < n; i++) {
     const v = g[i];
     sum += v; sum2 += v * v;
     if (prev) diff += Math.abs(v - prev[i]);
+    const k = Math.min(3, Math.floor(((i / w) | 0) * 4 / h)) * 4 + Math.min(3, Math.floor(((i % w) * 4) / w));
+    cell[k] += v; cnt[k]++;
   }
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
@@ -33,7 +44,7 @@ export function frameStat(g: ArrayLike<number>, prev: ArrayLike<number> | null, 
     }
   }
   const mean = sum / n;
-  return { b: mean, s: lap / ((w - 2) * (h - 2)), m: prev ? diff / n : 0, c: Math.sqrt(Math.max(0, sum2 / n - mean * mean)) };
+  return { b: mean, s: lap / ((w - 2) * (h - 2)), m: prev ? diff / n : 0, c: Math.sqrt(Math.max(0, sum2 / n - mean * mean)), g: cell.map((x, k) => Math.round(x / Math.max(1, cnt[k]))) };
 }
 
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
@@ -64,10 +75,37 @@ export function scoreFrames(st: FrameStat[], step: number): Highlights {
     const contrast = clamp(f.c / 45, 0, 1);
     const mq = f.m * toQuarter;
     const motion = i === 0 ? 0.8 : mq < 1.5 ? 0.55 + 0.3 * (mq / 1.5) : mq <= 14 ? 1 : clamp(1 - (mq - 14) / 22, 0, 1);
-    return 0.35 * sharp + 0.25 * expo + 0.15 * contrast + 0.25 * motion;
+    // тряска: движение то сильное, то слабое от кадра к кадру при заметном движении в целом (рука дрожит, камера мотается)
+    let shake = 0;
+    if (i > 1 && i < n - 2) {
+      let jit = 0; let mm = 0;
+      for (let k = i - 1; k <= i + 2; k++) { jit += Math.abs(st[k].m - st[k - 1].m); mm += st[k].m; }
+      mm /= 4; jit /= 4;
+      const mq4 = mm * toQuarter;
+      if (mq4 > 5) shake = clamp((jit / Math.max(1, mm) - 0.45) / 0.5, 0, 1) * clamp((mq4 - 5) / 10, 0, 1);
+    }
+    return 0.35 * sharp + 0.25 * expo + 0.15 * contrast + 0.25 * motion - 0.18 * shake;
   });
-  const score = raw.map((v, i) => r3((raw[Math.max(0, i - 1)] + 2 * v + raw[Math.min(n - 1, i + 1)]) / 4));
-  return { step, score, cuts };
+  const score = raw.map((v, i) => r3(Math.max(0, (raw[Math.max(0, i - 1)] + 2 * v + raw[Math.min(n - 1, i + 1)]) / 4)));
+  const sig = st.every((f) => f.g?.length === SIG_N) ? st.flatMap((f) => f.g!) : undefined;
+  return { step, score, cuts, ...(sig ? { sig } : {}) };
+}
+
+/** Насколько похожи два куска видео (по отпечаткам кадров): 0 — разные, 1 — одно и то же. */
+export function windowSig(hl: Highlights, s: number, len: number): number[] | null {
+  if (!hl.sig || hl.sig.length < SIG_N) return null;
+  const frames = hl.sig.length / SIG_N;
+  const a = clamp(Math.round(s / hl.step), 0, frames - 1);
+  const b = clamp(Math.round((s + len) / hl.step), a + 1, frames);
+  const out = new Array<number>(SIG_N).fill(0);
+  for (let f = a; f < b; f++) for (let k = 0; k < SIG_N; k++) out[k] += hl.sig[f * SIG_N + k];
+  return out.map((x) => x / (b - a));
+}
+export function sigSimilarity(x: number[] | null, y: number[] | null): number {
+  if (!x || !y) return 0;
+  let d = 0;
+  for (let k = 0; k < SIG_N; k++) d += Math.abs(x[k] - y[k]);
+  return clamp((18 - d / SIG_N) / 12, 0, 1);
 }
 
 /** Средняя оценка лучших 30% моментов (насколько видео в целом «удачное»). */
@@ -76,6 +114,14 @@ export function topScore(hl: Highlights | null | undefined): number {
   const s = [...hl.score].sort((a, b) => b - a);
   const k = Math.max(1, Math.round(s.length * 0.3));
   return s.slice(0, k).reduce((a, b) => a + b, 0) / k;
+}
+
+/** Оценка куска: средняя, но один провал (темнота, смаз, рывок камеры) тянет вниз — такой кусок хуже ровного. */
+function windowValue(sc: number[], pre: number[], a: number, b: number): number {
+  const mean = (pre[b] - pre[a]) / (b - a);
+  let mn = Infinity;
+  for (let i = a; i < b; i++) if (sc[i] < mn) mn = sc[i];
+  return 0.75 * mean + 0.25 * (Number.isFinite(mn) ? mn : mean);
 }
 
 /** Лучшее окно длиной len внутри [lo, hi]: начало и оценка (средняя, со штрафом за склейку внутри окна). */
@@ -91,7 +137,7 @@ export function scanWindow(hl: Highlights | null | undefined, len: number, lo: n
   let best = lo; let bestV = -Infinity;
   for (let s = lo; s <= hi - len + 1e-6; s += step) {
     const a = at(s); const b = Math.max(a + 1, at(s + len) + 1);
-    const mean = (pre[b] - pre[a]) / (b - a);
+    const mean = windowValue(sc, pre, a, b);
     const cut = hl.cuts.some((c) => c > s + 0.08 && c < s + len - 0.08);
     const center = 1 - Math.abs((s - lo) / Math.max(1e-6, span) - 0.5) * 0.04; // при равенстве — ближе к середине
     const v = mean * center - (cut ? 0.6 : 0) + (noise ? noise() * 0.06 : 0);
@@ -141,22 +187,23 @@ export function pickWindows(hl: Highlights | null | undefined, needs: number[], 
     const value = (s: number, len: number) => {
       const x = at(s); const y = Math.max(x + 1, at(s + len) + 1);
       const cut = hl.cuts.some((c) => c > s + 0.08 && c < s + len - 0.08);
-      return (pre[y] - pre[x]) / (y - x) - (cut ? 0.6 : 0) + (noise ? noise() * 0.06 : 0);
+      return windowValue(sc, pre, x, y) - (cut ? 0.6 : 0) + (noise ? noise() * 0.06 : 0);
     };
+    // соседние куски, похожие как две капли (камера стоит, ничего не происходит), — штраф: ролик не должен повторяться
+    const sigOf = new Map<string, number[] | null>();
+    const sigAt = (p: number, len: number) => {
+      const k = `${p}:${len}`;
+      if (!sigOf.has(k)) sigOf.set(k, windowSig(hl, pos(p), len));
+      return sigOf.get(k)!;
+    };
+    const SIM_PEN = 0.35;
     const best: Float64Array[] = [];
     const from: Int32Array[] = [];
     for (let r = 0; r < R; r++) {
       const cur = new Float64Array(P).fill(-Infinity);
       const arg = new Int32Array(P).fill(-1);
-      // лучший прошлый кусок, который кончается до начала этого (префиксный максимум)
-      let pm: Float64Array | null = null; let pa: Int32Array | null = null;
-      if (r > 0) {
-        pm = new Float64Array(P); pa = new Int32Array(P);
-        for (let p = 0; p < P; p++) {
-          const v = best[r - 1][p];
-          if (p === 0 || v > pm[p - 1]) { pm[p] = v; pa[p] = p; } else { pm[p] = pm[p - 1]; pa[p] = pa[p - 1]; }
-        }
-      }
+      // прошлые куски по убыванию счёта: перебор останавливается, как только лучше уже не будет (штраф ≥ 0)
+      const order = r > 0 ? [...best[r - 1].keys()].filter((p) => best[r - 1][p] > -Infinity).sort((x, y) => best[r - 1][y] - best[r - 1][x]) : [];
       const rest = needs.slice(r + 1).reduce((x, y) => x + y, 0);
       for (let p = 0; p < P; p++) {
         const s = pos(p);
@@ -164,9 +211,20 @@ export function pickWindows(hl: Highlights | null | undefined, needs: number[], 
         let prev = 0;
         if (r > 0) {
           const lim = Math.floor((s - needs[r - 1] - gap - a0) / st + 1e-6);
-          if (lim < 0 || pm![lim] === -Infinity) continue;
-          prev = pm![lim];
-          arg[p] = pa![lim];
+          if (lim < 0) continue;
+          let bv = -Infinity; let ba = -1;
+          const mine = hl.sig ? sigAt(p, needs[r]) : null;
+          for (const q of order) {
+            const v0 = best[r - 1][q];
+            if (v0 <= bv) break;
+            if (q > lim) continue;
+            const v = mine ? v0 - SIM_PEN * sigSimilarity(mine, sigAt(q, needs[r - 1])) : v0;
+            if (v > bv) { bv = v; ba = q; }
+            if (!mine) break;
+          }
+          if (ba < 0) continue;
+          prev = bv;
+          arg[p] = ba;
         }
         cur[p] = prev + value(s, needs[r]);
       }
@@ -202,7 +260,7 @@ export function pickWindows(hl: Highlights | null | undefined, needs: number[], 
 }
 
 // ---------- стили ----------
-export type AutoStyle = 'energy' | 'smooth' | 'cinema' | 'retro';
+export type AutoStyle = 'energy' | 'smooth' | 'cinema' | 'retro' | 'velocity' | 'flash' | 'zoom3d' | 'kinetic' | 'glitch' | 'clean';
 export interface AutoStyleDef {
   id: AutoStyle;
   label: string;
@@ -222,6 +280,16 @@ export interface AutoStyleDef {
   fadeIn: boolean;          // ролик проявляется из чёрного
   title: { preset: string; style: Partial<TextStyle>; anim: { in?: TextAnim; out?: TextAnim } };
   swatch: string;
+  // ритм и динамика (по форме музыки: громкость и дропы)
+  dyn?: number;             // 0..1 — насколько громкость музыки меняет длину кадров (громче — короче)
+  burst?: boolean;          // после дропа — 8 долей короткими кадрами
+  accentEvery?: number;     // акцент на резкой склейке каждые столько долей от сильной (по умолчанию 8)
+  accentFirst?: boolean;    // акцент и на первом кадре
+  dropFx?: Effect[];        // на кадре, который начинается с дропа
+  build?: number;           // наезд на кадре перед дропом (1 → 1 + build)
+  punch?: number;           // «удар» масштабом на каждой доле внутри кадра
+  velocity?: boolean;       // ускорение и замедление: первая половина кадра быстро, вторая — замедленно
+  kinetic?: boolean;        // надпись — по слову на долю
 }
 
 export const AUTO_STYLES: AutoStyleDef[] = [
@@ -234,6 +302,7 @@ export const AUTO_STYLES: AutoStyleDef[] = [
     zoom: 0.12, zoomVideo: 0, fadeIn: false,
     title: { preset: 'classic', style: { font: 'Unbounded', size: 112, bold: true, uppercase: true }, anim: { in: { type: 'pop', dur: 0.35 }, out: { type: 'zoom', dur: 0.25 } } },
     swatch: 'linear-gradient(135deg,#ff3d6e,#ffb238)',
+    dyn: 0.6, burst: true, accentFirst: true, dropFx: [{ type: 'shake', amount: 0.5 }], build: 0.18,
   },
   {
     id: 'smooth', label: tx('Плавный'), hint: tx('Длинные кадры, мягкие переходы, медленные наезды'),
@@ -244,6 +313,7 @@ export const AUTO_STYLES: AutoStyleDef[] = [
     zoom: 0.1, zoomVideo: 0.06, fadeIn: true,
     title: { preset: 'classic', style: { font: 'Cormorant Garamond', size: 120, bold: true }, anim: { in: { type: 'blur', dur: 0.8 }, out: { type: 'fade', dur: 0.6 } } },
     swatch: 'linear-gradient(135deg,#f6d5c8,#9db4d8)',
+    dyn: 0.25,
   },
   {
     id: 'cinema', label: tx('Кино'), hint: tx('Кинополосы, цвет как в фильме, переходы через чёрное'),
@@ -254,6 +324,7 @@ export const AUTO_STYLES: AutoStyleDef[] = [
     zoom: 0.06, zoomVideo: 0.05, fadeIn: true,
     title: { preset: 'classic', style: { font: 'Montserrat', size: 66, bold: true, uppercase: true }, anim: { in: { type: 'wipe', dur: 0.8 }, out: { type: 'fade', dur: 0.6 } } },
     swatch: 'linear-gradient(135deg,#0f3b4a,#d9823b)',
+    dyn: 0.2, build: 0.1,
   },
   {
     id: 'retro', label: tx('Плёнка'), hint: tx('Тёплый плёночный цвет, зерно и засветки'),
@@ -264,6 +335,70 @@ export const AUTO_STYLES: AutoStyleDef[] = [
     zoom: 0.08, zoomVideo: 0, fadeIn: false,
     title: { preset: 'classic', style: { font: 'Press Start 2P', size: 54, color: '#ffe9b0' }, anim: { in: { type: 'typewriter', dur: 0.8 }, out: { type: 'fade', dur: 0.4 } } },
     swatch: 'linear-gradient(135deg,#c9763a,#5a3d2b)',
+    dyn: 0.4,
+  },
+  {
+    id: 'velocity', label: tx('Велосити'), hint: tx('Как в TikTok: кадр мчится и замирает в замедлении на доле, резкие склейки, вспышка на дропе'),
+    bpm: 128, cut: 1.3, first: 1, pattern: [1, 1, 2, 1], trEvery: 0,
+    trans: [], trDur: () => 0,
+    color: { preset: 'drama', presetAmount: 0.55, contrast: 1.08 }, effects: [], accent: { type: 'flash', amount: 0.5 },
+    zoom: 0, zoomVideo: 0, fadeIn: false,
+    title: { preset: 'classic', style: { font: 'Dela Gothic One', size: 104, uppercase: true }, anim: { in: { type: 'pop', dur: 0.3 }, out: { type: 'zoom', dur: 0.2 } } },
+    swatch: 'linear-gradient(135deg,#111827,#f43f5e 60%,#fde047)',
+    dyn: 0.7, burst: true, accentEvery: 4, accentFirst: true, dropFx: [{ type: 'quake', amount: 0.5 }], velocity: true,
+  },
+  {
+    id: 'flash', label: tx('Бит-флеш'), hint: tx('Очень частые склейки, белые вспышки на сильных долях, на дропе — двоение цвета'),
+    bpm: 132, cut: 0.5, first: 2, pattern: [1, 1, 1, 1, 2, 1, 1, 1], trEvery: 0,
+    trans: [], trDur: () => 0,
+    color: { preset: 'vivid', presetAmount: 0.7, contrast: 1.1 }, effects: [], accent: { type: 'bwflash', amount: 0.6 },
+    zoom: 0, zoomVideo: 0, fadeIn: false,
+    title: { preset: 'classic', style: { font: 'Russo One', size: 112, uppercase: true }, anim: { in: { type: 'pop', dur: 0.25 }, out: { type: 'zoom', dur: 0.2 } } },
+    swatch: 'linear-gradient(90deg,#fff 0 12%,#0f172a 12% 30%,#fff 30% 38%,#7c3aed 38% 70%,#fff 70% 76%,#0f172a 76%)',
+    dyn: 0.9, burst: true, accentEvery: 4, dropFx: [{ type: 'rgbsplit', amount: 0.7 }, { type: 'shake', amount: 0.4 }], punch: 0.06,
+  },
+  {
+    id: 'zoom3d', label: tx('3D-зум'), hint: tx('Переходы с объёмом и зумом, «удар» масштабом на каждую долю'),
+    bpm: 112, cut: 1.4, first: 1.5, pattern: [1, 1, 2], trEvery: 1,
+    trans: ['gl:CrossZoom', 'gl:Cube', 'gl:DreamyZoom', 'gl:ZoomInOut', 'gl:SimpleZoom', 'zoomin'],
+    trDur: (b) => clamp(b * 0.6, 0.3, 0.5),
+    color: { preset: 'cool', presetAmount: 0.5 }, effects: [], accent: { type: 'zoomin', amount: 0.5 },
+    zoom: 0, zoomVideo: 0, fadeIn: false,
+    title: { preset: 'classic', style: { font: 'Unbounded', size: 100, bold: true }, anim: { in: { type: 'zoom', dur: 0.4 }, out: { type: 'zoom', dur: 0.3 } } },
+    swatch: 'radial-gradient(circle at 50% 50%,#a5f3fc,#3b82f6 45%,#1e1b4b)',
+    dyn: 0.5, punch: 0.08, build: 0.22,
+  },
+  {
+    id: 'kinetic', label: tx('Текст в ритм'), hint: tx('Надпись по слову на каждую долю, потом кадры с мягкими сдвигами'),
+    bpm: 110, cut: 1.6, first: 1, pattern: [1, 1, 2, 1], trEvery: 2,
+    trans: ['smoothleft', 'smoothup', 'coverleft', 'slideup'],
+    trDur: (b) => clamp(b * 0.5, 0.25, 0.4),
+    color: { preset: 'clean', presetAmount: 0.6 }, effects: [],
+    zoom: 0.08, zoomVideo: 0.04, fadeIn: false,
+    title: { preset: 'classic', style: { font: 'Rubik Mono One', size: 120, uppercase: true }, anim: { in: { type: 'pop', dur: 0.2 } } },
+    swatch: 'linear-gradient(135deg,#fef08a,#fb923c 55%,#111)',
+    dyn: 0.5, kinetic: true,
+  },
+  {
+    id: 'glitch', label: tx('Глитч'), hint: tx('Цифровые помехи на склейках, двоение цвета, неоновый цвет'),
+    bpm: 120, cut: 0.95, first: 1.5, pattern: [1, 1, 1, 2], trEvery: 2,
+    trans: ['gl:GlitchMemories', 'gl:GlitchDisplace', 'pixelize', 'gl:GlitchBands', 'hlslice'],
+    trDur: (b) => clamp(b * 0.5, 0.2, 0.35),
+    color: { preset: 'nightcity', presetAmount: 0.6 }, effects: [{ type: 'rgbsplit', amount: 0.12 }], accent: { type: 'glitch', amount: 0.6 },
+    zoom: 0.06, zoomVideo: 0, fadeIn: false,
+    title: { preset: 'classic', style: { font: 'Tektur', size: 104, bold: true, uppercase: true }, anim: { in: { type: 'typewriter', dur: 0.5 }, out: { type: 'fade', dur: 0.3 } } },
+    swatch: 'linear-gradient(135deg,#0b1020 20%,#22d3ee 21% 40%,#0b1020 41% 60%,#f0abfc 61% 72%,#0b1020 73%)',
+    dyn: 0.6, burst: true, accentEvery: 4, dropFx: [{ type: 'vhs', amount: 0.5 }],
+  },
+  {
+    id: 'clean', label: tx('Чистый'), hint: tx('Только резкие склейки точно в долю, естественный цвет, без эффектов'),
+    bpm: 100, cut: 1.8, first: 1, pattern: [1, 1, 2, 1], trEvery: 0,
+    trans: [], trDur: () => 0,
+    color: { preset: 'clean', presetAmount: 0.35 }, effects: [],
+    zoom: 0.05, zoomVideo: 0, fadeIn: false,
+    title: { preset: 'classic', style: { font: 'Onest', size: 92, bold: true }, anim: { in: { type: 'fade', dur: 0.4 }, out: { type: 'fade', dur: 0.4 } } },
+    swatch: 'linear-gradient(135deg,#f8fafc,#cbd5e1)',
+    dyn: 0.45,
   },
 ];
 export const autoStyle = (id: AutoStyle): AutoStyleDef => AUTO_STYLES.find((s) => s.id === id) ?? AUTO_STYLES[0];
@@ -356,11 +491,25 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
   const maxT = inp.length === 'auto' ? 600 : inp.length;
   const { grid, beat, musicIn, onBeats } = beatGrid(music, st.bpm, maxT);
   const k0 = baseBeats(st.cut, beat);
-  const kAt = (j: number) => {
-    const k = Math.max(1, Math.round(k0 * st.pattern[j % st.pattern.length]));
-    return j === 0 ? Math.max(k, Math.round(k0 * st.first)) : k;
-  };
   const maxIdx = grid.length - 1;
+  // форма музыки: громкость по времени ролика, дропы — на долях сетки, сильная доля такта
+  const shape = onBeats ? music?.shape : undefined;
+  const energyAt = (t: number) => {
+    if (!shape?.energy.length) return 0.5;
+    return shape.energy[clamp(Math.round((t + musicIn) / shape.step), 0, shape.energy.length - 1)];
+  };
+  const nearestIdx = (t: number) => grid.reduce((b, g, i) => (Math.abs(g - t) < Math.abs(grid[b] - t) ? i : b), 0);
+  const dropIdx = [...new Set((shape?.drops ?? []).map((d) => d - musicIn).filter((d) => d > 0.5).map(nearestIdx))].filter((i) => i > 0 && i < maxIdx);
+  const phase = shape ? shape.phase : 0;
+  const inBurst = (at: number) => !!st.burst && dropIdx.some((d) => at >= d && at < d + 8);
+  /** Длина кадра j в долях, если он начинается с доли at: ритм стиля, громкость музыки, всплеск после дропа. */
+  const kAt = (j: number, at = 0) => {
+    let k = k0 * st.pattern[j % st.pattern.length];
+    if (j === 0) k = Math.max(k, k0 * st.first);
+    if (shape && st.dyn) k *= Math.pow(2, st.dyn * (0.5 - energyAt(grid[Math.min(at, maxIdx)])) * 2);
+    if (inBurst(at)) k = Math.min(k, Math.max(1, k0 / 2));
+    return Math.max(1, Math.round(k));
+  };
 
   // сколько долей займёт ролик
   const capTotal = cap.reduce((a, b) => a + b, 0);
@@ -369,7 +518,7 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
     // столько кадров, сколько естественно даёт материал, но не короче AUTO_MIN секунд, если материала хватает
     const want = Math.max(1, natural.reduce((a, b) => a + b, 0));
     let sum = 0;
-    for (let j = 0; j < capTotal && (j < want || sum * beat < AUTO_MIN) && (j === 0 || (sum + kAt(j)) * beat <= AUTO_MAX); j++) sum += kAt(j);
+    for (let j = 0; j < capTotal && (j < want || sum * beat < AUTO_MIN) && (j === 0 || (sum + kAt(j, sum)) * beat <= AUTO_MAX); j++) sum += kAt(j, sum);
     NB = Math.min(sum, maxIdx);
   } else {
     let i = 0;
@@ -387,7 +536,14 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
 
   // кадры: длины в долях по ритму стиля
   let ks: number[] = [];
-  for (let sum = 0, j = 0; sum < NB; j++) { const k = Math.min(kAt(j), NB - sum); ks.push(k); sum += k; }
+  for (let sum = 0, j = 0; sum < NB; j++) {
+    let k = Math.min(kAt(j, sum), NB - sum);
+    // склейка точно на дропе
+    const d = dropIdx.find((x) => x > sum && x < sum + k);
+    if (d !== undefined) k = d - sum;
+    ks.push(k);
+    sum += k;
+  }
   if (ks.length > 1 && ks[ks.length - 1] < Math.max(1, k0 / 2)) { const last = ks.pop()!; ks[ks.length - 1] += last; }
 
   // какие файлы в какие кадры
@@ -506,6 +662,19 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
   let anyContain = false;
   let zoomDir = rand() < 0.5;
 
+  // «велосити»: кадр видео от 2 долей делится на долю — первая часть быстро, вторая замедленно
+  const VEL_FAST = 2;
+  const VEL_SLOW = 0.5;
+  const velSplit = (j: number, q: number): { tA: number; tB: number } | null => {
+    if (!st.velocity || ks[j] < 2 || !isVideo(media[owner[j]].asset)) return null;
+    const kA = Math.floor(ks[j] / 2);
+    const tA = grid[Math.min(maxIdx, idx[j] + kA)] - grid[idx[j]];
+    const tB = L[j] + td[q] - tA;
+    return tA > 0.15 && tB > 0.15 ? { tA, tB } : null;
+  };
+  /** Сколько секунд исходника съест кадр (при скорости 1×). */
+  const srcNeed = (j: number, q: number) => { const v = velSplit(j, q); return v ? v.tA * VEL_FAST + v.tB * VEL_SLOW : L[j] + td[q]; };
+
   // куски видео: лучшие моменты, по времени видео
   const windows = new Map<number, { start: number; speed: number }[]>();
   media.forEach((m, i) => {
@@ -513,7 +682,7 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
     const mine = slots.map((j, q) => ({ j, q })).filter((x) => owner[x.j] === i);
     if (!mine.length) return;
     const u = usable(m.asset);
-    const needs = mine.map((x) => L[x.j] + td[x.q]);
+    const needs = mine.map((x) => srcNeed(x.j, x.q));
     const total = sumOf(needs);
     if (repeated && total > u.len) {
       // материала мало, кадры повторяются: каждое окно — в своей части видео, наложения допустимы
@@ -533,11 +702,11 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
     windows.set(i, starts.map((start, r) => ({ start, speed: src[r] < needs[r] * speed - 1e-6 ? Math.max(0.25, src[r] / needs[r]) : speed })));
   });
   const used = new Map<number, number>();
+  const every = st.accentEvery ?? 8;
+  const strongAt = (at: number) => (((at - phase) % every) + every) % every === 0;
 
-  slots.forEach((j, q) => {
-    const m = media[owner[j]];
-    const a = m.asset;
-    const d = L[j] + td[q];
+  /** Клип из файла: кадрирование, звук, цвет. */
+  const makeClip = (a: MediaAsset, inT: number, speed: number, dur: number): MediaClip => {
     const c: MediaClip = newMediaClip(a);
     const rot = Math.abs(a.rotation % 180) === 90;
     const ar = (rot ? a.height : a.width) / Math.max(1, rot ? a.width : a.height);
@@ -546,36 +715,80 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
     if (c.fit === 'contain') anyContain = true;
     c.transform = { ...DEFAULT_TRANSFORM };
     if (isVideo(a)) {
-      const n = used.get(owner[j]) ?? 0;
-      used.set(owner[j], n + 1);
-      const w = windows.get(owner[j])?.[n] ?? { start: usable(a).a0, speed: 1 };
-      c.speed = Math.round(w.speed * 1e4) / 1e4;
-      c.in = w.start;
-      c.out = Math.min(a.duration, w.start + d * c.speed);
+      c.speed = Math.round(speed * 1e4) / 1e4;
+      c.in = inT;
+      c.out = Math.min(a.duration, inT + dur * c.speed);
       if (inp.videoSound === 'off' && music) { c.muted = true; c.volume = 0; } else if (inp.videoSound === 'quiet' && music) c.volume = 0.3;
-      if (c.speed < 0.999 && !c.muted) c.muted = true; // замедленный звук звучит плохо
+      if (c.speed < 0.999 || c.speed > 1.001) c.muted = true; // ускоренный и замедленный звук звучит плохо
     } else {
       c.in = 0;
-      c.out = d;
-    }
-    const z = isVideo(a) ? st.zoomVideo : st.zoom;
-    if (z > 0) {
-      zoomDir = !zoomDir;
-      const [z0, z1] = zoomDir ? [1, 1 + z] : [1 + z, 1];
-      c.keyframes = { scale: [{ t: c.in, v: z0, ease: 'smooth' }, { t: c.out, v: z1, ease: 'smooth' }] };
-      c.transform.scale = z0;
+      c.out = dur;
     }
     c.color = { ...DEFAULT_COLOR, ...st.color };
-    const fx: Effect[] = st.effects.map((e) => ({ ...e }));
+    return c;
+  };
+  /** Масштаб во времени: наезд (z0 → z1) или «удары» на долях внутри кадра. t0 — начало кадра на таймлайне. */
+  const zoomKeys = (c: MediaClip, z0: number, z1: number) => {
+    c.keyframes = { scale: [{ t: c.in, v: z0, ease: 'smooth' }, { t: c.out, v: z1, ease: 'smooth' }] };
+    c.transform.scale = z0;
+  };
+  const punchKeys = (c: MediaClip, t0: number, dur: number, amt: number) => {
+    const beatsIn = grid.filter((g) => g > t0 + 0.12 && g < t0 + dur - 0.12);
+    if (!beatsIn.length) return;
+    const decay = Math.min(0.3, beat * 0.8);
+    const keys: { t: number; v: number; ease: 'smooth' }[] = [{ t: c.in, v: 1, ease: 'smooth' }];
+    for (const b of beatsIn) {
+      const src = c.in + (b - t0) * c.speed;
+      keys.push({ t: src - 0.01 * c.speed, v: 1, ease: 'smooth' }, { t: src + 0.06 * c.speed, v: 1 + amt, ease: 'smooth' }, { t: src + decay * c.speed, v: 1, ease: 'smooth' });
+    }
+    const clean = keys.filter((k, i) => i === 0 || k.t > keys[i - 1].t + 1e-4).map((k) => ({ ...k, t: Math.round(k.t * 1e4) / 1e4 }));
+    c.keyframes = { scale: clean };
+  };
+
+  slots.forEach((j, q) => {
+    const m = media[owner[j]];
+    const a = m.asset;
+    const d = L[j] + td[q];
+    const t0 = B[j];
+    const at = idx[j];
     const hardIn = q === 0 || !td[q - 1];
-    if (st.accent && (q === 0 ? st.id === 'energy' : hardIn && idx[j] % 8 === 0)) fx.push({ ...st.accent });
-    if (fx.length) c.effects = fx;
-    if (trType[q] && q < slots.length - 1) c.transitionOut = { type: trType[q]!, duration: td[q] } as Transition;
-    const anim: { in?: ClipAnim; out?: ClipAnim } = {};
-    if (q === 0 && st.fadeIn) anim.in = { type: 'fade', dur: Math.min(0.6, d * 0.3) };
-    if (q === slots.length - 1) anim.out = { type: 'fade', dur: Math.round(Math.min(1, d * 0.4) * 100) / 100 };
-    if (anim.in || anim.out) c.anim = anim;
-    main.clips.push(c);
+    const isDrop = dropIdx.includes(at);
+    const beforeDrop = dropIdx.includes(idx[j + 1]);
+    let w = { start: 0, speed: 1 };
+    if (isVideo(a)) {
+      const n = used.get(owner[j]) ?? 0;
+      used.set(owner[j], n + 1);
+      w = windows.get(owner[j])?.[n] ?? { start: usable(a).a0, speed: 1 };
+    }
+    const vel = velSplit(j, q);
+    const parts: MediaClip[] = [];
+    if (vel && w.speed >= 0.6) {
+      const ca = makeClip(a, w.start, VEL_FAST * w.speed, vel.tA);
+      const cb = makeClip(a, ca.out, Math.max(0.25, VEL_SLOW * w.speed), vel.tB);
+      zoomKeys(cb, 1, beforeDrop && st.build ? 1 + st.build : 1.08); // замедление — с лёгким наездом
+      parts.push(ca, cb);
+    } else {
+      const c = makeClip(a, w.start, w.speed, d);
+      const z = isVideo(a) ? st.zoomVideo : st.zoom;
+      if (beforeDrop && st.build) zoomKeys(c, 1, 1 + st.build);
+      else if (st.punch) punchKeys(c, t0, d, st.punch);
+      else if (z > 0) {
+        zoomDir = !zoomDir;
+        if (zoomDir) zoomKeys(c, 1, 1 + z); else zoomKeys(c, 1 + z, 1);
+      }
+      parts.push(c);
+    }
+    const head = parts[0];
+    const fx: Effect[] = st.effects.map((e) => ({ ...e }));
+    if (st.accent && (q === 0 ? !!st.accentFirst : hardIn && (strongAt(at) || isDrop))) fx.push({ ...st.accent });
+    if (isDrop && st.dropFx) for (const e of st.dropFx) if (!fx.some((x) => x.type === e.type)) fx.push({ ...e });
+    if (fx.length) head.effects = fx;
+    for (const c of parts.slice(1)) if (st.effects.length) c.effects = st.effects.map((e) => ({ ...e }));
+    const tail = parts[parts.length - 1];
+    if (trType[q] && q < slots.length - 1) tail.transitionOut = { type: trType[q]!, duration: td[q] } as Transition;
+    if (q === 0 && st.fadeIn) head.anim = { in: { type: 'fade', dur: Math.min(0.6, d * 0.3) } };
+    if (q === slots.length - 1) tail.anim = { ...(tail.anim ?? {}), out: { type: 'fade', dur: Math.round(Math.min(1, d * 0.4) * 100) / 100 } as ClipAnim };
+    main.clips.push(...parts);
   });
   layoutMain(p);
   if (anyContain) p.settings.background = 'blur';
@@ -596,7 +809,34 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
 
   // надпись
   const title = inp.title.trim();
-  if (title) {
+  const words = title.split(/\s+/).filter(Boolean);
+  if (title && st.kinetic && words.length > 1) {
+    // по слову на долю (короткая надпись — по слову на две доли), в конце ролика — надпись целиком
+    const preset = TEXT_PRESETS.find((x) => x.id === st.title.preset)?.style ?? {};
+    const per = words.length <= 3 ? 2 : 1;
+    const t = newTrack('text');
+    const list = words.slice(0, 12);
+    list.forEach((wd, i) => {
+      const a0 = grid[Math.min(maxIdx, i * per)];
+      const a1 = Math.min(total - 0.05, grid[Math.min(maxIdx, (i + 1) * per)] ?? a0 + beat * per);
+      if (a1 - a0 < 0.12) return;
+      const c: TextClip = newTextClip(a0, wd, { ...preset, ...st.title.style });
+      c.duration = Math.round((a1 - a0 - 0.02) * 1000) / 1000;
+      c.y = inp.aspect === '9:16' ? 0.42 : 0.45;
+      c.anim = structuredClone(st.title.anim);
+      t.clips.push(c);
+    });
+    const lastStart = main.clips[main.clips.length - 1].start;
+    const wordsEnd = grid[Math.min(maxIdx, list.length * per)] ?? 0;
+    if (total - lastStart > 1.2 && lastStart > wordsEnd + 0.5) {
+      const c: TextClip = newTextClip(lastStart + 0.1, title, { ...preset, ...st.title.style, size: Math.round((st.title.style.size ?? 100) * 0.7) });
+      c.duration = Math.round((total - lastStart - 0.25) * 1000) / 1000;
+      c.y = inp.aspect === '9:16' ? 0.42 : 0.45;
+      c.anim = { in: { type: 'pop', dur: 0.3 }, out: { type: 'fade', dur: 0.4 } };
+      t.clips.push(c);
+    }
+    if (t.clips.length) p.tracks.push(t);
+  } else if (title) {
     const preset = TEXT_PRESETS.find((x) => x.id === st.title.preset)?.style ?? {};
     const c: TextClip = newTextClip(0.15, title, { ...preset, ...st.title.style });
     const firstLen = L[slots[0]] + (slots.length > 1 ? L[slots[1]] * 0.5 : 0);
@@ -613,7 +853,7 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
   return {
     project: p,
     summary: {
-      cuts: Math.max(0, slots.length - 1), duration: total, used: usedCount, dropped: media.length - usedCount, repeated,
+      cuts: Math.max(0, main.clips.length - 1), duration: total, used: usedCount, dropped: media.length - usedCount, repeated,
       bpm: Math.round(60 / beat), onBeats,
     },
   };

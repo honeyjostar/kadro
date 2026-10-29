@@ -6,6 +6,7 @@ import {
   AUTO_STYLES, HL_H, HL_W, autoEdit, beatGrid, bestWindow, frameStat, goodSeconds, longestShot, pickWindows, scoreFrames, type AutoInput, type Highlights,
 } from '../../src/shared/autoEdit';
 import { clipDuration, clipEnd, mainTrack, projectDuration } from '../../src/shared/timeline';
+import glCatalog from '../../src/shared/gl/transitions.json';
 import type { MediaAsset, MediaClip, TextClip } from '../../src/shared/types';
 
 function asset(id: string, kind: MediaAsset['kind'], duration: number, extra: Partial<MediaAsset> = {}): MediaAsset {
@@ -143,8 +144,9 @@ describe('авто-ролик: сборка', () => {
   it('стили ссылаются на существующие переходы, эффекты, фильтры, шрифты', () => {
     const fonts = new Set(FONTS.map((f) => f.family));
     for (const s of AUTO_STYLES) {
-      for (const t of s.trans) expect(TRANSITIONS.some((x) => x.type === t), t).toBe(true);
-      for (const e of [...s.effects, ...(s.accent ? [s.accent] : [])]) expect(EFFECTS.some((x) => x.type === e.type), e.type).toBe(true);
+      const gl = new Set((glCatalog as { name: string }[]).map((x) => `gl:${x.name}`));
+      for (const t of s.trans) expect(t.startsWith('gl:') ? gl.has(t) : TRANSITIONS.some((x) => x.type === t), t).toBe(true);
+      for (const e of [...s.effects, ...(s.accent ? [s.accent] : []), ...(s.dropFx ?? [])]) expect(EFFECTS.some((x) => x.type === e.type), e.type).toBe(true);
       expect(FILTER_PRESETS.some((x) => x.id === s.color.preset), s.color.preset).toBe(true);
       expect(fonts.has(s.title.style.font!), s.title.style.font).toBe(true);
       expect(TEXT_PRESETS.some((x) => x.id === s.title.preset)).toBe(true);
