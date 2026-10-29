@@ -14,6 +14,7 @@ import { PluginCatalog, reportInstall } from './PluginCatalog';
 import { UpdateCard, useUpdateFeed } from './Update';
 import { PasteAttrsDialog } from './PasteAttrs';
 import { ShortcutsDialog } from './Shortcuts';
+import { ChromaPaintDialog } from './ChromaPaint';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts } from './Overlays';
@@ -45,6 +46,7 @@ export function App() {
   useEffect(initFonts, []);
   const pasteOpen = useStore((s) => s.pasteOpen);
   const copiedAttrs = useStore((s) => s.copiedAttrs);
+  const chromaPaintClip = useStore((s) => s.chromaPaintClip);
   const keysOpen = useStore((s) => s.keysOpen);
   const loaded = useRef(false);
 
@@ -188,6 +190,7 @@ export function App() {
       {catalogOpen && <PluginCatalog />}
       {pasteOpen && copiedAttrs && <PasteAttrsDialog attrs={copiedAttrs} />}
       {keysOpen && <ShortcutsDialog />}
+      {chromaPaintClip && <ChromaPaintDialog key={chromaPaintClip} clipId={chromaPaintClip} />}
       {bugOpen && <BugDialog initial={bugOpen.what} onClose={() => getState().setBugOpen(null)} />}
       <UpdateCard />
       <Jobs />

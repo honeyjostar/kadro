@@ -61,6 +61,7 @@ const api: KadroApi = {
   onFontsChanged: (cb) => on('fonts:changed', cb),
   onProjectExtras: (cb) => on('project:extras', cb),
   packProject: (project) => ipcRenderer.invoke('project:pack', project),
+  saveChromaPaint: (png) => ipcRenderer.invoke('chroma:savePaint', png),
   mtInfo: () => ipcRenderer.invoke('mt:info'),
   updateState: () => ipcRenderer.invoke('update:state'),
   checkUpdate: () => ipcRenderer.invoke('update:check'),

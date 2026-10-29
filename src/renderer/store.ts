@@ -74,6 +74,8 @@ interface State {
   /** Скопированные параметры клипа (Ctrl+Shift+C) и окно вставки (Ctrl+Shift+V). */
   copiedAttrs: import('../shared/attrs').ClipAttrs | null;
   pasteOpen: boolean;
+  /** Клип, для которого открыт «Ластик для хромакея». */
+  chromaPaintClip: string | null;
   keysOpen: boolean;
   /** Обновления Kadro (состояние из главного процесса). */
   update: import('../shared/update').UpdateState | null;
@@ -121,6 +123,7 @@ interface State {
   setPluginCatalogOpen: (b: boolean) => void;
   setCopiedAttrs: (a: import('../shared/attrs').ClipAttrs | null) => void;
   setPasteOpen: (b: boolean) => void;
+  setChromaPaintClip: (id: string | null) => void;
   setKeysOpen: (b: boolean) => void;
   setUpdate: (u: import('../shared/update').UpdateState | null) => void;
   setAutoLast: (p: AutoParams | null) => void;
@@ -188,6 +191,7 @@ export const useStore = create<State>((set, get) => ({
   pluginCatalogOpen: false,
   copiedAttrs: null,
   pasteOpen: false,
+  chromaPaintClip: null,
   keysOpen: false,
   update: null,
   autoLast: null,
@@ -280,6 +284,7 @@ export const useStore = create<State>((set, get) => ({
   setPluginCatalogOpen: (b) => set({ pluginCatalogOpen: b }),
   setCopiedAttrs: (a) => set({ copiedAttrs: a }),
   setPasteOpen: (b) => set({ pasteOpen: b }),
+  setChromaPaintClip: (id) => set({ chromaPaintClip: id }),
   setKeysOpen: (b) => set({ keysOpen: b }),
   setUpdate: (u) => set({ update: u }),
   setAutoLast: (p) => set({ autoLast: p }),

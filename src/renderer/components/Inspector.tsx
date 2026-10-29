@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { AudioLines, Box, X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2, ClipboardCopy, ClipboardPaste } from 'lucide-react';
+import { AudioLines, Box, Eraser, X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2, ClipboardCopy, ClipboardPaste } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
 import { alignToBeats, extractAudio, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection, userCurve, userSpeed, copyClipAttrs, openPasteAttrs } from '../actions';
 import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
@@ -584,6 +584,13 @@ function MaskTab({ clip }: { clip: MediaClip }) {
           </div>
           <Slider label={tx('Сила')} min={0.01} max={0.5} step={0.005} value={ch.similarity} format={pct} onChange={(v) => setC({ similarity: v }, 'chs')} testId="chroma-sim" />
           <Slider label={tx('Мягкость края')} min={0} max={0.3} step={0.005} value={ch.smoothness} format={pct} onChange={(v) => setC({ smoothness: v }, 'chb')} />
+          <div className="custom-row chroma-paint-row">
+            <button className="btn small" onClick={() => getState().setChromaPaintClip(clip.id)} data-testid="chroma-paint"
+              title={tx('Дочистить кистью: стереть то, что хромакей оставил, или вернуть то, что он съел')}>
+              <Eraser size={13} />{ch.paint ? tx('Ластик — изменить') : tx('Ластик и кисть')}</button>
+            {ch.paint && <button className="btn ghost small" onClick={() => setC({ paint: undefined }, 'chp')} data-testid="chroma-paint-off">{tx('Убрать кисть')}</button>}
+          </div>
+          {ch.paint && <p className="hint small" data-testid="chroma-paint-on">{tx('Фон дочищен кистью — действует на весь клип.')}</p>}
         </>
       )}
     </>

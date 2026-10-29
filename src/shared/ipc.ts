@@ -159,6 +159,8 @@ export interface KadroApi {
   fontFace(file: string, index: number): Promise<string>;
   onFontsChanged(cb: (list: FontFile[]) => void): () => void;
   onProjectExtras(cb: (r: ProjectExtras) => void): () => void;
+  /** Сохранить карту кисти хромакея (PNG) — путь к файлу в папке данных. */
+  saveChromaPaint(png: Uint8Array): Promise<string>;
   /** Собрать проект в папку: сам проект, видео, музыка, шрифты, плагины, LUT. null — отменили. */
   packProject(project: Project): Promise<PackResult | null>;
   mtInfo(): Promise<{ pairs: string[]; sizes: Record<string, number>; ready: string[] }>;

@@ -76,6 +76,12 @@ export async function packProject(project: Project, parent: string): Promise<Pac
       r.path = path.join(dir, rel);
       r.rel = toRel(rel);
     }
+    const paint = m.chroma?.paint;
+    if (paint?.path && fs.existsSync(paint.path)) {
+      const rel = await copy(paint.path, 'masks');
+      paint.path = path.join(dir, rel);
+      paint.rel = toRel(rel);
+    }
     const lut = m.grade?.lut;
     if (lut?.path && fs.existsSync(lut.path)) {
       const rel = await copy(lut.path, 'luts');
@@ -138,6 +144,8 @@ export function relinkProject(p: Project, projectFile: string): number {
     }
     const lut = m.grade?.lut;
     if (lut?.path) { const hit = find(lut.path, lut.rel, ['luts']); if (hit) lut.path = hit; }
+    const paint = m.chroma?.paint;
+    if (paint?.path) { const hit = find(paint.path, paint.rel, ['masks']); if (hit) paint.path = hit; }
   }
   return n;
 }

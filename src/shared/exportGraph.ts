@@ -186,6 +186,26 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       cur = out;
     };
 
+    // 1½) кисть хромакея: карта во весь кадр исходника — сразу после масштаба (до эффектов, что двигают картинку).
+    // Прозрачность × min(1, m/128), затем «светлее» с (m−128)/127 — как в превью.
+    const applyPaint = (w: number, h: number) => {
+      const paint = c.chroma?.paint;
+      if (!paint?.path) return;
+      const idx = addInput(['-loop', '1', '-framerate', String(F), '-i', paint.path]);
+      parts.push(`fps=${F}`);
+      flush();
+      const [a, b, al, m1, m2, e, r, al2, al3, out] = Array.from({ length: 10 }, () => L('cp'));
+      chains.push(`[${cur}]split=2[${a}][${b}]`);
+      chains.push(`[${b}]alphaextract[${al}]`);
+      chains.push(`[${idx}:v]format=gray,scale=${w}:${h}:flags=bilinear,setsar=1,split=2[${m1}][${m2}]`);
+      chains.push(`[${m1}]lut=c0='min(255,val*255/128)'[${e}]`);
+      chains.push(`[${m2}]lut=c0='clip((val-128)*255/127,0,255)'[${r}]`);
+      chains.push(`[${al}][${e}]blend=all_mode=multiply:shortest=1[${al2}]`);
+      chains.push(`[${al2}][${r}]blend=all_mode=lighten:shortest=1[${al3}]`);
+      chains.push(`[${a}][${al3}]alphamerge[${out}]`);
+      cur = out;
+    };
+
     // 3½) кривые, HSL, свой LUT — одной таблицей (после масштаба: дешевле, а результат тот же)
     const applyGrade = () => {
       const g = c.grade;
@@ -395,6 +415,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       const sw = Math.max(1, Math.round(pl.w));
       const sh = Math.max(1, Math.round(pl.h));
       parts.push(`scale=${sw}:${sh}:flags=bicubic`);
+      applyPaint(sw, sh);
       applyGrade();
       applyEffects(sw, sh);
       applyMask(sw, sh);
@@ -452,6 +473,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const [x2, y2] = corner(0, PH);
     const [x3, y3] = corner(PW, PH);
     parts.push(`scale=${wm}:${hm}:flags=bicubic`);
+    applyPaint(wm, hm);
     applyGrade();
     applyEffects(wm, hm);
     applyMask(wm, hm);

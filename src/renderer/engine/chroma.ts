@@ -5,6 +5,7 @@ import type { ChromaKey } from '../../shared/types';
 const VS = `attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x*0.5+0.5, 0.5-p.y*0.5); gl_Position = vec4(p,0.0,1.0); }`;
 const FS = `precision highp float;
 uniform sampler2D tex; uniform vec2 texel; uniform vec2 keyUV; uniform float sim; uniform float soft;
+uniform sampler2D paint; uniform float hasPaint;
 varying vec2 uv;
 vec2 toUV(vec3 c){
   float u = 128.0 + (-0.16874*c.r - 0.33126*c.g + 0.5*c.b) * 224.0/255.0;
@@ -22,9 +23,19 @@ void main(){
   }
   diff /= 9.0;
   float a = soft > 0.0001 ? clamp((diff - sim) / soft, 0.0, 1.0) : (diff > sim ? 1.0 : 0.0);
+  if (hasPaint > 0.5) {
+    // кисть: ниже 128 — стереть, выше — вернуть (так же считает экспорт: умножение, затем «светлее»)
+    float m = floor(texture2D(paint, uv).r * 255.0 + 0.5);
+    a = max(a * min(1.0, m / 128.0), clamp((m - 128.0) / 127.0, 0.0, 1.0));
+  }
   vec3 rgb = texture2D(tex, uv).rgb;
   gl_FragColor = vec4(rgb * a, a);
 }`;
+
+/** Прозрачность с учётом кисти: a — от хромакея (0..1), m — значение карты кисти (0..255). */
+export function paintAlpha(a: number, m: number): number {
+  return Math.max(a * Math.min(1, m / 128), Math.min(1, Math.max(0, (m - 128) / 127)));
+}
 
 /** U/V ключевого цвета — как RGB_TO_U_CCIR / RGB_TO_V_CCIR в FFmpeg. */
 export function keyUV(hex: string): [number, number] {
@@ -40,6 +51,9 @@ export class ChromaKeyer {
   private gl: WebGLRenderingContext | null;
   private prog: WebGLProgram | null = null;
   private tex: WebGLTexture | null = null;
+  private paintTex: WebGLTexture | null = null;
+  private paintSrc: TexImageSource | null = null;
+  private paintVer = -1;
   private loc: Record<string, WebGLUniformLocation | null> = {};
 
   constructor() {
@@ -66,14 +80,21 @@ export class ChromaKeyer {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    for (const n of ['tex', 'texel', 'keyUV', 'sim', 'soft']) this.loc[n] = gl.getUniformLocation(prog, n);
+    this.paintTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, this.paintTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    for (const n of ['tex', 'texel', 'keyUV', 'sim', 'soft', 'paint', 'hasPaint']) this.loc[n] = gl.getUniformLocation(prog, n);
   }
 
   private cpu = document.createElement('canvas');
+  private cpuPaint = document.createElement('canvas');
   private diff = new Float32Array(0);
 
   /** Без видеокарты (WebGL выключен): то же самое на процессоре, в уменьшенном размере. */
-  private processCpu(src: TexImageSource, w: number, h: number, key: ChromaKey): HTMLCanvasElement {
+  private processCpu(src: TexImageSource, w: number, h: number, key: ChromaKey, paint: TexImageSource | null): HTMLCanvasElement {
     const k = Math.min(1, 960 / Math.max(w, h));
     const cw = Math.max(1, Math.round(w * k));
     const ch = Math.max(1, Math.round(h * k));
@@ -96,6 +117,14 @@ export class ChromaKeyer {
     }
     const sim = Math.max(0.01, key.similarity);
     const soft = Math.max(0, key.smoothness);
+    let pm: Uint8ClampedArray | null = null;
+    if (paint) {
+      const pc = this.cpuPaint;
+      if (pc.width !== cw || pc.height !== ch) { pc.width = cw; pc.height = ch; }
+      const px = pc.getContext('2d', { willReadFrequently: true })!;
+      px.drawImage(paint as CanvasImageSource, 0, 0, cw, ch);
+      pm = px.getImageData(0, 0, cw, ch).data;
+    }
     for (let y = 0; y < ch; y++) {
       for (let x = 0; x < cw; x++) {
         let sum = 0;
@@ -104,7 +133,8 @@ export class ChromaKeyer {
           for (let ox = -1; ox <= 1; ox++) sum += df[yy + Math.min(cw - 1, Math.max(0, x + ox))];
         }
         const m = sum / 9;
-        const a = soft > 0.0001 ? Math.min(1, Math.max(0, (m - sim) / soft)) : m > sim ? 1 : 0;
+        let a = soft > 0.0001 ? Math.min(1, Math.max(0, (m - sim) / soft)) : m > sim ? 1 : 0;
+        if (pm) a = paintAlpha(a, pm[(y * cw + x) * 4]);
         d[(y * cw + x) * 4 + 3] = Math.round(a * 255);
       }
     }
@@ -112,10 +142,13 @@ export class ChromaKeyer {
     return cv;
   }
 
-  /** Кадр с вырезанным цветом (прозрачность в альфе). */
-  process(src: TexImageSource, w: number, h: number, key: ChromaKey): HTMLCanvasElement | null {
+  /**
+   * Кадр с вырезанным цветом (прозрачность в альфе). paint — карта кисти во весь кадр (серая картинка),
+   * paintVer — её версия: картинка загружается в видеокарту заново, только когда версия сменилась.
+   */
+  process(src: TexImageSource, w: number, h: number, key: ChromaKey, paint: TexImageSource | null = null, paintVer = 0): HTMLCanvasElement | null {
     const gl = this.gl;
-    if (!gl || !this.prog) return this.processCpu(src, w, h, key);
+    if (!gl || !this.prog) return this.processCpu(src, w, h, key, paint);
     if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; }
     gl.viewport(0, 0, w, h);
     gl.bindTexture(gl.TEXTURE_2D, this.tex);
@@ -127,6 +160,18 @@ export class ChromaKeyer {
     gl.uniform2f(this.loc.keyUV, u, v);
     gl.uniform1f(this.loc.sim, Math.max(0.01, key.similarity));
     gl.uniform1f(this.loc.soft, Math.max(0, key.smoothness));
+    gl.uniform1f(this.loc.hasPaint, paint ? 1 : 0);
+    gl.uniform1i(this.loc.paint, 1);
+    if (paint) {
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, this.paintTex);
+      if (paint !== this.paintSrc || paintVer !== this.paintVer) {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, paint);
+        this.paintSrc = paint;
+        this.paintVer = paintVer;
+      }
+      gl.activeTexture(gl.TEXTURE0);
+    }
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);

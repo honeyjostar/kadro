@@ -102,7 +102,9 @@ export class PreviewEngine {
     }
     const visible = this.visibleClips(this.t);
     const t0 = performance.now();
-    while (!visible.every((id) => this.frameReady(id)) && performance.now() - t0 < timeout) {
+    // карты кисти хромакея у видимых клипов — до кадра
+    for (const t of this.project.tracks) for (const c of t.clips) if (c.type === 'media' && c.chroma?.paint && visible.includes(c.id)) this.paintFor(c.chroma.paint.path);
+    while ((!visible.every((id) => this.frameReady(id)) || this.paintsPending()) && performance.now() - t0 < timeout) {
       await new Promise((r) => setTimeout(r, 5));
       this.syncPlayback(this.t);
     }
@@ -190,7 +192,7 @@ export class PreviewEngine {
 
   /** Всё загружено, перемотано и нарисовано (для автотестов и снимков кадра). */
   settled(): boolean {
-    if (this.dirty || this.playing) return false;
+    if (this.dirty || this.playing || this.paintsPending()) return false;
     for (const e of this.media.values()) {
       if (!e.ready) return false;
       if (e.kind === 'video') {
@@ -545,7 +547,9 @@ export class PreviewEngine {
     let img: CanvasImageSource = src.el;
     if (c.chroma) {
       const sc = Math.min(1, 1920 / Math.max(src.w, src.h));
-      img = this.keyer().process(src.el as TexImageSource, Math.max(1, Math.round(src.w * sc)), Math.max(1, Math.round(src.h * sc)), c.chroma) ?? src.el;
+      const live = this.livePaint?.clipId === c.id ? this.livePaint : null;
+      const paint = live ? live.canvas : c.chroma.paint ? this.paintFor(c.chroma.paint.path) : null;
+      img = this.keyer().process(src.el as TexImageSource, Math.max(1, Math.round(src.w * sc)), Math.max(1, Math.round(src.h * sc)), c.chroma, paint, live ? live.ver : 0) ?? src.el;
     }
     const colorFilter = isIdentity(effectiveColor(c.color)) ? 'none' : `url(#kf-${c.id})`;
     c2d.save();
@@ -600,6 +604,29 @@ export class PreviewEngine {
 
   private graderInst: GradeProcessor | null = null;
   private grader(): GradeProcessor { this.graderInst ??= new GradeProcessor(); return this.graderInst; }
+  // карты кисти хромакея: путь → картинка (грузится один раз); livePaint — карта, которую сейчас рисуют в окне ластика
+  private paints = new Map<string, { img: HTMLImageElement; ready: boolean }>();
+  livePaint: { clipId: string; canvas: HTMLCanvasElement; ver: number } | null = null;
+  private paintFor(path: string): HTMLImageElement | null {
+    let e = this.paints.get(path);
+    if (!e) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous'; // иначе картинку нельзя отдать видеокарте
+      e = { img, ready: false };
+      this.paints.set(path, e);
+      const ent = e;
+      img.onload = () => { ent.ready = true; this.dirty = true; };
+      img.onerror = () => { ent.ready = true; this.dirty = true; };
+      img.src = this.mediaUrl(path);
+    }
+    return e.ready && e.img.naturalWidth ? e.img : null;
+  }
+  /** Показать карту кисти, пока её рисуют (null — убрать). */
+  setLivePaint(p: { clipId: string; canvas: HTMLCanvasElement; ver: number } | null): void { this.livePaint = p; this.dirty = true; }
+  private paintsPending(): boolean {
+    for (const e of this.paints.values()) if (!e.ready) return true;
+    return false;
+  }
   private keyerInst: ChromaKeyer | null = null;
   private keyer(): ChromaKeyer { this.keyerInst ??= new ChromaKeyer(); return this.keyerInst; }
   private canvases = new Map<string, HTMLCanvasElement>();

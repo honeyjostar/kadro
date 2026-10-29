@@ -115,7 +115,13 @@ export interface ChromaKey {
   color: string;      // #rrggbb
   similarity: number; // 0.01..0.5
   smoothness: number; // 0..0.3 (мягкость края)
+  paint?: ChromaPaint; // дочистка кистью: ластик и «вернуть»
 }
+/**
+ * Карта кисти хромакея — серая картинка PNG во весь кадр исходника (не меняется во времени).
+ * 128 — как решил хромакей, темнее — стёрто (0 — совсем прозрачно), светлее — возвращено (255 — непрозрачно).
+ */
+export interface ChromaPaint { path: string; w: number; h: number; rel?: string }
 
 export type EffectType =
   | 'shake' | 'pulse' | 'flash' | 'glitch' | 'rgbsplit' | 'vhs' | 'grain' | 'vignette' | 'blur' | 'pixelate' | 'mirror' | 'invert' | 'rainbow'

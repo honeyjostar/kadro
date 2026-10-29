@@ -39,11 +39,11 @@ export function Toggle(props: { label: ReactNode; on: boolean; onChange: (v: boo
   );
 }
 
-export function Seg<T extends string | number>(props: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+export function Seg<T extends string | number>(props: { value: T; options: { value: T; label: ReactNode }[]; onChange: (v: T) => void; testId?: string }) {
   return (
-    <div className="seg">
+    <div className="seg" data-testid={props.testId}>
       {props.options.map((o) => (
-        <button key={String(o.value)} className={o.value === props.value ? 'active' : ''} onClick={() => props.onChange(o.value)}>{o.label}</button>
+        <button key={String(o.value)} className={o.value === props.value ? 'active' : ''} onClick={() => props.onChange(o.value)} data-value={String(o.value)}>{o.label}</button>
       ))}
     </div>
   );

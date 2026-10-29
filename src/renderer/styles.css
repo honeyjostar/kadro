@@ -1037,3 +1037,19 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .font-empty { padding: 8px 4px; line-height: 1.4; }
 .font-picker-btn.missing { border-color: var(--warn-line); }
 .font-picker-btn .font-missing { color: var(--warn-text); flex: none; margin-left: auto; }
+
+/* ластик для хромакея */
+.cpaint-modal { width: min(1100px, calc(100vw - 32px)); }
+.cpaint-modal h3 { display: flex; align-items: center; gap: 8px; }
+.cpaint-body { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: start; margin-top: 10px; }
+.cpaint-stage { position: relative; margin: 0 auto; overflow: hidden; border-radius: var(--radius-m); border: 1px solid var(--line);
+  background: repeating-conic-gradient(#4a4752 0 25%, #36343d 0 50%) 0 0 / 16px 16px; cursor: none; touch-action: none; }
+.cpaint-stage canvas { display: block; width: 100%; height: 100%; }
+.cpaint-cursor { position: absolute; left: 0; top: 0; border-radius: 50%; pointer-events: none; opacity: 0; border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .7); }
+.cpaint-cursor.restore { border-style: dashed; }
+.cpaint-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.cpaint-tools { display: flex; flex-direction: column; gap: 10px; }
+.cpaint-tools .seg button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.cpaint-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.chroma-paint-row { margin-top: 8px; }
+@media (max-width: 760px) { .cpaint-body { grid-template-columns: 1fr; } }

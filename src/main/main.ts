@@ -390,6 +390,7 @@ async function refreshProject(project: Project): Promise<Project> {
   }
   for (const t of project.tracks) for (const c of t.clips) {
     if (c.type !== 'media') continue;
+    if (c.chroma?.paint && !fs.existsSync(c.chroma.paint.path)) delete c.chroma.paint; // карта кисти пропала — без неё
     for (const k of ['removeBg', 'denoise', 'stab', 'voice'] as const) {
       const r = c[k];
       if (r && r.status === 'ready' && (!r.path || !fs.existsSync(r.path))) c[k] = { ...r, enabled: r.enabled, status: 'none', path: undefined };
@@ -939,6 +940,16 @@ function registerIpc(): void {
   // шрифты: свои (папка fonts) и системные
   const strs = (a: unknown) => (Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string') : []);
   const fontsChanged = () => win?.webContents.send('fonts:changed', listUserFonts());
+  // карта кисти хромакея: PNG по содержимому (файлы не меняются — отмена правок работает)
+  ipcMain.handle('chroma:savePaint', (_e, png: Uint8Array) => {
+    const b = Buffer.from(png);
+    if (b.length < 8 || b.readUInt32BE(0) !== 0x89504e47 || b.length > 32 * 1024 * 1024) throw new Error('not a png');
+    const dir = path.join(dataDir(), 'masks');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `${crypto.createHash('sha1').update(b).digest('hex').slice(0, 20)}.png`);
+    if (!fs.existsSync(file)) fs.writeFileSync(file, b);
+    return file;
+  });
   ipcMain.handle('fonts:list', () => listUserFonts());
   ipcMain.handle('fonts:system', () => systemFonts());
   ipcMain.handle('fonts:install', (_e, paths: string[]) => { const r = installFonts(strs(paths)); if (r.installed.length) fontsChanged(); return r; });
