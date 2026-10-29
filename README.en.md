@@ -35,14 +35,16 @@ time you use it, and to check for updates (you can turn that off).
 ## What it can do
 
 **Auto Video and Script to Video**
-- Choose videos, photos and music — Kadro finds the best parts (sharp, bright, with motion) and cuts them exactly to the beat; 4 styles, “Another take”.
+- Choose videos, photos and music — Kadro finds the best parts (sharp, bright, steady, with motion, no repeats) and cuts them exactly to the beat; 10 styles including **Velocity**, Beat flash, 3D zoom and Text on the beat; shorter shots where the music is loud, a cut right on the **drop**, “Another take”.
+- **Repeat an edit from a video** (like CapCut templates): pick a video you like — Kadro finds its cuts, flashes and zooms, takes its music and puts your footage into the same slots.
 - Paste a script — Kadro splits it into scenes, voices them (6 offline voices), picks shots from your footage and adds captions that match the text.
 
 **Editing**
 - Magnetic main track, overlays (picture in picture), text, music — as many tracks as you need; split, trim, reorder, multi-select.
 - **Markers** (key M) with names and colors; they become YouTube chapters and chapters inside the exported MP4.
 - Frame formats 9:16, 16:9, 1:1, 4:5, 3:4, 4:3, 21:9; resolution 720p–4K, 24–60 fps; opens almost any video, photo and audio file.
-- Groups, keyframes, masks, chroma key, blend modes, perspective tilt and corner pinning, 3D objects (GLB, GLTF, OBJ, STL, FBX).
+- **Collect project into a folder** with media, fonts and plugins — on another computer everything is found and installed by itself; **shortcuts window** (F1).
+- Groups, keyframes, masks, chroma key with an **eraser and restore brush**, blend modes, perspective tilt and corner pinning, 3D objects (GLB, GLTF, OBJ, STL, FBX).
 - Speed 0.25×–4× with pitch kept, speed curves, smooth slow motion with generated frames, reverse, freeze frame.
 
 **Transitions, effects, color**
@@ -50,8 +52,9 @@ time you use it, and to check for updates (you can turn that off).
 - **Plugin catalog** with live previews and one-click install; your own GLSL transitions and effects — drop a `.glsl` file into the window.
 
 **Text, captions, sound, AI**
-- 122 fonts, 13 text animations, karaoke word highlight.
-- Auto captions (Russian, English and 23 more languages), **offline caption translation** (to English, Russian, Ukrainian, German, Spanish,
+- 122 fonts plus **your own fonts** (drop `.ttf` / `.otf` into the window) and all Windows fonts; 13 text animations, karaoke word highlight.
+- **Preview a track** before putting it on the timeline.
+- Auto captions (Russian, English and 23 more languages), **offline caption translation** (Russian ⇄ English built in; to English, Russian, Ukrainian, German, Spanish,
   French, Italian, Chinese, Arabic — others via English), replacing the original or as two lines.
 - Background removal without a green screen, clean voice, remove pauses, stabilization, auto reframe, face retouch, text-to-speech.
 - Voice recording, voice effects, beat detection and snapping cuts to the beat.
@@ -65,7 +68,7 @@ time you use it, and to check for updates (you can turn that off).
 
 - Windows 10 or 11, 64-bit
 - 8 GB RAM (16 GB is better for 4K and background removal)
-- About 700 MB of disk space plus optional AI models (speech recognition up to 0.5 GB, translation ~165 MB per direction)
+- About 1 GB of disk space plus optional AI models (speech recognition up to 0.5 GB, translation ~165 MB per direction)
 - A graphics card is optional; NVIDIA speeds up export
 
 ## Install
