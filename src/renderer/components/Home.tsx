@@ -2,7 +2,7 @@
 // мои проекты (как в CapCut), шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { FileText, FolderOpen, Keyboard, Play, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
+import { Clapperboard, FileText, FolderOpen, Keyboard, Play, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
 import { APP_ICONS, type IconId } from '../../shared/appearance';
@@ -116,6 +116,14 @@ export function Home() {
                 <span className="hint">{tx('Выбери видео, фото и музыку — Kadro сам возьмёт лучшие куски и смонтирует их в ритм.')}</span>
               </span>
               <button className="btn primary" disabled={busy} onClick={() => getState().setAutoOpen({ files: [], fresh: true })} data-testid="home-auto">{tx('Собрать')}</button>
+            </div>
+            <div className="home-auto">
+              <span className="home-auto-icon"><Clapperboard size={20} /></span>
+              <span className="home-auto-text">
+                <b>{tx('Повторить монтаж по ролику')}</b>
+                <span className="hint">{tx('Как шаблоны CapCut: выбери ролик из TikTok — Kadro повторит его склейки и музыку с твоими видео.')}</span>
+              </span>
+              <button className="btn" disabled={busy} onClick={() => getState().setRefOpen({ fresh: true })} data-testid="home-ref">{tx('Выбрать')}</button>
             </div>
             <div className="home-auto">
               <span className="home-auto-icon"><FileText size={20} /></span>

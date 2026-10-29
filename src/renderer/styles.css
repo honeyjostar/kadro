@@ -1055,3 +1055,16 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .cpaint-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .chroma-paint-row { margin-top: 8px; }
 @media (max-width: 760px) { .cpaint-body { grid-template-columns: 1fr; } }
+
+/* повторить монтаж по ролику */
+.ref-drop { min-height: 96px; border: 1px dashed var(--line); border-radius: 10px; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 10px; text-align: center; }
+.ref-drop.has { border-style: solid; justify-content: flex-start; text-align: left; }
+.ref-info { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.ref-info img, .ref-thumb-empty { width: 54px; height: 76px; object-fit: cover; border-radius: 6px; flex: none; background: var(--raised); display: grid; place-items: center; color: var(--muted); }
+.ref-info > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ref-info b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ref-info .hint svg { vertical-align: -1px; }
+.ref-strip { display: flex; gap: 2px; height: 14px; margin: 8px 0 4px; }
+.ref-strip i { display: block; min-width: 2px; flex-basis: 0; border-radius: 2px; background: var(--accent-soft); border: 1px solid var(--accent); }
+.ref-strip i.flash { background: #fff; border-color: var(--line); }
+.ref-strip i.zoom { background: var(--accent); }

@@ -12,7 +12,7 @@ import { api, getState, useStore } from '../store';
 import { Progress } from './controls';
 
 /** Длины первых кадров стиля (для полоски ритма на карточке). */
-function rhythmOf(s: AutoStyleDef): number[] {
+export function rhythmOf(s: AutoStyleDef): number[] {
   const out: number[] = [];
   for (let j = 0, sum = 0; sum < 12 && j < 24; j++) {
     const k = s.cut * s.pattern[j % s.pattern.length] * (j === 0 ? s.first : 1);

@@ -96,12 +96,8 @@ export function analyzeRef(frames: Uint8Array[], fps: number): RefAnalysis {
     // из чёрного в кадр / из кадра в чёрное — тоже граница кадра
     const fromBlack = dark(i - 1) && !dark(i) && b[i] - b[i - 1] > 20;
     if (!(sharp || fromBlack)) continue;
-    if (cuts.length && i - cuts[cuts.length - 1] < minShot) {
-      // две склейки подряд (вспышка между кадрами) — оставляем более сильную
-      const prev = cuts[cuts.length - 1];
-      if (m[i] > m[prev]) cuts[cuts.length - 1] = i;
-      continue;
-    }
+    // две склейки подряд (белая вспышка, чёрный кадр между кадрами) — граница там, где кончился прошлый кадр
+    if (cuts.length && i - cuts[cuts.length - 1] < minShot) continue;
     if (i < minShot) continue;
     cuts.push(i);
   }

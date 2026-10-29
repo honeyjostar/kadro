@@ -76,6 +76,8 @@ interface State {
   pasteOpen: boolean;
   /** Клип, для которого открыт «Ластик для хромакея». */
   chromaPaintClip: string | null;
+  /** Окно «Повторить монтаж по ролику»: fresh — новым проектом; ref — сразу разобрать этот ролик. */
+  refOpen: { fresh: boolean; ref?: string; files?: string[] } | null;
   keysOpen: boolean;
   /** Обновления Kadro (состояние из главного процесса). */
   update: import('../shared/update').UpdateState | null;
@@ -124,6 +126,7 @@ interface State {
   setCopiedAttrs: (a: import('../shared/attrs').ClipAttrs | null) => void;
   setPasteOpen: (b: boolean) => void;
   setChromaPaintClip: (id: string | null) => void;
+  setRefOpen: (o: { fresh: boolean; ref?: string; files?: string[] } | null) => void;
   setKeysOpen: (b: boolean) => void;
   setUpdate: (u: import('../shared/update').UpdateState | null) => void;
   setAutoLast: (p: AutoParams | null) => void;
@@ -192,6 +195,7 @@ export const useStore = create<State>((set, get) => ({
   copiedAttrs: null,
   pasteOpen: false,
   chromaPaintClip: null,
+  refOpen: null,
   keysOpen: false,
   update: null,
   autoLast: null,
@@ -285,6 +289,7 @@ export const useStore = create<State>((set, get) => ({
   setCopiedAttrs: (a) => set({ copiedAttrs: a }),
   setPasteOpen: (b) => set({ pasteOpen: b }),
   setChromaPaintClip: (id) => set({ chromaPaintClip: id }),
+  setRefOpen: (o) => set({ refOpen: o }),
   setKeysOpen: (b) => set({ keysOpen: b }),
   setUpdate: (u) => set({ update: u }),
   setAutoLast: (p) => set({ autoLast: p }),

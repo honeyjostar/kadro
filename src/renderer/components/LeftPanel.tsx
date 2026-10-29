@@ -1,6 +1,7 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
 import {
+  Clapperboard,
   Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
   LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause,
 } from 'lucide-react';
@@ -137,6 +138,13 @@ function TemplatesPanel() {
           <div className="row-btns">
             <button className="btn primary small" disabled={busy} onClick={() => getState().setAutoOpen({ files: autoLast?.files ?? [], fresh: false })} data-testid="tpl-auto">{autoLast ? tx('Настроить…') : tx('Собрать…')}</button>
             {autoLast && <button className="btn small" disabled={busy} onClick={() => void run(autoVariant)} title={tx('Другие куски видео и переходы, те же файлы и стиль')} data-testid="tpl-auto-variant"><Shuffle size={13} />{tx('Ещё вариант')}</button>}
+          </div>
+        </div>
+        <div className="auto-card" data-testid="tpl-ref-card">
+          <b><Clapperboard size={15} />{tx('Повторить по ролику')}</b>
+          <span className="hint small">{tx('Как шаблоны CapCut: выбери понравившийся ролик — Kadro повторит его склейки, вспышки и музыку с твоими видео.')}</span>
+          <div className="row-btns">
+            <button className="btn small" disabled={busy} onClick={() => getState().setRefOpen({ fresh: false })} data-testid="tpl-ref">{tx('Выбрать ролик…')}</button>
           </div>
         </div>
         <div className="auto-card" data-testid="tpl-script-card">
