@@ -608,6 +608,21 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .crash-card h2 { margin: 0 0 8px; font-family: var(--logo); font-size: 20px; }
 .crash-card p { color: var(--muted); line-height: 1.5; }
 .crash-card details { margin-top: 14px; color: var(--muted); font-size: 12px; }
+.crash-report { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.crash-report p { margin: 0; flex: 1; }
+.crash-report .btn { flex: none; }
+.bug-back { z-index: 1100; }
+.bug-modal { width: 560px; }
+.bug-modal h3 { display: flex; align-items: center; gap: 8px; }
+.bug-field { display: grid; gap: 5px; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+.bug-field em { font-style: normal; opacity: .75; }
+.bug-field textarea { width: 100%; color: var(--text); }
+.bug-modal .toggle { margin-top: 12px; }
+.bug-preview { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.bug-preview summary { cursor: pointer; padding: 4px 0; }
+.bug-preview pre { max-height: 220px; overflow: auto; white-space: pre-wrap; word-break: break-word; background: var(--bg); padding: 8px 10px; border-radius: var(--radius-s); font-size: 11.5px; user-select: text; }
+.bug-actions { display: flex; align-items: center; gap: 8px; margin-top: 14px; }
+.bug-actions .spacer { flex: 1; }
 .crash-card pre { white-space: pre-wrap; word-break: break-word; background: var(--bg); padding: 8px; border-radius: var(--radius-s); }
 
 /* выбор шрифта */

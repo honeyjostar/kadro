@@ -1,14 +1,16 @@
 // Если в интерфейсе случилась ошибка — вместо белого экрана понятное окно; проект при этом не теряется.
+import { Bug } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { api } from '../store';
+import { BugDialog } from './BugDialog';
 
-interface State { error: Error | null }
+interface State { error: Error | null; report: boolean }
 
 export class CrashGuard extends Component<{ children: ReactNode }, State> {
-  state: State = { error: null };
+  state: State = { error: null, report: false };
 
   static getDerivedStateFromError(error: Error): State {
-    return { error };
+    return { error, report: false };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
@@ -31,8 +33,12 @@ export class CrashGuard extends Component<{ children: ReactNode }, State> {
             <summary>Подробности для разработчика</summary>
             <pre>{e.message}</pre>
           </details>
-          <p className="hint small">Если повторяется — опиши, что делал, на github.com/honeyjostar/kadro/issues и приложи файл %USERPROFILE%\.kadro\kadro.log</p>
+          <div className="crash-report">
+            <p className="hint small">Повторяется? Сообщи — получится готовый отчёт для GitHub с версией и журналом.</p>
+            <button className="btn small" onClick={() => this.setState({ report: true })} data-testid="crash-report"><Bug size={13} />Сообщить об ошибке</button>
+          </div>
         </div>
+        {this.state.report && <BugDialog initial={`Окно упало: ${e.message.split('\n')[0].slice(0, 160)}`} onClose={() => this.setState({ report: false })} />}
       </div>
     );
   }

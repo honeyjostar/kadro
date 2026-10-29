@@ -1,6 +1,6 @@
 // Окно «Настройки»: тема, цвет акцента, значок программы (окно и ярлыки Windows), размер интерфейса,
 // своё оформление (custom.css и theme.json в папке данных — подхватываются на лету), качество превью и кэш.
-import { BookOpen, FolderOpen, HardDrive, ImagePlus, Puzzle, Settings as Gear, TriangleAlert, X } from 'lucide-react';
+import { BookOpen, Bug, FolderOpen, HardDrive, ImagePlus, Puzzle, Settings as Gear, TriangleAlert, X } from 'lucide-react';
 import { glPluginErrors, glPlugins, useGlCatalog } from '../glRegistry';
 import { useEffect, useState } from 'react';
 import { ACCENTS, APP_ICONS, UI_SCALES, type Appearance } from '../../shared/appearance';
@@ -108,6 +108,15 @@ export function SettingsDialog() {
         </section>
 
         <CacheSection />
+
+        <section className="settings-sec" data-testid="help">
+          <b>Помощь</b>
+          <div className="custom-row">
+            <button className="btn small" onClick={() => { close(); getState().setBugOpen({ what: '' }); }} data-testid="bug-open-settings"><Bug size={13} />Сообщить об ошибке</button>
+            <button className="btn ghost small" onClick={() => api.openDocs('guide')}><BookOpen size={13} />Инструкция</button>
+          </div>
+          <p className="hint">Что-то не работает или есть идея — напиши: откроется готовый отчёт на GitHub с версией Kadro и журналом.</p>
+        </section>
       </div>
     </div>
   );

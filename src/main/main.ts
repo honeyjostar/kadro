@@ -11,6 +11,7 @@ import { cacheInfo, cleanTempOnStart, clearCache, knownProjectPaths } from './ca
 import { ensurePluginDirs, listPlugins, watchPlugins } from './plugins';
 import { normPath } from '../shared/cache';
 import { copyName, safeFileName } from '../shared/projects';
+import { scrubLog, type BugInfo } from '../shared/bugReport';
 import * as m3d from './model3d';
 import { highlights } from './highlights';
 import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
@@ -794,6 +795,36 @@ function registerIpc(): void {
     applyTheme(pref);
   });
   ipcMain.on('app:log', (_e, ...a: unknown[]) => log('renderer error:', ...a));
+  // «Сообщить об ошибке»: версия, система и хвост журнала (без личных путей)
+  ipcMain.handle('bug:info', async (): Promise<BugInfo> => {
+    let tail = '';
+    try {
+      const st = fs.statSync(LOG());
+      const fd = fs.openSync(LOG(), 'r');
+      const len = Math.min(st.size, 64 * 1024);
+      const buf = Buffer.alloc(len);
+      fs.readSync(fd, buf, 0, len, st.size - len);
+      fs.closeSync(fd);
+      tail = buf.toString('utf8').split('\n').slice(-120).join('\n');
+    } catch { /* журнала ещё нет */ }
+    const gpu = app.getGPUFeatureStatus();
+    return {
+      version: app.getVersion(), os: `${os.type()} ${os.release()} (${os.arch()}), ${Math.round(os.totalmem() / 2 ** 30)} ГБ памяти, ${os.cpus().length} ядер`,
+      electron: process.versions.electron, gpu: `${gpu.webgl}${gpu.gpu_compositing ? `, композитинг ${gpu.gpu_compositing}` : ''}`,
+      log: scrubLog(tail, os.homedir()),
+    };
+  });
+  // внешние ссылки — только на страницы Kadro на GitHub
+  ipcMain.handle('app:openUrl', async (_e, url: string) => {
+    if (typeof url !== 'string' || !/^https:\/\/github\.com\/honeyjostar\/kadro(\/|$)/.test(url)) return false;
+    log('open url', url.slice(0, 120));
+    if (!process.env.KADRO_NO_OPEN) await shell.openExternal(url);
+    return true;
+  });
+  ipcMain.handle('app:openLogs', async () => {
+    if (!process.env.KADRO_NO_OPEN) shell.showItemInFolder(LOG());
+    return LOG();
+  });
   // ---------- оформление ----------
   ipcMain.on('appearance:get', (e) => { e.returnValue = appearance(); });
   ipcMain.handle('appearance:set', (_e, patch: Partial<Appearance>) => {

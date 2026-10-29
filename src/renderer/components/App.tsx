@@ -8,6 +8,7 @@ import { AutoEditDialog } from './AutoEdit';
 import { SettingsDialog } from './Settings';
 import { SourceView } from './SourceView';
 import { ScriptDialog } from './ScriptDialog';
+import { BugDialog } from './BugDialog';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts } from './Overlays';
@@ -32,6 +33,7 @@ export function App() {
   const settingsOpen = useStore((s) => s.settingsOpen);
   const sourceView = useStore((s) => s.sourceView);
   const scriptOpen = useStore((s) => s.scriptOpen);
+  const bugOpen = useStore((s) => s.bugOpen);
   const loaded = useRef(false);
 
   // восстановление последнего проекта, обновления файлов из главного процесса
@@ -153,6 +155,7 @@ export function App() {
       {settingsOpen && <SettingsDialog />}
       {sourceView && <SourceView />}
       {scriptOpen && <ScriptDialog />}
+      {bugOpen && <BugDialog initial={bugOpen.what} onClose={() => getState().setBugOpen(null)} />}
       <Jobs />
       <Toasts />
     </div>

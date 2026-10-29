@@ -68,6 +68,8 @@ interface State {
   autoOpen: AutoOpen | null;
   /** Открыто окно «Ролик по сценарию». */
   scriptOpen: boolean;
+  /** Окно «Сообщить об ошибке» (текст — заготовка, например сообщение с экрана сбоя). */
+  bugOpen: { what: string } | null;
   /** Последний собранный авто-ролик — для «Ещё вариант». */
   autoLast: AutoParams | null;
   /** Оформление (акцент, значок, размер интерфейса, своё оформление) и окно настроек. */
@@ -108,6 +110,7 @@ interface State {
   setModel3dEdit: (e: { init: Model3D; clipId?: string } | null) => void;
   setAutoOpen: (o: AutoOpen | null) => void;
   setScriptOpen: (b: boolean) => void;
+  setBugOpen: (b: { what: string } | null) => void;
   setAutoLast: (p: AutoParams | null) => void;
   setAppearance: (a: Appearance) => void;
   setCustomStatus: (s: CustomStatus | null) => void;
@@ -169,6 +172,7 @@ export const useStore = create<State>((set, get) => ({
   model3dEdit: null,
   autoOpen: null,
   scriptOpen: false,
+  bugOpen: null,
   autoLast: null,
   appearance: normalizeAppearance(api?.initialAppearance),
   customStatus: null,
@@ -255,6 +259,7 @@ export const useStore = create<State>((set, get) => ({
   setModel3dEdit: (e) => set({ model3dEdit: e }),
   setAutoOpen: (o) => set({ autoOpen: o }),
   setScriptOpen: (b) => set({ scriptOpen: b }),
+  setBugOpen: (b) => set({ bugOpen: b }),
   setAutoLast: (p) => set({ autoLast: p }),
   setAppearance: (a) => set({ appearance: a }),
   setCustomStatus: (st) => set({ customStatus: st }),
