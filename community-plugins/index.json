@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "t/diamonds",
+      "kind": "transition",
+      "file": "transitions/diamonds.glsl",
+      "name": "Ромбы",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Следующий кадр проступает сеткой растущих ромбов — волной из угла",
+      "tags": [
+        "shape",
+        "grid"
+      ],
+      "sha256": "e8753a96762ec1eae7de9f5df691f691f8286a70d42f9ff19ec1da6a639b16a0",
+      "size": 691
+    },
+    {
+      "id": "t/light-burst",
+      "kind": "transition",
+      "file": "transitions/light-burst.glsl",
+      "name": "Лучи света",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Из центра бьют тёплые лучи, кадр тонет в свете и выходит уже следующим",
+      "tags": [
+        "light",
+        "zoom"
+      ],
+      "sha256": "9876634a28816b57d0df5d61ce292c6a0b9799dfaa730509c9693d9ece9414cc",
+      "size": 886
+    },
+    {
+      "id": "t/paper-tear",
+      "kind": "transition",
+      "file": "transitions/paper-tear.glsl",
+      "name": "Разрыв бумаги",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Кадр рвётся пополам, как лист бумаги, — половинки разъезжаются и открывают следующий",
+      "tags": [
+        "shape",
+        "paper"
+      ],
+      "sha256": "c9ae3cdbaec412c7a613012135896c2246fff4540990ff6284dff098b03ab2c5",
+      "size": 1350
+    },
+    {
+      "id": "t/spin",
+      "kind": "transition",
+      "file": "transitions/spin.glsl",
+      "name": "Кручение",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Кадр закручивается со смазом и раскручивается уже следующим",
+      "tags": [
+        "move",
+        "rotate",
+        "blur"
+      ],
+      "sha256": "f60c473a37a650cb4b9f70c311c93c0b9eaf7262cf4dc29231ea2b71e0076d91",
+      "size": 1007
+    },
+    {
+      "id": "t/whip-pan",
+      "kind": "transition",
+      "file": "transitions/whip-pan.glsl",
+      "name": "Резкий сдвиг",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Камера резко уезжает вбок со смазом — следующий кадр прилетает следом",
+      "tags": [
+        "move",
+        "blur"
+      ],
+      "sha256": "82e89fd28f3377dc39bf7ec8a6507c6b8ed1cc92de527423cfdc4240e6898259",
+      "size": 858
+    },
+    {
+      "id": "e/ascii",
+      "kind": "effect",
+      "file": "effects/ascii.glsl",
+      "name": "Символы",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Кадр, собранный из букв и знаков, как в старом терминале",
+      "tags": [
+        "retro",
+        "digital",
+        "text"
+      ],
+      "sha256": "fc0e307e1f4aa564daa2e5544797f9e73255091343c4ecf24951b6275bf59770",
+      "size": 1668
+    },
+    {
+      "id": "e/color-pop",
+      "kind": "effect",
+      "file": "effects/color-pop.glsl",
+      "name": "Один цвет",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Всё чёрно-белое, кроме одного цвета — например, красного платья или жёлтого такси",
+      "tags": [
+        "color"
+      ],
+      "sha256": "3256ea7248fcbeb7651c6df75bb8252ecc0c3e622396c6d86dbff3998fb140ae",
+      "size": 1143
+    },
+    {
+      "id": "e/crt",
+      "kind": "effect",
+      "file": "effects/crt.glsl",
+      "name": "Кинескоп",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Старый телевизор: выпуклое стекло, строки развёртки, цветная маска и тёмные углы",
+      "tags": [
+        "retro",
+        "tv",
+        "distort"
+      ],
+      "sha256": "ac682f26cab15e93f64a17e1e14cf8f9d3d9727987b5b21c22301b2e2575a2b9",
+      "size": 1498
+    },
+    {
+      "id": "e/halftone",
+      "kind": "effect",
+      "file": "effects/halftone.glsl",
+      "name": "Полутон",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Кадр из точек трёх красок, как в журнале или старом комиксе",
+      "tags": [
+        "print",
+        "comic",
+        "retro"
+      ],
+      "sha256": "5caf86976a2c78174a2a14e08c55c07a8daf4fb770d8c5aff2de70d34ec970eb",
+      "size": 1726
+    },
+    {
+      "id": "e/lens-flare",
+      "kind": "effect",
+      "file": "effects/lens-flare.glsl",
+      "name": "Блик объектива",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Солнечный блик с лучами и цветными «зайчиками» через весь кадр, слегка плывёт",
+      "tags": [
+        "light",
+        "lens"
+      ],
+      "sha256": "ccd8bbd67d233fc62afb5afe0c6bb6c2a56d03c83e64138c0d61ef035281fbb7",
+      "size": 1753
+    },
+    {
+      "id": "e/oil-paint",
+      "kind": "effect",
+      "file": "effects/oil-paint.glsl",
+      "name": "Масляная краска",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Кадр как картина маслом: мелкие детали сглаживаются в мазки, края остаются чёткими",
+      "tags": [
+        "art",
+        "paint"
+      ],
+      "sha256": "67be045fce1aa798c5170d50bd38ea271da211852f7417201976068e6b9aa2a0",
+      "size": 1668
+    },
+    {
+      "id": "e/pencil",
+      "kind": "effect",
+      "file": "effects/pencil.glsl",
+      "name": "Карандаш",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Рисунок простым карандашом на бумаге: контуры и штриховка в тенях",
+      "tags": [
+        "art",
+        "sketch"
+      ],
+      "sha256": "8b80cf47e160d70334e754e813f22c05c0e335324c25f9d11fc44183ee5a21f2",
+      "size": 1559
+    },
+    {
+      "id": "e/tilt-shift",
+      "kind": "effect",
+      "file": "effects/tilt-shift.glsl",
+      "name": "Игрушечный город",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Тилт-шифт: резкая полоса посередине, размытые верх и низ, сочные цвета — город как макет",
+      "tags": [
+        "lens",
+        "blur",
+        "color"
+      ],
+      "sha256": "80f031e5e57f48cc16044d1bfb87c2e92035831d9efcc907eb5d242cfa13457d",
+      "size": 1165
+    },
+    {
+      "id": "e/zoom-blur",
+      "kind": "effect",
+      "file": "effects/zoom-blur.glsl",
+      "name": "Рывок камеры",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Размытие от центра наружу, как будто камера резко едет вперёд",
+      "tags": [
+        "blur",
+        "motion"
+      ],
+      "sha256": "a8fe6e1571ad647ec3a2c282980c0115bc8f6485bf2cf0d3a8d437f20fb47198",
+      "size": 827
+    }
+  ]
+}

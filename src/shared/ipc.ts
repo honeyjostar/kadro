@@ -131,6 +131,11 @@ export interface KadroApi {
   plugins(): Promise<PluginFile[]>;
   openPluginsDir(): Promise<string>;
   onPluginsChanged(cb: (list: PluginFile[]) => void): () => void;
+  pluginCatalog(): Promise<import('./pluginCatalog').CatalogResult>;
+  installPlugins(ids: string[]): Promise<import('./pluginCatalog').InstallResult>;
+  installPluginFiles(paths: string[]): Promise<import('./pluginCatalog').InstallResult>;
+  pickPluginFiles(): Promise<import('./pluginCatalog').InstallResult>;
+  removePlugin(file: string): Promise<boolean>;
   onAppearanceChanged(cb: (a: Appearance) => void): () => void;
   onCustomStatus(cb: (s: CustomStatus) => void): () => void;
   forgetRecent(path: string): void;

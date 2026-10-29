@@ -19,6 +19,7 @@
     "test:int": "vitest run tests/integration",
     "e2e": "playwright test",
     "models": "esbuild scripts/fetch-models.ts --bundle --platform=node --format=esm --packages=external --outfile=build/fetch-models.mjs --log-level=warning && node build/fetch-models.mjs",
+    "plugins:index": "esbuild scripts/plugins-index.ts --bundle --platform=node --format=esm --outfile=build/plugins-index.mjs --log-level=warning && node build/plugins-index.mjs",
     "test:ci": "vitest run tests/unit tests/integration/export.test.ts tests/integration/anim.test.ts tests/integration/retime.test.ts"
   },
   "dependencies": {

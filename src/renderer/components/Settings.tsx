@@ -1,6 +1,6 @@
 // Окно «Настройки»: тема, цвет акцента, значок программы (окно и ярлыки Windows), размер интерфейса,
 // своё оформление (custom.css и theme.json в папке данных — подхватываются на лету), качество превью и кэш.
-import { BookOpen, Bug, FolderOpen, HardDrive, ImagePlus, Puzzle, Settings as Gear, TriangleAlert, X } from 'lucide-react';
+import { BookOpen, Bug, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Settings as Gear, Trash2, TriangleAlert, X } from 'lucide-react';
 import { glPluginErrors, glPlugins, useGlCatalog } from '../glRegistry';
 import { useEffect, useState } from 'react';
 import { ACCENTS, APP_ICONS, UI_SCALES, type Appearance } from '../../shared/appearance';
@@ -8,6 +8,7 @@ import { collectPaths, fmtBytes, type CacheInfo } from '../../shared/cache';
 import { api, getState, useStore } from '../store';
 import { Seg, Toggle } from './controls';
 import { LogoMark } from './Home';
+import { reportInstall } from './PluginCatalog';
 
 export function SettingsDialog() {
   const a = useStore((s) => s.appearance);
@@ -132,17 +133,25 @@ function PluginsSection() {
     <section className="settings-sec" data-testid="plugins">
       <b><Puzzle size={14} />Плагины</b>
       <p className="hint">
-        Свои переходы и эффекты на GLSL: положи файл .glsl в папку плагинов — он сразу появится в разделе «Переходы» или «Эффекты» → «Плагины».
-        Подходит любой переход с gl-transitions.com.
+        Дополнительные переходы и эффекты: из каталога сообщества в один щелчок или свой файл .glsl (можно просто
+        перетащить его в окно Kadro). Подходит любой переход с gl-transitions.com.
       </p>
       <div className="custom-row">
-        <button className="btn small" onClick={() => void api.openPluginsDir().then(setDir)} data-testid="plugins-open"><FolderOpen size={13} />Открыть папку плагинов</button>
+        <button className="btn small primary" onClick={() => { getState().setSettingsOpen(false); getState().setPluginCatalogOpen(true); }} data-testid="plugins-catalog"><LayoutGrid size={13} />Каталог плагинов</button>
+        <button className="btn small" onClick={() => void api.pickPluginFiles().then(reportInstall)} data-testid="plugins-from-file"><FileUp size={13} />Из файла…</button>
+        <button className="btn ghost small" onClick={() => void api.openPluginsDir().then(setDir)} data-testid="plugins-open"><FolderOpen size={13} />Папка</button>
         <button className="btn ghost small" onClick={() => api.openDocs('plugins')}><BookOpen size={13} />Как написать плагин</button>
       </div>
       {dir && <p className="custom-path" data-testid="plugins-dir">{dir}</p>}
       {list.length > 0 && (
         <ul className="plugin-list" data-testid="plugins-list">
-          {list.map((d) => <li key={d.id}><em>{d.kind === 'transition' ? 'переход' : 'эффект'}</em>{d.name}{d.author ? <span> · {d.author}</span> : null}</li>)}
+          {list.map((d) => (
+            <li key={d.id} data-testid={`plugin-${d.id}`}>
+              <em>{d.kind === 'transition' ? 'переход' : 'эффект'}</em>{d.name}{d.author ? <span> · {d.author}</span> : null}
+              {d.source && <button className="icon-btn plugin-del" title="Удалить плагин" data-testid="plugin-remove"
+                onClick={() => void api.removePlugin(d.source!).then((ok) => getState().toast(ok ? `«${d.name}» удалён` : 'Не удалось удалить', ok ? 'info' : 'err'))}><Trash2 size={13} /></button>}
+            </li>
+          ))}
         </ul>
       )}
       {errors.map((e) => <div key={e.file + e.message} className="warn" data-testid="plugin-error" title={e.file}><TriangleAlert size={15} /><span>{e.message}</span></div>)}

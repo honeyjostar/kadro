@@ -8,7 +8,7 @@ import { Readable } from 'node:stream';
 import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, LibFolder, ModelInfo, RecentProject, ThemePref, VoiceInfo } from '../shared/ipc';
 import { countDeep, forgetLibMeta, libMeta, listDir, searchDir } from './library';
 import { cacheInfo, cleanTempOnStart, clearCache, knownProjectPaths } from './cache';
-import { ensurePluginDirs, listPlugins, watchPlugins } from './plugins';
+import { ensurePluginDirs, installFiles, installFromCatalog, listPlugins, loadCatalog, removePlugin, watchPlugins } from './plugins';
 import { normPath } from '../shared/cache';
 import { copyName, safeFileName } from '../shared/projects';
 import { scrubLog, type BugInfo } from '../shared/bugReport';
@@ -881,6 +881,21 @@ function registerIpc(): void {
     if (!process.env.KADRO_NO_OPEN) await shell.openPath(dir);
     return dir;
   });
+  // каталог плагинов на GitHub и установка
+  ipcMain.handle('plugins:catalog', () => loadCatalog());
+  ipcMain.handle('plugins:install', (_e, ids: string[]) => installFromCatalog(Array.isArray(ids) ? ids.filter((x) => typeof x === 'string') : []));
+  ipcMain.handle('plugins:installFiles', (_e, paths: string[]) => installFiles(Array.isArray(paths) ? paths.filter((x) => typeof x === 'string') : []));
+  ipcMain.handle('plugins:pickFiles', async () => {
+    let paths: string[];
+    if (process.env.KADRO_TEST_PICK) paths = process.env.KADRO_TEST_PICK.split('|');
+    else {
+      const r = await dialog.showOpenDialog(win!, { title: 'Установить плагин', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Шейдеры GLSL', extensions: ['glsl', 'frag'] }] });
+      if (r.canceled) return { ok: true, installed: [], errors: [] };
+      paths = r.filePaths;
+    }
+    return installFiles(paths);
+  });
+  ipcMain.handle('plugins:remove', (_e, file: string) => removePlugin(String(file)));
 }
 
 // неожиданная ошибка в главном процессе — в журнал, программа продолжает работать

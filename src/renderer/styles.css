@@ -938,6 +938,31 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .plugin-list li { display: flex; gap: 8px; align-items: baseline; }
 .plugin-list em { font-style: normal; font-size: 11px; color: var(--muted); min-width: 56px; }
 .plugin-list span { color: var(--faint); }
+.plugin-list li .plugin-del { margin-left: auto; width: 24px; height: 24px; opacity: .55; }
+.plugin-list li:hover .plugin-del { opacity: 1; }
+/* каталог плагинов */
+.catalog-modal { width: 860px; }
+.catalog-modal h3 { display: flex; align-items: center; gap: 8px; }
+.catalog-bar { display: flex; gap: 12px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+.catalog-search { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.catalog-search .input { flex: 1; }
+.catalog-state { padding: 24px 0; text-align: center; }
+.catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); gap: 12px; }
+.catalog-card { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--radius-m); background: var(--bg); overflow: hidden; }
+.catalog-card:hover { border-color: var(--faint); }
+.catalog-preview { position: relative; aspect-ratio: 16 / 9; background: #000; }
+.catalog-preview canvas { display: block; width: 100%; height: 100%; }
+.catalog-kind { position: absolute; left: 6px; top: 6px; padding: 1px 6px; border-radius: 4px; font-size: 10.5px; background: rgba(0,0,0,.55); color: #fff; }
+.catalog-broken { position: absolute; inset: auto 6px 6px; font-size: 10.5px; color: #fff; }
+.catalog-body { padding: 9px 10px 4px; flex: 1; }
+.catalog-body b { display: block; font-size: 13px; }
+.catalog-body p { margin: 4px 0 0; font-size: 11.5px; line-height: 1.35; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.catalog-meta { display: block; margin-top: 4px; font-size: 10.5px; color: var(--faint); }
+.catalog-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 8px 10px 10px; }
+.catalog-actions .btn { flex: 1; justify-content: center; }
+.catalog-ok { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+.catalog-foot { display: flex; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
+.catalog-modal .warn .btn { margin-left: auto; flex: none; }
 .settings-sec .warn span { white-space: pre-wrap; word-break: break-word; }
 .fx-gl .field { margin-bottom: 4px; }
 

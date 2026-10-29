@@ -9,6 +9,7 @@ import { SettingsDialog } from './Settings';
 import { SourceView } from './SourceView';
 import { ScriptDialog } from './ScriptDialog';
 import { BugDialog } from './BugDialog';
+import { PluginCatalog, reportInstall } from './PluginCatalog';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts } from './Overlays';
@@ -34,6 +35,7 @@ export function App() {
   const sourceView = useStore((s) => s.sourceView);
   const scriptOpen = useStore((s) => s.scriptOpen);
   const bugOpen = useStore((s) => s.bugOpen);
+  const catalogOpen = useStore((s) => s.pluginCatalogOpen);
   const loaded = useRef(false);
 
   // восстановление последнего проекта, обновления файлов из главного процесса
@@ -121,7 +123,11 @@ export function App() {
     const drop = (e: DragEvent) => {
       if (!e.dataTransfer?.files.length) return;
       e.preventDefault();
-      const paths = [...e.dataTransfer.files].map((f) => api.pathForFile(f)).filter(Boolean);
+      let paths = [...e.dataTransfer.files].map((f) => api.pathForFile(f)).filter(Boolean);
+      // шейдеры .glsl — это плагины: ставим в папку плагинов
+      const shaders = paths.filter((p) => /\.(glsl|frag)$/i.test(p));
+      if (shaders.length) { void api.installPluginFiles(shaders).then(reportInstall); paths = paths.filter((p) => !shaders.includes(p)); }
+      if (!paths.length) return;
       // на главный экран — новым проектом (текущий не трогаем), в редактор — в текущий
       if (getState().home) { void dropOnHome(paths); return; }
       void dropPaths(paths);
@@ -161,6 +167,7 @@ export function App() {
       {settingsOpen && <SettingsDialog />}
       {sourceView && <SourceView />}
       {scriptOpen && <ScriptDialog />}
+      {catalogOpen && <PluginCatalog />}
       {bugOpen && <BugDialog initial={bugOpen.what} onClose={() => getState().setBugOpen(null)} />}
       <Jobs />
       <Toasts />

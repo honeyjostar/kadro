@@ -1,0 +1,2 @@
+community-plugins/**/*.glsl text eol=lf
+community-plugins/index.json text eol=lf

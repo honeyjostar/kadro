@@ -4,6 +4,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { dataDir } from './bins';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { net, shell } from 'electron';
+import {
+  CATALOG_URL, MAX_PLUGIN_BYTES, kindOfSource, pluginDirName, safePluginFile, validEntry,
+  type CatalogEntry, type CatalogItem, type CatalogResult, type InstallResult, type PluginKind,
+} from '../shared/pluginCatalog';
+import { parseGlsl } from '../shared/gl/glsl';
 
 export interface PluginFile { kind: 'transition' | 'effect'; file: string; src: string }
 
@@ -104,4 +112,124 @@ export function watchPlugins(onChange: (list: PluginFile[]) => void): () => void
     try { watchers.push(fs.watch(path.join(pluginsDir(), dir), fire)); } catch { /* папки нет — создадим при открытии */ }
   }
   return () => { watchers.forEach((w) => w.close()); if (timer) clearTimeout(timer); };
+}
+
+// ---------- каталог и установка ----------
+
+const sha256 = (s: string | Buffer) => createHash('sha256').update(s).digest('hex');
+const catalogUrl = () => process.env.KADRO_PLUGINS_URL || CATALOG_URL;
+
+/** Текст по адресу: https — через сеть Electron (прокси Windows учитываются), file:// — с диска (тесты). */
+async function fetchText(url: string, limit: number, timeoutMs = 15_000): Promise<string> {
+  if (url.startsWith('file:')) {
+    const p = fileURLToPath(url);
+    if (fs.statSync(p).size > limit) throw new Error('Слишком большой файл');
+    return fs.readFileSync(p, 'utf8');
+  }
+  if (!url.startsWith('https://')) throw new Error('Только https');
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const r = await net.fetch(url, { signal: ctl.signal, headers: { 'Cache-Control': 'no-cache' } });
+    if (!r.ok) throw new Error(`Сервер ответил ${r.status}`);
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > limit) throw new Error('Слишком большой файл');
+    return buf.toString('utf8');
+  } finally { clearTimeout(timer); }
+}
+
+let cache: { url: string; items: CatalogItem[] } | null = null;
+
+function localState(e: CatalogEntry): CatalogItem['state'] {
+  const f = path.join(pluginsDir(), pluginDirName(e.kind), e.file.split('/')[1]);
+  try { return sha256(fs.readFileSync(f)) === e.sha256 ? 'installed' : 'update'; } catch { return 'new'; }
+}
+
+/** Скачать каталог и тексты всех шейдеров (они маленькие) — для живых превью. */
+export async function loadCatalog(): Promise<CatalogResult> {
+  const url = catalogUrl();
+  try {
+    const index = JSON.parse(await fetchText(url, 1024 * 1024)) as { version?: number; plugins?: unknown[] };
+    if (index.version !== 1 || !Array.isArray(index.plugins)) throw new Error('Каталог в непонятном формате — обнови Kadro');
+    const entries = index.plugins.filter(validEntry).slice(0, 300);
+    const base = url.slice(0, url.lastIndexOf('/') + 1);
+    const items: CatalogItem[] = [];
+    const queue = [...entries];
+    const worker = async () => {
+      for (let e = queue.shift(); e; e = queue.shift()) {
+        try {
+          const src = await fetchText(base + e.file, MAX_PLUGIN_BYTES);
+          if (sha256(Buffer.from(src, 'utf8')) !== e.sha256) continue; // файл не совпал со списком — пропускаем
+          items.push({ ...e, src, state: localState(e) });
+        } catch { /* один файл не скачался — остальные покажем */ }
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    const order = new Map(entries.map((e, i) => [e.id, i]));
+    items.sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+    if (entries.length && !items.length) throw new Error('Не удалось скачать ни одного плагина');
+    cache = { url, items };
+    return { ok: true, items };
+  } catch (e) {
+    const msg = e instanceof Error ? (e.name === 'AbortError' ? 'Сервер не ответил вовремя' : e.message) : String(e);
+    return { ok: false, items: [], error: msg };
+  }
+}
+
+/** Записать шейдер в папку плагинов (поверх старой версии с тем же именем). */
+function writePlugin(kind: PluginKind, fileName: string, src: string): string {
+  ensurePluginDirs();
+  const f = path.join(pluginsDir(), pluginDirName(kind), fileName);
+  fs.writeFileSync(f, src);
+  return f;
+}
+
+/** Поставить плагины из каталога по id (из уже скачанного каталога — с проверкой SHA-256). */
+export async function installFromCatalog(ids: string[]): Promise<InstallResult> {
+  const res: InstallResult = { ok: true, installed: [], errors: [] };
+  if (!cache || cache.url !== catalogUrl()) await loadCatalog();
+  for (const id of ids) {
+    const it = cache?.items.find((x) => x.id === id);
+    if (!it) { res.errors.push(`${id}: нет в каталоге`); continue; }
+    if (sha256(Buffer.from(it.src, 'utf8')) !== it.sha256) { res.errors.push(`${it.name}: файл повреждён`); continue; }
+    try {
+      writePlugin(it.kind, it.file.split('/')[1], it.src);
+      it.state = 'installed';
+      res.installed.push({ kind: it.kind, file: it.file.split('/')[1], name: it.name });
+    } catch (e) { res.errors.push(`${it.name}: ${e instanceof Error ? e.message : String(e)}`); }
+  }
+  res.ok = res.errors.length === 0;
+  return res;
+}
+
+/** Поставить файлы .glsl с диска (перетащили в окно или выбрали): переход или эффект — по тексту. */
+export function installFiles(paths: string[]): InstallResult {
+  const res: InstallResult = { ok: true, installed: [], errors: [] };
+  for (const p of paths) {
+    const base = path.basename(p);
+    try {
+      if (!/\.(glsl|frag)$/i.test(base)) { res.errors.push(`${base}: это не шейдер .glsl`); continue; }
+      if (fs.statSync(p).size > MAX_PLUGIN_BYTES) { res.errors.push(`${base}: файл больше 256 КБ`); continue; }
+      const src = fs.readFileSync(p, 'utf8');
+      const kind = kindOfSource(src);
+      if (!kind) { res.errors.push(`${base}: нет функции vec4 transition(vec2 uv) или vec4 effect(vec2 uv)`); continue; }
+      const name = safePluginFile(base);
+      if (!name) { res.errors.push(`${base}: неподходящее имя файла`); continue; }
+      writePlugin(kind, name, src);
+      res.installed.push({ kind, file: name, name: parseGlsl(src).name ?? name.replace(/\.glsl$/, '') });
+    } catch (e) { res.errors.push(`${base}: ${e instanceof Error ? e.message : String(e)}`); }
+  }
+  res.ok = res.errors.length === 0;
+  return res;
+}
+
+/** Удалить плагин: только файл внутри папки плагинов; в Корзину, если получится. */
+export async function removePlugin(file: string): Promise<boolean> {
+  const root = path.resolve(pluginsDir());
+  const f = path.resolve(file);
+  const rel = path.relative(root, f);
+  if (rel.startsWith('..') || path.isAbsolute(rel) || !/^(transitions|effects)[\\/][^\\/]+\.(glsl|frag)$/i.test(rel)) return false;
+  if (!fs.existsSync(f)) return false;
+  try { await shell.trashItem(f); } catch { fs.rmSync(f, { force: true }); }
+  return !fs.existsSync(f);
 }

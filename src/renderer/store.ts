@@ -70,6 +70,7 @@ interface State {
   scriptOpen: boolean;
   /** Окно «Сообщить об ошибке» (текст — заготовка, например сообщение с экрана сбоя). */
   bugOpen: { what: string } | null;
+  pluginCatalogOpen: boolean;
   /** Последний собранный авто-ролик — для «Ещё вариант». */
   autoLast: AutoParams | null;
   /** Оформление (акцент, значок, размер интерфейса, своё оформление) и окно настроек. */
@@ -111,6 +112,7 @@ interface State {
   setAutoOpen: (o: AutoOpen | null) => void;
   setScriptOpen: (b: boolean) => void;
   setBugOpen: (b: { what: string } | null) => void;
+  setPluginCatalogOpen: (b: boolean) => void;
   setAutoLast: (p: AutoParams | null) => void;
   setAppearance: (a: Appearance) => void;
   setCustomStatus: (s: CustomStatus | null) => void;
@@ -173,6 +175,7 @@ export const useStore = create<State>((set, get) => ({
   autoOpen: null,
   scriptOpen: false,
   bugOpen: null,
+  pluginCatalogOpen: false,
   autoLast: null,
   appearance: normalizeAppearance(api?.initialAppearance),
   customStatus: null,
@@ -260,6 +263,7 @@ export const useStore = create<State>((set, get) => ({
   setAutoOpen: (o) => set({ autoOpen: o }),
   setScriptOpen: (b) => set({ scriptOpen: b }),
   setBugOpen: (b) => set({ bugOpen: b }),
+  setPluginCatalogOpen: (b) => set({ pluginCatalogOpen: b }),
   setAutoLast: (p) => set({ autoLast: p }),
   setAppearance: (a) => set({ appearance: a }),
   setCustomStatus: (st) => set({ customStatus: st }),
