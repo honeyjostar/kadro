@@ -1,33 +1,34 @@
 // Где интерфейс TikTok, Reels и Shorts закрывает вертикальное видео 9:16 (доли кадра).
 // Размеры примерные — по рекомендациям площадок и замерам на телефонах; в разных версиях приложений немного отличаются.
+import { tx } from './i18n';
 export type Platform = 'tiktok' | 'reels' | 'shorts';
 
 export interface Zone { x: number; y: number; w: number; h: number; label: string; short: string }
 
 export const PLATFORMS: { id: Platform; label: string; maxSec: number; maxNote: string }[] = [
-  { id: 'tiktok', label: 'TikTok', maxSec: 600, maxNote: 'TikTok принимает ролики до 10 минут' },
-  { id: 'reels', label: 'Reels', maxSec: 180, maxNote: 'Reels длиннее 3 минут Instagram почти не показывает новым зрителям' },
-  { id: 'shorts', label: 'Shorts', maxSec: 180, maxNote: 'Shorts — до 3 минут, длиннее YouTube выложит как обычное видео' },
+  { id: 'tiktok', label: 'TikTok', maxSec: 600, maxNote: tx('TikTok принимает ролики до 10 минут') },
+  { id: 'reels', label: 'Reels', maxSec: 180, maxNote: tx('Reels длиннее 3 минут Instagram почти не показывает новым зрителям') },
+  { id: 'shorts', label: 'Shorts', maxSec: 180, maxNote: tx('Shorts — до 3 минут, длиннее YouTube выложит как обычное видео') },
 ];
 
 export const SAFE_ZONES: Record<Platform, Zone[]> = {
   tiktok: [
-    { x: 0, y: 0, w: 1, h: 0.08, label: 'Вкладки «Подписки» и «Для вас»', short: 'Вкладки' },
-    { x: 0.86, y: 0.36, w: 0.14, h: 0.5, label: 'Аватар, лайк, комментарии, репост', short: 'Кнопки' },
-    { x: 0, y: 0.78, w: 0.86, h: 0.15, label: 'Ник, подпись и музыка', short: 'Ник и подпись' },
-    { x: 0, y: 0.93, w: 1, h: 0.07, label: 'Нижнее меню', short: 'Меню' },
+    { x: 0, y: 0, w: 1, h: 0.08, label: tx('Вкладки «Подписки» и «Для вас»'), short: tx('Вкладки') },
+    { x: 0.86, y: 0.36, w: 0.14, h: 0.5, label: tx('Аватар, лайк, комментарии, репост'), short: tx('Кнопки') },
+    { x: 0, y: 0.78, w: 0.86, h: 0.15, label: tx('Ник, подпись и музыка'), short: tx('Ник и подпись') },
+    { x: 0, y: 0.93, w: 1, h: 0.07, label: tx('Нижнее меню'), short: tx('Меню') },
   ],
   reels: [
-    { x: 0, y: 0, w: 1, h: 0.12, label: 'Заголовок «Reels» и камера', short: 'Заголовок' },
-    { x: 0.84, y: 0.55, w: 0.16, h: 0.38, label: 'Лайк, комментарии, репост, звук', short: 'Кнопки' },
-    { x: 0, y: 0.7, w: 0.84, h: 0.23, label: 'Ник, подпись и аудио', short: 'Ник и подпись' },
-    { x: 0, y: 0.93, w: 1, h: 0.07, label: 'Нижнее меню', short: 'Меню' },
+    { x: 0, y: 0, w: 1, h: 0.12, label: tx('Заголовок «Reels» и камера'), short: tx('Заголовок') },
+    { x: 0.84, y: 0.55, w: 0.16, h: 0.38, label: tx('Лайк, комментарии, репост, звук'), short: tx('Кнопки') },
+    { x: 0, y: 0.7, w: 0.84, h: 0.23, label: tx('Ник, подпись и аудио'), short: tx('Ник и подпись') },
+    { x: 0, y: 0.93, w: 1, h: 0.07, label: tx('Нижнее меню'), short: tx('Меню') },
   ],
   shorts: [
-    { x: 0, y: 0, w: 1, h: 0.07, label: 'Поиск и меню', short: 'Поиск' },
-    { x: 0.85, y: 0.45, w: 0.15, h: 0.45, label: 'Лайк, дизлайк, комментарии, репост', short: 'Кнопки' },
-    { x: 0, y: 0.78, w: 0.85, h: 0.14, label: 'Название, канал и «Подписаться»', short: 'Название и канал' },
-    { x: 0, y: 0.92, w: 1, h: 0.08, label: 'Нижнее меню', short: 'Меню' },
+    { x: 0, y: 0, w: 1, h: 0.07, label: tx('Поиск и меню'), short: tx('Поиск') },
+    { x: 0.85, y: 0.45, w: 0.15, h: 0.45, label: tx('Лайк, дизлайк, комментарии, репост'), short: tx('Кнопки') },
+    { x: 0, y: 0.78, w: 0.85, h: 0.14, label: tx('Название, канал и «Подписаться»'), short: tx('Название и канал') },
+    { x: 0, y: 0.92, w: 1, h: 0.08, label: tx('Нижнее меню'), short: tx('Меню') },
   ],
 };
 

@@ -1,5 +1,6 @@
 // Библиотека: папки с видео, фото и звуком, которые пользователь добавил один раз — они видны в любом проекте.
 // Файлы не копируются: Kadro только смотрит в папку, делает маленькие превью и берёт файл в проект, когда его выбрали.
+import { tx } from '../shared/i18n';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,7 +38,7 @@ function countMedia(dir: string): number {
 export function listDir(dir: string): LibListing {
   let entries: fs.Dirent[];
   try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) {
-    return { dir, dirs: [], files: [], error: (e as NodeJS.ErrnoException).code === 'ENOENT' ? 'Папки больше нет на этом месте' : 'Нет доступа к папке' };
+    return { dir, dirs: [], files: [], error: (e as NodeJS.ErrnoException).code === 'ENOENT' ? tx('Папки больше нет на этом месте') : tx('Нет доступа к папке') };
   }
   const dirs: LibDir[] = [];
   const files: LibFile[] = [];

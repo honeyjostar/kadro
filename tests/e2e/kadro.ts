@@ -21,7 +21,7 @@ export async function launch(opts: { data?: string; env?: Record<string, string>
     executablePath: exe,
     args: ['--no-sandbox', ROOT],
     cwd: ROOT,
-    env: { ...process.env, KADRO_DATA: data, KADRO_SKIP_HOME: '1', KADRO_MULTI: '1', KADRO_MODELS: MODELS, KADRO_FAKE_MEDIA: '1', KADRO_TEST_LUT: path.join(MEDIA, 'test.cube'), ...opts.env } as Record<string, string>,
+    env: { ...process.env, KADRO_LANG: 'ru', KADRO_DATA: data, KADRO_SKIP_HOME: '1', KADRO_MULTI: '1', KADRO_MODELS: MODELS, KADRO_FAKE_MEDIA: '1', KADRO_TEST_LUT: path.join(MEDIA, 'test.cube'), ...opts.env } as Record<string, string>,
     ...(opts.record ? { recordVideo: { dir: opts.record, size: { width: 1480, height: 920 } } } : {}),
   });
   const win = await app.firstWindow();

@@ -1,4 +1,5 @@
 // Экспорт проекта в MP4: слои текста → списки concat, граф FFmpeg, кодирование с прогрессом.
+import { tx } from '../shared/i18n';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -86,10 +87,10 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
   const t0 = Date.now();
   const { project, opts } = req;
   const total = projectDuration(project);
-  if (total <= 0) return { ok: false, error: 'Проект пустой — добавь видео или фото на таймлайн.' };
+  if (total <= 0) return { ok: false, error: tx('Проект пустой — добавь видео или фото на таймлайн.') };
   const used = new Set(project.tracks.flatMap((t) => t.clips.map((c) => (c.type === 'media' ? c.assetId : ''))));
   const lost = project.assets.filter((a) => used.has(a.id) && !fs.existsSync(a.path));
-  if (lost.length) return { ok: false, error: `Не найден файл: ${lost.map((a) => `«${a.name}»`).join(', ')}. Верни его на место или убери клип с таймлайна.` };
+  if (lost.length) return { ok: false, error: tx('Не найден файл: {0}. Верни его на место или убери клип с таймлайна.', lost.map((a) => `«${a.name}»`).join(', ')) };
   const size = exportSize(project.settings.width, project.settings.height, opts.height);
   const job = path.join(cacheDir('export'), `job_${Date.now()}`);
   fs.mkdirSync(job, { recursive: true });
@@ -137,13 +138,13 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
       } catch (e) {
         lastErr = e;
         fs.rmSync(tmpOut, { force: true });
-        if (signal?.aborted) return { ok: false, error: 'Экспорт отменён' };
+        if (signal?.aborted) return { ok: false, error: tx('Экспорт отменён') };
       }
     }
     const msg = lastErr instanceof Error ? lastErr.message : String(lastErr);
     fs.writeFileSync(path.join(cacheDir('logs'), `export_error_${Date.now()}.txt`),
       `${msg}\n\n${(lastErr as { stderr?: string })?.stderr ?? ''}\n\n--- graph ---\n${graph.filter}`);
-    return { ok: false, error: `Не удалось собрать видео: ${msg}` };
+    return { ok: false, error: tx('Не удалось собрать видео: {0}', msg) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   } finally {

@@ -1,10 +1,14 @@
 // Каталог шейдеров: 123 перехода gl-transitions, встроенные эффекты Kadro и плагины пользователя
 // (файлы .glsl в %USERPROFILE%\.kadro\plugins). Плеер и экспорт берут описание по id синхронно.
+import { tx, txData } from '../shared/i18n';
 import { useSyncExternalStore } from 'react';
 import { GL_EFFECT_SOURCES } from '../shared/gl/effects';
 import { builtinTransitions, parseGlsl, pluginDef, type GlDef, type GlTransitionJson } from '../shared/gl/glsl';
 import type { PluginFile } from '../shared/ipc';
 import { glRunner } from './engine/gl';
+
+/** Подписи ползунков параметров — на языке интерфейса (если перевод есть). */
+const localParams = (ps: GlDef['params']): GlDef['params'] => ps.map((p) => (p.label ? { ...p, label: tx(p.label) } : p));
 
 let transitions: GlDef[] = [];
 let plugins: GlDef[] = [];
@@ -17,7 +21,7 @@ const changed = () => { version++; subs.forEach((f) => f()); };
 /** Встроенные эффекты-шейдеры (они же образцы для своих плагинов). */
 const effects: GlDef[] = Object.entries(GL_EFFECT_SOURCES).map(([key, src]) => {
   const m = parseGlsl(src);
-  return { id: `gl:${key}`, kind: 'effect', name: m.name ?? key, author: m.author, license: m.license, description: m.description, tags: m.tags, cat: 'shader', params: m.params, glsl: src };
+  return { id: `gl:${key}`, kind: 'effect', name: tx(m.name ?? key), author: m.author, license: m.license, description: txData(m.description), tags: m.tags, cat: 'shader', params: localParams(m.params), glsl: src };
 });
 
 let loading: Promise<void> | null = null;
@@ -45,13 +49,15 @@ export function applyPluginFiles(files: PluginFile[]): void {
   const errors: PluginIssue[] = [];
   const seen = new Set<string>();
   for (const f of files) {
-    const r = pluginDef(f.kind, f.file, f.src);
+    const r0 = pluginDef(f.kind, f.file, f.src);
+    // названия плагинов из каталога есть в словаре — показываем на языке интерфейса
+    const r = r0.def ? { ...r0, def: { ...r0.def, name: tx(r0.def.name), description: txData(r0.def.description), params: localParams(r0.def.params) } } : r0;
     if (r.error) errors.push({ file: f.file, message: r.error });
     if (!r.def || seen.has(r.def.id)) continue;
     seen.add(r.def.id);
     const run = glRunner();
     if (run.available && !run.compile(r.def)) {
-      errors.push({ file: f.file, message: `${r.def.name}: ${run.errors.get(r.def.id) ?? 'шейдер не собрался'}` });
+      errors.push({ file: f.file, message: `${r.def.name}: ${run.errors.get(r.def.id) ?? tx('шейдер не собрался')}` });
       continue;
     }
     defs.push(r.def);

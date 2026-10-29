@@ -16,12 +16,12 @@
 текст с анимацией, 3D-объекты, перспектива, автосубтитры, удаление фона, чистый голос, 19 шаблонов. Экспорт до 4K без водяных знаков, без подписок и регистрации.</p>
 
 <p align="center">
-  <a href="https://github.com/honeyjostar/kadro/releases/download/v0.6.0/Kadro-Setup-0.6.0.exe"><img src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C_%D0%B4%D0%BB%D1%8F_Windows-%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D1%89%D0%B8%D0%BA_212_%D0%9C%D0%91-ff3d7f?style=for-the-badge&logo=windows&logoColor=white" alt="Скачать для Windows — установщик, 212 МБ"></a>
-  <a href="https://github.com/honeyjostar/kadro/releases/download/v0.6.0/Kadro-0.6.0-portable.zip"><img src="https://img.shields.io/badge/%D0%91%D0%B5%D0%B7_%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B8-zip_292_%D0%9C%D0%91-2e2938?style=for-the-badge" alt="Без установки — zip, 292 МБ"></a>
+  <a href="https://github.com/honeyjostar/kadro/releases/download/v0.7.0/Kadro-Setup-0.7.0.exe"><img src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C_%D0%B4%D0%BB%D1%8F_Windows-%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D1%89%D0%B8%D0%BA_212_%D0%9C%D0%91-ff3d7f?style=for-the-badge&logo=windows&logoColor=white" alt="Скачать для Windows — установщик, 212 МБ"></a>
+  <a href="https://github.com/honeyjostar/kadro/releases/download/v0.7.0/Kadro-0.7.0-portable.zip"><img src="https://img.shields.io/badge/%D0%91%D0%B5%D0%B7_%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B8-zip_292_%D0%9C%D0%91-2e2938?style=for-the-badge" alt="Без установки — zip, 292 МБ"></a>
 </p>
 
-<p align="center">Kadro 0.6.0 для Windows 10 и 11 · после установки занимает около 700 МБ ·
-  <a href="docs/GUIDE.md">Руководство</a> · <a href="docs/BUILD.md">Сборка из исходников</a></p>
+<p align="center">Kadro 0.7.0 для Windows 10 и 11 · после установки занимает около 700 МБ ·
+  <a href="docs/GUIDE.md">Руководство</a> · <a href="docs/BUILD.md">Сборка из исходников</a> · <a href="README.en.md">English</a></p>
 
 > [!IMPORTANT]
 > Программа — это файлы по кнопкам выше. Зелёная кнопка **Code → Download ZIP** скачивает исходный код для программистов:
@@ -64,6 +64,7 @@ Kadro — обычная программа, а не сайт. Видео не �
 - Группы (составные клипы), плавные ключевые кадры для положения, размера, поворота и прозрачности
 - Маски (линейная, зеркальная полоса, круг, прямоугольник) с растушёвкой, хромакей (зелёный фон), 6 режимов наложения
 - Кнопки на таймлайне подписаны, у каждой — подсказка с клавишей
+- **Интерфейс на русском и английском** (переключается в настройках), установщик — тоже на двух языках
 - Оформление: тёмная и светлая тема, цвет акцента (розовый, фиолетовый, синий, чёрно-белый), значок программы в 5 цветах или своя картинка, размер интерфейса; **своё оформление** — свои цвета и стили в файлах, как у сайта ([инструкция](docs/CUSTOMIZE.md))
 
 **Переходы, эффекты, цвет**
@@ -131,14 +132,14 @@ Kadro — обычная программа, а не сайт. Видео не �
 
 ## Установка
 
-1. Скачай [**Kadro-Setup-0.6.0.exe**](https://github.com/honeyjostar/kadro/releases/download/v0.6.0/Kadro-Setup-0.6.0.exe) (212 МБ). Все версии — на странице [Releases](https://github.com/honeyjostar/kadro/releases/latest), в разделе **Assets**.
+1. Скачай [**Kadro-Setup-0.7.0.exe**](https://github.com/honeyjostar/kadro/releases/download/v0.7.0/Kadro-Setup-0.7.0.exe) (212 МБ). Все версии — на странице [Releases](https://github.com/honeyjostar/kadro/releases/latest), в разделе **Assets**.
    Браузер может спросить, точно ли сохранить редко скачиваемый файл, — выбери «Сохранить».
 2. Запусти. Windows может показать «Система Windows защитила ваш компьютер» — это потому, что у установщика нет платной цифровой подписи. Нажми **Подробнее → Выполнить в любом случае**.
 3. Установщик ставит программу в `%LOCALAPPDATA%\Programs\Kadro` (около 700 МБ, права администратора не нужны) и создаёт ярлык **Kadro** на рабочем столе и в меню «Пуск» — по нему программа и запускается.
 
-**Без установки:** скачай [Kadro-0.6.0-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.6.0/Kadro-0.6.0-portable.zip) (292 МБ), распакуй в любую папку (хоть на флешку) и запусти `Kadro.exe` внутри.
+**Без установки:** скачай [Kadro-0.7.0-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.7.0/Kadro-0.7.0-portable.zip) (292 МБ), распакуй в любую папку (хоть на флешку) и запусти `Kadro.exe` внутри.
 
-**Обновление** — просто поставь новую версию поверх, проекты и настройки сохранятся.
+**Обновление** — начиная с 0.6.0 Kadro обновляется сам («Вышел Kadro X» → «Обновить»); можно и просто поставить новую версию поверх, проекты и настройки сохранятся.
 **Удаление** — «Параметры → Приложения → Kadro → Удалить». Модели и черновики лежат в `%USERPROFILE%\.kadro`, эту папку можно удалить вручную.
 
 ## Быстрый старт

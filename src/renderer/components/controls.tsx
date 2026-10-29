@@ -1,3 +1,4 @@
+import { tx } from '../../shared/i18n';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FONT_CATS, FONTS, type FontCat } from '../../shared/defaults';
 
@@ -9,7 +10,7 @@ export function Slider(props: {
   return (
     <div className="field">
       <div className="field-row">
-        <label onDoubleClick={onReset} title={onReset ? 'Двойной клик — сбросить' : undefined}>{label}</label>
+        <label onDoubleClick={onReset} title={onReset ? tx('Двойной клик — сбросить') : undefined}>{label}</label>
         <span className="value-wrap"><span className="value">{format ? format(value) : value.toFixed(2)}</span>{extra}</span>
       </div>
       <input
@@ -74,7 +75,7 @@ export function useLocal<T>(initial: T): [T, (v: T) => void] {
 
 /** Ромбик ключевого кадра: пустой — свойство не анимировано, контур — анимировано, залитый — ключ в этом моменте. */
 export function KeyButton({ state, onClick, testId }: { state: 'none' | 'animated' | 'here'; onClick: () => void; testId?: string }) {
-  const title = state === 'here' ? 'Убрать ключ в этом моменте' : 'Поставить ключ — свойство начнёт меняться во времени';
+  const title = state === 'here' ? tx('Убрать ключ в этом моменте') : tx('Поставить ключ — свойство начнёт меняться во времени');
   return (
     <button className={`key-btn ${state}`} onClick={onClick} title={title} data-testid={testId} aria-label={title}>
       <svg viewBox="0 0 12 12" aria-hidden><path d="M6 1 11 6 6 11 1 6Z" /></svg>
@@ -108,9 +109,9 @@ export function FontPicker({ value, onChange, testId }: { value: string; onChang
       </button>
       {open && (
         <div className="font-pop" role="listbox">
-          <input className="input" autoFocus placeholder={`Поиск среди ${FONTS.length} шрифтов`} value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className="input" autoFocus placeholder={tx('Поиск среди {0} шрифтов', FONTS.length)} value={q} onChange={(e) => setQ(e.target.value)} />
           <div className="chips">
-            <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
+            <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>
             {FONT_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
           </div>
           <div className="font-pop-list">
@@ -120,12 +121,12 @@ export function FontPicker({ value, onChange, testId }: { value: string; onChang
                 {g.fonts.map((f) => (
                   <button key={f.family} role="option" aria-selected={f.family === value} className={`font-row ${f.family === value ? 'active' : ''}`}
                     style={{ fontFamily: `'${f.family}'` }} onClick={() => { onChange(f.family); setOpen(false); }}>
-                    {f.label} <span>Привет, мир</span>
+                    {f.label} <span>{tx('Привет, мир')}</span>
                   </button>
                 ))}
               </div>
             ))}
-            {!groups.length && <div className="hint small">Ничего не нашлось</div>}
+            {!groups.length && <div className="hint small">{tx('Ничего не нашлось')}</div>}
           </div>
         </div>
       )}

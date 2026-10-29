@@ -1,5 +1,6 @@
 // Модели перевода OPUS-MT: список направлений, скачивание с проверкой SHA-256 (без onnxruntime — можно
 // звать из главного процесса). Модели лежат в релизе translate-models репозитория Kadro.
+import { tx } from '../../shared/i18n';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,11 +22,11 @@ async function getManifest(signal?: AbortSignal): Promise<MtManifestEntry[]> {
   const url = `${mtBase()}/manifest.json`;
   const text = url.startsWith('file:') ? fs.readFileSync(new URL(url), 'utf8') : await (async () => {
     const r = await fetch(url, { signal });
-    if (!r.ok) throw new Error(`Список моделей перевода недоступен (${r.status})`);
+    if (!r.ok) throw new Error(tx('Список моделей перевода недоступен ({0})', r.status));
     return r.text();
   })();
   const list = JSON.parse(text) as MtManifestEntry[];
-  if (!Array.isArray(list)) throw new Error('Список моделей перевода повреждён');
+  if (!Array.isArray(list)) throw new Error(tx('Список моделей перевода повреждён'));
   return list;
 }
 
@@ -53,7 +54,7 @@ export async function downloadMt(pairs: string[], onProgress: (p: number) => voi
   const list = await getManifest(signal);
   const items = need.flatMap((p) => FILES.flatMap((f) => {
     const e = list.find((x) => x.file === `${p}.${f}`);
-    if (!e && (REQUIRED as readonly string[]).includes(f)) throw new Error(`Нет модели перевода ${p}`);
+    if (!e && (REQUIRED as readonly string[]).includes(f)) throw new Error(tx('Нет модели перевода {0}', p));
     return e ? [{ pair: p, name: f, entry: e }] : [];
   }));
   const total = items.reduce((n, x) => n + x.entry.size, 0);
@@ -69,7 +70,7 @@ export async function downloadMt(pairs: string[], onProgress: (p: number) => voi
       ? fs.createReadStream(new URL(url))
       : await (async () => {
         const r = await fetch(url, { signal });
-        if (!r.ok || !r.body) throw new Error(`Модель перевода не скачалась (${r.status})`);
+        if (!r.ok || !r.body) throw new Error(tx('Модель перевода не скачалась ({0})', r.status));
         return Readable.fromWeb(r.body as never);
       })();
     let got = 0;
@@ -77,7 +78,7 @@ export async function downloadMt(pairs: string[], onProgress: (p: number) => voi
     try {
       await pipeline(body, fs.createWriteStream(part), { signal });
     } catch (e) { fs.rmSync(part, { force: true }); throw e; }
-    if (hash.digest('hex') !== it.entry.sha256) { fs.rmSync(part, { force: true }); throw new Error('Модель перевода скачалась с ошибкой — попробуй ещё раз'); }
+    if (hash.digest('hex') !== it.entry.sha256) { fs.rmSync(part, { force: true }); throw new Error(tx('Модель перевода скачалась с ошибкой — попробуй ещё раз')); }
     fs.renameSync(part, dest);
     done += it.entry.size;
   }

@@ -1,6 +1,7 @@
 // Экспорт шейдеров: FFmpeg не выполняет GLSL, поэтому куски ролика, где есть переход-шейдер или
 // эффект-шейдер, Kadro рисует сам — тем же движком плеера, кадр за кадром в размере экспорта, — и
 // отдаёт кадры PNG главному процессу. FFmpeg накладывает их поверх собранного видео в этих местах.
+import { tx } from '../../shared/i18n';
 import { glRanges } from '../../shared/gl/ranges';
 import type { Project } from '../../shared/types';
 import { loadGlCatalog } from '../glRegistry';
@@ -15,7 +16,7 @@ export interface GlRender { token: string; segments: { start: number; frames: nu
 function toPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(async (b) => {
-      if (!b) { reject(new Error('Не удалось нарисовать кадр')); return; }
+      if (!b) { reject(new Error(tx('Не удалось нарисовать кадр'))); return; }
       resolve(new Uint8Array(await b.arrayBuffer()));
     }, 'image/png');
   });
@@ -43,7 +44,7 @@ export async function renderGlSegments(p: Project, W: number, H: number, fps: nu
     for (let i = 0; i < ranges.length; i++) {
       const r = ranges[i];
       for (let k = 0; k < r.frames; k++) {
-        if (cancelled?.()) throw new DOMException('Экспорт отменён', 'AbortError');
+        if (cancelled?.()) throw new DOMException(tx('Экспорт отменён'), 'AbortError');
         // чуть позже начала кадра: тот же кадр видео, что берёт FFmpeg
         await engine.renderAt(r.start + k / fps + 1e-4);
         await api.glFrame(token, i, k, await toPng(canvas));

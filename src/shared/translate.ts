@@ -1,13 +1,14 @@
 // Перевод субтитров без интернета: какие языки есть, через что переводить (прямо или через английский),
 // как склеить обрывки фраз из соседних субтитров в предложения и разложить перевод обратно по субтитрам.
 // Чистые функции — проверяются без моделей.
+import { tx } from './i18n';
 
 export type LangCode = 'ru' | 'en' | 'uk' | 'de' | 'es' | 'fr' | 'it' | 'zh' | 'pl' | 'tr' | 'ja' | 'ko' | 'ar';
 export const LANGS: { code: LangCode; label: string }[] = [
-  { code: 'ru', label: 'Русский' }, { code: 'en', label: 'Английский' }, { code: 'uk', label: 'Украинский' },
-  { code: 'de', label: 'Немецкий' }, { code: 'es', label: 'Испанский' }, { code: 'fr', label: 'Французский' },
-  { code: 'it', label: 'Итальянский' }, { code: 'pl', label: 'Польский' }, { code: 'tr', label: 'Турецкий' },
-  { code: 'zh', label: 'Китайский' }, { code: 'ja', label: 'Японский' }, { code: 'ko', label: 'Корейский' }, { code: 'ar', label: 'Арабский' },
+  { code: 'ru', label: tx('Русский') }, { code: 'en', label: tx('Английский') }, { code: 'uk', label: tx('Украинский') },
+  { code: 'de', label: tx('Немецкий') }, { code: 'es', label: tx('Испанский') }, { code: 'fr', label: tx('Французский') },
+  { code: 'it', label: tx('Итальянский') }, { code: 'pl', label: tx('Польский') }, { code: 'tr', label: tx('Турецкий') },
+  { code: 'zh', label: tx('Китайский') }, { code: 'ja', label: tx('Японский') }, { code: 'ko', label: tx('Корейский') }, { code: 'ar', label: tx('Арабский') },
 ];
 export const langLabel = (c: string): string => LANGS.find((l) => l.code === c)?.label ?? c;
 

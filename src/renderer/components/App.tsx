@@ -1,3 +1,4 @@
+import { tx } from '../../shared/i18n';
 import { useEffect, useRef } from 'react';
 import { deleteSelection, dropOnHome, dropPaths, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, ungroupSelection } from '../actions';
 import { api, getState, useStore } from '../store';
@@ -160,7 +161,7 @@ export function App() {
         <Player />
         <Inspector />
       </div>
-      <div className="splitter" onMouseDown={onSplitter} title="Потяни, чтобы изменить высоту таймлайна" />
+      <div className="splitter" onMouseDown={onSplitter} title={tx('Потяни, чтобы изменить высоту таймлайна')} />
       <Timeline />
       {exportOpen && <ExportDialog />}
       {home && <Home />}

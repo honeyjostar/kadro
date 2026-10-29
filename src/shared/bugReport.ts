@@ -1,5 +1,6 @@
 // «Сообщить об ошибке»: текст Issue для GitHub — что случилось, версия, система и хвост журнала.
 // Журнал чистится от личного: путь к папке пользователя заменяется на %USERPROFILE%.
+import { tx } from './i18n';
 
 export const ISSUES_NEW = 'https://github.com/honeyjostar/kadro/issues/new';
 /** GitHub и браузеры режут слишком длинные ссылки — укладываемся с запасом. */
@@ -23,16 +24,16 @@ export function scrubLog(text: string, home: string): string {
 
 export function bugTitle(what: string): string {
   const first = what.trim().split(/\r?\n/)[0].replace(/\s+/g, ' ');
-  return first.length > 80 ? `${first.slice(0, 77)}…` : first || 'Ошибка в Kadro';
+  return first.length > 80 ? `${first.slice(0, 77)}…` : first || tx('Ошибка в Kadro');
 }
 
 /** Текст Issue в Markdown; журнал — последние строки, сколько влезает в ссылку. */
 export function bugBody(what: string, steps: string, info: BugInfo, withLog: boolean, budget = 4000): string {
   const parts = [
-    '### Что случилось', what.trim() || '—', '',
-    ...(steps.trim() ? ['### Что делал перед этим', steps.trim(), ''] : []),
-    '### Система',
-    `- Kadro ${info.version}`, `- ${info.os}`, `- Electron ${info.electron}`, `- Видеокарта (WebGL): ${info.gpu}`, '',
+    tx('### Что случилось'), what.trim() || '—', '',
+    ...(steps.trim() ? [tx('### Что делал перед этим'), steps.trim(), ''] : []),
+    tx('### Система'),
+    `- Kadro ${info.version}`, `- ${info.os}`, `- Electron ${info.electron}`, tx('- Видеокарта (WebGL): {0}', info.gpu), '',
   ];
   if (withLog && info.log.trim()) {
     const lines = info.log.trim().split(/\r?\n/);
@@ -44,7 +45,7 @@ export function bugBody(what: string, steps: string, info: BugInfo, withLog: boo
       keep.unshift(l);
       n += l.length + 1;
     }
-    parts.push('<details><summary>Журнал (последние строки)</summary>', '', '```', ...keep, '```', '</details>');
+    parts.push(tx('<details><summary>Журнал (последние строки)</summary>'), '', '```', ...keep, '```', '</details>');
   }
   return parts.join('\n');
 }

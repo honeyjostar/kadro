@@ -1,6 +1,7 @@
 // Авто-ролик: из видео, фото и музыки — готовый монтаж, который дальше можно править как обычно.
 // Склейки — на долях музыки. Из видео берутся лучшие куски: резкие, хорошо освещённые, с умеренным движением
 // и без склеек внутри. Стиль задаёт длину кадров, переходы, цвет, эффекты и надпись.
+import { tx } from './i18n';
 import { ASPECTS, DEFAULT_COLOR, DEFAULT_TRANSFORM, TEXT_PRESETS, newMediaClip, newTextClip, newTrack } from './defaults';
 import { layoutMain, mainTrack } from './timeline';
 import type {
@@ -225,7 +226,7 @@ export interface AutoStyleDef {
 
 export const AUTO_STYLES: AutoStyleDef[] = [
   {
-    id: 'energy', label: 'Динамичный', hint: 'Быстрые склейки в ритм, вспышки на сильных долях, сочный цвет',
+    id: 'energy', label: tx('Динамичный'), hint: tx('Быстрые склейки в ритм, вспышки на сильных долях, сочный цвет'),
     bpm: 124, cut: 0.9, first: 2, pattern: [1, 1, 1, 1, 0.5, 0.5, 1, 2], trEvery: 4,
     trans: ['zoomin', 'hlslice', 'squeezeh', 'pixelize', 'smoothleft', 'fadewhite'],
     trDur: (b) => clamp(b * 0.5, 0.2, 0.35),
@@ -235,7 +236,7 @@ export const AUTO_STYLES: AutoStyleDef[] = [
     swatch: 'linear-gradient(135deg,#ff3d6e,#ffb238)',
   },
   {
-    id: 'smooth', label: 'Плавный', hint: 'Длинные кадры, мягкие переходы, медленные наезды',
+    id: 'smooth', label: tx('Плавный'), hint: tx('Длинные кадры, мягкие переходы, медленные наезды'),
     bpm: 90, cut: 2.6, first: 1, pattern: [1], trEvery: 1,
     trans: ['fade', 'smoothleft', 'dissolve', 'smoothup', 'fadeslow', 'circleopen'],
     trDur: (b) => clamp(b, 0.5, 0.9),
@@ -245,7 +246,7 @@ export const AUTO_STYLES: AutoStyleDef[] = [
     swatch: 'linear-gradient(135deg,#f6d5c8,#9db4d8)',
   },
   {
-    id: 'cinema', label: 'Кино', hint: 'Кинополосы, цвет как в фильме, переходы через чёрное',
+    id: 'cinema', label: tx('Кино'), hint: tx('Кинополосы, цвет как в фильме, переходы через чёрное'),
     bpm: 80, cut: 3.4, first: 1, pattern: [1, 1, 2], trEvery: 2,
     trans: ['fadeblack', 'fade', 'fadeslow'],
     trDur: (b) => clamp(b, 0.5, 1),
@@ -255,7 +256,7 @@ export const AUTO_STYLES: AutoStyleDef[] = [
     swatch: 'linear-gradient(135deg,#0f3b4a,#d9823b)',
   },
   {
-    id: 'retro', label: 'Плёнка', hint: 'Тёплый плёночный цвет, зерно и засветки',
+    id: 'retro', label: tx('Плёнка'), hint: tx('Тёплый плёночный цвет, зерно и засветки'),
     bpm: 104, cut: 1.7, first: 1.5, pattern: [1, 1, 2, 1], trEvery: 2,
     trans: ['fadewhite', 'pixelize', 'dissolve', 'hlwind', 'vuslice'],
     trDur: (b) => clamp(b * 0.5, 0.25, 0.45),
@@ -343,7 +344,7 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
   const st = autoStyle(inp.style);
   const rand = rng(inp.seed);
   const media = inp.media.filter((m) => isVideo(m.asset) || m.asset.kind === 'image');
-  if (!media.length) throw new Error('Нужны видео или фото');
+  if (!media.length) throw new Error(tx('Нужны видео или фото'));
   const music = inp.music && (inp.music.kind === 'audio' || inp.music.hasAudio) ? inp.music : null;
 
   // сколько кадров «естественно» даёт каждый файл
@@ -588,7 +589,7 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
     mc.out = Math.min(music.duration, musicIn + total);
     const cut = music.duration - musicIn > total + 0.1;
     mc.fadeOut = cut ? Math.round(Math.min(2, total * 0.15) * 100) / 100 : 0;
-    const t = newTrack('audio', 'Музыка');
+    const t = newTrack('audio', tx('Музыка'));
     t.clips.push(mc);
     p.tracks.push(t);
   }
@@ -606,7 +607,7 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
     t.clips.push(c);
     p.tracks.push(t);
   }
-  p.name = title || 'Авто-ролик';
+  p.name = title || tx('Авто-ролик');
 
   const usedCount = new Set(slots.map((j) => owner[j])).size;
   return {

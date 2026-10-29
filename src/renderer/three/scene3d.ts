@@ -1,5 +1,6 @@
 // 3D-объекты на three.js: готовые фигуры и свои модели (GLB, GLTF, OBJ, STL, FBX), движение, материал, свет.
 // Одна и та же сцена рисует живое превью в окне настройки и кадры для видео — поэтому в ролике ровно то, что на экране.
+import { tx } from '../../shared/i18n';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -45,18 +46,18 @@ function bolt(): THREE.BufferGeometry {
 }
 
 export const SHAPES: { id: string; label: string; color: string; make: () => THREE.BufferGeometry }[] = [
-  { id: 'heart', label: 'Сердце', color: '#ff3d6e', make: heart },
-  { id: 'star', label: 'Звезда', color: '#ffcf3d', make: star },
-  { id: 'bolt', label: 'Молния', color: '#ffe14d', make: bolt },
-  { id: 'cube', label: 'Кубик', color: '#4d8dff', make: () => new RoundedBoxGeometry(1.3, 1.3, 1.3, 6, 0.18) },
-  { id: 'sphere', label: 'Шар', color: '#ff7a3d', make: () => new THREE.SphereGeometry(1, 64, 48) },
-  { id: 'torus', label: 'Бублик', color: '#ff4fd8', make: () => new THREE.TorusGeometry(0.8, 0.34, 48, 128) },
-  { id: 'ring', label: 'Кольцо', color: '#ffd75a', make: () => new THREE.TorusGeometry(0.9, 0.12, 32, 128) },
-  { id: 'knot', label: 'Узел', color: '#a78bff', make: () => new THREE.TorusKnotGeometry(0.7, 0.22, 220, 32) },
-  { id: 'crystal', label: 'Кристалл', color: '#7cf0ff', make: () => new THREE.IcosahedronGeometry(1, 0) },
-  { id: 'coin', label: 'Монета', color: '#ffc93d', make: () => new THREE.CylinderGeometry(1, 1, 0.16, 96).rotateX(Math.PI / 2) },
-  { id: 'pyramid', label: 'Пирамида', color: '#3dd6a5', make: () => new THREE.ConeGeometry(1, 1.4, 4, 1) },
-  { id: 'capsule', label: 'Капсула', color: '#ff5e87', make: () => new THREE.CapsuleGeometry(0.5, 1, 12, 48) },
+  { id: 'heart', label: tx('Сердце'), color: '#ff3d6e', make: heart },
+  { id: 'star', label: tx('Звезда'), color: '#ffcf3d', make: star },
+  { id: 'bolt', label: tx('Молния'), color: '#ffe14d', make: bolt },
+  { id: 'cube', label: tx('Кубик'), color: '#4d8dff', make: () => new RoundedBoxGeometry(1.3, 1.3, 1.3, 6, 0.18) },
+  { id: 'sphere', label: tx('Шар'), color: '#ff7a3d', make: () => new THREE.SphereGeometry(1, 64, 48) },
+  { id: 'torus', label: tx('Бублик'), color: '#ff4fd8', make: () => new THREE.TorusGeometry(0.8, 0.34, 48, 128) },
+  { id: 'ring', label: tx('Кольцо'), color: '#ffd75a', make: () => new THREE.TorusGeometry(0.9, 0.12, 32, 128) },
+  { id: 'knot', label: tx('Узел'), color: '#a78bff', make: () => new THREE.TorusKnotGeometry(0.7, 0.22, 220, 32) },
+  { id: 'crystal', label: tx('Кристалл'), color: '#7cf0ff', make: () => new THREE.IcosahedronGeometry(1, 0) },
+  { id: 'coin', label: tx('Монета'), color: '#ffc93d', make: () => new THREE.CylinderGeometry(1, 1, 0.16, 96).rotateX(Math.PI / 2) },
+  { id: 'pyramid', label: tx('Пирамида'), color: '#3dd6a5', make: () => new THREE.ConeGeometry(1, 1.4, 4, 1) },
+  { id: 'capsule', label: tx('Капсула'), color: '#ff5e87', make: () => new THREE.CapsuleGeometry(0.5, 1, 12, 48) },
 ];
 
 export function defaultModel(source: string, name: string, hasOwnMaterials = false): Model3D {
@@ -103,7 +104,7 @@ export function loadSource(source: string, mediaUrl: (p: string) => string): Pro
       return { object: new THREE.Mesh(geo, new THREE.MeshStandardMaterial()), own: false };
     }
     if (ext === 'fbx') return { object: await new FBXLoader(manager).loadAsync(url), own: true };
-    throw new Error('Этот формат 3D не поддерживается — подойдут GLB, GLTF, OBJ, STL и FBX');
+    throw new Error(tx('Этот формат 3D не поддерживается — подойдут GLB, GLTF, OBJ, STL и FBX'));
   })();
   loaded.set(source, p);
   p.catch(() => loaded.delete(source));
@@ -278,14 +279,14 @@ export async function renderModelVideo(
     const n = Math.max(1, Math.round(m.duration * fps));
     const buf = new Uint8Array(size * size * 4);
     for (let i = 0; i < n; i++) {
-      if (opts.cancelled?.()) { api.m3dCancel(id); throw new DOMException('Отменено', 'AbortError'); }
+      if (opts.cancelled?.()) { api.m3dCancel(id); throw new DOMException(tx('Отменено'), 'AbortError'); }
       stage.frame(m, i / fps);
       stage.read(buf);
       await api.m3dFrame(id, buf.slice().buffer);
       opts.onProgress?.((i + 1) / n);
     }
     const r = await api.m3dEnd(id);
-    if (!r.path) throw new Error(r.error ?? 'Не получилось собрать 3D');
+    if (!r.path) throw new Error(r.error ?? tx('Не получилось собрать 3D'));
     return r.path;
   } finally {
     stage.dispose();

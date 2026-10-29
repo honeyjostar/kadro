@@ -1,3 +1,4 @@
+import { tx } from '../../shared/i18n';
 import {
   Activity, AudioLines, Blend, Bookmark, Copy, Eye, EyeOff, Film, Group, Layers, Maximize2, Mic, Plus, Ungroup, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
@@ -190,19 +191,19 @@ const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selecte
   let content: React.ReactNode = null;
   if (clip.type === 'text') {
     cls += clip.role === 'caption' ? ' caption' : ' text';
-    label = <><Type size={11} className="clip-icon" /><span className="ellipsis">{clip.text || 'Пустой текст'}</span></>;
+    label = <><Type size={11} className="clip-icon" /><span className="ellipsis">{clip.text || tx('Пустой текст')}</span></>;
   } else {
     const isAudio = asset?.kind === 'audio';
     cls += isAudio ? ' audio' : track.kind === 'main' ? ' video' : ' overlay';
     const tags: string[] = [];
     if (clip.speed !== 1) tags.push(`${+clip.speed.toFixed(2)}×`);
-    if (clip.muted) tags.push('без звука');
-    if (clip.removeBg.enabled) tags.push('без фона');
-    if (clip.denoise.enabled) tags.push('чистый голос');
+    if (clip.muted) tags.push(tx('без звука'));
+    if (clip.removeBg.enabled) tags.push(tx('без фона'));
+    if (clip.denoise.enabled) tags.push(tx('чистый голос'));
     if (clip.color.preset !== 'none') tags.push(FILTER_PRESETS.find((f) => f.id === clip.color.preset)?.label ?? '');
     label = (
       <>
-        <span className="ellipsis">{asset?.name ?? 'Файл не найден'}</span>
+        <span className="ellipsis">{asset?.name ?? tx('Файл не найден')}</span>
         {width > 120 && <span className="clip-dur">{fmtDur(dur)}</span>}
         {width > 80 && tags.map((t) => <span key={t} className="tag">{t}</span>)}
       </>
@@ -278,17 +279,18 @@ function TrackHead({ row }: { row: Row }) {
   const commit = useStore((s) => s.commit);
   const t = row.track;
   const icon = t.kind === 'main' ? <Film size={13} /> : t.kind === 'video' ? <Layers size={13} /> : t.kind === 'text' ? <Type size={13} /> : <AudioLines size={13} />;
-  const isCaption = t.kind === 'text' && t.name === 'Субтитры';
+  // имя дорожки хранится в проекте на языке, на котором её создали
+  const isCaption = t.kind === 'text' && (t.name === 'Субтитры' || t.name === tx('Субтитры')); // i18n-data
   return (
     <div className={`track-head ${t.kind}`} style={{ height: row.height }}>
       {icon}
-      <span className="name">{isCaption ? 'Субтитры' : t.kind === 'main' ? 'Основная' : t.name}</span>
+      <span className="name">{isCaption ? tx('Субтитры') : t.kind === 'main' ? tx('Основная') : tx(t.name)}</span>
       {t.kind !== 'audio' && (
-        <button className={`icon-btn ${t.hidden ? 'on' : ''}`} title={t.hidden ? 'Показать дорожку' : 'Скрыть дорожку'}
+        <button className={`icon-btn ${t.hidden ? 'on' : ''}`} title={t.hidden ? tx('Показать дорожку') : tx('Скрыть дорожку')}
           onClick={() => commit((p) => setTrackFlag(p, t.id, { hidden: !t.hidden }))}>{t.hidden ? <EyeOff size={14} /> : <Eye size={14} />}</button>
       )}
       {t.kind !== 'text' && (
-        <button className={`icon-btn ${t.muted ? 'on' : ''}`} title={t.muted ? 'Включить звук дорожки' : 'Выключить звук дорожки'} data-testid="track-mute"
+        <button className={`icon-btn ${t.muted ? 'on' : ''}`} title={t.muted ? tx('Включить звук дорожки') : tx('Выключить звук дорожки')} data-testid="track-mute"
           onClick={() => commit((p) => setTrackFlag(p, t.id, { muted: !t.muted }))}>{t.muted ? <VolumeX size={14} /> : <Volume2 size={14} />}</button>
       )}
     </div>
@@ -723,38 +725,38 @@ export function Timeline() {
 
   return (
     <section className="timeline" data-testid="timeline">
-      <div className="tl-toolbar" role="toolbar" aria-label="Инструменты таймлайна">
-        <Tool icon={<Undo2 size={17} />} label="Отменить" title="Отменить последнее действие (Ctrl+Z)" disabled={!canUndo} onClick={() => getState().undo()} testId="undo" />
-        <Tool icon={<Redo2 size={17} />} label="Вернуть" title="Вернуть отменённое (Ctrl+Y)" disabled={!canRedo} onClick={() => getState().redo()} testId="redo" />
+      <div className="tl-toolbar" role="toolbar" aria-label={tx('Инструменты таймлайна')}>
+        <Tool icon={<Undo2 size={17} />} label={tx('Отменить')} title={tx('Отменить последнее действие (Ctrl+Z)')} disabled={!canUndo} onClick={() => getState().undo()} testId="undo" />
+        <Tool icon={<Redo2 size={17} />} label={tx('Вернуть')} title={tx('Вернуть отменённое (Ctrl+Y)')} disabled={!canRedo} onClick={() => getState().redo()} testId="redo" />
         <span className="sep" />
-        <Tool icon={<Scissors size={17} />} label="Разрезать" title="Разрезать клип там, где розовая линия времени (S)" onClick={splitAtPlayhead} disabled={noClips} testId="split" />
-        <Tool icon={<Trash2 size={17} />} label="Удалить" title="Удалить выделенное (Delete)" onClick={deleteSelection} disabled={!selection.length} testId="delete" />
-        <Tool icon={<Copy size={17} />} label="Копия" title="Сделать копию выделенного клипа (Ctrl+D)" onClick={duplicateSelection} disabled={selection.length !== 1} testId="duplicate" />
+        <Tool icon={<Scissors size={17} />} label={tx('Разрезать')} title={tx('Разрезать клип там, где розовая линия времени (S)')} onClick={splitAtPlayhead} disabled={noClips} testId="split" />
+        <Tool icon={<Trash2 size={17} />} label={tx('Удалить')} title={tx('Удалить выделенное (Delete)')} onClick={deleteSelection} disabled={!selection.length} testId="delete" />
+        <Tool icon={<Copy size={17} />} label={tx('Копия')} title={tx('Сделать копию выделенного клипа (Ctrl+D)')} onClick={duplicateSelection} disabled={selection.length !== 1} testId="duplicate" />
         {selClip?.group && selection.length === 1
-          ? <Tool icon={<Ungroup size={17} />} label="Разгруппировать" title="Разобрать группу обратно на клипы (Ctrl+Shift+G)" onClick={ungroupSelection} testId="tl-ungroup" />
-          : <Tool icon={<Group size={17} />} label="Группа" title="Склеить выделенные клипы в одну группу — выдели несколько с Ctrl (Ctrl+G)" onClick={() => void groupSelection()} disabled={selection.length < 2} testId="tl-group" />}
-        <Tool icon={<Bookmark size={17} />} label="Маркер" title="Поставить маркер там, где линия времени (M). Shift+M — к следующему, Ctrl+Shift+M — к предыдущему. Из маркеров получаются главы для YouTube"
+          ? <Tool icon={<Ungroup size={17} />} label={tx('Разгруппировать')} title={tx('Разобрать группу обратно на клипы (Ctrl+Shift+G)')} onClick={ungroupSelection} testId="tl-ungroup" />
+          : <Tool icon={<Group size={17} />} label={tx('Группа')} title={tx('Склеить выделенные клипы в одну группу — выдели несколько с Ctrl (Ctrl+G)')} onClick={() => void groupSelection()} disabled={selection.length < 2} testId="tl-group" />}
+        <Tool icon={<Bookmark size={17} />} label={tx('Маркер')} title={tx('Поставить маркер там, где линия времени (M). Shift+M — к следующему, Ctrl+Shift+M — к предыдущему. Из маркеров получаются главы для YouTube')}
           onClick={() => addMarkerAtPlayhead()} testId="tl-marker" />
-        <Tool icon={<Snowflake size={17} />} label="Стоп-кадр" title="Остановить кадр там, где розовая линия времени" onClick={() => void freezeFrame()} disabled={noClips} testId="tl-freeze" />
-        <Tool icon={<Rewind size={17} />} label="Реверс" title="Проиграть выделенный клип задом наперёд" on={!!selClip?.retime?.reverse} disabled={!selClip || sel?.asset?.kind === 'image'}
+        <Tool icon={<Snowflake size={17} />} label={tx('Стоп-кадр')} title={tx('Остановить кадр там, где розовая линия времени')} onClick={() => void freezeFrame()} disabled={noClips} testId="tl-freeze" />
+        <Tool icon={<Rewind size={17} />} label={tx('Реверс')} title={tx('Проиграть выделенный клип задом наперёд')} on={!!selClip?.retime?.reverse} disabled={!selClip || sel?.asset?.kind === 'image'}
           onClick={() => selClip && void retimeClip(selClip.id, { reverse: !selClip.retime?.reverse })} testId="tl-reverse" />
-        <Tool icon={<AudioLines size={17} />} label="Звук отдельно" title="Извлечь звук видео на отдельную аудиодорожку (у видео звук выключится)"
+        <Tool icon={<AudioLines size={17} />} label={tx('Звук отдельно')} title={tx('Извлечь звук видео на отдельную аудиодорожку (у видео звук выключится)')}
           disabled={!selClip || !sel?.asset?.hasAudio || sel.asset.kind === 'audio'} onClick={() => selClip && void extractAudio(selClip.id)} testId="tl-extract" />
-        <Tool icon={<Mic size={17} />} label={recording ? 'Стоп' : 'Голос'} title={recording ? 'Остановить запись голоса' : 'Записать голос с микрофона от розовой линии времени'} className={recording ? 'rec-on' : ''} testId="tl-rec"
+        <Tool icon={<Mic size={17} />} label={recording ? tx('Стоп') : tx('Голос')} title={recording ? tx('Остановить запись голоса') : tx('Записать голос с микрофона от розовой линии времени')} className={recording ? 'rec-on' : ''} testId="tl-rec"
           onClick={() => { if (recording) void stopRecording(); else { getState().setLeftTab('audio'); void startRecording(recPrefs.mic, recPrefs.mute); } }} />
         <span className="sep" />
-        <Tool icon={<Wand2 size={17} />} label="Убрать паузы" title="Вырезать тишину между фразами в выделенном клипе" disabled={!canPauses}
+        <Tool icon={<Wand2 size={17} />} label={tx('Убрать паузы')} title={tx('Вырезать тишину между фразами в выделенном клипе')} disabled={!canPauses}
           onClick={() => selClip && void removePauses(selClip.id)} />
-        <Tool icon={<Activity size={17} />} label="Под бит" title="Подогнать склейки основной дорожки под доли такта музыки (сначала найди ритм во вкладке «Аудио»)" disabled={!hasBeats}
+        <Tool icon={<Activity size={17} />} label={tx('Под бит')} title={tx('Подогнать склейки основной дорожки под доли такта музыки (сначала найди ритм во вкладке «Аудио»)')} disabled={!hasBeats}
           onClick={() => alignToBeats()} testId="tl-beats" />
-        <Tool icon={<Blend size={17} />} label="Переход" title="Выбрать переход для стыка двух клипов" disabled={!junction && !(selClip && sel?.track.kind === 'main')}
+        <Tool icon={<Blend size={17} />} label={tx('Переход')} title={tx('Выбрать переход для стыка двух клипов')} disabled={!junction && !(selClip && sel?.track.kind === 'main')}
           onClick={() => getState().setLeftTab('transitions')} />
         <div className="grow" />
-        <Tool icon={<ZoomOut size={17} />} label="Мельче" title="Уменьшить масштаб таймлайна (−)" onClick={() => zoomTo(pps / 1.4)} />
-        <input type="range" className="zoom" min={0} max={1} step={0.001} value={zoomVal} aria-label="Масштаб таймлайна" title="Масштаб таймлайна"
+        <Tool icon={<ZoomOut size={17} />} label={tx('Мельче')} title={tx('Уменьшить масштаб таймлайна (−)')} onClick={() => zoomTo(pps / 1.4)} />
+        <input type="range" className="zoom" min={0} max={1} step={0.001} value={zoomVal} aria-label={tx('Масштаб таймлайна')} title={tx('Масштаб таймлайна')}
           onChange={(e) => zoomTo(MIN_PPS * Math.pow(MAX_PPS / MIN_PPS, Number(e.target.value)))} />
-        <Tool icon={<ZoomIn size={17} />} label="Крупнее" title="Увеличить масштаб таймлайна (+)" onClick={() => zoomTo(pps * 1.4)} />
-        <Tool icon={<Maximize2 size={16} />} label="Весь ролик" title="Показать весь ролик целиком" onClick={fit} />
+        <Tool icon={<ZoomIn size={17} />} label={tx('Крупнее')} title={tx('Увеличить масштаб таймлайна (+)')} onClick={() => zoomTo(pps * 1.4)} />
+        <Tool icon={<Maximize2 size={16} />} label={tx('Весь ролик')} title={tx('Показать весь ролик целиком')} onClick={fit} />
       </div>
       <div className="tl-body">
         <div className="tl-heads">
@@ -771,7 +773,7 @@ export function Timeline() {
             <div className="tl-rows" style={{ height: contentH }} onPointerDown={onEmptyDown}
               onDragOver={(e) => onRowDragOver(e, null)} onDragLeave={() => setDropRow(null)} onDrop={(e) => onRowDrop(e, null)}>
               <div className={`new-zone ${drag?.rowTrackId === 'new' ? 'drop' : ''}`} style={{ height: TOP_PAD }}>
-                {drag?.rowTrackId === 'new' && <span>Новая дорожка</span>}
+                {drag?.rowTrackId === 'new' && <span>{tx('Новая дорожка')}</span>}
               </div>
               {rows.map((r) => {
                 const isDropTarget = dropRow === r.track.id || (drag && drag.mode === 'move' && drag.rowTrackId === r.track.id && drag.rowTrackId !== dragClip?.track.id);
@@ -800,7 +802,7 @@ export function Timeline() {
                       ))}
                     {r.track.kind === 'main' && !drag && junctions.filter((j) => j.has || j.id === hoverJ || j.id === junction).map((j) => (
                       <button key={j.id} className={`junction ${j.has ? 'has' : ''} ${junction === j.id ? 'active' : ''}`} style={{ left: j.x }}
-                        title={j.has ? 'Переход — нажми, чтобы изменить' : 'Добавить переход'} data-testid="junction"
+                        title={j.has ? tx('Переход — нажми, чтобы изменить') : tx('Добавить переход')} data-testid="junction"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => { getState().select([], j.id); getState().setLeftTab('transitions'); }}>
                         {j.has ? <Blend size={12} /> : <Plus size={12} />}
@@ -812,7 +814,7 @@ export function Timeline() {
                       return <div className="insert-mark" style={{ left: xOf(tIns, pps) }} />;
                     })()}
                     {r.track.kind === 'main' && noClips && (
-                      <div className="tl-empty">Перетащи сюда видео или фото из медиатеки</div>
+                      <div className="tl-empty">{tx('Перетащи сюда видео или фото из медиатеки')}</div>
                     )}
                   </div>
                 );

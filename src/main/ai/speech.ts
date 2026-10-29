@@ -1,4 +1,5 @@
 // Речь: детектор речи (Silero VAD) и распознавание (Parakeet v3 / GigaAM v2) через sherpa-onnx.
+import { tx } from '../../shared/i18n';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -68,7 +69,7 @@ const recognizers = new Map<AsrModelId, unknown>();
 function recognizer(id: AsrModelId): any {
   let r = recognizers.get(id);
   if (!r) {
-    if (!asrModelReady(id)) throw new Error('Модель распознавания ещё не скачана');
+    if (!asrModelReady(id)) throw new Error(tx('Модель распознавания ещё не скачана'));
     const m = ASR_MODELS[id];
     r = new sherpa.OfflineRecognizer({
       featConfig: { sampleRate: SR, featureDim: m.featureDim },
@@ -98,7 +99,7 @@ export function transcribe(samples: Float32Array, model: AsrModelId, onProgress?
   const PAD = 0.2;
   for (let k = 0; k < segs.length; k++) {
     const s = segs[k];
-    if (shouldStop?.()) throw new Error('Отменено');
+    if (shouldStop?.()) throw new Error(tx('Отменено'));
     // даём модели фразу с запасом, чтобы не обрезать первые/последние звуки
     const lo = Math.max(0, k > 0 ? (segs[k - 1].end + s.start) / 2 : 0, s.start - PAD);
     const hi = Math.min(samples.length / SR, k < segs.length - 1 ? (s.end + segs[k + 1].start) / 2 : Infinity, s.end + PAD);

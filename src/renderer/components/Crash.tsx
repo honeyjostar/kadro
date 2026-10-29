@@ -1,4 +1,5 @@
 // Если в интерфейсе случилась ошибка — вместо белого экрана понятное окно; проект при этом не теряется.
+import { tx } from '../../shared/i18n';
 import { Bug } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { api } from '../store';
@@ -23,22 +24,22 @@ export class CrashGuard extends Component<{ children: ReactNode }, State> {
     return (
       <div className="crash" role="alert" data-testid="crash">
         <div className="crash-card">
-          <h2>Что-то пошло не так</h2>
-          <p>Kadro поймал ошибку в окне. Проект не потерян — черновик сохраняется автоматически.</p>
+          <h2>{tx('Что-то пошло не так')}</h2>
+          <p>{tx('Kadro поймал ошибку в окне. Проект не потерян — черновик сохраняется автоматически.')}</p>
           <div className="row-btns">
-            <button className="btn primary" onClick={() => this.setState({ error: null })}>Вернуться к работе</button>
-            <button className="btn" onClick={() => location.reload()}>Перезапустить окно</button>
+            <button className="btn primary" onClick={() => this.setState({ error: null })}>{tx('Вернуться к работе')}</button>
+            <button className="btn" onClick={() => location.reload()}>{tx('Перезапустить окно')}</button>
           </div>
           <details>
-            <summary>Подробности для разработчика</summary>
+            <summary>{tx('Подробности для разработчика')}</summary>
             <pre>{e.message}</pre>
           </details>
           <div className="crash-report">
-            <p className="hint small">Повторяется? Сообщи — получится готовый отчёт для GitHub с версией и журналом.</p>
-            <button className="btn small" onClick={() => this.setState({ report: true })} data-testid="crash-report"><Bug size={13} />Сообщить об ошибке</button>
+            <p className="hint small">{tx('Повторяется? Сообщи — получится готовый отчёт для GitHub с версией и журналом.')}</p>
+            <button className="btn small" onClick={() => this.setState({ report: true })} data-testid="crash-report"><Bug size={13} />{tx('Сообщить об ошибке')}</button>
           </div>
         </div>
-        {this.state.report && <BugDialog initial={`Окно упало: ${e.message.split('\n')[0].slice(0, 160)}`} onClose={() => this.setState({ report: false })} />}
+        {this.state.report && <BugDialog initial={tx('Окно упало: {0}', e.message.split('\n')[0].slice(0, 160))} onClose={() => this.setState({ report: false })} />}
       </div>
     );
   }

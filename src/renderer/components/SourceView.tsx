@@ -1,5 +1,7 @@
 // «Взять кусок»: просмотр файла из медиатеки с отметками начала и конца (I и O, как в Premiere и CapCut).
 // На таймлайн ложится только выбранный кусок; окно не закрывается — можно взять из того же файла ещё.
+import { tx } from '../../shared/i18n';
+import { txj } from '../txj';
 import { ArrowRightToLine, Layers, Pause, Play, Plus, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { projectDuration } from '../../shared/timeline';
@@ -77,7 +79,7 @@ export function SourceView() {
     const clipId = addAssetToTimeline(asset.id, mode === 'overlay' ? 'overlay' : mode === 'end' ? 'main' : 'auto', at, r);
     if (!clipId) return;
     setAdded((n) => n + 1);
-    getState().toast(`Кусок ${sec(r.in)}–${sec(r.out)} с на таймлайне`, 'ok');
+    getState().toast(tx('Кусок {0}–{1} с на таймлайне', sec(r.in), sec(r.out)), 'ok');
   };
 
   // клавиши: пробел, I/O (и русские Ш/Щ), стрелки — кадр, Enter — на таймлайн, Esc — закрыть.
@@ -134,21 +136,21 @@ export function SourceView() {
 
   return (
     <div className="modal-back" onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <div className="modal source-modal" role="dialog" aria-label="Взять кусок" data-testid="source-view">
+      <div className="modal source-modal" role="dialog" aria-label={tx('Взять кусок')} data-testid="source-view">
         <div className="modal-head">
           <h3 className="ellipsis">{asset.name}</h3>
-          <button className="icon-btn" onClick={close} title="Закрыть (Esc)"><X size={17} /></button>
+          <button className="icon-btn" onClick={close} title={tx('Закрыть (Esc)')}><X size={17} /></button>
         </div>
         <div className={`source-stage ${isAudio ? 'audio' : ''}`} onClick={toggle}>
           <video ref={video} src={api.mediaUrl(asset.previewPath || asset.path)} playsInline preload="auto" data-testid="source-video" />
           {isAudio && <Wave peaks={asset.peaks} />}
         </div>
         <div className="source-time">
-          <button className="play-btn" onClick={toggle} title="Пуск / пауза (пробел)" data-testid="source-play">
+          <button className="play-btn" onClick={toggle} title={tx('Пуск / пауза (пробел)')} data-testid="source-play">
             {playing ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" style={{ marginLeft: 2 }} />}
           </button>
           <span className="tc"><b>{fmtTime(t, fps, true)}</b> / {fmtTime(dur, fps, true)}</span>
-          <span className="source-len" data-testid="source-len">{whole ? 'Весь файл' : `Кусок ${sec(range.in)}–${sec(range.out)} с · длина ${sec(len)} с`}</span>
+          <span className="source-len" data-testid="source-len">{whole ? tx('Весь файл') : tx('Кусок {0}–{1} с · длина {2} с', sec(range.in), sec(range.out), sec(len))}</span>
         </div>
         <div className="source-bar" ref={bar} onPointerDown={(e) => drag(e, 'seek')} data-testid="source-bar">
           <div className="source-strip">
@@ -157,24 +159,23 @@ export function SourceView() {
           <div className="source-dim" style={{ left: 0, width: pct(range.in) }} />
           <div className="source-dim" style={{ left: pct(range.out), right: 0 }} />
           <div className="source-range" style={{ left: pct(range.in), width: pct(len) }}>
-            <span className="source-h in" onPointerDown={(e) => drag(e, 'in')} title="Начало куска (I)" data-testid="source-in" />
-            <span className="source-h out" onPointerDown={(e) => drag(e, 'out')} title="Конец куска (O)" data-testid="source-out" />
+            <span className="source-h in" onPointerDown={(e) => drag(e, 'in')} title={tx('Начало куска (I)')} data-testid="source-in" />
+            <span className="source-h out" onPointerDown={(e) => drag(e, 'out')} title={tx('Конец куска (O)')} data-testid="source-out" />
           </div>
           <div className="source-head" style={{ left: pct(t) }} />
         </div>
         <div className="source-marks">
-          <button className="btn small" onClick={() => markIn()} title="Начало куска там, где курсор — клавиша I" data-testid="source-mark-in">Начало здесь <kbd>I</kbd></button>
-          <button className="btn small" onClick={() => markOut()} title="Конец куска там, где курсор — клавиша O" data-testid="source-mark-out">Конец здесь <kbd>O</kbd></button>
-          {!whole && <button className="btn ghost small" onClick={() => setRange({ in: 0, out: dur })}>Весь файл</button>}
+          <button className="btn small" onClick={() => markIn()} title={tx('Начало куска там, где курсор — клавиша I')} data-testid="source-mark-in">{tx('Начало здесь ')}<kbd>I</kbd></button>
+          <button className="btn small" onClick={() => markOut()} title={tx('Конец куска там, где курсор — клавиша O')} data-testid="source-mark-out">{tx('Конец здесь ')}<kbd>O</kbd></button>
+          {!whole && <button className="btn ghost small" onClick={() => setRange({ in: 0, out: dur })}>{tx('Весь файл')}</button>}
         </div>
         <div className="source-actions">
-          <button className="btn primary" onClick={() => add('cursor')} data-testid="source-add"><Plus size={15} />На таймлайн к курсору <kbd>Enter</kbd></button>
-          {!isAudio && <button className="btn" onClick={() => add('end')} data-testid="source-add-end"><ArrowRightToLine size={15} />В конец</button>}
-          {!isAudio && <button className="btn" onClick={() => add('overlay')} data-testid="source-add-overlay"><Layers size={15} />Поверх</button>}
+          <button className="btn primary" onClick={() => add('cursor')} data-testid="source-add"><Plus size={15} />{tx('На таймлайн к курсору ')}<kbd>Enter</kbd></button>
+          {!isAudio && <button className="btn" onClick={() => add('end')} data-testid="source-add-end"><ArrowRightToLine size={15} />{tx('В конец')}</button>}
+          {!isAudio && <button className="btn" onClick={() => add('overlay')} data-testid="source-add-overlay"><Layers size={15} />{tx('Поверх')}</button>}
         </div>
         <p className="hint small">
-          Отметь начало и конец (тяни края на полосе или жми I и O на нужном кадре) — на таймлайн ляжет только этот кусок. Окно не закрывается: бери из файла сколько нужно кусков.
-          {added > 0 && <b data-testid="source-added"> Добавлено: {added}.</b>}
+          {tx('Отметь начало и конец (тяни края на полосе или жми I и O на нужном кадре) — на таймлайн ляжет только этот кусок. Окно не закрывается: бери из файла сколько нужно кусков.')}{added > 0 && <b data-testid="source-added"> {txj(' Добавлено: {0}.', added)}</b>}
         </p>
       </div>
     </div>

@@ -1,4 +1,5 @@
 // Построение графа FFmpeg для экспорта проекта. Чистая функция — тестируется без Electron.
+import { tx } from './i18n';
 import { aiSource, audioSource, videoSource } from './ai';
 import { hasAnim, kfExpr, maxScale, valueAt } from './anim';
 import { animFades, animMaxScale, animMoves, clipAnimAt, clipAnimExpr } from './clipAnim';
@@ -115,7 +116,7 @@ export function groupMain(p: Project): Group[] {
 
 export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
   const total = projectDuration(p);
-  if (total <= 0) throw new Error('Проект пустой — нечего экспортировать');
+  if (total <= 0) throw new Error(tx('Проект пустой — нечего экспортировать'));
   const W = o.width;
   const H = o.height;
   const F = o.fps;

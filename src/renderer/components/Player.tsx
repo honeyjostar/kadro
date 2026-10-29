@@ -1,3 +1,5 @@
+import { tx } from '../../shared/i18n';
+import { txj } from '../txj';
 import { Maximize2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { placeOnCanvas } from '../../shared/geometry';
@@ -266,7 +268,7 @@ export function Player() {
               </svg>
               {[0, 1, 2, 3].map((i) => (
                 <div key={i} className="pin-handle" style={{ left: box.pin![i * 2] * dispW, top: box.pin![i * 2 + 1] * dispH }}
-                  onPointerDown={(e) => startPinDrag(e, i)} title="Тяни угол картинки" data-testid={`pin-${i}`} />
+                  onPointerDown={(e) => startPinDrag(e, i)} title={tx('Тяни угол картинки')} data-testid={`pin-${i}`} />
               ))}
             </>
           )}
@@ -274,51 +276,51 @@ export function Player() {
             <div className="sel-box" style={{ left: box.cx - box.w / 2, top: box.cy - box.h / 2, width: box.w, height: box.h, transform: box.rot ? `rotate(${box.rot}deg)` : undefined }}
               onPointerDown={(e) => startDrag(e, 'move')} data-testid="sel-box">
               {(['nw', 'ne', 'sw', 'se'] as const).map((c) => (
-                <div key={c} className={`sel-handle ${c}`} onPointerDown={(e) => startDrag(e, 'scale')} title="Тяни, чтобы изменить размер" />
+                <div key={c} className={`sel-handle ${c}`} onPointerDown={(e) => startDrag(e, 'scale')} title={tx('Тяни, чтобы изменить размер')} />
               ))}
-              <div className="sel-rotate" onPointerDown={(e) => startDrag(e, 'rotate')} title="Тяни, чтобы повернуть" />
+              <div className="sel-rotate" onPointerDown={(e) => startDrag(e, 'rotate')} title={tx('Тяни, чтобы повернуть')} />
             </div>
           )}
           {empty && (
             <div className="empty-stage">
-              <h2>Начни с видео</h2>
-              <p>Перетащи файлы в окно или нажми кнопку. Kadro понимает MP4, MOV, MKV, фото и музыку.</p>
+              <h2>{tx('Начни с видео')}</h2>
+              <p>{tx('Перетащи файлы в окно или нажми кнопку. Kadro понимает MP4, MOV, MKV, фото и музыку.')}</p>
               <div className="row-btns">
-                <button className="btn primary" onClick={() => void pickAndImport({ mode: 'auto', at: 0 })} data-testid="empty-import"><Upload size={15} />Добавить файлы</button>
-                <button className="btn" onClick={() => getState().setHome(true)} data-testid="empty-home">Демо и шаблоны</button>
+                <button className="btn primary" onClick={() => void pickAndImport({ mode: 'auto', at: 0 })} data-testid="empty-import"><Upload size={15} />{tx('Добавить файлы')}</button>
+                <button className="btn" onClick={() => getState().setHome(true)} data-testid="empty-home">{tx('Демо и шаблоны')}</button>
               </div>
             </div>
           )}
         </div>
-        {pending && <div className="stage-chip">Готовлю превью для тяжёлого видео…</div>}
-        {safeZone && !vertical && !pending && !recording && <div className="stage-chip">Зоны {PLATFORMS.find((x) => x.id === safeZone)!.label} показываются для вертикального кадра 9:16</div>}
-        {recording && <div className="stage-chip rec" data-testid="rec-chip"><span className="rec-dot blink" />Идёт запись голоса{recording.muted ? ' · звук проекта выключен' : ''}</div>}
+        {pending && <div className="stage-chip">{tx('Готовлю превью для тяжёлого видео…')}</div>}
+        {safeZone && !vertical && !pending && !recording && <div className="stage-chip">{txj('Зоны {0} показываются для вертикального кадра 9:16', PLATFORMS.find((x) => x.id === safeZone)!.label)}</div>}
+        {recording && <div className="stage-chip rec" data-testid="rec-chip"><span className="rec-dot blink" />{txj('Идёт запись голоса{0}', recording.muted ? tx(' · звук проекта выключен') : '')}</div>}
       </div>
       <div className="transport">
         <div className="transport-left">
           <div className="timecode" data-testid="timecode"><b>{fmtTime(playhead, fps, true)}</b> / {fmtTime(duration, fps, true)}</div>
           <select className="input aspect-select quality-select" value={quality} data-testid="preview-quality"
-            title="Качество превью в плеере. «Быстрое» — плавнее на слабом компьютере; на экспорт не влияет"
+            title={tx('Качество превью в плеере. «Быстрое» — плавнее на слабом компьютере; на экспорт не влияет')}
             onChange={(e) => getState().setPreviewQuality(e.target.value as PreviewQuality)}>
-            <option value="high">Превью: высокое</option>
-            <option value="medium">Превью: среднее</option>
-            <option value="low">Превью: быстрое</option>
+            <option value="high">{tx('Превью: высокое')}</option>
+            <option value="medium">{tx('Превью: среднее')}</option>
+            <option value="low">{tx('Превью: быстрое')}</option>
           </select>
         </div>
         <div className="transport-center">
-          <button className="icon-btn" title="В начало (Home)" onClick={() => { getState().setPlaying(false); getState().setPlayhead(0); }}><SkipBack size={17} /></button>
-          <button className="play-btn" onClick={toggle} title="Пуск / пауза (пробел)" data-testid="play">{playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" style={{ marginLeft: 2 }} />}</button>
-          <button className="icon-btn" title="В конец (End)" onClick={() => { getState().setPlaying(false); getState().setPlayhead(duration); }}><SkipForward size={17} /></button>
+          <button className="icon-btn" title={tx('В начало (Home)')} onClick={() => { getState().setPlaying(false); getState().setPlayhead(0); }}><SkipBack size={17} /></button>
+          <button className="play-btn" onClick={toggle} title={tx('Пуск / пауза (пробел)')} data-testid="play">{playing ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" style={{ marginLeft: 2 }} />}</button>
+          <button className="icon-btn" title={tx('В конец (End)')} onClick={() => { getState().setPlaying(false); getState().setPlayhead(duration); }}><SkipForward size={17} /></button>
         </div>
         <div className="transport-right">
           <select className="input aspect-select zone-select" value={safeZone ?? ''} data-testid="safe-zone"
-            title="Показать, где кнопки и подписи TikTok, Reels или Shorts закроют видео"
+            title={tx('Показать, где кнопки и подписи TikTok, Reels или Shorts закроют видео')}
             onChange={(e) => getState().setSafeZone((e.target.value || null) as Platform | null)}>
-            <option value="">Зоны: нет</option>
-            {PLATFORMS.map((x) => <option key={x.id} value={x.id}>Зоны {x.label}</option>)}
+            <option value="">{tx('Зоны: нет')}</option>
+            {PLATFORMS.map((x) => <option key={x.id} value={x.id}>{txj('Зоны {0}', x.label)}</option>)}
           </select>
           <FormatMenu />
-          <button className="icon-btn" title="Во весь экран" onClick={() => void wrapRef.current?.requestFullscreen()}><Maximize2 size={16} /></button>
+          <button className="icon-btn" title={tx('Во весь экран')} onClick={() => void wrapRef.current?.requestFullscreen()}><Maximize2 size={16} /></button>
         </div>
       </div>
     </section>

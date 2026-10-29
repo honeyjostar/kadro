@@ -1,3 +1,5 @@
+import { tx } from '../shared/i18n';
+import { pluralForm } from '../shared/i18n';
 const p2 = (n: number) => String(n).padStart(2, '0');
 
 /** 01:23 или, с кадрами, 00:01:23:15 (часы:минуты:секунды:кадры). */
@@ -19,7 +21,7 @@ export function peakLevel(m: number): number {
 }
 
 export function fmtDur(t: number): string {
-  if (t < 60) return `${t.toFixed(t < 10 ? 1 : 0)} с`;
+  if (t < 60) return tx('{0} с', t.toFixed(t < 10 ? 1 : 0));
   return fmtTime(t);
 }
 
@@ -30,7 +32,7 @@ export function uidShort(): string {
 }
 
 /** Русское число: 1 кадр, 2 кадра, 5 кадров. */
+/** Форма слова по числу: по-русски — три формы, по-английски — «один» и «много». */
 export function plural(n: number, one: string, few: string, many: string): string {
-  const m10 = n % 10; const m100 = n % 100;
-  return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? few : many;
+  return pluralForm(n, one, few, many);
 }

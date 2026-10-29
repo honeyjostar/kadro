@@ -3,6 +3,7 @@
 // сверяет SHA-256 из SHA256SUMS.txt релиза и запускает его с /UPDATE (без лишних вопросов: только полоска
 // установки), сам закрывается — установщик заменяет файлы и открывает новый Kadro. Переносная версия (zip)
 // сама себя не меняет — открываем страницу релиза.
+import { tx } from '../shared/i18n';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
@@ -56,12 +57,12 @@ export function initUpdater(opts: { emit: (s: UpdateState) => void; log: (...a: 
 
 async function getText(url: string, signal?: AbortSignal): Promise<string> {
   if (url.startsWith('file:')) {
-    if (!testMode()) throw new Error('Только https');
+    if (!testMode()) throw new Error(tx('Только https'));
     return fs.readFileSync(fileURLToPath(url), 'utf8');
   }
   const r = await net.fetch(url, { signal, headers: { Accept: 'application/vnd.github+json', 'User-Agent': `Kadro/${app.getVersion()}` } });
-  if (r.status === 403 || r.status === 429) throw new Error('GitHub просит подождать — попробуй через час');
-  if (!r.ok) throw new Error(`GitHub ответил ${r.status}`);
+  if (r.status === 403 || r.status === 429) throw new Error(tx('GitHub просит подождать — попробуй через час'));
+  if (!r.ok) throw new Error(tx('GitHub ответил {0}', r.status));
   return r.text();
 }
 
@@ -73,7 +74,7 @@ export async function check(manual: boolean): Promise<UpdateState> {
   const timer = setTimeout(() => ctl.abort(), 20_000);
   try {
     const rel = parseRelease(JSON.parse(await getText(apiUrl(), ctl.signal)), testMode());
-    if (!rel) throw new Error('Не удалось понять ответ GitHub');
+    if (!rel) throw new Error(tx('Не удалось понять ответ GitHub'));
     release = rel;
     const now = Date.now();
     save({ lastCheck: now });
@@ -83,7 +84,7 @@ export async function check(manual: boolean): Promise<UpdateState> {
     }
     return set({ phase: 'latest', version: rel.version, notes: rel.notes, page: rel.page, checkedAt: now });
   } catch (e) {
-    const msg = e instanceof Error ? (e.name === 'AbortError' ? 'GitHub не ответил — проверь интернет' : e.message) : String(e);
+    const msg = e instanceof Error ? (e.name === 'AbortError' ? tx('GitHub не ответил — проверь интернет') : e.message) : String(e);
     log('update: check failed', msg);
     return set(manual ? { phase: 'error', error: msg } : { phase: 'idle' });
   } finally { clearTimeout(timer); }
@@ -116,7 +117,7 @@ export async function download(): Promise<UpdateState> {
       if (now - last > 120) { last = now; set({ progress: total ? Math.min(0.999, got / total) : 0 }); }
     };
     if (setup.url.startsWith('file:')) {
-      if (!testMode()) throw new Error('Только https');
+      if (!testMode()) throw new Error(tx('Только https'));
       const p = fileURLToPath(setup.url);
       const total = fs.statSync(p).size;
       for await (const chunk of fs.createReadStream(p, { highWaterMark: 64 * 1024 })) {
@@ -126,7 +127,7 @@ export async function download(): Promise<UpdateState> {
       }
     } else {
       const r = await net.fetch(setup.url, { signal: abort.signal });
-      if (!r.ok || !r.body) throw new Error(`GitHub ответил ${r.status}`);
+      if (!r.ok || !r.body) throw new Error(tx('GitHub ответил {0}', r.status));
       const total = Number(r.headers.get('content-length')) || setup.size;
       const reader = r.body.getReader();
       for (;;) {
@@ -137,7 +138,7 @@ export async function download(): Promise<UpdateState> {
     }
     await new Promise<void>((res, rej) => out.end((e?: Error | null) => (e ? rej(e) : res())));
     const sha = hash.digest('hex');
-    if (expected ? sha !== expected : got !== setup.size) throw new Error('Файл скачался с ошибкой — попробуй ещё раз');
+    if (expected ? sha !== expected : got !== setup.size) throw new Error(tx('Файл скачался с ошибкой — попробуй ещё раз'));
     const final = path.join(dir, setup.name);
     fs.renameSync(part, final);
     ready = final;
@@ -155,14 +156,14 @@ export function cancelDownload(): void { abort?.abort(); }
 
 /** Запустить установщик и закрыть Kadro (черновик сохраняется при закрытии окна). */
 export function install(): UpdateState {
-  if (!ready || !fs.existsSync(ready)) return set({ phase: 'error', error: 'Установщик не найден — скачай заново' });
+  if (!ready || !fs.existsSync(ready)) return set({ phase: 'error', error: tx('Установщик не найден — скачай заново') });
   set({ phase: 'installing' });
   log('update: run installer', ready);
   if (process.env.KADRO_UPDATE_NO_RUN) return state;
   const child = spawn(ready, ['/UPDATE'], { detached: true, stdio: 'ignore' });
   // установщик запустился — закрываемся (он ждёт, пока файлы Kadro освободятся); не запустился — говорим
   child.once('spawn', () => { child.unref(); setTimeout(() => app.quit(), 400); });
-  child.once('error', (e) => { log('update: installer failed', e); set({ phase: 'error', error: `Установщик не запустился: ${e.message}` }); });
+  child.once('error', (e) => { log('update: installer failed', e); set({ phase: 'error', error: tx('Установщик не запустился: {0}', e.message) }); });
   return state;
 }
 

@@ -1,5 +1,6 @@
 // Удаление фона с видео: RobustVideoMatting (учитывает предыдущие кадры — без мерцания).
 // Результат — WebM VP9 с прозрачностью; в нём время 0 = начало обработанного фрагмента.
+import { tx } from '../../shared/i18n';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import { ffmpegPath } from '../bins';
@@ -58,7 +59,7 @@ export async function removeBackground(j: MatteJob): Promise<void> {
     '-auto-alt-ref', '0', '-metadata:s:v:0', 'alpha_mode=1', j.out], { windowsHide: true });
   let encErr = '';
   enc.stderr.on('data', (d: Buffer) => { encErr += d.toString(); });
-  const encDone = new Promise<void>((res, rej) => enc.on('close', (c) => (c === 0 ? res() : rej(new Error(`Кодирование прозрачного видео не удалось: ${encErr.slice(-500)}`)))));
+  const encDone = new Promise<void>((res, rej) => enc.on('close', (c) => (c === 0 ? res() : rej(new Error(tx('Кодирование прозрачного видео не удалось: {0}', encErr.slice(-500)))))));
   enc.stdin.on('error', () => { /* закрыли раньше — ошибка придёт в encDone */ });
 
   const abort = () => { dec.kill('SIGKILL'); enc.kill('SIGKILL'); };
@@ -113,8 +114,8 @@ export async function removeBackground(j: MatteJob): Promise<void> {
     });
     dec.on('close', (code) => {
       busy.then(() => {
-        if (j.signal?.aborted) reject(new Error('Отменено'));
-        else if (code !== 0 && n === 0) reject(new Error('Не удалось прочитать видео'));
+        if (j.signal?.aborted) reject(new Error(tx('Отменено')));
+        else if (code !== 0 && n === 0) reject(new Error(tx('Не удалось прочитать видео')));
         else resolve();
       }, reject);
     });
@@ -123,7 +124,7 @@ export async function removeBackground(j: MatteJob): Promise<void> {
   enc.stdin.end();
   await encDone;
   j.signal?.removeEventListener('abort', abort);
-  if (j.signal?.aborted) throw new Error('Отменено');
+  if (j.signal?.aborted) throw new Error(tx('Отменено'));
 }
 
 export interface TrackPoint { t: number; x: number; y: number; found: boolean }
@@ -178,7 +179,7 @@ export async function trackPerson(j: { src: string; ss: number; dur: number; wid
       dec.stdout.pause();
       busy = busy.then(async () => { for (const f of frames) await processFrame(f); }).then(() => { dec.stdout.resume(); }, (e) => { abort(); reject(e); });
     });
-    dec.on('close', () => busy.then(() => (j.signal?.aborted ? reject(new Error('Отменено')) : resolve()), reject));
+    dec.on('close', () => busy.then(() => (j.signal?.aborted ? reject(new Error(tx('Отменено'))) : resolve()), reject));
     dec.on('error', reject);
   });
   j.signal?.removeEventListener('abort', abort);

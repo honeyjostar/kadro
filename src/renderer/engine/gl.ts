@@ -2,6 +2,7 @@
 // Один общий холст WebGL на всё приложение: плеер, миниатюры и экспорт рисуют по очереди (синхронно),
 // результат тут же копируется на свой холст 2D. Ошибка в шейдере не роняет программу — запоминается и
 // показывается в интерфейсе, а кадр рисуется без шейдера.
+import { tx } from '../../shared/i18n';
 import { effectFragment, transitionFragment, type GlDef, type GlParam, type GlValue } from '../../shared/gl/glsl';
 
 const VERT = `attribute vec2 _p;
@@ -62,7 +63,7 @@ export class GlRunner {
       const s = gl.createShader(type)!;
       gl.shaderSource(s, src);
       gl.compileShader(s);
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { const log = gl.getShaderInfoLog(s) ?? 'ошибка'; gl.deleteShader(s); throw new Error(log.trim()); }
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { const log = gl.getShaderInfoLog(s) ?? tx('ошибка'); gl.deleteShader(s); throw new Error(log.trim()); }
       return s;
     };
     try {
@@ -71,7 +72,7 @@ export class GlRunner {
       gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, frag));
       gl.bindAttribLocation(prog, 0, '_p');
       gl.linkProgram(prog);
-      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error((gl.getProgramInfoLog(prog) ?? 'ошибка сборки').trim());
+      if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error((gl.getProgramInfoLog(prog) ?? tx('ошибка сборки')).trim());
       const p: Prog = { prog, loc: new Map() };
       this.progs.set(key, p);
       this.errors.delete(def.id);

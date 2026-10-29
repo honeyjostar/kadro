@@ -151,10 +151,10 @@ OutFile "${setup}"
 InstallDir "$LOCALAPPDATA\\Programs\\Kadro"
 InstallDirRegKey HKCU "Software\\Kadro" "InstallDir"
 RequestExecutionLevel user
-BrandingText "Kadro \${VER} — бесплатный видеоредактор"
+BrandingText "$(Branding)"
 VIProductVersion "\${VER}.0"
 VIAddVersionKey "ProductName" "Kadro"
-VIAddVersionKey "FileDescription" "Установка Kadro"
+VIAddVersionKey "FileDescription" "Kadro Setup"
 VIAddVersionKey "FileVersion" "\${VER}"
 VIAddVersionKey "ProductVersion" "\${VER}"
 VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
@@ -168,15 +168,15 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 !define MUI_HEADERIMAGE_RIGHT
 !define MUI_HEADERIMAGE_BITMAP "header.bmp"
 !define MUI_HEADERIMAGE_UNBITMAP "header.bmp"
-!define MUI_WELCOMEPAGE_TITLE "Установка Kadro \${VER}"
-!define MUI_WELCOMEPAGE_TEXT "Бесплатный видеоредактор для Windows: монтаж, авто-ролик под музыку, субтитры и ИИ-инструменты — без водяного знака, всё работает на твоём компьютере.$\\r$\\n$\\r$\\nУстановка займёт около минуты, права администратора не нужны. Если Kadro уже стоит, он обновится — проекты и настройки сохранятся.$\\r$\\n$\\r$\\nНажми «Далее»."
-!define MUI_DIRECTORYPAGE_TEXT_TOP "Kadro будет установлен в эту папку. Обычно её менять не нужно — нажми «Установить»."
-!define MUI_FINISHPAGE_TITLE "Kadro установлен"
-!define MUI_FINISHPAGE_TEXT "Ярлык — на рабочем столе и в меню «Пуск».$\\r$\\n$\\r$\\nВидео открываются из Проводника через «Открыть с помощью», проекты .kadro — двойным щелчком."
+!define MUI_WELCOMEPAGE_TITLE "$(WelcomeTitle)"
+!define MUI_WELCOMEPAGE_TEXT "$(WelcomeText)"
+!define MUI_DIRECTORYPAGE_TEXT_TOP "$(DirText)"
+!define MUI_FINISHPAGE_TITLE "$(FinishTitle)"
+!define MUI_FINISHPAGE_TEXT "$(FinishText)"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\\Kadro.exe"
-!define MUI_FINISHPAGE_RUN_TEXT "Запустить Kadro"
-!define MUI_FINISHPAGE_LINK "Руководство: как пользоваться Kadro"
-!define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/honeyjostar/kadro/blob/master/docs/GUIDE.md"
+!define MUI_FINISHPAGE_RUN_TEXT "$(RunText)"
+!define MUI_FINISHPAGE_LINK "$(GuideText)"
+!define MUI_FINISHPAGE_LINK_LOCATION "$(GuideUrl)"
 !define MUI_FINISHPAGE_LINK_COLOR "D81B60"
 ; обновление из самого Kadro (ключ /UPDATE): без приветствия и выбора папки — только полоска установки,
 ; потом сразу открывается новый Kadro
@@ -190,10 +190,41 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
+; первый — язык по умолчанию; русский Windows (и украинский, белорусский, казахский) — по-русски
+!insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "Russian"
+LangString Branding \${LANG_ENGLISH} "Kadro \${VER} — free video editor"
+LangString Branding \${LANG_RUSSIAN} "Kadro \${VER} — бесплатный видеоредактор"
+LangString WelcomeTitle \${LANG_ENGLISH} "Kadro \${VER} Setup"
+LangString WelcomeTitle \${LANG_RUSSIAN} "Установка Kadro \${VER}"
+LangString WelcomeText \${LANG_ENGLISH} "A free video editor for Windows: editing, Auto Video to the music, captions and AI tools — no watermark, everything runs on your computer.$\\r$\\n$\\r$\\nSetup takes about a minute and needs no administrator rights. If Kadro is already installed, it will be updated — projects and settings are kept.$\\r$\\n$\\r$\\nClick Next."
+LangString WelcomeText \${LANG_RUSSIAN} "Бесплатный видеоредактор для Windows: монтаж, авто-ролик под музыку, субтитры и ИИ-инструменты — без водяного знака, всё работает на твоём компьютере.$\\r$\\n$\\r$\\nУстановка займёт около минуты, права администратора не нужны. Если Kadro уже стоит, он обновится — проекты и настройки сохранятся.$\\r$\\n$\\r$\\nНажми «Далее»."
+LangString DirText \${LANG_ENGLISH} "Kadro will be installed in this folder. Usually there's no need to change it — click Install."
+LangString DirText \${LANG_RUSSIAN} "Kadro будет установлен в эту папку. Обычно её менять не нужно — нажми «Установить»."
+LangString FinishTitle \${LANG_ENGLISH} "Kadro is installed"
+LangString FinishTitle \${LANG_RUSSIAN} "Kadro установлен"
+LangString FinishText \${LANG_ENGLISH} "The shortcut is on the desktop and in the Start menu.$\\r$\\n$\\r$\\nOpen videos from Explorer with “Open with”, and .kadro projects with a double-click."
+LangString FinishText \${LANG_RUSSIAN} "Ярлык — на рабочем столе и в меню «Пуск».$\\r$\\n$\\r$\\nВидео открываются из Проводника через «Открыть с помощью», проекты .kadro — двойным щелчком."
+LangString RunText \${LANG_ENGLISH} "Run Kadro"
+LangString RunText \${LANG_RUSSIAN} "Запустить Kadro"
+LangString GuideText \${LANG_ENGLISH} "Guide: how to use Kadro"
+LangString GuideText \${LANG_RUSSIAN} "Руководство: как пользоваться Kadro"
+LangString GuideUrl \${LANG_ENGLISH} "https://github.com/honeyjostar/kadro/blob/master/README.en.md"
+LangString GuideUrl \${LANG_RUSSIAN} "https://github.com/honeyjostar/kadro/blob/master/docs/GUIDE.md"
+LangString ProjType \${LANG_ENGLISH} "Kadro project"
+LangString ProjType \${LANG_RUSSIAN} "Проект Kadro"
+LangString MediaType \${LANG_ENGLISH} "Media file"
+LangString MediaType \${LANG_RUSSIAN} "Медиафайл"
 
 Var UPDATE
 Function .onInit
+  ; украинский, белорусский, казахский Windows — установщик по-русски (английский — для остальных не-русских)
+  System::Call 'kernel32::GetUserDefaultUILanguage() i .r9'
+  \${If} $9 == 1058
+  \${OrIf} $9 == 1059
+  \${OrIf} $9 == 1087
+    StrCpy $LANGUAGE \${LANG_RUSSIAN}
+  \${EndIf}
   StrCpy $UPDATE "0"
   \${GetParameters} $0
   ClearErrors
@@ -245,10 +276,10 @@ Section "Kadro" SecMain
   WriteRegDWORD HKCU "\${UNINST}" "EstimatedSize" ${sizeKb}
   ; проекты .kadro открываются двойным щелчком, видео — «Открыть с помощью → Kadro»
   WriteRegStr HKCU "Software\\Classes\\.kadro" "" "Kadro.Project"
-  WriteRegStr HKCU "Software\\Classes\\Kadro.Project" "" "Проект Kadro"
+  WriteRegStr HKCU "Software\\Classes\\Kadro.Project" "" "$(ProjType)"
   WriteRegStr HKCU "Software\\Classes\\Kadro.Project\\DefaultIcon" "" "$INSTDIR\\Kadro.exe,0"
   WriteRegStr HKCU "Software\\Classes\\Kadro.Project\\shell\\open\\command" "" '"$INSTDIR\\Kadro.exe" "%1"'
-  WriteRegStr HKCU "Software\\Classes\\Kadro.Media" "" "Медиафайл"
+  WriteRegStr HKCU "Software\\Classes\\Kadro.Media" "" "$(MediaType)"
   WriteRegStr HKCU "Software\\Classes\\Kadro.Media\\DefaultIcon" "" "$INSTDIR\\Kadro.exe,0"
   WriteRegStr HKCU "Software\\Classes\\Kadro.Media\\shell\\open\\command" "" '"$INSTDIR\\Kadro.exe" "%1"'
   WriteRegStr HKCU "Software\\Classes\\Applications\\Kadro.exe\\shell\\open\\command" "" '"$INSTDIR\\Kadro.exe" "%1"'

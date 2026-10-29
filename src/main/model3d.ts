@@ -1,4 +1,5 @@
 // 3D-объекты: окно рисует кадры (three.js), здесь они собираются в видео с прозрачным фоном (VP9 + альфа).
+import { tx } from '../shared/i18n';
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,14 +28,14 @@ export function begin(w: number, h: number, fps: number): string {
 
 export async function frame(id: string, data: ArrayBuffer): Promise<void> {
   const job = jobs.get(id);
-  if (!job?.proc.stdin) throw new Error('Сборка 3D уже остановлена');
+  if (!job?.proc.stdin) throw new Error(tx('Сборка 3D уже остановлена'));
   const ok = job.proc.stdin.write(Buffer.from(data));
   if (!ok) await new Promise<void>((r) => job.proc.stdin!.once('drain', () => r()));
 }
 
 export async function end(id: string): Promise<{ path?: string; error?: string }> {
   const job = jobs.get(id);
-  if (!job) return { error: 'Сборка 3D не найдена' };
+  if (!job) return { error: tx('Сборка 3D не найдена') };
   job.proc.stdin?.end();
   const code = await job.done;
   jobs.delete(id);

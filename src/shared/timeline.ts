@@ -1,4 +1,5 @@
 // Операции над таймлайном. Все функции чистые: принимают проект и возвращают новый.
+import { tx } from './i18n';
 import { IMAGE_DEFAULT_DURATION, newMediaClip, newTextClip, newTrack, uid } from './defaults';
 import { dropKeyframe, mediaPropsAt, putKeyframe } from './anim';
 import { remapKeyframes } from './retime';
@@ -28,7 +29,7 @@ export function assetOf(p: Project, c: MediaClip): MediaAsset | undefined {
 }
 export function mainTrack(p: Project): Track {
   const t = p.tracks.find((x) => x.kind === 'main');
-  if (!t) throw new Error('В проекте нет основной дорожки');
+  if (!t) throw new Error(tx('В проекте нет основной дорожки'));
   return t;
 }
 export function findClip(p: Project, clipId: string): { track: Track; clip: Clip; index: number } | undefined {
@@ -167,8 +168,8 @@ export function addToMain(p: Project, assetId: string, at: number, range?: Sourc
   let clipId = '';
   const project = edit(p, (d) => {
     const asset = d.assets.find((a) => a.id === assetId);
-    if (!asset) throw new Error('Нет такого файла в проекте');
-    if (asset.kind === 'audio') throw new Error('Аудио нельзя положить на основную дорожку');
+    if (!asset) throw new Error(tx('Нет такого файла в проекте'));
+    if (asset.kind === 'audio') throw new Error(tx('Аудио нельзя положить на основную дорожку'));
     const t = mainTrack(d);
     const clip = newMediaClip(asset);
     applyRange(clip, asset, range);
@@ -189,7 +190,7 @@ export function addFree(p: Project, assetId: string, at: number, range?: SourceR
   let clipId = '';
   const project = edit(p, (d) => {
     const asset = d.assets.find((a) => a.id === assetId);
-    if (!asset) throw new Error('Нет такого файла в проекте');
+    if (!asset) throw new Error(tx('Нет такого файла в проекте'));
     const clip = newMediaClip(asset, Math.max(0, at));
     applyRange(clip, asset, range);
     if (asset.kind !== 'audio') clip.transform.scale = 0.6;
@@ -616,7 +617,7 @@ export function setCaptions(p: Project, cues: Cue[], style: TextStyle, y = 0.64)
   return edit(p, (d) => {
     d.tracks = d.tracks.filter((t) => !(t.kind === 'text' && t.clips.length > 0 && t.clips.every((c) => c.type === 'text' && c.role === 'caption')));
     if (cues.length === 0) return;
-    const t = newTrack('text', 'Субтитры');
+    const t = newTrack('text', tx('Субтитры'));
     for (const q of cues) {
       const c = newTextClip(round(q.start), q.text, style, 'caption');
       c.duration = round(Math.max(MIN_CLIP, q.end - q.start));
@@ -775,19 +776,19 @@ export function insertFreeze(p: Project, clipId: string, t: number, assetId: str
 /** Проверяет выделение и собирает содержимое группы. Ошибка — понятным текстом. */
 export function planGroup(p: Project, ids: string[]): { data: GroupData; t0: number; sub: Project } | { error: string } {
   const found = ids.map((id) => findClip(p, id)).filter((f): f is NonNullable<typeof f> => !!f);
-  if (found.length < 2) return { error: 'Выдели два клипа или больше (Shift или Ctrl + клик)' };
+  if (found.length < 2) return { error: tx('Выдели два клипа или больше (Shift или Ctrl + клик)') };
   const visual = found.some((f) => f.clip.type === 'text' || assetOf(p, f.clip as MediaClip)?.kind !== 'audio');
-  if (!visual) return { error: 'В группе должен быть хотя бы один видеоклип, фото или текст' };
+  if (!visual) return { error: tx('В группе должен быть хотя бы один видеоклип, фото или текст') };
   const mainF = found.filter((f) => f.track.kind === 'main').sort((a, b) => a.index - b.index);
   for (let i = 1; i < mainF.length; i++) {
-    if (mainF[i].index !== mainF[i - 1].index + 1) return { error: 'Клипы основной дорожки в группе должны идти подряд' };
+    if (mainF[i].index !== mainF[i - 1].index + 1) return { error: tx('Клипы основной дорожки в группе должны идти подряд') };
   }
   let t0 = Math.min(...found.map((f) => f.clip.start));
   let t1 = Math.max(...found.map((f) => clipEnd(f.clip)));
   if (mainF.length) {
     const a = mainF[0].clip.start;
     const b = clipEnd(mainF[mainF.length - 1].clip);
-    if (t0 < a - EPS || t1 > b + EPS) return { error: 'Наложения и текст в группе не должны выходить за начало и конец выделенных клипов основной дорожки — подрежь их' };
+    if (t0 < a - EPS || t1 > b + EPS) return { error: tx('Наложения и текст в группе не должны выходить за начало и конец выделенных клипов основной дорожки — подрежь их') };
     t0 = a;
     t1 = b;
   }
@@ -814,7 +815,7 @@ export function planGroup(p: Project, ids: string[]): { data: GroupData; t0: num
     tracks.push(nt);
   }
   const data: GroupData = { tracks, alpha: mainF.length === 0, duration: dur };
-  const sub: Project = { ...structuredClone(p), tracks: structuredClone(tracks), name: `${p.name} — группа` };
+  const sub: Project = { ...structuredClone(p), tracks: structuredClone(tracks), name: tx('{0} — группа', p.name) };
   return { data, t0, sub };
 }
 

@@ -1,4 +1,5 @@
 // Запуск ffmpeg с прогрессом и отменой.
+import { tx } from '../shared/i18n';
 import { spawn, type ChildProcess } from 'node:child_process';
 import os from 'node:os';
 import { ffmpegPath } from './bins';
@@ -44,12 +45,12 @@ export function runFfmpeg(args: string[], o: RunOpts = {}): Promise<void> {
     });
     const onAbort = () => { try { proc.kill('SIGKILL'); } catch { /* уже завершён */ } };
     o.signal?.addEventListener('abort', onAbort, { once: true });
-    proc.on('error', (e) => reject(new FfmpegError(`Не удалось запустить ffmpeg: ${e.message}`, err)));
+    proc.on('error', (e) => reject(new FfmpegError(tx('Не удалось запустить ffmpeg: {0}', e.message), err)));
     proc.on('close', (code) => {
       o.signal?.removeEventListener('abort', onAbort);
-      if (o.signal?.aborted) reject(new FfmpegError('Отменено', err));
+      if (o.signal?.aborted) reject(new FfmpegError(tx('Отменено'), err));
       else if (code === 0) resolve();
-      else reject(new FfmpegError(lastErrorLine(err) || `ffmpeg завершился с кодом ${code}`, err));
+      else reject(new FfmpegError(lastErrorLine(err) || tx('ffmpeg завершился с кодом {0}', code), err));
     });
   });
 }
@@ -85,7 +86,7 @@ export function ffmpegToBuffer(args: string[], signal?: AbortSignal, low = false
     proc.on('close', (code) => {
       signal?.removeEventListener('abort', onAbort);
       if (code === 0) resolve(Buffer.concat(chunks));
-      else reject(new FfmpegError(lastErrorLine(err) || `ffmpeg: код ${code}`, err));
+      else reject(new FfmpegError(lastErrorLine(err) || tx('ffmpeg: код {0}', code), err));
     });
   });
 }

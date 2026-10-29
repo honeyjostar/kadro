@@ -1,4 +1,5 @@
 // Реестр моделей ИИ: что качать, откуда и как проверить, что модель на месте.
+import { tx } from '../../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
@@ -28,8 +29,8 @@ const GH = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models';
 export const ASR_MODELS: Record<AsrModelId, AsrModel> = {
   multi: {
     id: 'multi',
-    label: 'Parakeet v3 — русский, английский и ещё 23 языка',
-    note: 'Лучшее качество: сам ставит знаки препинания и заглавные буквы. Скачивается один раз (~490 МБ).',
+    label: tx('Parakeet v3 — русский, английский и ещё 23 языка'),
+    note: tx('Лучшее качество: сам ставит знаки препинания и заглавные буквы. Скачивается один раз (~490 МБ).'),
     sizeMb: 487,
     url: `${GH}/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8.tar.bz2`,
     dir: 'sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8',
@@ -38,8 +39,8 @@ export const ASR_MODELS: Record<AsrModelId, AsrModel> = {
   },
   ru: {
     id: 'ru',
-    label: 'GigaAM v2 — только русский, лёгкая',
-    note: 'Отличное качество для русского, быстрая. Без знаков препинания. Скачивается один раз (~170 МБ).',
+    label: tx('GigaAM v2 — только русский, лёгкая'),
+    note: tx('Отличное качество для русского, быстрая. Без знаков препинания. Скачивается один раз (~170 МБ).'),
     sizeMb: 172,
     url: `${GH}/sherpa-onnx-nemo-transducer-giga-am-v2-russian-2025-04-19.tar.bz2`,
     dir: 'sherpa-onnx-nemo-transducer-giga-am-v2-russian-2025-04-19',
@@ -69,7 +70,7 @@ async function downloadArchive(url: string, dirName: string, sizeMb: number, rea
   const dir = modelsDir();
   const tmp = path.join(dir, `${dirName}.tar.bz2.part`);
   const res = await fetch(url, { signal, redirect: 'follow' });
-  if (!res.ok || !res.body) throw new Error(`Не удалось скачать модель (HTTP ${res.status}). Проверь интернет или VPN.`);
+  if (!res.ok || !res.body) throw new Error(tx('Не удалось скачать модель (HTTP {0}). Проверь интернет или VPN.', res.status));
   const total = Number(res.headers.get('content-length') || sizeMb * 1e6);
   let got = 0;
   const out = fs.createWriteStream(tmp);
@@ -85,7 +86,7 @@ async function downloadArchive(url: string, dirName: string, sizeMb: number, rea
   } finally {
     await new Promise<void>((r) => out.end(() => r()));
   }
-  if (signal?.aborted) throw new Error('Отменено');
+  if (signal?.aborted) throw new Error(tx('Отменено'));
   onProgress(0, 'unpack');
   const extractTo = path.join(dir, `${dirName}.unpack`);
   fs.rmSync(extractTo, { recursive: true, force: true });
@@ -101,7 +102,7 @@ async function downloadArchive(url: string, dirName: string, sizeMb: number, rea
   fs.renameSync(fs.existsSync(inner) ? inner : extractTo, finalDir);
   fs.rmSync(extractTo, { recursive: true, force: true });
   fs.rmSync(tmp, { force: true });
-  if (!ready()) throw new Error('Модель скачалась не полностью. Попробуй ещё раз.');
+  if (!ready()) throw new Error(tx('Модель скачалась не полностью. Попробуй ещё раз.'));
   onProgress(1, 'unpack');
   void Readable;
 }
@@ -116,12 +117,12 @@ export async function downloadAsrModel(id: AsrModelId, onProgress: (p: number, s
 export type TtsVoiceId = 'irina' | 'dmitri' | 'denis' | 'ruslan' | 'amy' | 'ryan';
 export interface TtsVoice { id: TtsVoiceId; label: string; name: string; sizeMb: number }
 export const TTS_VOICES: Record<TtsVoiceId, TtsVoice> = {
-  irina: { id: 'irina', label: 'Ирина — русский, женский', name: 'ru_RU-irina-medium', sizeMb: 64 },
-  dmitri: { id: 'dmitri', label: 'Дмитрий — русский, мужской', name: 'ru_RU-dmitri-medium', sizeMb: 64 },
-  denis: { id: 'denis', label: 'Денис — русский, мужской', name: 'ru_RU-denis-medium', sizeMb: 64 },
-  ruslan: { id: 'ruslan', label: 'Руслан — русский, мужской', name: 'ru_RU-ruslan-medium', sizeMb: 64 },
-  amy: { id: 'amy', label: 'Amy — английский, женский', name: 'en_US-amy-low', sizeMb: 64 },
-  ryan: { id: 'ryan', label: 'Ryan — английский, мужской', name: 'en_US-ryan-medium', sizeMb: 64 },
+  irina: { id: 'irina', label: tx('Ирина — русский, женский'), name: 'ru_RU-irina-medium', sizeMb: 64 },
+  dmitri: { id: 'dmitri', label: tx('Дмитрий — русский, мужской'), name: 'ru_RU-dmitri-medium', sizeMb: 64 },
+  denis: { id: 'denis', label: tx('Денис — русский, мужской'), name: 'ru_RU-denis-medium', sizeMb: 64 },
+  ruslan: { id: 'ruslan', label: tx('Руслан — русский, мужской'), name: 'ru_RU-ruslan-medium', sizeMb: 64 },
+  amy: { id: 'amy', label: tx('Amy — английский, женский'), name: 'en_US-amy-low', sizeMb: 64 },
+  ryan: { id: 'ryan', label: tx('Ryan — английский, мужской'), name: 'en_US-ryan-medium', sizeMb: 64 },
 };
 const TTS_GH = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models';
 export function ttsVoiceDir(id: TtsVoiceId): string {

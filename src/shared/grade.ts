@@ -1,6 +1,7 @@
 // Тонкая цветокоррекция: кривые, HSL по цветам, свой LUT (.cube).
 // Всё сводится в одну 3D-таблицу N×N×N: превью применяет её (WebGL или процессор), экспорт — фильтром haldclut.
 // Интерполяция одинаковая — трилинейная, результат обрезается вниз до целого (как в FFmpeg).
+import { tx } from './i18n';
 import { filterLook, lookFilterPixel } from './color';
 import type { ColorAdjust, CurvePoint, Grade, HslBand } from './types';
 
@@ -8,14 +9,14 @@ export const GRADE_LEVEL = 6;                       // уровень Hald CLUT
 export const GRADE_N = GRADE_LEVEL * GRADE_LEVEL;   // 36 точек по каждой оси
 
 export const HSL_BANDS: { id: HslBand; label: string; hue: number; color: string }[] = [
-  { id: 'red', label: 'Красный', hue: 0, color: '#ff4040' },
-  { id: 'orange', label: 'Оранжевый', hue: 30, color: '#ff9a2e' },
-  { id: 'yellow', label: 'Жёлтый', hue: 60, color: '#ffe23d' },
-  { id: 'green', label: 'Зелёный', hue: 120, color: '#3fd45a' },
-  { id: 'cyan', label: 'Голубой', hue: 180, color: '#3fd8e0' },
-  { id: 'blue', label: 'Синий', hue: 240, color: '#3f6bff' },
-  { id: 'purple', label: 'Фиолетовый', hue: 280, color: '#9a4dff' },
-  { id: 'magenta', label: 'Пурпурный', hue: 320, color: '#ff4dc4' },
+  { id: 'red', label: tx('Красный'), hue: 0, color: '#ff4040' },
+  { id: 'orange', label: tx('Оранжевый'), hue: 30, color: '#ff9a2e' },
+  { id: 'yellow', label: tx('Жёлтый'), hue: 60, color: '#ffe23d' },
+  { id: 'green', label: tx('Зелёный'), hue: 120, color: '#3fd45a' },
+  { id: 'cyan', label: tx('Голубой'), hue: 180, color: '#3fd8e0' },
+  { id: 'blue', label: tx('Синий'), hue: 240, color: '#3f6bff' },
+  { id: 'purple', label: tx('Фиолетовый'), hue: 280, color: '#9a4dff' },
+  { id: 'magenta', label: tx('Пурпурный'), hue: 320, color: '#ff4dc4' },
 ];
 
 export const IDENTITY_CURVE: CurvePoint[] = [{ x: 0, y: 0 }, { x: 1, y: 1 }];
@@ -46,12 +47,12 @@ export function parseCube(text: string): CubeLut {
     vals.push(Number(p[0]), Number(p[1]), Number(p[2]));
   }
   const kind = size3 ? '3d' : size1 ? '1d' : null;
-  if (!kind) throw new Error('Это не файл LUT: нет строки LUT_3D_SIZE');
+  if (!kind) throw new Error(tx('Это не файл LUT: нет строки LUT_3D_SIZE'));
   const size = size3 || size1;
-  if (size < 2 || size > 256) throw new Error(`Неподдерживаемый размер таблицы: ${size}`);
+  if (size < 2 || size > 256) throw new Error(tx('Неподдерживаемый размер таблицы: {0}', size));
   const need = (kind === '3d' ? size * size * size : size) * 3;
-  if (vals.length < need) throw new Error(`В файле не хватает значений: ${vals.length / 3} из ${need / 3}`);
-  if (vals.slice(0, need).some((v) => !Number.isFinite(v))) throw new Error('В файле есть нечисловые значения');
+  if (vals.length < need) throw new Error(tx('В файле не хватает значений: {0} из {1}', vals.length / 3, need / 3));
+  if (vals.slice(0, need).some((v) => !Number.isFinite(v))) throw new Error(tx('В файле есть нечисловые значения'));
   return { kind, size, data: Float32Array.from(vals.slice(0, need)), min, max, title };
 }
 

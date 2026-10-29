@@ -1,3 +1,5 @@
+import { tx } from '../../shared/i18n';
+import { txj } from '../txj';
 import {
   Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
   LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages,
@@ -37,15 +39,15 @@ import { ColorField, FontPicker, Progress, Seg, Slider, Toggle } from './control
 import { aiCovers } from '../../shared/ai';
 
 const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
-  { id: 'media', label: 'Медиа', icon: <Film size={19} /> },
-  { id: 'audio', label: 'Аудио', icon: <Music size={19} /> },
-  { id: 'text', label: 'Текст', icon: <Type size={19} /> },
-  { id: 'captions', label: 'Субтитры', icon: <Captions size={19} /> },
-  { id: 'effects', label: 'Эффекты', icon: <Zap size={19} /> },
-  { id: 'transitions', label: 'Переходы', icon: <Blend size={19} /> },
-  { id: 'filters', label: 'Фильтры', icon: <Palette size={19} /> },
-  { id: 'ai', label: 'ИИ', icon: <Sparkles size={19} /> },
-  { id: 'templates', label: 'Шаблоны', icon: <LayoutTemplate size={19} /> },
+  { id: 'media', label: tx('Медиа'), icon: <Film size={19} /> },
+  { id: 'audio', label: tx('Аудио'), icon: <Music size={19} /> },
+  { id: 'text', label: tx('Текст'), icon: <Type size={19} /> },
+  { id: 'captions', label: tx('Субтитры'), icon: <Captions size={19} /> },
+  { id: 'effects', label: tx('Эффекты'), icon: <Zap size={19} /> },
+  { id: 'transitions', label: tx('Переходы'), icon: <Blend size={19} /> },
+  { id: 'filters', label: tx('Фильтры'), icon: <Palette size={19} /> },
+  { id: 'ai', label: tx('ИИ'), icon: <Sparkles size={19} /> },
+  { id: 'templates', label: tx('Шаблоны'), icon: <LayoutTemplate size={19} /> },
   { id: '3d', label: '3D', icon: <Box size={19} /> },
 ];
 
@@ -53,7 +55,7 @@ export function Rail() {
   const tab = useStore((s) => s.leftTab);
   const setTab = useStore((s) => s.setLeftTab);
   return (
-    <nav className="rail" aria-label="Разделы">
+    <nav className="rail" aria-label={tx('Разделы')}>
       {TABS.map((t) => (
         <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)} data-testid={`tab-${t.id}`}>
           {t.icon}<span>{t.label}</span>
@@ -112,13 +114,12 @@ function TemplatesPanel() {
           <div className="tpl-actions">
             <b className="tpl-open-name">{t.name}</b>
             <span className="hint small">{t.hint}</span>
-            <span className="hint small">{t.slots.length} кадров, {fmtDur(templateDuration(t))}</span>
-            <button className="btn primary block small" disabled={busy} onClick={() => void run(() => startFromTemplate(t, 'pick'))} data-testid="tpl-pick"><FolderOpen size={13} />Свои файлы…</button>
+            <span className="hint small">{txj('{0} кадров, {1}', t.slots.length, fmtDur(templateDuration(t)))}</span>
+            <button className="btn primary block small" disabled={busy} onClick={() => void run(() => startFromTemplate(t, 'pick'))} data-testid="tpl-pick"><FolderOpen size={13} />{tx('Свои файлы…')}</button>
             <button className="btn block small" disabled={busy || !libCount} onClick={() => void run(() => startFromTemplate(t, 'library'))} data-testid="tpl-library">
-              Из медиатеки{libCount ? ` (${libCount})` : ''}
-            </button>
-            {hasDemo && <button className="btn ghost block small" disabled={busy} onClick={() => void run(() => tryTemplate(t))} data-testid="tpl-try">Пример</button>}
-            {t.custom && <button className="btn ghost small" onClick={() => void api.deleteTemplate(t.id).then(refresh)}><Trash2 size={13} />Удалить шаблон</button>}
+              {txj('Из медиатеки{0}', libCount ? ` (${libCount})` : '')}</button>
+            {hasDemo && <button className="btn ghost block small" disabled={busy} onClick={() => void run(() => tryTemplate(t))} data-testid="tpl-try">{tx('Пример')}</button>}
+            {t.custom && <button className="btn ghost small" onClick={() => void api.deleteTemplate(t.id).then(refresh)}><Trash2 size={13} />{tx('Удалить шаблон')}</button>}
           </div>
         )}
       </div>
@@ -127,36 +128,36 @@ function TemplatesPanel() {
   const list = cat === 'mine' ? mine : BUILTIN_TEMPLATES.filter((t) => cat === 'all' || t.cat === cat);
   return (
     <>
-      <div className="panel-head">Шаблоны</div>
+      <div className="panel-head">{tx('Шаблоны')}</div>
       <div className="panel-body">
         <div className="auto-card" data-testid="tpl-auto-card">
-          <b><WandSparkles size={15} />Авто-ролик</b>
-          <span className="hint small">Kadro сам возьмёт лучшие куски видео и смонтирует их в ритм музыки.</span>
+          <b><WandSparkles size={15} />{tx('Авто-ролик')}</b>
+          <span className="hint small">{tx('Kadro сам возьмёт лучшие куски видео и смонтирует их в ритм музыки.')}</span>
           <div className="row-btns">
-            <button className="btn primary small" disabled={busy} onClick={() => getState().setAutoOpen({ files: autoLast?.files ?? [], fresh: false })} data-testid="tpl-auto">{autoLast ? 'Настроить…' : 'Собрать…'}</button>
-            {autoLast && <button className="btn small" disabled={busy} onClick={() => void run(autoVariant)} title="Другие куски видео и переходы, те же файлы и стиль" data-testid="tpl-auto-variant"><Shuffle size={13} />Ещё вариант</button>}
+            <button className="btn primary small" disabled={busy} onClick={() => getState().setAutoOpen({ files: autoLast?.files ?? [], fresh: false })} data-testid="tpl-auto">{autoLast ? tx('Настроить…') : tx('Собрать…')}</button>
+            {autoLast && <button className="btn small" disabled={busy} onClick={() => void run(autoVariant)} title={tx('Другие куски видео и переходы, те же файлы и стиль')} data-testid="tpl-auto-variant"><Shuffle size={13} />{tx('Ещё вариант')}</button>}
           </div>
         </div>
         <div className="auto-card" data-testid="tpl-script-card">
-          <b><FileText size={15} />Ролик по сценарию</b>
-          <span className="hint small">Текст → озвучка, кадры из твоих видео и субтитры точно по тексту.</span>
+          <b><FileText size={15} />{tx('Ролик по сценарию')}</b>
+          <span className="hint small">{tx('Текст → озвучка, кадры из твоих видео и субтитры точно по тексту.')}</span>
           <div className="row-btns">
-            <button className="btn small" disabled={busy} onClick={() => getState().setScriptOpen(true)} data-testid="tpl-script">Написать сценарий…</button>
+            <button className="btn small" disabled={busy} onClick={() => getState().setScriptOpen(true)} data-testid="tpl-script">{tx('Написать сценарий…')}</button>
           </div>
         </div>
-        <p className="hint">Готовый монтаж с переходами, цветом, эффектами и надписями. Наведи на шаблон, чтобы посмотреть, нажми — и выбери свои видео и фото по порядку.</p>
+        <p className="hint">{tx('Готовый монтаж с переходами, цветом, эффектами и надписями. Наведи на шаблон, чтобы посмотреть, нажми — и выбери свои видео и фото по порядку.')}</p>
         <div className="chips">
-          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
+          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>
           {TEMPLATE_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
-          {mine.length > 0 && <button className={cat === 'mine' ? 'active' : ''} onClick={() => setCat('mine')}>Мои шаблоны</button>}
+          {mine.length > 0 && <button className={cat === 'mine' ? 'active' : ''} onClick={() => setCat('mine')}>{tx('Мои шаблоны')}</button>}
         </div>
         <div className="tpl-list">{list.map(card)}</div>
-        {cat === 'all' && mine.length > 0 && (<><div className="sub-head">Мои шаблоны</div><div className="tpl-list">{mine.map(card)}</div></>)}
-        <div className="sub-head">Сохранить свой</div>
-        <p className="hint small">Длительности клипов основной дорожки, переходы, цвет, эффекты, наезды и надписи станут шаблоном — без самих видео.</p>
+        {cat === 'all' && mine.length > 0 && (<><div className="sub-head">{tx('Мои шаблоны')}</div><div className="tpl-list">{mine.map(card)}</div></>)}
+        <div className="sub-head">{tx('Сохранить свой')}</div>
+        <p className="hint small">{tx('Длительности клипов основной дорожки, переходы, цвет, эффекты, наезды и надписи станут шаблоном — без самих видео.')}</p>
         <div className="row-btns">
-          <input className="input" style={{ flex: 1, minWidth: 0 }} placeholder="Название" value={name} onChange={(e) => setName(e.target.value)} data-testid="tpl-name" />
-          <button className="btn" disabled={!hasMain || busy} onClick={() => void run(async () => { if (await saveAsTemplate(name)) { setName(''); refresh(); } })} data-testid="tpl-save">Сохранить</button>
+          <input className="input" style={{ flex: 1, minWidth: 0 }} placeholder={tx('Название')} value={name} onChange={(e) => setName(e.target.value)} data-testid="tpl-name" />
+          <button className="btn" disabled={!hasMain || busy} onClick={() => void run(async () => { if (await saveAsTemplate(name)) { setName(''); refresh(); } })} data-testid="tpl-save">{tx('Сохранить')}</button>
         </div>
       </div>
     </>
@@ -181,44 +182,44 @@ function DropZone({ accept, children, compact = false }: { accept: 'any' | 'audi
     >
       {children}
       <button className="btn primary" onClick={() => void (accept === 'audio' ? importAudio() : pickAndImport())} data-testid="import-btn">
-        <Upload size={15} />{accept === 'audio' ? 'Добавить музыку' : 'Добавить файлы'}
+        <Upload size={15} />{accept === 'audio' ? tx('Добавить музыку') : tx('Добавить файлы')}
       </button>
-      <span className="hint small">{compact ? 'или перетащи файлы сюда' : accept === 'audio' ? 'MP3, WAV, M4A, FLAC — или перетащи сюда' : 'или перетащи сюда видео, фото, музыку'}</span>
+      <span className="hint small">{compact ? tx('или перетащи файлы сюда') : accept === 'audio' ? tx('MP3, WAV, M4A, FLAC — или перетащи сюда') : tx('или перетащи сюда видео, фото, музыку')}</span>
     </div>
   );
 }
 
 function assetBadge(a: MediaAsset): string {
-  if (a.missing) return 'Файл не найден';
-  if (a.proxy === 'pending') return 'Готовлю…';
-  if (a.proxy === 'error') return 'Ошибка превью';
-  return a.kind === 'video' ? fmtDur(a.duration) : a.kind === 'audio' ? fmtDur(a.duration) : 'Фото';
+  if (a.missing) return tx('Файл не найден');
+  if (a.proxy === 'pending') return tx('Готовлю…');
+  if (a.proxy === 'error') return tx('Ошибка превью');
+  return a.kind === 'video' ? fmtDur(a.duration) : a.kind === 'audio' ? fmtDur(a.duration) : tx('Фото');
 }
 
 /** Что можно сделать с файлом проекта: правая кнопка мыши или «⋯». */
 function assetMenu(a: MediaAsset, used: boolean): MenuEntry[] {
   const audio = a.kind === 'audio';
   const remove = () => {
-    if (!used || confirm(`Убрать «${a.name}» из проекта? Клипы с этим файлом пропадут с таймлайна.`)) getState().commit((p) => removeAsset(p, a.id));
+    if (!used || confirm(tx('Убрать «{0}» из проекта? Клипы с этим файлом пропадут с таймлайна.', a.name))) getState().commit((p) => removeAsset(p, a.id));
   };
   const piece: MenuEntry[] = a.kind === 'image' ? [] : [
-    { label: 'Взять кусок…', hint: 'начало и конец', icon: <Scissors size={14} />, onClick: () => getState().setSourceView(a.id), disabled: a.missing, testId: 'menu-piece' },
+    { label: tx('Взять кусок…'), hint: tx('начало и конец'), icon: <Scissors size={14} />, onClick: () => getState().setSourceView(a.id), disabled: a.missing, testId: 'menu-piece' },
   ];
   return [
     ...piece,
     ...(audio ? [
-      { label: 'На таймлайн с начала ролика', icon: <SkipBack size={14} />, onClick: () => addAssetToTimeline(a.id, 'auto', 0), testId: 'menu-start', disabled: a.missing },
-      { label: 'На таймлайн к курсору', icon: <Plus size={14} />, onClick: () => addAssetToTimeline(a.id, 'auto'), testId: 'menu-cursor', disabled: a.missing },
+      { label: tx('На таймлайн с начала ролика'), icon: <SkipBack size={14} />, onClick: () => addAssetToTimeline(a.id, 'auto', 0), testId: 'menu-start', disabled: a.missing },
+      { label: tx('На таймлайн к курсору'), icon: <Plus size={14} />, onClick: () => addAssetToTimeline(a.id, 'auto'), testId: 'menu-cursor', disabled: a.missing },
     ] : [
-      { label: 'На таймлайн к курсору', icon: <Plus size={14} />, onClick: () => addAssetToTimeline(a.id, 'auto'), testId: 'menu-cursor', disabled: a.missing },
-      { label: 'В конец ролика', icon: <ArrowRightToLine size={14} />, onClick: () => addAssetToTimeline(a.id, 'main', projectDuration(getState().project)), testId: 'menu-end', disabled: a.missing },
-      { label: 'Поверх видео', hint: 'картинка в картинке', icon: <Layers size={14} />, onClick: () => addAssetToTimeline(a.id, 'overlay'), testId: 'menu-overlay', disabled: a.missing },
+      { label: tx('На таймлайн к курсору'), icon: <Plus size={14} />, onClick: () => addAssetToTimeline(a.id, 'auto'), testId: 'menu-cursor', disabled: a.missing },
+      { label: tx('В конец ролика'), icon: <ArrowRightToLine size={14} />, onClick: () => addAssetToTimeline(a.id, 'main', projectDuration(getState().project)), testId: 'menu-end', disabled: a.missing },
+      { label: tx('Поверх видео'), hint: tx('картинка в картинке'), icon: <Layers size={14} />, onClick: () => addAssetToTimeline(a.id, 'overlay'), testId: 'menu-overlay', disabled: a.missing },
     ]),
     'sep',
-    { label: 'Найти на таймлайне', icon: <Search size={14} />, onClick: () => findOnTimeline(a.id), disabled: !used, testId: 'menu-find' },
-    { label: 'Показать в папке', icon: <FolderOpen size={14} />, onClick: () => api.showInFolder(a.path), disabled: a.missing, testId: 'menu-folder' },
+    { label: tx('Найти на таймлайне'), icon: <Search size={14} />, onClick: () => findOnTimeline(a.id), disabled: !used, testId: 'menu-find' },
+    { label: tx('Показать в папке'), icon: <FolderOpen size={14} />, onClick: () => api.showInFolder(a.path), disabled: a.missing, testId: 'menu-folder' },
     'sep',
-    { label: 'Убрать из проекта', icon: <Trash2 size={14} />, onClick: remove, danger: true, testId: 'menu-remove' },
+    { label: tx('Убрать из проекта'), icon: <Trash2 size={14} />, onClick: remove, danger: true, testId: 'menu-remove' },
   ];
 }
 
@@ -227,7 +228,7 @@ function MediaItem({ a, used, selected, onSelect }: { a: MediaAsset; used: boole
   const menu = useMenu();
   return (
     <div
-      className={`media-item ${a.missing ? 'missing' : ''} ${selected ? 'selected' : ''}`} draggable data-testid="media-item" title={a.missing ? `Файл не найден: ${a.path}` : a.name}
+      className={`media-item ${a.missing ? 'missing' : ''} ${selected ? 'selected' : ''}`} draggable data-testid="media-item" title={a.missing ? tx('Файл не найден: {0}', a.path) : a.name}
       onClick={onSelect}
       onDragStart={(e) => { e.dataTransfer.setData('application/x-kadro-asset', a.id); e.dataTransfer.effectAllowed = 'copy'; }}
       onDoubleClick={() => addAssetToTimeline(a.id, 'auto', a.kind === 'audio' && getState().audioPlace === 'start' ? 0 : undefined)}
@@ -236,11 +237,11 @@ function MediaItem({ a, used, selected, onSelect }: { a: MediaAsset; used: boole
       <div className="media-thumb" style={thumb ? { backgroundImage: `url("${api.mediaUrl(thumb)}")` } : undefined}>
         {!thumb && (a.kind === 'audio' ? <AudioLines size={22} /> : a.kind === 'image' ? <ImageIcon size={22} /> : <Film size={22} />)}
       </div>
-      {used && <span className="used-dot" title="Уже на таймлайне" />}
+      {used && <span className="used-dot" title={tx('Уже на таймлайне')} />}
       <div className="media-actions">
-        <button title={a.kind === 'audio' ? 'На таймлайн' : 'На таймлайн к курсору'} onClick={(e) => { e.stopPropagation(); addAssetToTimeline(a.id, 'auto', a.kind === 'audio' && getState().audioPlace === 'start' ? 0 : undefined); }} data-testid="media-add"><Plus size={14} /></button>
-        {a.kind !== 'image' && !a.missing && <button title="Взять кусок: отметить начало и конец" onClick={(e) => { e.stopPropagation(); getState().setSourceView(a.id); }} data-testid="media-piece"><Scissors size={14} /></button>}
-        <button title="Ещё: куда добавить, найти на таймлайне, показать в папке, убрать" onClick={(e) => { e.stopPropagation(); menu.open(e, assetMenu(a, used)); }} data-testid="media-more"><MoreHorizontal size={14} /></button>
+        <button title={a.kind === 'audio' ? tx('На таймлайн') : tx('На таймлайн к курсору')} onClick={(e) => { e.stopPropagation(); addAssetToTimeline(a.id, 'auto', a.kind === 'audio' && getState().audioPlace === 'start' ? 0 : undefined); }} data-testid="media-add"><Plus size={14} /></button>
+        {a.kind !== 'image' && !a.missing && <button title={tx('Взять кусок: отметить начало и конец')} onClick={(e) => { e.stopPropagation(); getState().setSourceView(a.id); }} data-testid="media-piece"><Scissors size={14} /></button>}
+        <button title={tx('Ещё: куда добавить, найти на таймлайне, показать в папке, убрать')} onClick={(e) => { e.stopPropagation(); menu.open(e, assetMenu(a, used)); }} data-testid="media-more"><MoreHorizontal size={14} /></button>
       </div>
       <div className="media-meta"><span className="name">{a.name}</span><span className="dur">{assetBadge(a)}</span></div>
       {menu.node}
@@ -293,20 +294,18 @@ function MediaPanel() {
       if (c) added.push(c);
       if (f && f.track.kind !== 'audio') at = clipEnd(f.clip);
     }
-    if (added.length) { getState().select(added); getState().toast(`На таймлайне файлов: ${added.length}`, 'ok'); }
+    if (added.length) { getState().select(added); getState().toast(tx('На таймлайне файлов: {0}', added.length), 'ok'); }
     setSel([]);
   };
   return (
     <>
-      <div className="panel-head">Медиа</div>
+      <div className="panel-head">{tx('Медиа')}</div>
       <div className="panel-body">
         <div className="media-switch" role="tablist">
           <button role="tab" aria-selected={view === 'project'} className={view === 'project' ? 'active' : ''} onClick={() => setView('project')} data-testid="media-view-project">
-            В проекте{assets.length ? ` · ${assets.length}` : ''}
-          </button>
+            {txj('В проекте{0}', assets.length ? ` · ${assets.length}` : '')}</button>
           <button role="tab" aria-selected={view === 'library'} className={view === 'library' ? 'active' : ''} onClick={() => setView('library')} data-testid="media-view-library">
-            Библиотека
-          </button>
+            {tx('Библиотека')}</button>
         </div>
         {view === 'library' ? <LibraryView /> : (<>
         <DropZone accept="any" compact={assets.length > 0} />
@@ -314,26 +313,26 @@ function MediaPanel() {
           <button className="btn block auto-from-media" onClick={() => getState().setAutoOpen({
             files: assets.filter((a) => a.kind !== 'audio' && !a.missing).map((a) => a.path),
             music: assets.find((a) => a.kind === 'audio' && !a.missing)?.path ?? null, fresh: false,
-          })} data-testid="media-auto"><WandSparkles size={14} />Авто-ролик из этих файлов</button>
+          })} data-testid="media-auto"><WandSparkles size={14} />{tx('Авто-ролик из этих файлов')}</button>
         )}
         {assets.length > 0 && (
           <>
             <div style={{ marginTop: 12 }}>
               <Seg value={filter} onChange={setFilter} options={[
-                { value: 'all', label: 'Все' }, { value: 'video', label: 'Видео' }, { value: 'image', label: 'Фото' }, { value: 'audio', label: 'Звук' },
+                { value: 'all', label: tx('Все') }, { value: 'video', label: tx('Видео') }, { value: 'image', label: tx('Фото') }, { value: 'audio', label: tx('Звук') },
               ]} />
             </div>
             <div className="media-grid">{list.map((a) => <MediaItem key={a.id} a={a} used={used.has(a.id)} selected={sel.includes(a.id)} onSelect={(e) => onSelect(a, e)} />)}</div>
             {sel.length > 0 && (
               <div className="lib-bar media-bar" data-testid="media-bar">
-                <span>Выбрано: {sel.length}</span>
-                <button className="btn small" onClick={() => setSel([])}>Снять</button>
-                <button className="btn small" onClick={() => placeSel('end')} data-testid="media-place-end">В конец</button>
-                <button className="btn primary small" onClick={() => placeSel('auto')} data-testid="media-place">На таймлайн</button>
+                <span>{txj('Выбрано: {0}', sel.length)}</span>
+                <button className="btn small" onClick={() => setSel([])}>{tx('Снять')}</button>
+                <button className="btn small" onClick={() => placeSel('end')} data-testid="media-place-end">{tx('В конец')}</button>
+                <button className="btn primary small" onClick={() => placeSel('auto')} data-testid="media-place">{tx('На таймлайн')}</button>
               </div>
             )}
-            {!list.length && <p className="hint">Здесь пока пусто.</p>}
-            <p className="hint small" style={{ marginTop: 12 }}>Двойной клик или «+» — на таймлайн к курсору. Ножницы — взять из видео только кусок. Щелчок с Ctrl или Shift — выбрать несколько. Правая кнопка мыши — всё, что можно сделать с файлом.</p>
+            {!list.length && <p className="hint">{tx('Здесь пока пусто.')}</p>}
+            <p className="hint small" style={{ marginTop: 12 }}>{tx('Двойной клик или «+» — на таймлайн к курсору. Ножницы — взять из видео только кусок. Щелчок с Ctrl или Shift — выбрать несколько. Правая кнопка мыши — всё, что можно сделать с файлом.')}</p>
           </>
         )}
         </>)}
@@ -348,17 +347,17 @@ function AudioRow({ a, used }: { a: MediaAsset; used: boolean }) {
   const place = useStore((s) => s.audioPlace);
   const add = () => addAssetToTimeline(a.id, 'auto', place === 'start' ? 0 : undefined);
   return (
-    <div className={`audio-row ${a.missing ? 'missing' : ''}`} draggable title={a.missing ? `Файл не найден: ${a.path}` : a.name} data-testid="audio-row"
+    <div className={`audio-row ${a.missing ? 'missing' : ''}`} draggable title={a.missing ? tx('Файл не найден: {0}', a.path) : a.name} data-testid="audio-row"
       onDragStart={(e) => { e.dataTransfer.setData('application/x-kadro-asset', a.id); e.dataTransfer.effectAllowed = 'copy'; }}
       onDoubleClick={add} onContextMenu={(e) => menu.open(e, assetMenu(a, used))}>
       <MiniWave peaks={a.peaks} />
       <div className="audio-name">
         <span className="name">{a.name}</span>
-        <span className="hint small">{fmtTime(a.duration)}{used ? ' · на таймлайне' : a.missing ? ' · файл не найден' : ' · только в списке'}</span>
+        <span className="hint small">{fmtTime(a.duration)}{used ? tx(' · на таймлайне') : a.missing ? tx(' · файл не найден') : tx(' · только в списке')}</span>
       </div>
-      {used && <button className="icon-btn" title="Найти на таймлайне" onClick={() => findOnTimeline(a.id)} data-testid="audio-find"><Search size={15} /></button>}
-      <button className="icon-btn" title={place === 'start' ? 'На таймлайн с начала ролика' : 'На таймлайн к курсору'} onClick={add} data-testid="audio-add"><Plus size={16} /></button>
-      <button className="icon-btn" title="Ещё" onClick={(e) => menu.open(e, assetMenu(a, used))} data-testid="audio-more"><MoreHorizontal size={16} /></button>
+      {used && <button className="icon-btn" title={tx('Найти на таймлайне')} onClick={() => findOnTimeline(a.id)} data-testid="audio-find"><Search size={15} /></button>}
+      <button className="icon-btn" title={place === 'start' ? tx('На таймлайн с начала ролика') : tx('На таймлайн к курсору')} onClick={add} data-testid="audio-add"><Plus size={16} /></button>
+      <button className="icon-btn" title={tx('Ещё')} onClick={(e) => menu.open(e, assetMenu(a, used))} data-testid="audio-more"><MoreHorizontal size={16} /></button>
       {menu.node}
     </div>
   );
@@ -370,13 +369,13 @@ function AudioPanel() {
   const place = useStore((s) => s.audioPlace);
   return (
     <>
-      <div className="panel-head">Аудио</div>
+      <div className="panel-head">{tx('Аудио')}</div>
       <div className="panel-body">
         <RecordBox />
         <div className="audio-place">
-          <span className="hint small">Куда класть добавленную музыку</span>
+          <span className="hint small">{tx('Куда класть добавленную музыку')}</span>
           <Seg value={place} onChange={(v) => getState().setAudioPlace(v)} options={[
-            { value: 'start', label: 'С начала' }, { value: 'cursor', label: 'К курсору' }, { value: 'list', label: 'Только в список' },
+            { value: 'start', label: tx('С начала') }, { value: 'cursor', label: tx('К курсору') }, { value: 'list', label: tx('Только в список') },
           ]} />
         </div>
         <DropZone accept="audio" compact={assets.length > 0} />
@@ -385,10 +384,10 @@ function AudioPanel() {
             <div className="audio-list">
               {assets.map((a) => <AudioRow key={a.id} a={a} used={used.has(a.id)} />)}
             </div>
-            <p className="hint small" style={{ marginTop: 10 }}>Звук — на дорожках под видео. «Лупа» — показать, где файл на таймлайне. Правая кнопка мыши — все действия с файлом.</p>
+            <p className="hint small" style={{ marginTop: 10 }}>{tx('Звук — на дорожках под видео. «Лупа» — показать, где файл на таймлайне. Правая кнопка мыши — все действия с файлом.')}</p>
           </>
         ) : (
-          <p className="hint" style={{ marginTop: 14 }}>Музыка и звуки ложатся на отдельные дорожки под видео. Громкость, затухание и скорость — справа, когда клип выделен.</p>
+          <p className="hint" style={{ marginTop: 14 }}>{tx('Музыка и звуки ложатся на отдельные дорожки под видео. Громкость, затухание и скорость — справа, когда клип выделен.')}</p>
         )}
       </div>
     </>
@@ -421,7 +420,7 @@ function RecordBox() {
   }, [rec]);
   return (
     <div className={`rec-box ${rec ? 'live' : ''}`} data-testid="rec-box">
-      <div className="rec-title"><Mic size={15} />Запись голоса</div>
+      <div className="rec-title"><Mic size={15} />{tx('Запись голоса')}</div>
       {!rec ? (
         <>
           {mics.length > 1 && (
@@ -429,10 +428,9 @@ function RecordBox() {
               {mics.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
           )}
-          <Toggle label="Заглушить звук проекта на время записи" on={mute} onChange={setMute} hint="Чтобы звук из колонок не попал в микрофон" />
+          <Toggle label={tx('Заглушить звук проекта на время записи')} on={mute} onChange={setMute} hint={tx('Чтобы звук из колонок не попал в микрофон')} />
           <button className="btn rec-btn block" disabled={saving} onClick={() => void startRecording(mic, mute)} data-testid="rec-start">
-            <span className="rec-dot" />Записать с {fmtTime(playhead)}
-          </button>
+            <span className="rec-dot" />{txj('Записать с {0}', fmtTime(playhead))}</button>
         </>
       ) : (
         <>
@@ -442,8 +440,8 @@ function RecordBox() {
             <div className="rec-meter"><i style={{ width: `${Math.round(level * 100)}%` }} /></div>
           </div>
           <div className="row-btns">
-            <button className="btn primary" onClick={() => void stopRecording()} data-testid="rec-stop">Готово</button>
-            <button className="btn" onClick={cancelRecording} data-testid="rec-cancel">Отмена</button>
+            <button className="btn primary" onClick={() => void stopRecording()} data-testid="rec-stop">{tx('Готово')}</button>
+            <button className="btn" onClick={cancelRecording} data-testid="rec-cancel">{tx('Отмена')}</button>
           </div>
         </>
       )}
@@ -494,7 +492,7 @@ function hexA(hex: string, a: number): string {
 function TextPanel() {
   const commit = useStore((s) => s.commit);
   const [fontCat, setFontCat] = useState<FontCat | 'all'>('all');
-  const add = (style?: Partial<TextStyle>, text = 'Текст') => {
+  const add = (style?: Partial<TextStyle>, text = tx('Текст')) => {
     let id = '';
     commit((p) => { const r = addText(p, getState().playhead, text, style); id = r.clipId; return r.project; });
     if (id) {
@@ -505,28 +503,28 @@ function TextPanel() {
   };
   return (
     <>
-      <div className="panel-head">Текст</div>
+      <div className="panel-head">{tx('Текст')}</div>
       <div className="panel-body">
-        <button className="btn primary block" onClick={() => add()} data-testid="add-text"><Plus size={15} />Добавить текст</button>
-        <p className="hint small" style={{ marginTop: 8 }}>Текст появится у курсора на таймлайне. Двигай его прямо в окне просмотра.</p>
-        <div className="section-title">Готовые стили</div>
+        <button className="btn primary block" onClick={() => add()} data-testid="add-text"><Plus size={15} />{tx('Добавить текст')}</button>
+        <p className="hint small" style={{ marginTop: 8 }}>{tx('Текст появится у курсора на таймлайне. Двигай его прямо в окне просмотра.')}</p>
+        <div className="section-title">{tx('Готовые стили')}</div>
         <div className="tile-grid">
           {TEXT_PRESETS.map((t) => (
-            <button key={t.id} className="tile text-tile" onClick={() => add(t.style)} title={`Добавить: ${t.label}`}>
-              <div className="text-sample"><span style={textPreviewStyle(t.style)}>Привет</span></div>
+            <button key={t.id} className="tile text-tile" onClick={() => add(t.style)} title={tx('Добавить: {0}', t.label)}>
+              <div className="text-sample"><span style={textPreviewStyle(t.style)}>{tx('Привет')}</span></div>
               <span className="label">{t.label}</span>
             </button>
           ))}
         </div>
-        <div className="section-title">Шрифты · {FONTS.length}</div>
+        <div className="section-title">{txj('Шрифты · {0}', FONTS.length)}</div>
         <div className="chips" style={{ marginBottom: 8 }}>
-          <button className={fontCat === 'all' ? 'active' : ''} onClick={() => setFontCat('all')}>Все</button>
+          <button className={fontCat === 'all' ? 'active' : ''} onClick={() => setFontCat('all')}>{tx('Все')}</button>
           {FONT_CATS.map((c) => <button key={c.id} className={fontCat === c.id ? 'active' : ''} onClick={() => setFontCat(c.id)}>{c.label}</button>)}
         </div>
         <div className="font-list">
           {FONTS.filter((f) => fontCat === 'all' || f.cat === fontCat).map((f) => (
-            <button key={f.family} className="font-row" onClick={() => add({ font: f.family })} style={{ fontFamily: `'${f.family}'` }} title={`Добавить текст шрифтом ${f.label}`}>
-              {f.label} <span>Привет, мир</span>
+            <button key={f.family} className="font-row" onClick={() => add({ font: f.family })} style={{ fontFamily: `'${f.family}'` }} title={tx('Добавить текст шрифтом {0}', f.label)}>
+              {f.label} <span>{tx('Привет, мир')}</span>
             </button>
           ))}
         </div>
@@ -560,28 +558,26 @@ function TranslateCard({ captions }: { captions: TextClip[] }) {
   const sources = LANGS.filter((l) => targetsFrom(l.code, have).length > 0);
   return (
     <div className="ai-card" data-testid="translate-card">
-      <h4><Languages size={15} />Перевод субтитров</h4>
-      <p className="hint">Переведу все субтитры на другой язык прямо на компьютере. Время и стиль не меняются.</p>
-      {info && !info.pairs.length && <p className="hint">Нужен интернет, чтобы один раз скачать модель перевода.</p>}
+      <h4><Languages size={15} />{tx('Перевод субтитров')}</h4>
+      <p className="hint">{tx('Переведу все субтитры на другой язык прямо на компьютере. Время и стиль не меняются.')}</p>
+      {info && !info.pairs.length && <p className="hint">{tx('Нужен интернет, чтобы один раз скачать модель перевода.')}</p>}
       {info && info.pairs.length > 0 && <>
         <div className="mt-langs">
-          <label>С языка
-            <select className="input" value={src} onChange={(e) => setFrom(e.target.value as LangCode)} data-testid="mt-from">
+          <label>{tx('С языка')}<select className="input" value={src} onChange={(e) => setFrom(e.target.value as LangCode)} data-testid="mt-from">
               {sources.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
             </select>
           </label>
-          <label>На язык
-            <select className="input" value={dst ?? ''} onChange={(e) => setTo(e.target.value as LangCode)} data-testid="mt-to">
+          <label>{tx('На язык')}<select className="input" value={dst ?? ''} onChange={(e) => setTo(e.target.value as LangCode)} data-testid="mt-to">
               {targets.map((c) => <option key={c} value={c}>{langLabel(c)}</option>)}
             </select>
           </label>
         </div>
-        <Seg value={mode} onChange={setMode} options={[{ value: 'replace', label: 'Вместо оригинала' }, { value: 'both', label: 'Две строки' }]} />
+        <Seg value={mode} onChange={setMode} options={[{ value: 'replace', label: tx('Вместо оригинала') }, { value: 'both', label: tx('Две строки') }]} />
         <p className="hint small" data-testid="mt-note">
-          {route.length > 1 ? `Через английский. ` : ''}{missing.length ? `Модель скачается один раз, ~${mb} МБ.` : 'Модель уже скачана — работает без интернета.'}
+          {route.length > 1 ? tx('Через английский. ') : ''}{missing.length ? tx('Модель скачается один раз, ~{0} МБ.', mb) : tx('Модель уже скачана — работает без интернета.')}
         </p>
         <button className="btn primary block" disabled={running || !dst} onClick={() => dst && void translateCaptions(src, dst, mode)} data-testid="mt-run">
-          {running ? 'Перевожу…' : `Перевести на ${dst ? langLabel(dst).toLowerCase() : '…'}`}
+          {running ? tx('Перевожу…') : tx('Перевести на {0}', dst ? langLabel(dst).toLowerCase() : '…')}
         </button>
       </>}
     </div>
@@ -603,25 +599,25 @@ function CaptionsPanel() {
   const vertical = useStore((s) => s.project.settings.height > s.project.settings.width);
   return (
     <>
-      <div className="panel-head">Субтитры</div>
+      <div className="panel-head">{tx('Субтитры')}</div>
       <div className="panel-body">
         <div className="ai-card">
-          <h4><Wand2 size={15} />Автосубтитры</h4>
-          <p className="hint">Распознаю речь со всего таймлайна и расставлю субтитры по словам. Работает без интернета.</p>
+          <h4><Wand2 size={15} />{tx('Автосубтитры')}</h4>
+          <p className="hint">{tx('Распознаю речь со всего таймлайна и расставлю субтитры по словам. Работает без интернета.')}</p>
           <div className="model-list">
             {models.map((m) => (
               <label key={m.id} className={`model ${model === m.id ? 'active' : ''}`}>
                 <input type="radio" name="asr" checked={model === m.id} onChange={() => setModel(m.id)} />
                 <div>
                   <div>{m.label}</div>
-                  <div className="hint small">{m.note} · {m.ready ? 'скачана' : `скачается один раз, ${m.sizeMb} МБ`}</div>
+                  <div className="hint small">{m.note} · {m.ready ? tx('скачана') : tx('скачается один раз, {0} МБ', m.sizeMb)}</div>
                 </div>
               </label>
             ))}
           </div>
-          <Toggle label="Слушать и музыкальные дорожки" hint="Обычно выключено: песни мешают распознаванию" on={music} onChange={setMusic} />
+          <Toggle label={tx('Слушать и музыкальные дорожки')} hint={tx('Обычно выключено: песни мешают распознаванию')} on={music} onChange={setMusic} />
           <button className="btn primary block" disabled={running} onClick={() => void makeCaptions(model, music)} data-testid="make-captions">
-            {running ? 'Распознаю…' : captions.length ? 'Создать заново' : 'Создать субтитры'}
+            {running ? tx('Распознаю…') : captions.length ? tx('Создать заново') : tx('Создать субтитры')}
           </button>
         </div>
 
@@ -629,47 +625,47 @@ function CaptionsPanel() {
 
         {first && (
           <>
-            <div className="section-title">Стиль всех субтитров</div>
+            <div className="section-title">{tx('Стиль всех субтитров')}</div>
             <div className="tile-grid">
               {TEXT_PRESETS.map((t) => (
                 <button key={t.id} className="tile text-tile" onClick={() => commit((p) => styleAllCaptions(p, t.style), 'capstyle')}>
-                  <div className="text-sample"><span style={textPreviewStyle({ ...first.style, ...t.style })}>Субтитр</span></div>
+                  <div className="text-sample"><span style={textPreviewStyle({ ...first.style, ...t.style })}>{tx('Субтитр')}</span></div>
                   <span className="label">{t.label}</span>
                 </button>
               ))}
             </div>
             <div className="field">
-              <div className="field-row"><label>Шрифт</label></div>
+              <div className="field-row"><label>{tx('Шрифт')}</label></div>
               <FontPicker value={first.style.font} onChange={(font) => commit((p) => styleAllCaptions(p, { font }))} />
             </div>
-            <Slider label="Размер" min={24} max={140} step={1} value={first.style.size} format={(v) => `${Math.round(v)}`}
+            <Slider label={tx('Размер')} min={24} max={140} step={1} value={first.style.size} format={(v) => `${Math.round(v)}`}
               onChange={(v) => commit((p) => styleAllCaptions(p, { size: v }), 'capsize')} />
-            <Slider label="Высота на экране" min={0.08} max={0.94} step={0.01} value={first.y} format={(v) => `${Math.round(v * 100)}%`}
+            <Slider label={tx('Высота на экране')} min={0.08} max={0.94} step={0.01} value={first.y} format={(v) => `${Math.round(v * 100)}%`}
               onChange={(v) => commit((p) => styleAllCaptions(p, {}, v), 'capy')}
               onReset={() => commit((p) => styleAllCaptions(p, {}, vertical ? 0.64 : 0.86))} />
-            <Toggle label="Заглавными буквами" on={first.style.uppercase} onChange={(v) => commit((p) => styleAllCaptions(p, { uppercase: v }))} />
+            <Toggle label={tx('Заглавными буквами')} on={first.style.uppercase} onChange={(v) => commit((p) => styleAllCaptions(p, { uppercase: v }))} />
             <div className="field">
-              <div className="field-row"><label>Подсветка произносимого слова</label></div>
+              <div className="field-row"><label>{tx('Подсветка произносимого слова')}</label></div>
               <select className="input" value={first.style.highlight?.mode ?? 'none'} data-testid="cap-highlight"
                 onChange={(e) => commit((p) => styleAllCaptions(p, { highlight: { color: first.style.highlight?.color ?? '#ffe14d', mode: e.target.value as WordHighlight['mode'] } }))}>
                 {HIGHLIGHTS.map((h) => <option key={h.mode} value={h.mode}>{h.label}</option>)}
               </select>
             </div>
             {first.style.highlight && first.style.highlight.mode !== 'none' && (
-              <ColorField label="Цвет подсветки" value={first.style.highlight.color}
+              <ColorField label={tx('Цвет подсветки')} value={first.style.highlight.color}
                 onChange={(v) => commit((p) => styleAllCaptions(p, { highlight: { ...first.style.highlight!, color: v } }), 'hlc')} />
             )}
             <div className="field">
-              <div className="field-row"><label>Появление каждого субтитра</label></div>
+              <div className="field-row"><label>{tx('Появление каждого субтитра')}</label></div>
               <select className="input" value={first.anim?.in?.type ?? 'none'} data-testid="cap-anim"
                 onChange={(e) => commit((p) => animAllCaptions(p, e.target.value === 'none' ? undefined : { type: e.target.value as TextAnimType, dur: 0.2 }))}>
-                <option value="none">Нет</option>
+                <option value="none">{tx('Нет')}</option>
                 {TEXT_ANIMS.map((a) => <option key={a.type} value={a.type}>{a.in}</option>)}
               </select>
             </div>
 
             <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Текст ({captions.length})</span>
+              <span>{txj('Текст ({0})', captions.length)}</span>
             </div>
             <div className="cue-list">
               {captions.map((c) => (
@@ -758,7 +754,7 @@ function EffectsPanel() {
   const [cat, setCat] = useState<EffectCat | 'shader' | 'plugins' | 'all'>('all');
   const clip = sel?.clip.type === 'media' && sel.asset?.kind !== 'audio' ? (sel.clip as MediaClip) : null;
   const toggle = (type: EffectType) => {
-    if (!clip) { getState().toast('Сначала выдели видео или фото на таймлайне — эффект встанет на него'); return; }
+    if (!clip) { getState().toast(tx('Сначала выдели видео или фото на таймлайне — эффект встанет на него')); return; }
     const has = clip.effects?.some((e) => e.type === type);
     const def = EFFECTS.find((x) => x.type === type);
     const effects = has ? clip.effects!.filter((e) => e.type !== type) : [...(clip.effects ?? []), { type, amount: def?.toggle ? 1 : 0.6 }];
@@ -772,14 +768,14 @@ function EffectsPanel() {
   const hasPlugins = shaders.some((x) => x.cat === 'plugins');
   return (
     <>
-      <div className="panel-head">Эффекты · {all.length}</div>
+      <div className="panel-head">{txj('Эффекты · {0}', all.length)}</div>
       <div className="panel-body">
-        <p className="hint">{clip ? 'Нажми — эффект добавится, ещё раз — уберётся. Наведи мышь, чтобы посмотреть. Сила — справа, во вкладке «Эффекты».' : 'Выдели клип на таймлайне — эффекты применяются к нему. Наведи мышь на эффект, чтобы посмотреть.'}</p>
+        <p className="hint">{clip ? tx('Нажми — эффект добавится, ещё раз — уберётся. Наведи мышь, чтобы посмотреть. Сила — справа, во вкладке «Эффекты».') : tx('Выдели клип на таймлайне — эффекты применяются к нему. Наведи мышь на эффект, чтобы посмотреть.')}</p>
         <div className="chips" style={{ margin: '10px 0 8px' }}>
-          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
+          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>
           {EFFECT_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
-          <button className={cat === 'shader' ? 'active' : ''} onClick={() => setCat('shader')} data-testid="fxcat-shader">Шейдеры</button>
-          {hasPlugins && <button className={cat === 'plugins' ? 'active' : ''} onClick={() => setCat('plugins')} data-testid="fxcat-plugins">Плагины</button>}
+          <button className={cat === 'shader' ? 'active' : ''} onClick={() => setCat('shader')} data-testid="fxcat-shader">{tx('Шейдеры')}</button>
+          {hasPlugins && <button className={cat === 'plugins' ? 'active' : ''} onClick={() => setCat('plugins')} data-testid="fxcat-plugins">{tx('Плагины')}</button>}
         </div>
         <div className="tile-grid fx-grid">
           {list.map((e) => {
@@ -878,40 +874,40 @@ function TransitionsPanel() {
   const [dur, setDur] = useState(0.5);
   const durNow = cur?.duration ?? dur;
   const apply = (type: TransitionType | null) => {
-    if (!targetId) { getState().toast('Переход ставится между двумя клипами — добавь на основную дорожку ещё одно видео или фото'); return; }
+    if (!targetId) { getState().toast(tx('Переход ставится между двумя клипами — добавь на основную дорожку ещё одно видео или фото')); return; }
     commit((p) => setTransition(p, targetId!, type ? { type, duration: durNow } : null));
-    if (type && auto) getState().toast('Переход поставлен на ближайший к курсору стык', 'ok');
+    if (type && auto) getState().toast(tx('Переход поставлен на ближайший к курсору стык'), 'ok');
   };
   const applyAll = () => {
     if (!cur) return;
     commit((p) => main.clips.slice(0, -1).reduce((acc, c) => setTransition(acc, c.id, { ...cur }), p));
-    getState().toast('Переход поставлен на все стыки', 'ok');
+    getState().toast(tx('Переход поставлен на все стыки'), 'ok');
   };
   const joints = Math.max(0, main.clips.length - 1);
   // встроенные + 123 шейдера gl-transitions + плагины пользователя
-  const shaders = glTransitions().map((d) => ({ type: d.id as TransitionType, label: d.name, cat: d.source ? 'plugins' : d.cat, hint: d.author ? `${d.name} — автор ${d.author}` : d.name }));
+  const shaders = glTransitions().map((d) => ({ type: d.id as TransitionType, label: d.name, cat: d.source ? 'plugins' : d.cat, hint: d.author ? tx('{0} — автор {1}', d.name, d.author) : d.name }));
   const all: { type: TransitionType; label: string; cat: string; hint?: string }[] = [...TRANSITIONS, ...shaders];
   const list = all.filter((t) => cat === 'all' || t.cat === cat);
   const glCats = GL_TRANSITION_CATS.filter((c) => shaders.some((x) => x.cat === c.id));
   const hasPlugins = shaders.some((x) => x.cat === 'plugins');
   return (
     <>
-      <div className="panel-head">Переходы · {all.length}</div>
+      <div className="panel-head">{txj('Переходы · {0}', all.length)}</div>
       <div className="panel-body">
         <p className="hint">
-          {joints === 0 ? 'Переходы ставятся между двумя клипами на основной дорожке. Добавь хотя бы два.' :
-            auto ? 'Нажми на переход — он встанет на стык рядом с курсором. Наведи мышь, чтобы посмотреть.' : 'Выбран стык. Нажми на переход, чтобы поставить его. Наведи мышь, чтобы посмотреть.'}
+          {joints === 0 ? tx('Переходы ставятся между двумя клипами на основной дорожке. Добавь хотя бы два.') :
+            auto ? tx('Нажми на переход — он встанет на стык рядом с курсором. Наведи мышь, чтобы посмотреть.') : tx('Выбран стык. Нажми на переход, чтобы поставить его. Наведи мышь, чтобы посмотреть.')}
         </p>
         <div className="chips" style={{ margin: '10px 0 8px' }}>
-          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
+          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>
           {TRANSITION_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
           {glCats.map((c) => <button key={c.id} className={`gl ${cat === c.id ? 'active' : ''}`} onClick={() => setCat(c.id)} data-testid={`trcat-${c.id}`}>{c.label}</button>)}
-          {hasPlugins && <button className={cat === 'plugins' ? 'active' : ''} onClick={() => setCat('plugins')} data-testid="trcat-plugins">Плагины</button>}
+          {hasPlugins && <button className={cat === 'plugins' ? 'active' : ''} onClick={() => setCat('plugins')} data-testid="trcat-plugins">{tx('Плагины')}</button>}
         </div>
         <div className="tile-grid">
           <button className={`tile ${target && !cur ? 'active' : ''}`} onClick={() => apply(null)} disabled={!target}>
             <TransitionThumb type={null} />
-            <span className="label">Без перехода</span>
+            <span className="label">{tx('Без перехода')}</span>
           </button>
           {list.map((t) => (
             <button key={t.type} className={`tile ${cur?.type === t.type ? 'active' : ''}`} onClick={() => apply(t.type)} disabled={!target} data-testid={`tr-${t.type}`} title={t.hint}>
@@ -920,9 +916,9 @@ function TransitionsPanel() {
             </button>
           ))}
         </div>
-        <Slider label="Длительность" min={0.1} max={2} step={0.05} value={durNow} format={(v) => `${v.toFixed(2)} с`}
+        <Slider label={tx('Длительность')} min={0.1} max={2} step={0.05} value={durNow} format={(v) => tx('{0} с', v.toFixed(2))}
           onChange={(v) => { setDur(v); if (cur && targetId) commit((p) => setTransition(p, targetId!, { ...cur, duration: v }), `trdur-${targetId}`); }} />
-        <button className="btn block" disabled={!cur || joints < 2} onClick={applyAll}>Поставить на все стыки</button>
+        <button className="btn block" disabled={!cur || joints < 2} onClick={applyAll}>{tx('Поставить на все стыки')}</button>
       </div>
     </>
   );
@@ -975,7 +971,7 @@ function FiltersPanel() {
   const clip = sel?.clip.type === 'media' && sel.asset?.kind !== 'audio' ? (sel.clip as MediaClip) : null;
   const thumb = clip && sel?.asset ? sel.asset.thumbs?.[Math.floor((sel.asset.thumbs?.length ?? 1) / 2)] ?? (sel.asset.kind === 'image' ? sel.asset.previewPath : undefined) : undefined;
   const setPreset = (id: string) => {
-    if (!clip) { getState().toast('Сначала выдели видео или фото на таймлайне — фильтр встанет на него'); return; }
+    if (!clip) { getState().toast(tx('Сначала выдели видео или фото на таймлайне — фильтр встанет на него')); return; }
     commit((p) => updateClip(p, clip.id, { color: { ...clip.color, preset: id, presetAmount: clip.color.preset === id ? clip.color.presetAmount : 1 } }));
   };
   const applyAll = () => {
@@ -986,20 +982,20 @@ function FiltersPanel() {
       if (!a || a.kind === 'audio') return acc;
       return updateClip(acc, c.id, { color: { ...c.color, preset: clip.color.preset, presetAmount: clip.color.presetAmount } });
     }, p));
-    getState().toast('Фильтр применён ко всем клипам', 'ok');
+    getState().toast(tx('Фильтр применён ко всем клипам'), 'ok');
   };
   const list = FILTER_PRESETS.filter((f) => f.id === 'none' || cat === 'all' || f.cat === cat);
   return (
     <>
-      <div className="panel-head">Фильтры · {FILTER_PRESETS.length - 1}</div>
+      <div className="panel-head">{txj('Фильтры · {0}', FILTER_PRESETS.length - 1)}</div>
       <div className="panel-body">
-        <p className="hint">{clip ? 'Миниатюры показывают твой кадр. Нажми, чтобы применить.' : 'Выдели видео или фото на таймлайне — фильтр применится к нему, а миниатюры покажут твой кадр.'}</p>
+        <p className="hint">{clip ? tx('Миниатюры показывают твой кадр. Нажми, чтобы применить.') : tx('Выдели видео или фото на таймлайне — фильтр применится к нему, а миниатюры покажут твой кадр.')}</p>
         {clip && clip.color.preset !== 'none' && (
-          <Slider label="Сила фильтра" min={0} max={1} step={0.01} value={clip.color.presetAmount} format={(v) => `${Math.round(v * 100)}%`}
+          <Slider label={tx('Сила фильтра')} min={0} max={1} step={0.01} value={clip.color.presetAmount} format={(v) => `${Math.round(v * 100)}%`}
             onChange={(v) => commit((p) => updateClip(p, clip.id, { color: { ...clip.color, presetAmount: v } }), `famt-${clip.id}`)} />
         )}
         <div className="chips" style={{ margin: '10px 0 8px' }}>
-          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>Все</button>
+          <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>
           {FILTER_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
         </div>
         <div className="tile-grid">
@@ -1010,8 +1006,8 @@ function FiltersPanel() {
             </button>
           ))}
         </div>
-        {clip && <button className="btn block" style={{ marginTop: 10 }} onClick={applyAll}>Применить ко всем клипам</button>}
-        <p className="hint small" style={{ marginTop: 10 }}>Яркость, контраст, насыщенность и теплота — справа во вкладке «Цвет».</p>
+        {clip && <button className="btn block" style={{ marginTop: 10 }} onClick={applyAll}>{tx('Применить ко всем клипам')}</button>}
+        <p className="hint small" style={{ marginTop: 10 }}>{tx('Яркость, контраст, насыщенность и теплота — справа во вкладке «Цвет».')}</p>
       </div>
     </>
   );
@@ -1021,8 +1017,8 @@ function FiltersPanel() {
 function AiStatus({ clip, kind }: { clip: MediaClip; kind: 'removeBg' | 'denoise' }) {
   const r = clip[kind];
   if (!r.enabled) return null;
-  if (aiCovers(r, clip.in, clip.out)) return <div className="status-line ok">Готово — уже в превью и экспорте</div>;
-  return <div className="status-line err">Клип обрезали после обработки — запусти заново</div>;
+  if (aiCovers(r, clip.in, clip.out)) return <div className="status-line ok">{tx('Готово — уже в превью и экспорте')}</div>;
+  return <div className="status-line err">{tx('Клип обрезали после обработки — запусти заново')}</div>;
 }
 
 export function AiTools({ compact = false }: { compact?: boolean }) {
@@ -1042,106 +1038,106 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
     <>
       {!compact && (
         <div className="ai-card">
-          <h4><Captions size={15} />Автосубтитры</h4>
-          <p className="hint">Русский и английский, по словам, с редактированием.</p>
-          <button className="btn block" onClick={() => setTab('captions')}>Открыть субтитры</button>
+          <h4><Captions size={15} />{tx('Автосубтитры')}</h4>
+          <p className="hint">{tx('Русский и английский, по словам, с редактированием.')}</p>
+          <button className="btn block" onClick={() => setTab('captions')}>{tx('Открыть субтитры')}</button>
         </div>
       )}
-      {!clip && !compact && <p className="hint" style={{ margin: '14px 0 4px' }}>Для остальных инструментов выдели клип на таймлайне.</p>}
+      {!clip && !compact && <p className="hint" style={{ margin: '14px 0 4px' }}>{tx('Для остальных инструментов выдели клип на таймлайне.')}</p>}
       {job && <div className="ai-card"><div className="hint">{job.label}{job.stage ? ` · ${job.stage}` : ''}</div><Progress value={job.progress} /></div>}
 
       {asset?.kind !== 'audio' && <div className={`ai-card ${!clip || !isVideo ? 'off' : ''}`}>
-        <h4><ImageIcon size={15} />Удалить фон</h4>
-        <p className="hint">Вырезает человека из видео. Под ним — фон проекта или нижняя дорожка.</p>
+        <h4><ImageIcon size={15} />{tx('Удалить фон')}</h4>
+        <p className="hint">{tx('Вырезает человека из видео. Под ним — фон проекта или нижняя дорожка.')}</p>
         {clip && isVideo ? (
           clip.removeBg.enabled ? (
             <>
               <AiStatus clip={clip} kind="removeBg" />
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                {!aiCovers(clip.removeBg, clip.in, clip.out) && <button className="btn small" disabled={busy} onClick={() => void removeBackground(clip.id)}>Обработать заново</button>}
-                <button className="btn small" onClick={() => disableRemoveBg(clip.id)}>Вернуть фон</button>
+                {!aiCovers(clip.removeBg, clip.in, clip.out) && <button className="btn small" disabled={busy} onClick={() => void removeBackground(clip.id)}>{tx('Обработать заново')}</button>}
+                <button className="btn small" onClick={() => disableRemoveBg(clip.id)}>{tx('Вернуть фон')}</button>
               </div>
             </>
-          ) : <button className="btn block" disabled={busy} onClick={() => void removeBackground(clip.id)} data-testid="ai-removebg">Удалить фон</button>
-        ) : <div className="hint small">Нужен видеоклип</div>}
+          ) : <button className="btn block" disabled={busy} onClick={() => void removeBackground(clip.id)} data-testid="ai-removebg">{tx('Удалить фон')}</button>
+        ) : <div className="hint small">{tx('Нужен видеоклип')}</div>}
       </div>}
 
       <div className={`ai-card ${!clip || !hasAudio ? 'off' : ''}`}>
-        <h4><AudioLines size={15} />Чистый голос</h4>
-        <p className="hint">Убирает шум, гул и ветер, оставляя речь.</p>
+        <h4><AudioLines size={15} />{tx('Чистый голос')}</h4>
+        <p className="hint">{tx('Убирает шум, гул и ветер, оставляя речь.')}</p>
         {clip && hasAudio ? (
           clip.denoise.enabled ? (
             <>
               <AiStatus clip={clip} kind="denoise" />
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                {!aiCovers(clip.denoise, clip.in, clip.out) && <button className="btn small" disabled={busy} onClick={() => void enhanceVoice(clip.id)}>Обработать заново</button>}
-                <button className="btn small" onClick={() => disableDenoise(clip.id)}>Выключить</button>
+                {!aiCovers(clip.denoise, clip.in, clip.out) && <button className="btn small" disabled={busy} onClick={() => void enhanceVoice(clip.id)}>{tx('Обработать заново')}</button>}
+                <button className="btn small" onClick={() => disableDenoise(clip.id)}>{tx('Выключить')}</button>
               </div>
             </>
-          ) : <button className="btn block" disabled={busy} onClick={() => void enhanceVoice(clip.id)} data-testid="ai-denoise">Очистить голос</button>
-        ) : <div className="hint small">Нужен клип со звуком</div>}
+          ) : <button className="btn block" disabled={busy} onClick={() => void enhanceVoice(clip.id)} data-testid="ai-denoise">{tx('Очистить голос')}</button>
+        ) : <div className="hint small">{tx('Нужен клип со звуком')}</div>}
       </div>
 
       {asset?.kind !== 'audio' && (
         <div className={`ai-card ${!clip || !isVideo ? 'off' : ''}`}>
-          <h4><Move size={15} />Стабилизация</h4>
-          <p className="hint">Убирает тряску камеры. Края слегка обрезаются, чтобы не было чёрных полос.</p>
+          <h4><Move size={15} />{tx('Стабилизация')}</h4>
+          <p className="hint">{tx('Убирает тряску камеры. Края слегка обрезаются, чтобы не было чёрных полос.')}</p>
           {clip && isVideo ? (
             clip.stab?.enabled ? (
               <>
                 {aiCovers(clip.stab, clip.in, clip.out)
-                  ? <div className="status-line ok">Готово — уже в превью и экспорте</div>
-                  : <div className="status-line err">Клип обрезали после обработки — запусти заново</div>}
+                  ? <div className="status-line ok">{tx('Готово — уже в превью и экспорте')}</div>
+                  : <div className="status-line err">{tx('Клип обрезали после обработки — запусти заново')}</div>}
                 <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  {!aiCovers(clip.stab, clip.in, clip.out) && <button className="btn small" disabled={busy} onClick={() => void stabilizeClip(clip.id, stabStrength)}>Заново</button>}
-                  <button className="btn small" onClick={() => disableStab(clip.id)}>Выключить</button>
+                  {!aiCovers(clip.stab, clip.in, clip.out) && <button className="btn small" disabled={busy} onClick={() => void stabilizeClip(clip.id, stabStrength)}>{tx('Заново')}</button>}
+                  <button className="btn small" onClick={() => disableStab(clip.id)}>{tx('Выключить')}</button>
                 </div>
               </>
             ) : (
               <>
-                <Slider label="Сила" min={0} max={1} step={0.05} value={stabStrength} format={(v) => `${Math.round(v * 100)}%`} onChange={setStabStrength} />
-                <button className="btn block" disabled={busy} onClick={() => void stabilizeClip(clip.id, stabStrength)} data-testid="ai-stab">Стабилизировать</button>
+                <Slider label={tx('Сила')} min={0} max={1} step={0.05} value={stabStrength} format={(v) => `${Math.round(v * 100)}%`} onChange={setStabStrength} />
+                <button className="btn block" disabled={busy} onClick={() => void stabilizeClip(clip.id, stabStrength)} data-testid="ai-stab">{tx('Стабилизировать')}</button>
               </>
             )
-          ) : <div className="hint small">Нужен видеоклип</div>}
+          ) : <div className="hint small">{tx('Нужен видеоклип')}</div>}
         </div>
       )}
 
       {asset?.kind !== 'audio' && (
         <div className={`ai-card ${!clip || !isVideo ? 'off' : ''}`}>
-          <h4><Smile size={15} />Ретушь лица</h4>
-          <p className="hint">Сглаживает и осветляет кожу, остальной кадр не трогает.</p>
+          <h4><Smile size={15} />{tx('Ретушь лица')}</h4>
+          <p className="hint">{tx('Сглаживает и осветляет кожу, остальной кадр не трогает.')}</p>
           {clip && isVideo ? (
             <>
-              <Slider label="Сглаживание кожи" min={0} max={1} step={0.05} value={smooth} format={(v) => `${Math.round(v * 100)}%`} onChange={setSmooth} testId="beauty-smooth" />
-              <Slider label="Осветление" min={0} max={1} step={0.05} value={bright} format={(v) => `${Math.round(v * 100)}%`} onChange={setBright} testId="beauty-bright" />
+              <Slider label={tx('Сглаживание кожи')} min={0} max={1} step={0.05} value={smooth} format={(v) => `${Math.round(v * 100)}%`} onChange={setSmooth} testId="beauty-smooth" />
+              <Slider label={tx('Осветление')} min={0} max={1} step={0.05} value={bright} format={(v) => `${Math.round(v * 100)}%`} onChange={setBright} testId="beauty-bright" />
               {clip.beauty?.enabled && (aiCovers(clip.beauty, clip.in, clip.out)
-                ? <div className="status-line ok">Готово — уже в превью и экспорте</div>
-                : <div className="status-line err">Клип обрезали после обработки — примени заново</div>)}
+                ? <div className="status-line ok">{tx('Готово — уже в превью и экспорте')}</div>
+                : <div className="status-line err">{tx('Клип обрезали после обработки — примени заново')}</div>)}
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                 <button className="btn grow" disabled={busy || (smooth < 0.01 && bright < 0.01)} onClick={() => void retouchClip(clip.id, smooth, bright)} data-testid="ai-beauty">
-                  {clip.beauty?.enabled ? 'Применить заново' : 'Применить'}
+                  {clip.beauty?.enabled ? tx('Применить заново') : tx('Применить')}
                 </button>
-                {clip.beauty?.enabled && <button className="btn" onClick={() => disableRetouch(clip.id)} data-testid="ai-beauty-off">Убрать</button>}
+                {clip.beauty?.enabled && <button className="btn" onClick={() => disableRetouch(clip.id)} data-testid="ai-beauty-off">{tx('Убрать')}</button>}
               </div>
             </>
-          ) : <div className="hint small">Нужен видеоклип</div>}
+          ) : <div className="hint small">{tx('Нужен видеоклип')}</div>}
         </div>
       )}
 
       {asset?.kind !== 'audio' && (
         <div className={`ai-card ${!clip || !isVideo ? 'off' : ''}`}>
-          <h4><Crop size={15} />Автокадрирование</h4>
-          <p className="hint">Для вертикального ролика из горизонтального видео: кадр сам следует за человеком.</p>
+          <h4><Crop size={15} />{tx('Автокадрирование')}</h4>
+          <p className="hint">{tx('Для вертикального ролика из горизонтального видео: кадр сам следует за человеком.')}</p>
           {clip && isVideo
-            ? <button className="btn block" disabled={busy} onClick={() => void autoReframe(clip.id)} data-testid="ai-reframe">Следить за человеком</button>
-            : <div className="hint small">Нужен видеоклип</div>}
+            ? <button className="btn block" disabled={busy} onClick={() => void autoReframe(clip.id)} data-testid="ai-reframe">{tx('Следить за человеком')}</button>
+            : <div className="hint small">{tx('Нужен видеоклип')}</div>}
         </div>
       )}
 
       <div className={`ai-card ${!clip || !hasAudio ? 'off' : ''}`}>
-        <h4><Mic size={15} />Изменить голос</h4>
-        <p className="hint">Эффект для звука клипа. Чистка шума сохраняется.</p>
+        <h4><Mic size={15} />{tx('Изменить голос')}</h4>
+        <p className="hint">{tx('Эффект для звука клипа. Чистка шума сохраняется.')}</p>
         {clip && hasAudio ? (
           <div className="voice-grid">
             {VOICE_FX.map((v) => (
@@ -1149,15 +1145,15 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
                 disabled={busy} onClick={() => void setVoiceEffect(clip.id, v.id)} data-testid={`voice-${v.id}`}>{v.label}</button>
             ))}
           </div>
-        ) : <div className="hint small">Нужен клип со звуком</div>}
+        ) : <div className="hint small">{tx('Нужен клип со звуком')}</div>}
       </div>
 
       <div className={`ai-card ${!clip || !hasAudio ? 'off' : ''}`}>
-        <h4><Wand2 size={15} />Убрать паузы</h4>
-        <p className="hint">Находит тишину между фразами и вырезает её — ролик становится плотнее.</p>
+        <h4><Wand2 size={15} />{tx('Убрать паузы')}</h4>
+        <p className="hint">{tx('Находит тишину между фразами и вырезает её — ролик становится плотнее.')}</p>
         {clip && hasAudio
-          ? <button className="btn block" disabled={busy} onClick={() => void removePauses(clip.id)} data-testid="ai-pauses">Убрать паузы</button>
-          : <div className="hint small">Нужен клип со звуком</div>}
+          ? <button className="btn block" disabled={busy} onClick={() => void removePauses(clip.id)} data-testid="ai-pauses">{tx('Убрать паузы')}</button>
+          : <div className="hint small">{tx('Нужен клип со звуком')}</div>}
       </div>
     </>
   );
@@ -1166,7 +1162,7 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
 function AiPanel() {
   return (
     <>
-      <div className="panel-head">ИИ-инструменты</div>
+      <div className="panel-head">{tx('ИИ-инструменты')}</div>
       <div className="panel-body"><AiTools /></div>
     </>
   );

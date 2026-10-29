@@ -1,5 +1,7 @@
 // Библиотека во вкладке «Медиа»: папки с видео, фото и музыкой, добавленные один раз, — в любом проекте.
 // Внутри: подпапки, превью, поиск, фильтр; файл берётся в проект двойным кликом, кнопкой «+» или перетаскиванием на таймлайн.
+import { tx } from '../../shared/i18n';
+import { txj } from '../txj';
 import { AudioLines, ChevronRight, Film, Folder, FolderPlus, Image as ImageIcon, Plus, Search, WandSparkles, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LibFile, LibFolder, LibListing, LibMeta } from '../../shared/ipc';
@@ -15,7 +17,7 @@ type Sort = 'name' | 'new';
 const memo: { root: string | null; dir: string | null; filter: Filter; sort: Sort } = { root: null, dir: null, filter: 'all', sort: 'name' };
 const metaCache = new Map<string, LibMeta>();
 
-const files = (n: number) => `${n} ${plural(n, 'файл', 'файла', 'файлов')}`;
+const files = (n: number) => `${n} ${plural(n, tx('файл'), tx('файла'), tx('файлов'))}`;
 
 export function LibraryView() {
   const [folders, setFolders] = useState<LibFolder[] | null>(null);
@@ -82,8 +84,8 @@ export function LibraryView() {
   if (!root || !dir) {
     return (
       <div className="lib" data-testid="library">
-        <button className="btn primary block" onClick={() => void add()} data-testid="lib-add"><FolderPlus size={15} />Добавить папку</button>
-        <p className="hint small lib-note">Папки со съёмками, футажами и музыкой, которые нужны во многих проектах. Добавь один раз — они будут здесь всегда. Файлы не копируются. Можно просто перетащить папку в окно.</p>
+        <button className="btn primary block" onClick={() => void add()} data-testid="lib-add"><FolderPlus size={15} />{tx('Добавить папку')}</button>
+        <p className="hint small lib-note">{tx('Папки со съёмками, футажами и музыкой, которые нужны во многих проектах. Добавь один раз — они будут здесь всегда. Файлы не копируются. Можно просто перетащить папку в окно.')}</p>
         {folders && folders.length > 0 && (
           <div className="lib-folders">
             {folders.map((f) => (
@@ -92,11 +94,11 @@ export function LibraryView() {
                   <Folder size={18} />
                   <span className="lib-folder-text">
                     <b>{f.name}</b>
-                    <span className="hint small">{f.exists ? (f.count >= 5000 ? 'больше 5000 файлов' : files(f.count)) : 'папка не найдена — её переместили или удалили'}</span>
+                    <span className="hint small">{f.exists ? (f.count >= 5000 ? tx('больше 5000 файлов') : files(f.count)) : tx('папка не найдена — её переместили или удалили')}</span>
                   </span>
                   {f.exists && <ChevronRight size={15} />}
                 </button>
-                <button className="icon-btn" title="Убрать из библиотеки (файлы останутся на диске)" onClick={() => void remove(f.path)}><X size={14} /></button>
+                <button className="icon-btn" title={tx('Убрать из библиотеки (файлы останутся на диске)')} onClick={() => void remove(f.path)}><X size={14} /></button>
               </div>
             ))}
           </div>
@@ -113,8 +115,8 @@ export function LibraryView() {
   const searching = found !== null;
   return (
     <div className="lib" data-testid="library">
-      <nav className="lib-crumbs" aria-label="Где ты в библиотеке">
-        <button onClick={() => { setRoot(null); setDir(null); }} data-testid="lib-home">Библиотека</button>
+      <nav className="lib-crumbs" aria-label={tx('Где ты в библиотеке')}>
+        <button onClick={() => { setRoot(null); setDir(null); }} data-testid="lib-home">{tx('Библиотека')}</button>
         {crumbs.map((c, i) => (
           <span key={c.path} className="lib-crumb">
             <ChevronRight size={12} />
@@ -124,11 +126,11 @@ export function LibraryView() {
       </nav>
       <label className="lib-search">
         <Search size={14} />
-        <input className="input" placeholder={`Найти в «${rootName}»`} value={query} onChange={(e) => setQuery(e.target.value)} data-testid="lib-search" />
-        {query && <button className="icon-btn" title="Очистить" onClick={() => setQuery('')}><X size={13} /></button>}
+        <input className="input" placeholder={tx('Найти в «{0}»', rootName)} value={query} onChange={(e) => setQuery(e.target.value)} data-testid="lib-search" />
+        {query && <button className="icon-btn" title={tx('Очистить')} onClick={() => setQuery('')}><X size={13} /></button>}
       </label>
       <div className="lib-tools">
-        <Seg value={filter} onChange={setFilter} options={[{ value: 'all', label: 'Все' }, { value: 'video', label: 'Видео' }, { value: 'image', label: 'Фото' }, { value: 'audio', label: 'Звук' }]} />
+        <Seg value={filter} onChange={setFilter} options={[{ value: 'all', label: tx('Все') }, { value: 'video', label: tx('Видео') }, { value: 'image', label: tx('Фото') }, { value: 'audio', label: tx('Звук') }]} />
       </div>
       {listing?.error && <p className="hint">{listing.error}</p>}
       {!searching && listing && listing.dirs.length > 0 && (
@@ -141,16 +143,15 @@ export function LibraryView() {
         </div>
       )}
       {list.filter((f) => f.kind !== 'audio').length > 1 && (
-        <button className="btn small block lib-auto" title="Собрать ролик из видео и фото этой папки — под музыку из неё, если есть" onClick={() => autoFrom(list)} data-testid="lib-auto">
-          <WandSparkles size={13} />Авто-ролик из этой папки
-        </button>
+        <button className="btn small block lib-auto" title={tx('Собрать ролик из видео и фото этой папки — под музыку из неё, если есть')} onClick={() => autoFrom(list)} data-testid="lib-auto">
+          <WandSparkles size={13} />{tx('Авто-ролик из этой папки')}</button>
       )}
       <div className="lib-head">
-        <span className="hint small">{searching ? `Найдено: ${found!.length}${found!.length >= 400 ? ' (первые 400)' : ''}` : files(list.length)}</span>
+        <span className="hint small">{searching ? tx('Найдено: {0}{1}', found!.length, found!.length >= 400 ? tx(' (первые 400)') : '') : files(list.length)}</span>
 
-        <select className="lib-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)} title="Порядок файлов" data-testid="lib-sort">
-          <option value="name">По имени</option>
-          <option value="new">Сначала новые</option>
+        <select className="lib-sort" value={sort} onChange={(e) => setSort(e.target.value as Sort)} title={tx('Порядок файлов')} data-testid="lib-sort">
+          <option value="name">{tx('По имени')}</option>
+          <option value="new">{tx('Сначала новые')}</option>
         </select>
       </div>
       <div className="media-grid lib-grid">
@@ -161,15 +162,15 @@ export function LibraryView() {
         ))}
       </div>
       {listing && !list.length && !listing.error && (
-        <p className="hint">{searching ? 'Ничего не нашлось.' : filter === 'all' ? 'Здесь нет видео, фото и музыки — загляни в подпапки.' : 'Таких файлов здесь нет.'}</p>
+        <p className="hint">{searching ? tx('Ничего не нашлось.') : filter === 'all' ? tx('Здесь нет видео, фото и музыки — загляни в подпапки.') : tx('Таких файлов здесь нет.')}</p>
       )}
-      <p className="hint small" style={{ marginTop: 10 }}>Двойной клик или «+» — на таймлайн к курсору. Можно перетащить на нужную дорожку. С Ctrl — выбрать несколько.</p>
+      <p className="hint small" style={{ marginTop: 10 }}>{tx('Двойной клик или «+» — на таймлайн к курсору. Можно перетащить на нужную дорожку. С Ctrl — выбрать несколько.')}</p>
       {sel.length > 1 && (
         <div className="lib-bar">
-          <span>Выбрано: {sel.length}</span>
-          <button className="btn small" onClick={() => setSel([])}>Снять</button>
-          <button className="btn small" onClick={() => autoFrom(list.filter((f) => sel.includes(f.path)))} title="Собрать ролик из выбранных файлов" data-testid="lib-auto-sel"><WandSparkles size={13} />Авто-ролик</button>
-          <button className="btn primary small" disabled={busy} onClick={() => void place(sel)} data-testid="lib-place">На таймлайн</button>
+          <span>{txj('Выбрано: {0}', sel.length)}</span>
+          <button className="btn small" onClick={() => setSel([])}>{tx('Снять')}</button>
+          <button className="btn small" onClick={() => autoFrom(list.filter((f) => sel.includes(f.path)))} title={tx('Собрать ролик из выбранных файлов')} data-testid="lib-auto-sel"><WandSparkles size={13} />{tx('Авто-ролик')}</button>
+          <button className="btn primary small" disabled={busy} onClick={() => void place(sel)} data-testid="lib-place">{tx('На таймлайн')}</button>
         </div>
       )}
     </div>
@@ -195,7 +196,7 @@ function LibTile({ f, used, selected, sel, onSelect, onPlace }: {
     return () => io.disconnect();
   }, [f.path, meta]);
   const icon = f.kind === 'audio' ? <AudioLines size={22} /> : f.kind === 'image' ? <ImageIcon size={22} /> : <Film size={22} />;
-  const badge = meta?.broken ? 'Не открывается' : f.kind === 'image' ? 'Фото' : meta?.duration ? fmtDur(meta.duration) : '';
+  const badge = meta?.broken ? tx('Не открывается') : f.kind === 'image' ? tx('Фото') : meta?.duration ? fmtDur(meta.duration) : '';
   return (
     <div
       ref={ref} className={`media-item lib-item ${selected ? 'selected' : ''} ${meta?.broken ? 'missing' : ''}`} draggable title={f.path} data-testid="lib-file"
@@ -210,9 +211,9 @@ function LibTile({ f, used, selected, sel, onSelect, onPlace }: {
       <div className="media-thumb" style={meta?.thumb ? { backgroundImage: `url("${api.mediaUrl(meta.thumb)}")` } : undefined}>
         {!meta?.thumb && icon}
       </div>
-      {used && <span className="used-dot" title="Уже в проекте" />}
+      {used && <span className="used-dot" title={tx('Уже в проекте')} />}
       <div className="media-actions">
-        <button title="На таймлайн к курсору" onClick={(e) => { e.stopPropagation(); onPlace(); }} data-testid="lib-file-add"><Plus size={14} /></button>
+        <button title={tx('На таймлайн к курсору')} onClick={(e) => { e.stopPropagation(); onPlace(); }} data-testid="lib-file-add"><Plus size={14} /></button>
       </div>
       <div className="media-meta"><span className="name">{f.name}</span><span className="dur">{badge}</span></div>
     </div>

@@ -1,3 +1,4 @@
+import { tx } from './i18n';
 import type {
   VoiceEffect, ChromaKey, TextAnimType, WordHighlight, AspectKey, ColorAdjust, MediaAsset, MediaClip, Project, ProjectSettings, TextClip, TextStyle, Track, TrackKind, Transform, TransitionType,
 } from './types';
@@ -11,11 +12,11 @@ export function uid(prefix = 'id'): string {
 export const ASPECTS: Record<AspectKey, { w: number; h: number; label: string }> = {
   '9:16': { w: 1080, h: 1920, label: '9:16 · TikTok, Reels, Shorts' },
   '16:9': { w: 1920, h: 1080, label: '16:9 · YouTube' },
-  '1:1': { w: 1080, h: 1080, label: '1:1 · Квадрат' },
-  '4:5': { w: 1080, h: 1350, label: '4:5 · Лента Instagram' },
+  '1:1': { w: 1080, h: 1080, label: tx('1:1 · Квадрат') },
+  '4:5': { w: 1080, h: 1350, label: tx('4:5 · Лента Instagram') },
   '3:4': { w: 1080, h: 1440, label: '3:4' },
   '4:3': { w: 1440, h: 1080, label: '4:3' },
-  '21:9': { w: 2520, h: 1080, label: '21:9 · Кино' },
+  '21:9': { w: 2520, h: 1080, label: tx('21:9 · Кино') },
 };
 
 /** Разрешение проекта — по короткой стороне кадра (720p, 1080p, 2K, 4K). */
@@ -73,11 +74,11 @@ export const CAPTION_STYLE: TextStyle = {
 };
 
 export function newTrack(kind: TrackKind, name?: string): Track {
-  const names: Record<TrackKind, string> = { main: 'Основная', video: 'Наложение', audio: 'Аудио', text: 'Текст' };
+  const names: Record<TrackKind, string> = { main: tx('Основная'), video: tx('Наложение'), audio: tx('Аудио'), text: tx('Текст') };
   return { id: uid('trk'), kind, name: name ?? names[kind], muted: false, hidden: false, clips: [] };
 }
 
-export function newProject(name = 'Новый проект', aspect: AspectKey = '9:16'): Project {
+export function newProject(name = tx('Новый проект'), aspect: AspectKey = '9:16'): Project {
   const now = Date.now();
   return {
     version: 1,
@@ -114,7 +115,7 @@ export function newMediaClip(asset: MediaAsset, start = 0): MediaClip {
   };
 }
 
-export function newTextClip(start: number, text = 'Текст', style: Partial<TextStyle> = {}, role: TextClip['role'] = 'title'): TextClip {
+export function newTextClip(start: number, text = tx('Текст'), style: Partial<TextStyle> = {}, role: TextClip['role'] = 'title'): TextClip {
   return {
     id: uid('txt'),
     type: 'text',
@@ -130,82 +131,82 @@ export function newTextClip(start: number, text = 'Текст', style: Partial<T
 
 export type TransitionCat = 'basic' | 'move' | 'wipe' | 'shape';
 export const TRANSITION_CATS: { id: TransitionCat; label: string }[] = [
-  { id: 'basic', label: 'Основные' },
-  { id: 'move', label: 'Движение' },
-  { id: 'wipe', label: 'Шторки' },
-  { id: 'shape', label: 'Фигуры' },
+  { id: 'basic', label: tx('Основные') },
+  { id: 'move', label: tx('Движение') },
+  { id: 'wipe', label: tx('Шторки') },
+  { id: 'shape', label: tx('Фигуры') },
 ];
 
 export const TRANSITIONS: { type: TransitionType; label: string; cat: TransitionCat }[] = [
-  { type: 'fade', label: 'Растворение', cat: 'basic' },
-  { type: 'fadeslow', label: 'Мягкое растворение', cat: 'basic' },
-  { type: 'fadefast', label: 'Резкое растворение', cat: 'basic' },
-  { type: 'fadeblack', label: 'Через чёрный', cat: 'basic' },
-  { type: 'fadewhite', label: 'Через белый', cat: 'basic' },
-  { type: 'fadegrays', label: 'Через ч/б', cat: 'basic' },
-  { type: 'dissolve', label: 'Рассыпание', cat: 'basic' },
-  { type: 'distance', label: 'По яркости', cat: 'basic' },
-  { type: 'pixelize', label: 'Пиксели', cat: 'basic' },
-  { type: 'hblur', label: 'Размытие', cat: 'basic' },
-  { type: 'zoomin', label: 'Приближение', cat: 'basic' },
-  { type: 'slideleft', label: 'Сдвиг ←', cat: 'move' },
-  { type: 'slideright', label: 'Сдвиг →', cat: 'move' },
-  { type: 'slideup', label: 'Сдвиг ↑', cat: 'move' },
-  { type: 'slidedown', label: 'Сдвиг ↓', cat: 'move' },
-  { type: 'coverleft', label: 'Наезд ←', cat: 'move' },
-  { type: 'coverright', label: 'Наезд →', cat: 'move' },
-  { type: 'coverup', label: 'Наезд ↑', cat: 'move' },
-  { type: 'coverdown', label: 'Наезд ↓', cat: 'move' },
-  { type: 'revealleft', label: 'Уход ←', cat: 'move' },
-  { type: 'revealright', label: 'Уход →', cat: 'move' },
-  { type: 'revealup', label: 'Уход ↑', cat: 'move' },
-  { type: 'revealdown', label: 'Уход ↓', cat: 'move' },
-  { type: 'squeezeh', label: 'Сжатие ↕', cat: 'move' },
-  { type: 'squeezev', label: 'Сжатие ↔', cat: 'move' },
-  { type: 'wipeleft', label: 'Шторка ←', cat: 'wipe' },
-  { type: 'wiperight', label: 'Шторка →', cat: 'wipe' },
-  { type: 'wipeup', label: 'Шторка ↑', cat: 'wipe' },
-  { type: 'wipedown', label: 'Шторка ↓', cat: 'wipe' },
-  { type: 'smoothleft', label: 'Мягкая шторка ←', cat: 'wipe' },
-  { type: 'smoothright', label: 'Мягкая шторка →', cat: 'wipe' },
-  { type: 'smoothup', label: 'Мягкая шторка ↑', cat: 'wipe' },
-  { type: 'smoothdown', label: 'Мягкая шторка ↓', cat: 'wipe' },
-  { type: 'wipetl', label: 'В угол ↖', cat: 'wipe' },
-  { type: 'wipetr', label: 'В угол ↗', cat: 'wipe' },
-  { type: 'wipebl', label: 'В угол ↙', cat: 'wipe' },
-  { type: 'wipebr', label: 'В угол ↘', cat: 'wipe' },
-  { type: 'diagtl', label: 'Диагональ ↖', cat: 'wipe' },
-  { type: 'diagtr', label: 'Диагональ ↗', cat: 'wipe' },
-  { type: 'diagbl', label: 'Диагональ ↙', cat: 'wipe' },
-  { type: 'diagbr', label: 'Диагональ ↘', cat: 'wipe' },
-  { type: 'hlslice', label: 'Жалюзи ←', cat: 'wipe' },
-  { type: 'hrslice', label: 'Жалюзи →', cat: 'wipe' },
-  { type: 'vuslice', label: 'Жалюзи ↑', cat: 'wipe' },
-  { type: 'vdslice', label: 'Жалюзи ↓', cat: 'wipe' },
-  { type: 'hlwind', label: 'Ветер ←', cat: 'wipe' },
-  { type: 'hrwind', label: 'Ветер →', cat: 'wipe' },
-  { type: 'vuwind', label: 'Ветер ↑', cat: 'wipe' },
-  { type: 'vdwind', label: 'Ветер ↓', cat: 'wipe' },
-  { type: 'circleopen', label: 'Круг из центра', cat: 'shape' },
-  { type: 'circleclose', label: 'Круг к центру', cat: 'shape' },
-  { type: 'circlecrop', label: 'Круг через чёрный', cat: 'shape' },
-  { type: 'rectcrop', label: 'Рамка через чёрный', cat: 'shape' },
-  { type: 'radial', label: 'Радар', cat: 'shape' },
-  { type: 'vertopen', label: 'Раскрытие ↔', cat: 'shape' },
-  { type: 'vertclose', label: 'Закрытие ↔', cat: 'shape' },
-  { type: 'horzopen', label: 'Раскрытие ↕', cat: 'shape' },
-  { type: 'horzclose', label: 'Закрытие ↕', cat: 'shape' },
+  { type: 'fade', label: tx('Растворение'), cat: 'basic' },
+  { type: 'fadeslow', label: tx('Мягкое растворение'), cat: 'basic' },
+  { type: 'fadefast', label: tx('Резкое растворение'), cat: 'basic' },
+  { type: 'fadeblack', label: tx('Через чёрный'), cat: 'basic' },
+  { type: 'fadewhite', label: tx('Через белый'), cat: 'basic' },
+  { type: 'fadegrays', label: tx('Через ч/б'), cat: 'basic' },
+  { type: 'dissolve', label: tx('Рассыпание'), cat: 'basic' },
+  { type: 'distance', label: tx('По яркости'), cat: 'basic' },
+  { type: 'pixelize', label: tx('Пиксели'), cat: 'basic' },
+  { type: 'hblur', label: tx('Размытие'), cat: 'basic' },
+  { type: 'zoomin', label: tx('Приближение'), cat: 'basic' },
+  { type: 'slideleft', label: tx('Сдвиг ←'), cat: 'move' },
+  { type: 'slideright', label: tx('Сдвиг →'), cat: 'move' },
+  { type: 'slideup', label: tx('Сдвиг ↑'), cat: 'move' },
+  { type: 'slidedown', label: tx('Сдвиг ↓'), cat: 'move' },
+  { type: 'coverleft', label: tx('Наезд ←'), cat: 'move' },
+  { type: 'coverright', label: tx('Наезд →'), cat: 'move' },
+  { type: 'coverup', label: tx('Наезд ↑'), cat: 'move' },
+  { type: 'coverdown', label: tx('Наезд ↓'), cat: 'move' },
+  { type: 'revealleft', label: tx('Уход ←'), cat: 'move' },
+  { type: 'revealright', label: tx('Уход →'), cat: 'move' },
+  { type: 'revealup', label: tx('Уход ↑'), cat: 'move' },
+  { type: 'revealdown', label: tx('Уход ↓'), cat: 'move' },
+  { type: 'squeezeh', label: tx('Сжатие ↕'), cat: 'move' },
+  { type: 'squeezev', label: tx('Сжатие ↔'), cat: 'move' },
+  { type: 'wipeleft', label: tx('Шторка ←'), cat: 'wipe' },
+  { type: 'wiperight', label: tx('Шторка →'), cat: 'wipe' },
+  { type: 'wipeup', label: tx('Шторка ↑'), cat: 'wipe' },
+  { type: 'wipedown', label: tx('Шторка ↓'), cat: 'wipe' },
+  { type: 'smoothleft', label: tx('Мягкая шторка ←'), cat: 'wipe' },
+  { type: 'smoothright', label: tx('Мягкая шторка →'), cat: 'wipe' },
+  { type: 'smoothup', label: tx('Мягкая шторка ↑'), cat: 'wipe' },
+  { type: 'smoothdown', label: tx('Мягкая шторка ↓'), cat: 'wipe' },
+  { type: 'wipetl', label: tx('В угол ↖'), cat: 'wipe' },
+  { type: 'wipetr', label: tx('В угол ↗'), cat: 'wipe' },
+  { type: 'wipebl', label: tx('В угол ↙'), cat: 'wipe' },
+  { type: 'wipebr', label: tx('В угол ↘'), cat: 'wipe' },
+  { type: 'diagtl', label: tx('Диагональ ↖'), cat: 'wipe' },
+  { type: 'diagtr', label: tx('Диагональ ↗'), cat: 'wipe' },
+  { type: 'diagbl', label: tx('Диагональ ↙'), cat: 'wipe' },
+  { type: 'diagbr', label: tx('Диагональ ↘'), cat: 'wipe' },
+  { type: 'hlslice', label: tx('Жалюзи ←'), cat: 'wipe' },
+  { type: 'hrslice', label: tx('Жалюзи →'), cat: 'wipe' },
+  { type: 'vuslice', label: tx('Жалюзи ↑'), cat: 'wipe' },
+  { type: 'vdslice', label: tx('Жалюзи ↓'), cat: 'wipe' },
+  { type: 'hlwind', label: tx('Ветер ←'), cat: 'wipe' },
+  { type: 'hrwind', label: tx('Ветер →'), cat: 'wipe' },
+  { type: 'vuwind', label: tx('Ветер ↑'), cat: 'wipe' },
+  { type: 'vdwind', label: tx('Ветер ↓'), cat: 'wipe' },
+  { type: 'circleopen', label: tx('Круг из центра'), cat: 'shape' },
+  { type: 'circleclose', label: tx('Круг к центру'), cat: 'shape' },
+  { type: 'circlecrop', label: tx('Круг через чёрный'), cat: 'shape' },
+  { type: 'rectcrop', label: tx('Рамка через чёрный'), cat: 'shape' },
+  { type: 'radial', label: tx('Радар'), cat: 'shape' },
+  { type: 'vertopen', label: tx('Раскрытие ↔'), cat: 'shape' },
+  { type: 'vertclose', label: tx('Закрытие ↔'), cat: 'shape' },
+  { type: 'horzopen', label: tx('Раскрытие ↕'), cat: 'shape' },
+  { type: 'horzclose', label: tx('Закрытие ↕'), cat: 'shape' },
 ];
 
 export type FontCat = 'sans' | 'display' | 'serif' | 'hand' | 'pixel' | 'fun' | 'mono';
 export const FONT_CATS: { id: FontCat; label: string }[] = [
-  { id: 'sans', label: 'Без засечек' },
-  { id: 'display', label: 'Заголовки' },
-  { id: 'fun', label: 'Эффектные' },
-  { id: 'pixel', label: 'Пиксельные и ретро' },
-  { id: 'hand', label: 'Рукописные' },
-  { id: 'serif', label: 'С засечками' },
-  { id: 'mono', label: 'Моноширинные' },
+  { id: 'sans', label: tx('Без засечек') },
+  { id: 'display', label: tx('Заголовки') },
+  { id: 'fun', label: tx('Эффектные') },
+  { id: 'pixel', label: tx('Пиксельные и ретро') },
+  { id: 'hand', label: tx('Рукописные') },
+  { id: 'serif', label: tx('С засечками') },
+  { id: 'mono', label: tx('Моноширинные') },
 ];
 
 /** Шрифты с кириллицей (встроены, см. renderer/fonts.ts). label — как показываем в списке. */
@@ -335,44 +336,44 @@ export const FONTS: { family: string; label: string; cat: FontCat }[] = [
 ];
 
 export const TEXT_PRESETS: { id: string; label: string; style: Partial<TextStyle> }[] = [
-  { id: 'classic', label: 'Классика', style: { color: '#ffffff', strokeWidth: 0, shadow: true, bgOpacity: 0 } },
-  { id: 'outline', label: 'Обводка', style: { color: '#ffffff', strokeColor: '#000000', strokeWidth: 8, shadow: false, bgOpacity: 0 } },
-  { id: 'yellow', label: 'Жёлтый', style: { color: '#ffe14d', strokeColor: '#000000', strokeWidth: 8, shadow: false, bgOpacity: 0 } },
-  { id: 'box', label: 'Плашка', style: { color: '#ffffff', strokeWidth: 0, shadow: false, bgColor: '#000000', bgOpacity: 0.7 } },
-  { id: 'boxwhite', label: 'Белая плашка', style: { color: '#111111', strokeWidth: 0, shadow: false, bgColor: '#ffffff', bgOpacity: 0.95 } },
-  { id: 'neon', label: 'Неон', style: { color: '#ff4fd8', strokeColor: '#2a0033', strokeWidth: 5, shadow: true, bgOpacity: 0 } },
-  { id: 'blood', label: 'Готика', style: { color: '#e01e37', strokeColor: '#000000', strokeWidth: 6, shadow: true, bgOpacity: 0, font: 'Russo One' } },
+  { id: 'classic', label: tx('Классика'), style: { color: '#ffffff', strokeWidth: 0, shadow: true, bgOpacity: 0 } },
+  { id: 'outline', label: tx('Обводка'), style: { color: '#ffffff', strokeColor: '#000000', strokeWidth: 8, shadow: false, bgOpacity: 0 } },
+  { id: 'yellow', label: tx('Жёлтый'), style: { color: '#ffe14d', strokeColor: '#000000', strokeWidth: 8, shadow: false, bgOpacity: 0 } },
+  { id: 'box', label: tx('Плашка'), style: { color: '#ffffff', strokeWidth: 0, shadow: false, bgColor: '#000000', bgOpacity: 0.7 } },
+  { id: 'boxwhite', label: tx('Белая плашка'), style: { color: '#111111', strokeWidth: 0, shadow: false, bgColor: '#ffffff', bgOpacity: 0.95 } },
+  { id: 'neon', label: tx('Неон'), style: { color: '#ff4fd8', strokeColor: '#2a0033', strokeWidth: 5, shadow: true, bgOpacity: 0 } },
+  { id: 'blood', label: tx('Готика'), style: { color: '#e01e37', strokeColor: '#000000', strokeWidth: 6, shadow: true, bgOpacity: 0, font: 'Russo One' } },
 ];
 
 export const TEXT_ANIMS: { type: TextAnimType; in: string; out: string }[] = [
-  { type: 'fade', in: 'Проявление', out: 'Растворение' },
-  { type: 'slideUp', in: 'Выезд снизу', out: 'Уход вниз' },
-  { type: 'slideDown', in: 'Выезд сверху', out: 'Уход вверх' },
-  { type: 'slideLeft', in: 'Выезд справа', out: 'Уход вправо' },
-  { type: 'slideRight', in: 'Выезд слева', out: 'Уход влево' },
-  { type: 'pop', in: 'Выскок', out: 'Схлопывание' },
-  { type: 'zoom', in: 'Наезд', out: 'Отъезд' },
-  { type: 'typewriter', in: 'Печатная машинка', out: 'Стирание' },
-  { type: 'blur', in: 'Из размытия', out: 'В размытие' },
-  { type: 'wipe', in: 'Шторка', out: 'Шторка' },
-  { type: 'bounce', in: 'Падение с прыжком', out: 'Подброс' },
-  { type: 'elastic', in: 'Пружина', out: 'Пружина' },
-  { type: 'spin', in: 'Вращение', out: 'Вращение' },
+  { type: 'fade', in: tx('Проявление'), out: tx('Растворение') },
+  { type: 'slideUp', in: tx('Выезд снизу'), out: tx('Уход вниз') },
+  { type: 'slideDown', in: tx('Выезд сверху'), out: tx('Уход вверх') },
+  { type: 'slideLeft', in: tx('Выезд справа'), out: tx('Уход вправо') },
+  { type: 'slideRight', in: tx('Выезд слева'), out: tx('Уход влево') },
+  { type: 'pop', in: tx('Выскок'), out: tx('Схлопывание') },
+  { type: 'zoom', in: tx('Наезд'), out: tx('Отъезд') },
+  { type: 'typewriter', in: tx('Печатная машинка'), out: tx('Стирание') },
+  { type: 'blur', in: tx('Из размытия'), out: tx('В размытие') },
+  { type: 'wipe', in: tx('Шторка'), out: tx('Шторка') },
+  { type: 'bounce', in: tx('Падение с прыжком'), out: tx('Подброс') },
+  { type: 'elastic', in: tx('Пружина'), out: tx('Пружина') },
+  { type: 'spin', in: tx('Вращение'), out: tx('Вращение') },
 ];
 
 export const HIGHLIGHTS: { mode: WordHighlight['mode']; label: string }[] = [
-  { mode: 'none', label: 'Нет' },
-  { mode: 'color', label: 'Цвет произносимого слова' },
-  { mode: 'karaoke', label: 'Караоке — сказанное закрашивается' },
-  { mode: 'box', label: 'Плашка под словом' },
-  { mode: 'pop', label: 'Слово выскакивает' },
-  { mode: 'reveal', label: 'Слово за словом' },
+  { mode: 'none', label: tx('Нет') },
+  { mode: 'color', label: tx('Цвет произносимого слова') },
+  { mode: 'karaoke', label: tx('Караоке — сказанное закрашивается') },
+  { mode: 'box', label: tx('Плашка под словом') },
+  { mode: 'pop', label: tx('Слово выскакивает') },
+  { mode: 'reveal', label: tx('Слово за словом') },
 ];
 
 export const DEFAULT_CHROMA: ChromaKey = { color: '#00ff00', similarity: 0.12, smoothness: 0.06 };
 
 export const VOICE_FX: { id: VoiceEffect; label: string }[] = [
-  { id: 'none', label: 'Без эффекта' }, { id: 'chipmunk', label: 'Бурундук' }, { id: 'deep', label: 'Великан' },
-  { id: 'robot', label: 'Робот' }, { id: 'echo', label: 'Эхо' }, { id: 'hall', label: 'Большой зал' },
-  { id: 'radio', label: 'Рация' }, { id: 'phone', label: 'Телефон' }, { id: 'megaphone', label: 'Мегафон' },
+  { id: 'none', label: tx('Без эффекта') }, { id: 'chipmunk', label: tx('Бурундук') }, { id: 'deep', label: tx('Великан') },
+  { id: 'robot', label: tx('Робот') }, { id: 'echo', label: tx('Эхо') }, { id: 'hall', label: tx('Большой зал') },
+  { id: 'radio', label: tx('Рация') }, { id: 'phone', label: tx('Телефон') }, { id: 'megaphone', label: tx('Мегафон') },
 ];

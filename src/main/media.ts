@@ -1,4 +1,5 @@
 // Импорт медиа: анализ файла (ffprobe), прокси для превью, миниатюры, форма волны.
+import { tx } from '../shared/i18n';
 import { execFile } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -104,8 +105,8 @@ export async function analyze(file: string): Promise<{ asset: MediaAsset; plan: 
   const pr = await probe(file);
   const isGif = path.extname(file).toLowerCase() === '.gif';
   const kind = kindOf(file, pr, isGif ? await gifFrames(file) : 1);
-  if (kind !== 'audio' && !pr.video) throw new Error('В файле нет картинки');
-  if (kind === 'audio' && !pr.audio) throw new Error('В файле нет звука');
+  if (kind !== 'audio' && !pr.video) throw new Error(tx('В файле нет картинки'));
+  if (kind === 'audio' && !pr.audio) throw new Error(tx('В файле нет звука'));
   const rot = rotationOf(pr.video);
   let w = pr.video?.width ?? 0;
   let h = pr.video?.height ?? 0;

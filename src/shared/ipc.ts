@@ -102,6 +102,9 @@ export interface KadroApi {
   openProject(): Promise<{ project: Project; path: string } | { media: string[] } | null>;
   /** Файлы, с которыми запустили Kadro («Открыть с помощью»), — один раз. */
   pendingFiles(): Promise<string[]>;
+  /** Язык интерфейса (известен до загрузки окна). */
+  lang: 'ru' | 'en';
+  setLang(l: 'ru' | 'en'): Promise<boolean>;
   bugInfo(): Promise<import('./bugReport').BugInfo>;
   openUrl(url: string): Promise<boolean>;
   openLogs(): Promise<string>;

@@ -1,4 +1,5 @@
 // Действия редактора, которые вызываются из разных мест интерфейса.
+import { tx } from '../shared/i18n';
 import { aiCovers, aiSource, aiStale, videoInputFor, videoSource } from '../shared/ai';
 import { normalizeRamp, originalRange } from '../shared/retime';
 import { reframeKeyframes } from '../shared/reframe';
@@ -27,10 +28,10 @@ export async function importPaths(paths: string[], place?: { mode: 'main' | 'ove
   if (!paths.length) return [];
   const s = getState();
   const jobId = `import_${uidShort()}`;
-  s.setJob({ id: jobId, label: paths.length > 1 ? `Добавляю файлы (${paths.length})` : 'Добавляю файл', progress: 0.3, cancellable: false });
+  s.setJob({ id: jobId, label: paths.length > 1 ? tx('Добавляю файлы ({0})', paths.length) : tx('Добавляю файл'), progress: 0.3, cancellable: false });
   try {
     const r = await api.importMedia(paths);
-    for (const e of r.errors) s.toast(`Не получилось открыть «${e.path.split(/[\\/]/).pop()}»: ${e.message}`, 'err');
+    for (const e of r.errors) s.toast(tx('Не получилось открыть «{0}»: {1}', e.path.split(/[\\/]/).pop(), e.message), 'err');
     if (!r.assets.length) return [];
     getState().commit((p) => r.assets.reduce((acc, a) => addAsset(acc, a), p));
     const ids = r.assets.map((a) => a.id);
@@ -81,7 +82,7 @@ export async function dropPaths(paths: string[]): Promise<void> {
     await api.libAdd(folders);
     getState().setLeftTab('media');
     getState().setLibJump(folders[0]);
-    getState().toast(folders.length === 1 ? `Папка «${folders[0].split(/[\\/]/).pop()}» добавлена в библиотеку` : `Папок добавлено в библиотеку: ${folders.length}`, 'ok');
+    getState().toast(folders.length === 1 ? tx('Папка «{0}» добавлена в библиотеку', folders[0].split(/[\\/]/).pop()) : tx('Папок добавлено в библиотеку: {0}', folders.length), 'ok');
   }
   if (files.length) {
     const empty = projectDuration(getState().project) === 0;
@@ -121,8 +122,8 @@ export async function importAudio(paths?: string[]): Promise<string[]> {
   const ids = await importPaths(files, where === 'list' ? undefined : { mode: 'auto', at: where === 'start' ? 0 : getState().playhead });
   if (!ids.length) return ids;
   const s = getState();
-  if (where === 'list') s.toast(ids.length === 1 ? 'Файл в списке — перетащи его на таймлайн или нажми «+»' : `Файлов в списке: ${ids.length}`, 'ok');
-  else s.toast(`На дорожке звука${where === 'start' ? ' с начала ролика' : ` с ${fmtTime(s.playhead)}`}`, 'ok');
+  if (where === 'list') s.toast(ids.length === 1 ? tx('Файл в списке — перетащи его на таймлайн или нажми «+»') : tx('Файлов в списке: {0}', ids.length), 'ok');
+  else s.toast(tx('На дорожке звука{0}', where === 'start' ? tx(' с начала ролика') : tx(' с {0}', fmtTime(s.playhead))), 'ok');
   return ids;
 }
 
@@ -131,7 +132,7 @@ export function findOnTimeline(assetId: string): boolean {
   const s = getState();
   const clips = s.project.tracks.flatMap((t) => t.clips).filter((c) => c.type === 'media' && (c.assetId === assetId || c.retime?.assetId === assetId))
     .sort((a, b) => a.start - b.start);
-  if (!clips.length) { s.toast('Этого файла на таймлайне нет'); return false; }
+  if (!clips.length) { s.toast(tx('Этого файла на таймлайне нет')); return false; }
   s.select(clips.map((c) => c.id));
   s.setPlaying(false);
   s.setPlayhead(clips[0].start);
@@ -160,9 +161,9 @@ export function jumpMarker(dir: 1 | -1): void {
 export async function copyChapters(): Promise<string> {
   const s = getState();
   const { text, problems } = youtubeChapters(s.project);
-  if (!text) { s.toast('Поставь маркеры (клавиша M) и назови их — из них получатся главы', 'info'); return ''; }
-  try { await navigator.clipboard.writeText(text); } catch { s.toast('Не удалось скопировать главы', 'err'); return ''; }
-  s.toast('Главы скопированы — вставь их в описание ролика на YouTube', 'ok');
+  if (!text) { s.toast(tx('Поставь маркеры (клавиша M) и назови их — из них получатся главы'), 'info'); return ''; }
+  try { await navigator.clipboard.writeText(text); } catch { s.toast(tx('Не удалось скопировать главы'), 'err'); return ''; }
+  s.toast(tx('Главы скопированы — вставь их в описание ролика на YouTube'), 'ok');
   for (const p of problems) s.toast(p, 'info');
   return text;
 }
@@ -174,7 +175,7 @@ export function splitAtPlayhead(): void {
   const targets = s.selection.length
     ? s.selection
     : s.project.tracks.flatMap((tr) => tr.clips.filter((c) => t > c.start && t < clipEnd(c)).map((c) => c.id)).slice(0, 1);
-  if (!targets.length) { s.toast('Поставь курсор на клип, который нужно разрезать'); return; }
+  if (!targets.length) { s.toast(tx('Поставь курсор на клип, который нужно разрезать')); return; }
   let last: string | null = null;
   s.commit((p) => targets.reduce((acc, id) => {
     const r = splitClip(acc, id, t);
@@ -238,22 +239,22 @@ function mediaClip(clipId: string): { clip: MediaClip; p: Project } | null {
 function gifBlocked(p: Project, c: MediaClip, what: string): boolean {
   const a = p.assets.find((x) => x.id === c.assetId);
   if (!a?.loop) return false;
-  getState().toast(`${what} не работает с GIF — только с обычным видео`);
+  getState().toast(tx('{0} не работает с GIF — только с обычным видео', what));
   return true;
 }
 
 export async function removeBackground(clipId: string): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m || gifBlocked(m.p, m.clip, 'Удаление фона')) return;
+  if (!m || gifBlocked(m.p, m.clip, tx('Удаление фона'))) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
-  if (!a || a.kind !== 'video') { getState().toast('Удаление фона работает с видео'); return; }
+  if (!a || a.kind !== 'video') { getState().toast(tx('Удаление фона работает с видео')); return; }
   const st = videoInputFor(m.clip, 'removeBg');
   const src = st ? { path: st.path, off: st.offset } : { path: a.path, off: 0 };
-  const r = await runJob('Удаляю фон', { kind: 'removeBg', jobId: `bg_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, offset: src.off, width: a.width, height: a.height, fps: Math.min(60, a.fps || 30) }, clipId);
-  if (!r.ok || r.output?.kind !== 'removeBg') { if (r.error !== 'Отменено') getState().toast(`Фон убрать не удалось: ${r.error}`, 'err'); return; }
+  const r = await runJob(tx('Удаляю фон'), { kind: 'removeBg', jobId: `bg_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, offset: src.off, width: a.width, height: a.height, fps: Math.min(60, a.fps || 30) }, clipId);
+  if (!r.ok || r.output?.kind !== 'removeBg') { if (r.error !== tx('Отменено')) getState().toast(tx('Фон убрать не удалось: {0}', r.error), 'err'); return; }
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { removeBg: { enabled: true, status: 'ready', path: out.path, range: out.range } }));
-  getState().toast('Фон удалён', 'ok');
+  getState().toast(tx('Фон удалён'), 'ok');
 }
 
 export function disableRemoveBg(clipId: string): void {
@@ -268,12 +269,12 @@ export async function enhanceVoice(clipId: string): Promise<void> {
   const m = mediaClip(clipId);
   if (!m) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
-  if (!a || !a.hasAudio) { getState().toast('В этом клипе нет звука'); return; }
-  const r = await runJob('Улучшаю голос', { kind: 'denoise', jobId: `dn_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out }, clipId);
-  if (!r.ok || r.output?.kind !== 'denoise') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  if (!a || !a.hasAudio) { getState().toast(tx('В этом клипе нет звука')); return; }
+  const r = await runJob(tx('Улучшаю голос'), { kind: 'denoise', jobId: `dn_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out }, clipId);
+  if (!r.ok || r.output?.kind !== 'denoise') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return; }
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { denoise: { enabled: true, status: 'ready', path: out.path, range: out.range } }));
-  getState().toast('Голос очищен от шума', 'ok');
+  getState().toast(tx('Голос очищен от шума'), 'ok');
   await refreshVoice(clipId);
 }
 
@@ -296,10 +297,10 @@ export async function setVoiceEffect(clipId: string, effect: VoiceEffect): Promi
     return;
   }
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
-  if (!a || !a.hasAudio) { getState().toast('В этом клипе нет звука'); return; }
+  if (!a || !a.hasAudio) { getState().toast(tx('В этом клипе нет звука')); return; }
   const withDenoise = m.clip.denoise.enabled;
-  const r = await runJob('Меняю голос', { kind: 'voice', jobId: `vo_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, effect, denoise: withDenoise }, clipId);
-  if (!r.ok || r.output?.kind !== 'voice') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  const r = await runJob(tx('Меняю голос'), { kind: 'voice', jobId: `vo_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, effect, denoise: withDenoise }, clipId);
+  if (!r.ok || r.output?.kind !== 'voice') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return; }
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { voice: { enabled: true, status: 'ready', path: out.path, range: out.range, effect, withDenoise } }));
 }
@@ -316,14 +317,14 @@ async function refreshVoice(clipId: string): Promise<void> {
 // ---------- стабилизация ----------
 export async function stabilizeClip(clipId: string, strength = 0.5): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m || gifBlocked(m.p, m.clip, 'Стабилизация')) return;
+  if (!m || gifBlocked(m.p, m.clip, tx('Стабилизация'))) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
-  if (!a || a.kind !== 'video') { getState().toast('Стабилизация работает с видео'); return; }
-  const r = await runJob('Стабилизирую', { kind: 'stab', jobId: `st_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, strength }, clipId);
-  if (!r.ok || r.output?.kind !== 'stab') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  if (!a || a.kind !== 'video') { getState().toast(tx('Стабилизация работает с видео')); return; }
+  const r = await runJob(tx('Стабилизирую'), { kind: 'stab', jobId: `st_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, strength }, clipId);
+  if (!r.ok || r.output?.kind !== 'stab') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return; }
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { stab: { enabled: true, status: 'ready', path: out.path, range: out.range } }));
-  getState().toast('Видео стабилизировано', 'ok');
+  getState().toast(tx('Видео стабилизировано'), 'ok');
   await rebuildAfter(clipId, 'stab');
 }
 export function disableStab(clipId: string): void {
@@ -346,20 +347,20 @@ async function rebuildAfter(clipId: string, changed: 'stab' | 'beauty'): Promise
 // ---------- ретушь ----------
 export async function retouchClip(clipId: string, smooth: number, bright: number): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m || gifBlocked(m.p, m.clip, 'Ретушь')) return;
+  if (!m || gifBlocked(m.p, m.clip, tx('Ретушь'))) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
-  if (!a || a.kind !== 'video') { getState().toast('Ретушь работает с видео'); return; }
+  if (!a || a.kind !== 'video') { getState().toast(tx('Ретушь работает с видео')); return; }
   if (smooth < 0.01 && bright < 0.01) { disableRetouch(clipId); return; }
   const st = videoInputFor(m.clip, 'beauty');
   const src = st ? { path: st.path, off: st.offset } : { path: a.path, off: 0 };
-  const r = await runJob('Ретушь', {
+  const r = await runJob(tx('Ретушь'), {
     kind: 'beauty', jobId: `be_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, offset: src.off,
     smooth, bright, width: a.width, height: a.height,
   }, clipId);
-  if (!r.ok || r.output?.kind !== 'beauty') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  if (!r.ok || r.output?.kind !== 'beauty') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return; }
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { beauty: { enabled: true, status: 'ready', path: out.path, range: out.range, smooth, bright } }));
-  getState().toast('Ретушь готова', 'ok');
+  getState().toast(tx('Ретушь готова'), 'ok');
   await rebuildAfter(clipId, 'beauty');
 }
 export function disableRetouch(clipId: string): void {
@@ -374,35 +375,35 @@ export function disableRetouch(clipId: string): void {
 // ---------- ритм ----------
 export async function findBeats(assetId: string): Promise<boolean> {
   const a = getState().project.assets.find((x) => x.id === assetId);
-  if (!a || !a.hasAudio) { getState().toast('В этом файле нет звука'); return false; }
-  const r = await runJob('Ищу ритм', { kind: 'beats', jobId: `bt_${uidShort()}`, path: a.path });
-  if (!r.ok || r.output?.kind !== 'beats') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return false; }
+  if (!a || !a.hasAudio) { getState().toast(tx('В этом файле нет звука')); return false; }
+  const r = await runJob(tx('Ищу ритм'), { kind: 'beats', jobId: `bt_${uidShort()}`, path: a.path });
+  if (!r.ok || r.output?.kind !== 'beats') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return false; }
   const { beats, bpm } = r.output;
-  if (!beats.length) { getState().toast('Ритм не найден — слишком тихо или нет ударных'); return false; }
+  if (!beats.length) { getState().toast(tx('Ритм не найден — слишком тихо или нет ударных')); return false; }
   getState().commit((p) => updateAsset(p, assetId, { beats, bpm }));
-  getState().toast(`Ритм найден: ${Math.round(bpm)} ударов в минуту, ${beats.length} долей`, 'ok');
+  getState().toast(tx('Ритм найден: {0} ударов в минуту, {1} долей', Math.round(bpm), beats.length), 'ok');
   return true;
 }
 export function alignToBeats(): void {
   const s = getState();
   const beats = beatTimes(s.project);
-  if (!beats.length) { s.toast('Сначала найди ритм у музыки: выдели музыку и нажми «Ритм»'); return; }
+  if (!beats.length) { s.toast(tx('Сначала найди ритм у музыки: выдели музыку и нажми «Ритм»')); return; }
   s.commit((p) => alignMainToBeats(p, beats));
-  s.toast('Склейки подогнаны под доли такта', 'ok');
+  s.toast(tx('Склейки подогнаны под доли такта'), 'ok');
 }
 
 // ---------- автокадрирование ----------
 export async function autoReframe(clipId: string): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m || gifBlocked(m.p, m.clip, 'Автокадрирование')) return;
+  if (!m || gifBlocked(m.p, m.clip, tx('Автокадрирование'))) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
-  if (!a || a.kind !== 'video') { getState().toast('Автокадрирование работает с видео'); return; }
+  if (!a || a.kind !== 'video') { getState().toast(tx('Автокадрирование работает с видео')); return; }
   const st = aiSource(m.clip, 'stab');
   const src = st ? { path: st.path, off: st.offset } : { path: a.path, off: 0 };
-  const r = await runJob('Автокадрирование', { kind: 'reframe', jobId: `rf_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, width: a.width, height: a.height }, clipId);
-  if (!r.ok || r.output?.kind !== 'reframe') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  const r = await runJob(tx('Автокадрирование'), { kind: 'reframe', jobId: `rf_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, width: a.width, height: a.height }, clipId);
+  if (!r.ok || r.output?.kind !== 'reframe') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return; }
   const pts = r.output.points.map((q) => ({ ...q, t: q.t + src.off }));
-  if (!pts.some((q) => q.found)) { getState().toast('Человек в кадре не найден — кадр оставлен по центру'); return; }
+  if (!pts.some((q) => q.found)) { getState().toast(tx('Человек в кадре не найден — кадр оставлен по центру')); return; }
   const { width: W, height: H } = getState().project.settings;
   const scale = Math.max(1, m.clip.transform.scale);
   const k = reframeKeyframes(pts, a.width, a.height, W, H, scale);
@@ -411,7 +412,7 @@ export async function autoReframe(clipId: string): Promise<void> {
     transform: { ...m.clip.transform, scale, x: 0, y: 0 },
     keyframes: { ...m.clip.keyframes, x: k.x.length ? k.x : undefined, y: k.y.length ? k.y : undefined },
   }));
-  getState().toast('Кадр следует за человеком', 'ok');
+  getState().toast(tx('Кадр следует за человеком'), 'ok');
 }
 
 // ---------- реверс и кривая скорости ----------
@@ -430,12 +431,12 @@ export function userSpeed(c: MediaClip): number {
 
 export async function retimeClip(clipId: string, opts: { reverse?: boolean; ramp?: RampPoint[] | null; preset?: string; smooth?: boolean; speed?: number }): Promise<void> {
   const m = mediaClip(clipId);
-  if (!m || gifBlocked(m.p, m.clip, 'Реверс, кривая скорости и плавное замедление')) return;
+  if (!m || gifBlocked(m.p, m.clip, tx('Реверс, кривая скорости и плавное замедление'))) return;
   const c = m.clip;
   const orig = originalRange(c);
   const src = m.p.assets.find((a) => a.id === orig.assetId);
-  if (!src || src.kind === 'image') { getState().toast('Реверс, кривая скорости и плавное замедление работают с видео и звуком'); return; }
-  if (src.missing) { getState().toast(`Файл «${src.name}» не найден на диске`, 'err'); return; }
+  if (!src || src.kind === 'image') { getState().toast(tx('Реверс, кривая скорости и плавное замедление работают с видео и звуком')); return; }
+  if (src.missing) { getState().toast(tx('Файл «{0}» не найден на диске', src.name), 'err'); return; }
   const reverse = opts.reverse ?? c.retime?.reverse ?? false;
   const ramp = opts.ramp === undefined ? userCurve(c.retime) : opts.ramp ?? undefined;
   const preset = opts.ramp === undefined ? c.retime?.preset : opts.ramp ? opts.preset ?? 'custom' : undefined;
@@ -459,19 +460,19 @@ export async function retimeClip(clipId: string, opts: { reverse?: boolean; ramp
     assetId: orig.assetId, in: orig.in, out: orig.out, reverse, ramp: effRamp, preset,
     ...(smooth ? { smooth: true, speed, userRamp } : {}),
   };
-  const label = smooth ? 'Плавное замедление' : reverse && !ramp ? 'Переворачиваю клип' : 'Меняю скорость';
+  const label = smooth ? tx('Плавное замедление') : reverse && !ramp ? tx('Переворачиваю клип') : tx('Меняю скорость');
   const res = await runJob(label, {
     kind: 'retime', jobId: `rt_${uidShort()}`, path: src.path, in: r.in, out: r.out, reverse, ramp: r.ramp, smooth,
     hasVideo: src.hasVideo, hasAudio: src.hasAudio, width: src.width, height: src.height,
     // плавное — сразу в частоте проекта (дорисованные кадры как раз на неё); иначе — как у исходника
     fps: smooth ? getState().project.settings.fps || src.fps : src.fps || getState().project.settings.fps,
   }, clipId);
-  if (!res.ok || res.output?.kind !== 'retime') { if (res.error !== 'Отменено') getState().toast(`Не получилось: ${res.error}`, 'err'); return; }
+  if (!res.ok || res.output?.kind !== 'retime') { if (res.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', res.error), 'err'); return; }
   const out = res.output;
-  const what = [reverse && 'реверс', smooth && 'плавно', !smooth && ramp && 'кривая скорости'].filter(Boolean).join(', ');
+  const what = [reverse && tx('реверс'), smooth && tx('плавно'), !smooth && ramp && tx('кривая скорости')].filter(Boolean).join(', ');
   const asset = await importDerived(out.path, `${src.name} · ${what}`);
   if (!asset) return;
-  if (!same(getState().project)) { getState().toast('Клип изменился, пока шла обработка — повтори действие'); return; }
+  if (!same(getState().project)) { getState().toast(tx('Клип изменился, пока шла обработка — повтори действие')); return; }
   getState().commit((p) => {
     const q = setRetime(addAsset(p, asset), clipId, r, asset.id, 0, Math.min(asset.duration || out.duration, out.duration));
     // только реверс без кривой — скорость остаётся у клипа
@@ -485,7 +486,7 @@ export async function retimeClip(clipId: string, opts: { reverse?: boolean; ramp
 async function importDerived(path: string, name: string): Promise<MediaAsset | null> {
   const imp = await api.importMedia([path]);
   const asset = imp.assets[0];
-  if (!asset) { getState().toast(`Не получилось добавить результат: ${imp.errors[0]?.message ?? ''}`, 'err'); return null; }
+  if (!asset) { getState().toast(tx('Не получилось добавить результат: {0}', imp.errors[0]?.message ?? ''), 'err'); return null; }
   asset.name = name;
   asset.derived = true;
   return asset;
@@ -513,19 +514,19 @@ export async function extractAudio(clipId: string): Promise<string | null> {
   if (!m) return null;
   const c = m.clip;
   const a = m.p.assets.find((x) => x.id === c.assetId);
-  if (!a || a.kind === 'audio') { getState().toast('Выдели видеоклип — у звукового клипа звук и так отдельно'); return null; }
-  if (!a.hasAudio) { getState().toast('У этого клипа нет звука'); return null; }
-  if (a.missing) { getState().toast(`Файл «${a.name}» не найден на диске`, 'err'); return null; }
+  if (!a || a.kind === 'audio') { getState().toast(tx('Выдели видеоклип — у звукового клипа звук и так отдельно')); return null; }
+  if (!a.hasAudio) { getState().toast(tx('У этого клипа нет звука')); return null; }
+  if (a.missing) { getState().toast(tx('Файл «{0}» не найден на диске', a.name), 'err'); return null; }
   const jobId = `xa_${uidShort()}`;
-  getState().setJob({ id: jobId, label: 'Извлекаю звук', progress: 0.3, cancellable: false, clipId });
+  getState().setJob({ id: jobId, label: tx('Извлекаю звук'), progress: 0.3, cancellable: false, clipId });
   let file: string;
   try { file = await api.extractAudio(a.path); } catch (e) {
-    getState().toast(`Не получилось извлечь звук: ${e instanceof Error ? e.message : String(e)}`, 'err');
+    getState().toast(tx('Не получилось извлечь звук: {0}', e instanceof Error ? e.message : String(e)), 'err');
     return null;
   } finally { getState().setJob(null, jobId); }
   const r = await api.importMedia([file]);
   const au = r.assets[0];
-  if (!au) { getState().toast('Не получилось открыть извлечённый звук', 'err'); return null; }
+  if (!au) { getState().toast(tx('Не получилось открыть извлечённый звук'), 'err'); return null; }
   let newId = '';
   getState().commit((p) => {
     let q = addAsset(p, au);
@@ -544,7 +545,7 @@ export async function extractAudio(clipId: string): Promise<string | null> {
   takeEarlyPatches([au.id]);
   if (!newId) return null;
   getState().select([newId]);
-  getState().toast('Звук на отдельной дорожке — его можно резать, двигать и обрабатывать отдельно. У видео звук выключен', 'ok');
+  getState().toast(tx('Звук на отдельной дорожке — его можно резать, двигать и обрабатывать отдельно. У видео звук выключен'), 'ok');
   await reprocessAi(newId);
   return newId;
 }
@@ -570,7 +571,7 @@ function freezeTarget(): MediaClip | null {
 
 export async function freezeFrame(dur = 2): Promise<void> {
   const c = freezeTarget();
-  if (!c) { getState().toast('Стоп-кадр берётся из кадра под розовой линией времени. Передвинь её на видео и нажми ещё раз'); return; }
+  if (!c) { getState().toast(tx('Стоп-кадр берётся из кадра под розовой линией времени. Передвинь её на видео и нажми ещё раз')); return; }
   const p = getState().project;
   const a = p.assets.find((x) => x.id === c.assetId)!;
   const t = getState().playhead;
@@ -578,15 +579,15 @@ export async function freezeFrame(dur = 2): Promise<void> {
   let s = Math.min(c.out - 0.5 / fps, Math.max(c.in, c.in + (t - c.start) * c.speed));
   if (a.loop && a.duration > 0) s = Math.min(a.duration - 0.5 / fps, s % a.duration);
   const vs = videoSource(c);
-  const res = await runJob('Делаю стоп-кадр', { kind: 'freeze', jobId: `fz_${uidShort()}`, path: vs?.path ?? a.path, t: s - (vs?.offset ?? 0), fps, alpha: !!vs?.alpha || !!a.loop }, c.id, false);
-  if (!res.ok || res.output?.kind !== 'freeze') { getState().toast(`Не получилось: ${res.error}`, 'err'); return; }
-  const asset = await importDerived(res.output.path, `Стоп-кадр · ${a.name}`);
+  const res = await runJob(tx('Делаю стоп-кадр'), { kind: 'freeze', jobId: `fz_${uidShort()}`, path: vs?.path ?? a.path, t: s - (vs?.offset ?? 0), fps, alpha: !!vs?.alpha || !!a.loop }, c.id, false);
+  if (!res.ok || res.output?.kind !== 'freeze') { getState().toast(tx('Не получилось: {0}', res.error), 'err'); return; }
+  const asset = await importDerived(res.output.path, tx('Стоп-кадр · {0}', a.name));
   if (!asset) return;
   let id = '';
   getState().commit((q) => { const r = insertFreeze(addAsset(q, asset), c.id, t, asset.id, dur); id = r.clipId; return r.project; });
   takeEarlyPatches([asset.id]);
   if (id) getState().select([id]);
-  getState().toast('Стоп-кадр добавлен', 'ok');
+  getState().toast(tx('Стоп-кадр добавлен'), 'ok');
 }
 
 // ---------- запись голоса ----------
@@ -604,9 +605,9 @@ export async function startRecording(deviceId?: string, muteProject = true): Pro
     r.cancel();
     const name = (e as { name?: string }).name;
     s.toast(name === 'NotAllowedError' || name === 'SecurityError'
-      ? 'Нет доступа к микрофону. В Windows: Параметры → Конфиденциальность → Микрофон → разрешить классическим приложениям.'
-      : name === 'NotFoundError' ? 'Микрофон не найден — подключи его и попробуй снова.'
-        : `Микрофон не включился: ${e instanceof Error ? e.message : String(e)}`, 'err');
+      ? tx('Нет доступа к микрофону. В Windows: Параметры → Конфиденциальность → Микрофон → разрешить классическим приложениям.')
+      : name === 'NotFoundError' ? tx('Микрофон не найден — подключи его и попробуй снова.')
+        : tx('Микрофон не включился: {0}', e instanceof Error ? e.message : String(e)), 'err');
     return false;
   }
   recorder = r;
@@ -625,24 +626,24 @@ export async function stopRecording(): Promise<string | null> {
   s.setPlaying(false);
   s.setRecording(null);
   const jobId = `rec_${uidShort()}`;
-  s.setJob({ id: jobId, label: 'Сохраняю запись', progress: 0.5, cancellable: false });
+  s.setJob({ id: jobId, label: tx('Сохраняю запись'), progress: 0.5, cancellable: false });
   try {
     const blob = await r.stop();
-    if (blob.size < 200) { getState().toast('Запись пустая — микрофон ничего не передал', 'err'); return null; }
+    if (blob.size < 200) { getState().toast(tx('Запись пустая — микрофон ничего не передал'), 'err'); return null; }
     const path = await api.saveRecording(await blob.arrayBuffer());
     const imp = await api.importMedia([path]);
     const asset = imp.assets[0];
-    if (!asset) { getState().toast(`Запись не добавилась: ${imp.errors[0]?.message ?? ''}`, 'err'); return null; }
-    const n = getState().project.assets.filter((a) => a.name.startsWith('Голос ')).length + 1;
-    asset.name = `Голос ${n}`;
+    if (!asset) { getState().toast(tx('Запись не добавилась: {0}', imp.errors[0]?.message ?? ''), 'err'); return null; }
+    const n = getState().project.assets.filter((a) => a.name.startsWith(tx('Голос '))).length + 1;
+    asset.name = tx('Голос {0}', n);
     let clipId = '';
     getState().commit((p) => { const res = addFree(addAsset(p, asset), asset.id, rec.startT); clipId = res.clipId; return res.project; });
     takeEarlyPatches([asset.id]);
     getState().select([clipId]);
-    getState().toast(`Запись добавлена: ${asset.duration.toFixed(1)} с`, 'ok');
+    getState().toast(tx('Запись добавлена: {0} с', asset.duration.toFixed(1)), 'ok');
     return clipId;
   } catch (e) {
-    getState().toast(`Запись не сохранилась: ${e instanceof Error ? e.message : String(e)}`, 'err');
+    getState().toast(tx('Запись не сохранилась: {0}', e instanceof Error ? e.message : String(e)), 'err');
     return null;
   } finally {
     getState().setJob(null, jobId);
@@ -660,10 +661,10 @@ export function cancelRecording(): void {
 /** Отрисовывает содержимое группы в файл (через тот же экспорт). */
 async function renderGroup(sub: Project, alpha: boolean): Promise<MediaAsset | null> {
   const s = getState();
-  if (s.exportOpen) { s.toast('Сначала закрой окно экспорта'); return null; }
+  if (s.exportOpen) { s.toast(tx('Сначала закрой окно экспорта')); return null; }
   const { width: W, height: H, fps } = sub.settings;
   const jobId = `grp_${uidShort()}`;
-  s.setJob({ id: jobId, label: 'Собираю группу', progress: 0, cancellable: false });
+  s.setJob({ id: jobId, label: tx('Собираю группу'), progress: 0, cancellable: false });
   const off = api.onExportProgress((p) => { const j = getState().jobs[jobId]; if (j) getState().setJob({ ...j, progress: 0.05 + p * 0.95 }); });
   try {
     const { layers, blank } = await renderTextLayers(sub, W, H, fps);
@@ -672,8 +673,8 @@ async function renderGroup(sub: Project, alpha: boolean): Promise<MediaAsset | n
       project: sub, textLayers: layers, blankPng: blank,
       opts: { height: Math.min(W, H) as 1080, fps: fps as 30, quality: 'high', encoder: 'auto', outPath, alpha },
     });
-    if (!r.ok || !r.path) { getState().toast(`Группа не собралась: ${r.error ?? ''}`, 'err'); return null; }
-    const name = `Группа · ${sub.tracks.reduce((n, t) => n + t.clips.length, 0)} клипа`;
+    if (!r.ok || !r.path) { getState().toast(tx('Группа не собралась: {0}', r.error ?? ''), 'err'); return null; }
+    const name = tx('Группа · {0} клипа', sub.tracks.reduce((n, t) => n + t.clips.length, 0));
     const asset = await importDerived(r.path, name);
     if (asset && alpha) asset.alpha = true;
     return asset;
@@ -695,13 +696,13 @@ export async function groupSelection(): Promise<string | null> {
   if (getState().project.tracks !== before.tracks) {
     // за время сборки что-то поменяли — проверим, что выделенные клипы на месте
     const again = planGroup(getState().project, ids);
-    if ('error' in again || JSON.stringify(again.data) !== JSON.stringify(plan.data)) { getState().toast('Клипы изменились, пока собиралась группа — повтори'); return null; }
+    if ('error' in again || JSON.stringify(again.data) !== JSON.stringify(plan.data)) { getState().toast(tx('Клипы изменились, пока собиралась группа — повтори')); return null; }
   }
   let id = '';
   getState().commit((p) => { const r = applyGroup(addAsset(p, asset), ids, asset.id, plan.data, plan.t0); id = r.clipId; return r.project; });
   takeEarlyPatches([asset.id]);
   getState().select(id ? [id] : []);
-  getState().toast('Группа готова. Разгруппировать — Ctrl+Shift+G', 'ok');
+  getState().toast(tx('Группа готова. Разгруппировать — Ctrl+Shift+G'), 'ok');
   return id || null;
 }
 
@@ -709,7 +710,7 @@ export async function groupSelection(): Promise<string | null> {
 export function ungroupSelection(): void {
   const s = getState();
   const f = s.selection.length === 1 ? findClip(s.project, s.selection[0]) : undefined;
-  if (!f || f.clip.type !== 'media' || !f.clip.group) { s.toast('Выдели группу на таймлайне'); return; }
+  if (!f || f.clip.type !== 'media' || !f.clip.group) { s.toast(tx('Выдели группу на таймлайне')); return; }
   let ids: string[] = [];
   s.commit((p) => { const r = ungroupClip(p, f.clip.id); ids = r.ids; return r.project; });
   s.select(ids);
@@ -721,7 +722,7 @@ export async function rebuildGroup(clipId: string): Promise<void> {
   if (!f || f.clip.type !== 'media' || !f.clip.group) return;
   const g = f.clip.group;
   const p = getState().project;
-  const sub: Project = { ...structuredClone(p), tracks: structuredClone(g.tracks), name: `${p.name} — группа` };
+  const sub: Project = { ...structuredClone(p), tracks: structuredClone(g.tracks), name: tx('{0} — группа', p.name) };
   const asset = await renderGroup(sub, g.alpha);
   if (!asset) return;
   getState().commit((q) => {
@@ -761,12 +762,12 @@ async function importForTemplate(paths: string[]): Promise<MediaAsset[]> {
 
 function applyTemplateNow(t: Template, all: MediaAsset[]): boolean {
   const assets = all.filter((a) => a.kind === 'video' || a.kind === 'image');
-  if (!assets.length) { getState().toast('Нужны видео или фото — добавь их в медиатеку'); return false; }
+  if (!assets.length) { getState().toast(tx('Нужны видео или фото — добавь их в медиатеку')); return false; }
   getState().setPlaying(false);
   getState().commit((p) => applyTemplate(p, t, assets));
   getState().select([]);
   getState().setPlayhead(0);
-  getState().toast(`Шаблон «${t.name}» готов: ${t.slots.length} окошек из ${assets.length} файлов. Отменить — Ctrl+Z`, 'ok');
+  getState().toast(tx('Шаблон «{0}» готов: {1} окошек из {2} файлов. Отменить — Ctrl+Z', t.name, t.slots.length, assets.length), 'ok');
   return true;
 }
 
@@ -782,7 +783,7 @@ export async function saveAsTemplate(name: string): Promise<boolean> {
   let t: Template;
   try { t = projectToTemplate(p, name, thumb); } catch (e) { getState().toast(e instanceof Error ? e.message : String(e)); return false; }
   const ok = await api.saveTemplate(t);
-  getState().toast(ok ? `Шаблон «${t.name}» сохранён` : 'Шаблон не сохранился', ok ? 'ok' : 'err');
+  getState().toast(ok ? tx('Шаблон «{0}» сохранён', t.name) : tx('Шаблон не сохранился'), ok ? 'ok' : 'err');
   return ok;
 }
 function shrink(dataUrl: string, max: number): Promise<string> {
@@ -805,69 +806,69 @@ function shrink(dataUrl: string, max: number): Promise<string> {
 export async function ensureVoice(voice: TtsVoiceId): Promise<boolean> {
   const list = await api.ttsVoices();
   if (list.find((v) => v.id === voice)?.ready) return true;
-  const r = await runJob('Скачиваю голос', { kind: 'ttsDownload', jobId: `tdl_${uidShort()}`, voice });
-  if (!r.ok) { if (r.error !== 'Отменено') getState().toast(`Голос не скачался: ${r.error}`, 'err'); return false; }
+  const r = await runJob(tx('Скачиваю голос'), { kind: 'ttsDownload', jobId: `tdl_${uidShort()}`, voice });
+  if (!r.ok) { if (r.error !== tx('Отменено')) getState().toast(tx('Голос не скачался: {0}', r.error), 'err'); return false; }
   return true;
 }
 export async function speakText(clipId: string, voice: TtsVoiceId, speed: number): Promise<void> {
   const f = findClip(getState().project, clipId);
-  if (!f || f.clip.type !== 'text' || !f.clip.text.trim()) { getState().toast('Сначала напиши текст'); return; }
+  if (!f || f.clip.type !== 'text' || !f.clip.text.trim()) { getState().toast(tx('Сначала напиши текст')); return; }
   const text = f.clip.text;
   if (!(await ensureVoice(voice))) return;
-  const r = await runJob('Озвучиваю текст', { kind: 'tts', jobId: `tts_${uidShort()}`, text, voice, speed }, clipId);
-  if (!r.ok || r.output?.kind !== 'tts') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  const r = await runJob(tx('Озвучиваю текст'), { kind: 'tts', jobId: `tts_${uidShort()}`, text, voice, speed }, clipId);
+  if (!r.ok || r.output?.kind !== 'tts') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return; }
   const out = r.output;
   const imp = await api.importMedia([out.path]);
   const asset = imp.assets[0];
-  if (!asset) { getState().toast('Не получилось добавить озвучку', 'err'); return; }
+  if (!asset) { getState().toast(tx('Не получилось добавить озвучку'), 'err'); return; }
   const start = (findClip(getState().project, clipId)?.clip.start) ?? 0;
-  asset.name = `Озвучка: ${text.slice(0, 24)}${text.length > 24 ? '…' : ''}`;
+  asset.name = tx('Озвучка: {0}{1}', text.slice(0, 24), text.length > 24 ? '…' : '');
   getState().commit((p) => {
     let q = addAsset(p, asset);
     q = addFree(q, asset.id, start).project;
     return updateClip(q, clipId, { duration: Math.max(0.5, Math.round(out.duration * 100) / 100 + 0.2) });
   });
   takeEarlyPatches([asset.id]);
-  getState().toast('Текст озвучен — звук на аудиодорожке', 'ok');
+  getState().toast(tx('Текст озвучен — звук на аудиодорожке'), 'ok');
 }
 
 export async function removePauses(clipId: string): Promise<void> {
   const m = mediaClip(clipId);
   if (!m) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
-  if (!a || !a.hasAudio) { getState().toast('В этом клипе нет звука — паузы искать не по чему'); return; }
-  const r = await runJob('Ищу паузы', { kind: 'silence', jobId: `sil_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out }, clipId);
-  if (!r.ok || r.output?.kind !== 'silence') { if (r.error !== 'Отменено') getState().toast(`Не получилось: ${r.error}`, 'err'); return; }
+  if (!a || !a.hasAudio) { getState().toast(tx('В этом клипе нет звука — паузы искать не по чему')); return; }
+  const r = await runJob(tx('Ищу паузы'), { kind: 'silence', jobId: `sil_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out }, clipId);
+  if (!r.ok || r.output?.kind !== 'silence') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return; }
   const ranges = r.output.ranges;
-  if (!ranges.length) { getState().toast('Речь не найдена — клип оставлен как есть'); return; }
+  if (!ranges.length) { getState().toast(tx('Речь не найдена — клип оставлен как есть')); return; }
   const before = (m.clip.out - m.clip.in) / m.clip.speed;
   const after = ranges.reduce((s, [x, y]) => s + (y - x), 0) / m.clip.speed;
-  if (before - after < 0.2) { getState().toast('Пауз почти нет — резать нечего', 'ok'); return; }
+  if (before - after < 0.2) { getState().toast(tx('Пауз почти нет — резать нечего'), 'ok'); return; }
   getState().commit((p) => keepSourceRanges(p, clipId, ranges));
-  getState().toast(`Паузы вырезаны: ролик короче на ${(before - after).toFixed(1)} с`, 'ok');
+  getState().toast(tx('Паузы вырезаны: ролик короче на {0} с', (before - after).toFixed(1)), 'ok');
 }
 
 export async function ensureModel(model: 'multi' | 'ru'): Promise<boolean> {
   const models = await api.models();
   if (models.find((m) => m.id === model)?.ready) return true;
-  const r = await runJob('Скачиваю модель распознавания', { kind: 'download', jobId: `dl_${uidShort()}`, model });
-  if (!r.ok) { if (r.error !== 'Отменено') getState().toast(`Модель не скачалась: ${r.error}`, 'err'); return false; }
-  getState().toast('Модель скачана — работает без интернета', 'ok');
+  const r = await runJob(tx('Скачиваю модель распознавания'), { kind: 'download', jobId: `dl_${uidShort()}`, model });
+  if (!r.ok) { if (r.error !== tx('Отменено')) getState().toast(tx('Модель не скачалась: {0}', r.error), 'err'); return false; }
+  getState().toast(tx('Модель скачана — работает без интернета'), 'ok');
   return true;
 }
 
 export async function makeCaptions(model: 'multi' | 'ru', includeMusic: boolean): Promise<boolean> {
   const s = getState();
-  if (projectDuration(s.project) <= 0) { s.toast('Сначала добавь видео со звуком на таймлайн'); return false; }
+  if (projectDuration(s.project) <= 0) { s.toast(tx('Сначала добавь видео со звуком на таймлайн')); return false; }
   if (!(await ensureModel(model))) return false;
-  const r = await runJob('Создаю субтитры', { kind: 'captions', jobId: `cap_${uidShort()}`, project: getState().project, model, includeMusic });
-  if (!r.ok || r.output?.kind !== 'captions') { if (r.error !== 'Отменено') getState().toast(`Субтитры не получились: ${r.error}`, 'err'); return false; }
+  const r = await runJob(tx('Создаю субтитры'), { kind: 'captions', jobId: `cap_${uidShort()}`, project: getState().project, model, includeMusic });
+  if (!r.ok || r.output?.kind !== 'captions') { if (r.error !== tx('Отменено')) getState().toast(tx('Субтитры не получились: {0}', r.error), 'err'); return false; }
   const cues = r.output.cues;
-  if (!cues.length) { getState().toast('Речь не найдена. Проверь, что у видео есть звук и он не выключен.'); return false; }
+  if (!cues.length) { getState().toast(tx('Речь не найдена. Проверь, что у видео есть звук и он не выключен.')); return false; }
   const vertical = getState().project.settings.height > getState().project.settings.width;
   // на вертикальном видео — выше подписи и кнопок TikTok, Reels и Shorts
   getState().commit((p) => setCaptions(p, cues, CAPTION_STYLE, vertical ? 0.64 : 0.86));
-  getState().toast(`Готово: ${cues.length} субтитров. Их можно поправить — кликни по любому.`, 'ok');
+  getState().toast(tx('Готово: {0} субтитров. Их можно поправить — кликни по любому.', cues.length), 'ok');
   return true;
 }
 
@@ -880,11 +881,11 @@ export async function translateCaptions(from: LangCode, to: LangCode, mode: 'rep
   const caps = getState().project.tracks.flatMap((t) => t.clips)
     .filter((c): c is TextClip => c.type === 'text' && c.role === 'caption')
     .sort((a, b) => a.start - b.start);
-  if (!caps.length) { getState().toast('Сначала создай субтитры'); return false; }
+  if (!caps.length) { getState().toast(tx('Сначала создай субтитры')); return false; }
   const cues = caps.map((c) => ({ text: c.text.split('\n')[0].trim(), start: c.start, end: c.start + c.duration }));
   const groups = groupCues(cues);
-  const r = await runJob(`Перевожу субтитры: ${langLabel(to).toLowerCase()}`, { kind: 'translate', jobId: `mt_${uidShort()}`, texts: groups.map((g) => g.map((i) => cues[i].text).join(' ')), from, to });
-  if (!r.ok || r.output?.kind !== 'translate') { if (r.error !== 'Отменено') getState().toast(`Перевод не получился: ${r.error}`, 'err'); return false; }
+  const r = await runJob(tx('Перевожу субтитры: {0}', langLabel(to).toLowerCase()), { kind: 'translate', jobId: `mt_${uidShort()}`, texts: groups.map((g) => g.map((i) => cues[i].text).join(' ')), from, to });
+  if (!r.ok || r.output?.kind !== 'translate') { if (r.error !== tx('Отменено')) getState().toast(tx('Перевод не получился: {0}', r.error), 'err'); return false; }
   const texts = r.output.texts;
   const next = new Map<string, string>();
   groups.forEach((g, k) => {
@@ -902,7 +903,7 @@ export async function translateCaptions(from: LangCode, to: LangCode, mode: 'rep
     }
     return q;
   });
-  getState().toast(`Субтитры переведены: ${langLabel(to).toLowerCase()}. Отменить — Ctrl+Z.`, 'ok');
+  getState().toast(tx('Субтитры переведены: {0}. Отменить — Ctrl+Z.', langLabel(to).toLowerCase()), 'ok');
   return true;
 }
 
@@ -921,7 +922,7 @@ export async function saveProject(as = false): Promise<boolean> {
   const path = await api.saveProject(s.project, as ? null : s.projectPath);
   if (!path) return false;
   getState().markSaved(path);
-  getState().toast('Проект сохранён', 'ok');
+  getState().toast(tx('Проект сохранён'), 'ok');
   return true;
 }
 
@@ -951,7 +952,7 @@ export async function openFiles(paths: string[], opts: { fresh?: boolean } = {})
   const kadro = paths.find((p) => p.toLowerCase().endsWith('.kadro'));
   if (kadro) { await openRecent(kadro); return; }
   const fresh = opts.fresh || getState().project.tracks.every((t) => !t.clips.length) && !getState().project.assets.length;
-  if (fresh) await replaceProject(newProject('Новый проект', getState().project.settings.aspect));
+  if (fresh) await replaceProject(newProject(tx('Новый проект'), getState().project.settings.aspect));
   getState().setHome(false);
   const at = projectDuration(getState().project);
   const ids = await importPaths(paths, { mode: 'auto', at });
@@ -963,7 +964,7 @@ export async function openFiles(paths: string[], opts: { fresh?: boolean } = {})
       getState().commit((p) => setSettings(p, { aspect, ...sizeFor(aspect, shortSideOf(p.settings)) }));
     }
   }
-  getState().toast(ids.length === 1 ? 'Файл добавлен на таймлайн' : `Добавлено на таймлайн файлов: ${ids.length}`, 'ok');
+  getState().toast(ids.length === 1 ? tx('Файл добавлен на таймлайн') : tx('Добавлено на таймлайн файлов: {0}', ids.length), 'ok');
 }
 
 /** Брошено на главный экран: папки — в библиотеку, файлы — новым проектом. */
@@ -1001,7 +1002,7 @@ export async function replaceProject(next: Project, path: string | null = null):
   }
   getState().replace(next, path);
   getState().setHome(false);
-  if (stashed) getState().toast('Прошлый проект сохранён — он в «Моих проектах» на главном экране', 'ok');
+  if (stashed) getState().toast(tx('Прошлый проект сохранён — он в «Моих проектах» на главном экране'), 'ok');
 }
 
 export async function loadDemoFiles(): Promise<DemoFiles> {
@@ -1016,7 +1017,7 @@ export async function loadDemoFiles(): Promise<DemoFiles> {
 async function buildExample(t: Template, name: string): Promise<boolean> {
   const demo = await loadDemoFiles();
   const files = [...new Set((t.demo ?? DEMO_SCENES).map((x) => demo.scenes[x]).filter(Boolean))];
-  if (!files.length) { getState().toast('Демо-ролики не найдены — переустанови Kadro', 'err'); return false; }
+  if (!files.length) { getState().toast(tx('Демо-ролики не найдены — переустанови Kadro'), 'err'); return false; }
   getState().setPlaying(false);
   await replaceProject(newProject(name, t.aspect));
   const ids = await importPaths(demo.beat ? [...files, demo.beat] : files);
@@ -1041,15 +1042,15 @@ async function buildExample(t: Template, name: string): Promise<boolean> {
 
 /** Демо-проект со стартового экрана: все демо-ролики под бит, эффекты, переходы, надписи. */
 export async function openDemo(): Promise<boolean> {
-  const ok = await buildExample(DEMO_TEMPLATE, 'Демо Kadro');
-  if (ok) getState().toast('Это демо-проект: нажми пробел, чтобы посмотреть, и меняй что угодно', 'ok');
+  const ok = await buildExample(DEMO_TEMPLATE, tx('Демо Kadro'));
+  if (ok) getState().toast(tx('Это демо-проект: нажми пробел, чтобы посмотреть, и меняй что угодно'), 'ok');
   return ok;
 }
 
 /** Шаблон на демо-роликах: посмотреть, как он выглядит, без своих файлов. */
 export async function tryTemplate(t: Template): Promise<boolean> {
-  const ok = await buildExample(t, `${t.name} (пример)`);
-  if (ok) getState().toast(`Шаблон «${t.name}» на демо-роликах. Чтобы поставить свои видео, нажми на шаблон во вкладке «Шаблоны» → «Свои файлы…»`, 'ok');
+  const ok = await buildExample(t, tx('{0} (пример)', t.name));
+  if (ok) getState().toast(tx('Шаблон «{0}» на демо-роликах. Чтобы поставить свои видео, нажми на шаблон во вкладке «Шаблоны» → «Свои файлы…»', t.name), 'ok');
   return ok;
 }
 
@@ -1095,12 +1096,12 @@ export function reportMissing(p: Project): void {
   const lost = p.assets.filter((a) => a.missing && !rebuilt.has(a.id));
   if (!lost.length) return;
   getState().toast(lost.length === 1
-    ? `Не найден файл «${lost[0].name}». Верни его на место — иначе клип не попадёт в видео.`
-    : `Не найдено файлов: ${lost.length}. Верни их на место — иначе эти клипы не попадут в видео.`, 'err');
+    ? tx('Не найден файл «{0}». Верни его на место — иначе клип не попадёт в видео.', lost[0].name)
+    : tx('Не найдено файлов: {0}. Верни их на место — иначе эти клипы не попадут в видео.', lost.length), 'err');
 }
 
 export async function newProjectAction(aspect?: AspectKey): Promise<void> {
-  await replaceProject(newProject('Новый проект', aspect ?? getState().project.settings.aspect));
+  await replaceProject(newProject(tx('Новый проект'), aspect ?? getState().project.settings.aspect));
 }
 
 // ---------- 3D-объекты ----------
@@ -1119,12 +1120,12 @@ export async function place3D(m: Model3D, clipId?: string, onProgress?: (p: numb
   if (clipId) {
     getState().commit((p) => updateClip(p, clipId, { assetId: a.id, in: 0, out: a.duration, model3d: m }), `m3d-${clipId}`);
     getState().select([clipId]);
-    getState().toast('3D-объект обновлён', 'ok');
+    getState().toast(tx('3D-объект обновлён'), 'ok');
     return true;
   }
   const newId = addAssetToTimeline(a.id, 'overlay', getState().playhead);
   if (newId) getState().commit((p) => updateClip(p, newId, { model3d: m }));
-  getState().toast(`3D «${m.name}» на дорожке наложений — двигай и масштабируй его прямо в кадре`, 'ok');
+  getState().toast(tx('3D «{0}» на дорожке наложений — двигай и масштабируй его прямо в кадре', m.name), 'ok');
   return true;
 }
 
@@ -1162,14 +1163,14 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
   const stage = opts.onStage ?? (() => undefined);
   const s0 = getState();
   s0.setPlaying(false);
-  if (opts.fresh) await replaceProject(newProject(params.title.trim() || 'Авто-ролик', params.aspect));
-  stage({ label: 'Добавляю файлы', step: 0, steps: 1 });
+  if (opts.fresh) await replaceProject(newProject(params.title.trim() || tx('Авто-ролик'), params.aspect));
+  stage({ label: tx('Добавляю файлы'), step: 0, steps: 1 });
   const paths = [...params.files, ...(params.music ? [params.music] : [])];
   const byPath = await assetsForPaths(paths);
   const media = params.files.map((f) => byPath.get(f)).filter((a): a is MediaAsset => !!a && (a.kind === 'image' || (a.kind === 'video' && a.hasVideo)));
-  if (!media.length) { getState().toast('Нужны видео или фото — выбери хотя бы один файл', 'err'); return null; }
+  if (!media.length) { getState().toast(tx('Нужны видео или фото — выбери хотя бы один файл'), 'err'); return null; }
   let music = params.music ? byPath.get(params.music) ?? null : null;
-  if (music && music.kind !== 'audio') { getState().toast('Музыка — это звуковой файл (MP3, WAV, M4A…). Ролик собран без неё.', 'err'); music = null; }
+  if (music && music.kind !== 'audio') { getState().toast(tx('Музыка — это звуковой файл (MP3, WAV, M4A…). Ролик собран без неё.'), 'err'); music = null; }
 
   const videos = [...new Map(media.filter((a) => a.kind === 'video').map((a) => [a.path, a])).values()];
   const steps = videos.filter((a) => !hlMemo.has(a.path)).length + (music && !music.beats ? 1 : 0);
@@ -1181,7 +1182,7 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
   };
   // ритм музыки
   if (music && !music.beats) {
-    const r = await run('Ищу ритм музыки', { kind: 'beats', jobId: `bt_${uidShort()}`, path: music.path });
+    const r = await run(tx('Ищу ритм музыки'), { kind: 'beats', jobId: `bt_${uidShort()}`, path: music.path });
     if (autoStopped) return null;
     if (r.ok && r.output?.kind === 'beats' && r.output.beats.length) {
       const { beats, bpm } = r.output;
@@ -1194,13 +1195,13 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
   const todo = videos.filter((a) => !hlMemo.has(a.path));
   for (const [n, a] of todo.entries()) {
     const src = a.proxy === 'ready' && a.previewPath ? a.previewPath : a.path;
-    const r = await run(todo.length > 1 ? `Смотрю видео ${n + 1} из ${todo.length}` : 'Смотрю видео', { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration });
+    const r = await run(todo.length > 1 ? tx('Смотрю видео {0} из {1}', n + 1, todo.length) : tx('Смотрю видео'), { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration });
     if (autoStopped) return null;
     hlMemo.set(a.path, r.ok && r.output?.kind === 'highlights' ? r.output.hl : null);
   }
   if (autoStopped) return null;
 
-  stage({ label: 'Собираю ролик', step: steps, steps: Math.max(1, steps) });
+  stage({ label: tx('Собираю ролик'), step: steps, steps: Math.max(1, steps) });
   const seed = opts.seed ?? ((Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
   let summary: AutoSummary | null = null;
   const current = getState().project.assets;
@@ -1216,7 +1217,7 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
       return r.project;
     });
   } catch (e) {
-    getState().toast(`Не получилось собрать ролик: ${e instanceof Error ? e.message : String(e)}`, 'err');
+    getState().toast(tx('Не получилось собрать ролик: {0}', e instanceof Error ? e.message : String(e)), 'err');
     return null;
   }
   const sum = summary as AutoSummary | null;
@@ -1227,10 +1228,10 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
   st.setPlayhead(0);
   st.setLeftTab('templates');
   const notes: string[] = [];
-  if (music && !sum.onBeats) notes.push('ритм в музыке не нашёлся — склейки по ровному темпу');
-  if (sum.dropped > 0) notes.push(`не поместилось файлов: ${sum.dropped} (${params.length === 'auto' ? 'музыка короче' : 'выбери длину побольше'})`);
-  if (sum.repeated) notes.push('материала мало — кадры повторяются');
-  st.toast(`Авто-ролик готов: ${sum.cuts + 1} ${plural(sum.cuts + 1, 'кадр', 'кадра', 'кадров')}${sum.onBeats ? ' в ритм музыки' : ''}, ${fmtDur(sum.duration)}.${notes.length ? ` Важно: ${notes.join('; ')}.` : ''} Не нравится — «Ещё вариант» слева или Ctrl+Z.`, 'ok');
+  if (music && !sum.onBeats) notes.push(tx('ритм в музыке не нашёлся — склейки по ровному темпу'));
+  if (sum.dropped > 0) notes.push(tx('не поместилось файлов: {0} ({1})', sum.dropped, params.length === 'auto' ? tx('музыка короче') : tx('выбери длину побольше')));
+  if (sum.repeated) notes.push(tx('материала мало — кадры повторяются'));
+  st.toast(tx('Авто-ролик готов: {0} {1}{2}, {3}.{4} Не нравится — «Ещё вариант» слева или Ctrl+Z.', sum.cuts + 1, plural(sum.cuts + 1, tx('кадр'), tx('кадра'), tx('кадров')), sum.onBeats ? tx(' в ритм музыки') : '', fmtDur(sum.duration), notes.length ? tx(' Важно: {0}.', notes.join('; ')) : ''), 'ok');
   return sum;
 }
 
@@ -1251,13 +1252,13 @@ export async function buildScriptVideo(params: ScriptParams, onStage?: (s: AutoS
   autoStopped = false;
   const stage = onStage ?? (() => undefined);
   const texts = splitScript(params.text);
-  if (!texts.length) { getState().toast('Напиши сценарий — хотя бы одну фразу', 'err'); return null; }
+  if (!texts.length) { getState().toast(tx('Напиши сценарий — хотя бы одну фразу'), 'err'); return null; }
   getState().setPlaying(false);
   await replaceProject(scriptBase(params.aspect, params.title));
-  stage({ label: 'Добавляю файлы', step: 0, steps: 1 });
+  stage({ label: tx('Добавляю файлы'), step: 0, steps: 1 });
   const byPath = await assetsForPaths([...params.files, ...(params.music ? [params.music] : [])]);
   const media = params.files.map((f) => byPath.get(f)).filter((a): a is MediaAsset => !!a && (a.kind === 'image' || (a.kind === 'video' && a.hasVideo)));
-  if (!media.length) { getState().toast('Нужны видео или фото — выбери хотя бы один файл', 'err'); return null; }
+  if (!media.length) { getState().toast(tx('Нужны видео или фото — выбери хотя бы один файл'), 'err'); return null; }
   const music = params.music ? byPath.get(params.music) ?? null : null;
   const videos = [...new Map(media.filter((a) => a.kind === 'video').map((a) => [a.path, a])).values()].filter((a) => !hlMemo.has(a.path));
   const steps = videos.length + (params.voice ? texts.length + 1 : 0);
@@ -1270,16 +1271,16 @@ export async function buildScriptVideo(params: ScriptParams, onStage?: (s: AutoS
   // озвучка: каждая сцена — свой файл (длина сцены = длина речи + короткая пауза)
   const scenes: ScriptScene[] = [];
   if (params.voice) {
-    stage({ label: 'Готовлю голос', step: step++, steps });
+    stage({ label: tx('Готовлю голос'), step: step++, steps });
     if (!(await ensureVoice(params.voice))) return null;
     for (const [i, text] of texts.entries()) {
-      const r = await run(texts.length > 1 ? `Озвучиваю сцену ${i + 1} из ${texts.length}` : 'Озвучиваю', { kind: 'tts', jobId: `tts_${uidShort()}`, text, voice: params.voice, speed: params.speed });
+      const r = await run(texts.length > 1 ? tx('Озвучиваю сцену {0} из {1}', i + 1, texts.length) : tx('Озвучиваю'), { kind: 'tts', jobId: `tts_${uidShort()}`, text, voice: params.voice, speed: params.speed });
       if (autoStopped) return null;
-      if (!r.ok || r.output?.kind !== 'tts') { getState().toast(`Не получилось озвучить: ${r.error ?? 'ошибка'}`, 'err'); return null; }
+      if (!r.ok || r.output?.kind !== 'tts') { getState().toast(tx('Не получилось озвучить: {0}', r.error ?? tx('ошибка')), 'err'); return null; }
       const imp = await api.importMedia([r.output.path]);
       const a = imp.assets[0];
-      if (!a) { getState().toast('Не получилось добавить озвучку', 'err'); return null; }
-      a.name = `Голос ${i + 1}: ${text.slice(0, 24)}${text.length > 24 ? '…' : ''}`;
+      if (!a) { getState().toast(tx('Не получилось добавить озвучку'), 'err'); return null; }
+      a.name = tx('Голос {0}: {1}{2}', i + 1, text.slice(0, 24), text.length > 24 ? '…' : '');
       scenes.push({ text, dur: Math.round((r.output.duration + 0.3) * 100) / 100, voice: a });
     }
   } else {
@@ -1288,11 +1289,11 @@ export async function buildScriptVideo(params: ScriptParams, onStage?: (s: AutoS
   // лучшие места в видео (как у авто-ролика; разбор запоминается)
   for (const [n, a] of videos.entries()) {
     const src = a.proxy === 'ready' && a.previewPath ? a.previewPath : a.path;
-    const r = await run(videos.length > 1 ? `Смотрю видео ${n + 1} из ${videos.length}` : 'Смотрю видео', { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration });
+    const r = await run(videos.length > 1 ? tx('Смотрю видео {0} из {1}', n + 1, videos.length) : tx('Смотрю видео'), { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration });
     if (autoStopped) return null;
     hlMemo.set(a.path, r.ok && r.output?.kind === 'highlights' ? r.output.hl : null);
   }
-  stage({ label: 'Собираю ролик', step: steps, steps: Math.max(1, steps) });
+  stage({ label: tx('Собираю ролик'), step: steps, steps: Math.max(1, steps) });
   const current = getState().project.assets;
   const live = (a: MediaAsset) => current.find((x) => x.id === a.id) ?? a;
   let summary: ScriptSummary | null = null;
@@ -1306,7 +1307,7 @@ export async function buildScriptVideo(params: ScriptParams, onStage?: (s: AutoS
       return r.project;
     });
   } catch (e) {
-    getState().toast(`Не получилось собрать ролик: ${e instanceof Error ? e.message : String(e)}`, 'err');
+    getState().toast(tx('Не получилось собрать ролик: {0}', e instanceof Error ? e.message : String(e)), 'err');
     return null;
   }
   const sum = summary as ScriptSummary | null;
@@ -1315,7 +1316,7 @@ export async function buildScriptVideo(params: ScriptParams, onStage?: (s: AutoS
   const st = getState();
   st.select([]);
   st.setPlayhead(0);
-  st.toast(`Ролик по сценарию готов: ${sum.scenes} ${plural(sum.scenes, 'сцена', 'сцены', 'сцен')}, ${sum.shots} ${plural(sum.shots, 'кадр', 'кадра', 'кадров')}, ${fmtDur(sum.duration)}.${sum.repeated ? ' Видео мало — некоторые куски повторяются.' : ''} Кадр не тот — перетащи другой файл на его место или «Взять кусок».`, 'ok');
+  st.toast(tx('Ролик по сценарию готов: {0} {1}, {2} {3}, {4}.{5} Кадр не тот — перетащи другой файл на его место или «Взять кусок».', sum.scenes, plural(sum.scenes, tx('сцена'), tx('сцены'), tx('сцен')), sum.shots, plural(sum.shots, tx('кадр'), tx('кадра'), tx('кадров')), fmtDur(sum.duration), sum.repeated ? tx(' Видео мало — некоторые куски повторяются.') : ''), 'ok');
   return sum;
 }
 

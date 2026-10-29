@@ -58,7 +58,7 @@ body { width: 164px; height: 314px; overflow: hidden; background: #15131a; font-
   clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%); }
 </style><body>
 <div class="glow"></div>
-<div class="top">${MARK(38)}<div class="name">Kadro</div><div class="what">видеоредактор</div></div>
+<div class="top">${MARK(38)}<div class="name">Kadro</div></div>
 <div class="tl">
   <div class="ruler">${Array.from({ length: 16 }, (_, i) => `<b class="${i % 4 === 0 ? 'l' : ''}" style="left:${i * 12}px"></b>`).join('')}</div>
   <div class="row"><div class="c t" style="left:30px;width:58px"><span></span></div></div>

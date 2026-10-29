@@ -1,6 +1,7 @@
 // Разбор видео для авто-ролика: ffmpeg отдаёт маленькие серые кадры (несколько в секунду),
 // по ним считаем резкость, свет, контраст и движение → оценку каждого момента и склейки внутри видео.
 // Результат помним, пока программа открыта: «Ещё вариант» не разбирает видео заново.
+import { tx } from '../shared/i18n';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import { ffmpegPath } from './bins';
@@ -46,11 +47,11 @@ export function highlights(file: string, duration: number, onProgress?: (p: numb
     proc.stderr.on('data', (d: Buffer) => { err += d.toString(); if (err.length > 50_000) err = err.slice(-20_000); });
     const onAbort = () => { try { proc.kill('SIGKILL'); } catch { /* уже всё */ } };
     signal?.addEventListener('abort', onAbort, { once: true });
-    proc.on('error', (e) => reject(new FfmpegError(`Не удалось запустить ffmpeg: ${e.message}`, err)));
+    proc.on('error', (e) => reject(new FfmpegError(tx('Не удалось запустить ffmpeg: {0}', e.message), err)));
     proc.on('close', (code) => {
       signal?.removeEventListener('abort', onAbort);
-      if (signal?.aborted) { reject(new FfmpegError('Отменено', err)); return; }
-      if (code !== 0 && !stats.length) { reject(new FfmpegError(err.trim().split(/\r?\n/).slice(-2).join('\n') || `ffmpeg: код ${code}`, err)); return; }
+      if (signal?.aborted) { reject(new FfmpegError(tx('Отменено'), err)); return; }
+      if (code !== 0 && !stats.length) { reject(new FfmpegError(err.trim().split(/\r?\n/).slice(-2).join('\n') || tx('ffmpeg: код {0}', code), err)); return; }
       const hl = scoreFrames(stats, 1 / fps);
       cache.set(key, hl);
       onProgress?.(1);

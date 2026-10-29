@@ -1,4 +1,6 @@
 // Главный процесс Kadro: окно, доступ к файлам, импорт, экспорт, ИИ-задачи.
+import './lang'; // язык — раньше всего остального
+import { tx, uiLang } from '../shared/i18n';
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, shell, utilityProcess, type UtilityProcess } from 'electron';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -188,7 +190,7 @@ function aiWorker(lane: Lane): UtilityProcess {
     if (workers.get(lane) === w) workers.delete(lane);
     for (const [id, p] of pending) {
       if (p.lane !== lane) continue;
-      p.reject(new Error('ИИ-процесс неожиданно завершился. Попробуй ещё раз.'));
+      p.reject(new Error(tx('ИИ-процесс неожиданно завершился. Попробуй ещё раз.')));
       pending.delete(id);
     }
   });
@@ -215,10 +217,10 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       return { ok: true, output: { kind: 'download' } };
     }
     if (job.kind === 'captions') {
-      if (!asrModelReady(job.model)) return { ok: false, error: 'Модель распознавания не скачана' };
+      if (!asrModelReady(job.model)) return { ok: false, error: tx('Модель распознавания не скачана') };
       const ac = new AbortController();
       aiAborts.set(id, ac);
-      send(0.01, 'Собираю звук');
+      send(0.01, tx('Собираю звук'));
       const wav = path.join(cacheDir('tmp'), `speech_${Date.now()}.wav`);
       await exportSpeechAudio({ project: job.project, includeMusic: job.includeMusic }, wav, ac.signal);
       try {
@@ -236,7 +238,7 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       const ac = new AbortController();
       aiAborts.set(id, ac);
       const out = path.join(cacheDir('ai'), `voice_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.flac`);
-      await denoise(job.path, job.in, job.out - job.in, out, (p) => send(p, 'Чищу голос'), ac.signal);
+      await denoise(job.path, job.in, job.out - job.in, out, (p) => send(p, tx('Чищу голос')), ac.signal);
       return { ok: true, output: { kind: 'denoise', path: out, range: [job.in, job.out] } };
     }
     if (job.kind === 'removeBg') {
@@ -249,14 +251,14 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       const ac = new AbortController();
       aiAborts.set(id, ac);
       const out = path.join(cacheDir('ai'), `fx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.flac`);
-      await processVoice(job.path, job.in, job.out - job.in, job.effect, job.denoise, out, (p) => send(p, 'Меняю голос'), ac.signal);
+      await processVoice(job.path, job.in, job.out - job.in, job.effect, job.denoise, out, (p) => send(p, tx('Меняю голос')), ac.signal);
       return { ok: true, output: { kind: 'voice', path: out, range: [job.in, job.out] } };
     }
     if (job.kind === 'stab') {
       const ac = new AbortController();
       aiAborts.set(id, ac);
       const out = path.join(cacheDir('ai'), `stab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.mp4`);
-      await stabilize(job.path, job.in, job.out - job.in, job.strength, out, (p) => send(p, 'Стабилизирую'), ac.signal);
+      await stabilize(job.path, job.in, job.out - job.in, job.strength, out, (p) => send(p, tx('Стабилизирую')), ac.signal);
       return { ok: true, output: { kind: 'stab', path: out, range: [job.in, job.out] } };
     }
     if (job.kind === 'ttsDownload') {
@@ -264,7 +266,7 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       return { ok: true, output: { kind: 'download' } };
     }
     if (job.kind === 'tts') {
-      if (!ttsVoiceReady(job.voice)) return { ok: false, error: 'Голос не скачан' };
+      if (!ttsVoiceReady(job.voice)) return { ok: false, error: tx('Голос не скачан') };
       const out = path.join(cacheDir('tts'), `tts_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.wav`);
       const r = await workerCall<{ duration: number }>(id, { kind: 'tts', text: job.text, voice: job.voice, speed: job.speed, outPath: out });
       return { ok: true, output: { kind: 'tts', path: out, duration: r.duration } };
@@ -274,7 +276,7 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       const { routeFor } = await import('../shared/translate');
       const info = await mtPairs();
       const route = routeFor(job.from, job.to, new Set(info.pairs));
-      if (!route) return { ok: false, error: 'Для этих языков нет модели перевода' };
+      if (!route) return { ok: false, error: tx('Для этих языков нет модели перевода') };
       if (!route.length) return { ok: true, output: { kind: 'translate', texts: job.texts } };
       const missing = route.filter((p) => !mtReady(p));
       if (missing.length) await workerCall(`${id}`, { kind: 'mtDownload', pairs: missing });
@@ -288,7 +290,7 @@ async function runAi(job: AiJob): Promise<AiResponse> {
     if (job.kind === 'highlights') {
       const ac = new AbortController();
       aiAborts.set(id, ac);
-      const hl = await highlights(job.path, job.duration, (p) => send(p, 'Смотрю видео'), ac.signal);
+      const hl = await highlights(job.path, job.duration, (p) => send(p, tx('Смотрю видео')), ac.signal);
       return { ok: true, output: { kind: 'highlights', hl } };
     }
     if (job.kind === 'reframe') {
@@ -298,21 +300,21 @@ async function runAi(job: AiJob): Promise<AiResponse> {
     if (job.kind === 'retime') {
       const ac = new AbortController();
       aiAborts.set(id, ac);
-      const r = await retime(job, (p) => send(p, job.smooth ? 'Дорисовываю кадры' : job.reverse ? 'Переворачиваю' : 'Меняю скорость'), ac.signal);
+      const r = await retime(job, (p) => send(p, job.smooth ? tx('Дорисовываю кадры') : job.reverse ? tx('Переворачиваю') : tx('Меняю скорость')), ac.signal);
       return { ok: true, output: { kind: 'retime', path: r.path, duration: r.duration } };
     }
     if (job.kind === 'beauty') {
       const ac = new AbortController();
       aiAborts.set(id, ac);
       const out = path.join(cacheDir('ai'), `beauty_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.mp4`);
-      await beautify(job.path, job.in, job.out - job.in, { smooth: job.smooth, bright: job.bright, width: job.width, height: job.height }, out, (p) => send(p, 'Ретушь'), ac.signal);
+      await beautify(job.path, job.in, job.out - job.in, { smooth: job.smooth, bright: job.bright, width: job.width, height: job.height }, out, (p) => send(p, tx('Ретушь')), ac.signal);
       return { ok: true, output: { kind: 'beauty', path: out, range: [job.in + job.offset, job.out + job.offset] } };
     }
     if (job.kind === 'freeze') {
       const out = await freezeFrame(job.path, job.t, job.fps, job.alpha);
       return { ok: true, output: { kind: 'freeze', path: out } };
     }
-    return { ok: false, error: 'Неизвестная задача' };
+    return { ok: false, error: tx('Неизвестная задача') };
   } catch (e) {
     log('ai job failed', job.kind, e);
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
@@ -397,7 +399,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance> }
+interface Settings { lang?: 'ru' | 'en'; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance> }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -517,11 +519,11 @@ function registerIpc(): void {
   ipcMain.handle('dialog:media', async () => {
     if (process.env.KADRO_TEST_PICK) return process.env.KADRO_TEST_PICK.split('|'); // автотесты: без системного окна
     const r = await dialog.showOpenDialog(win!, {
-      title: 'Добавить файлы',
+      title: tx('Добавить файлы'),
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: 'Видео, фото и звук', extensions: MEDIA_EXT },
-        { name: 'Все файлы', extensions: ['*'] },
+        { name: tx('Видео, фото и звук'), extensions: MEDIA_EXT },
+        { name: tx('Все файлы'), extensions: ['*'] },
       ],
     });
     return r.canceled ? [] : r.filePaths;
@@ -531,8 +533,8 @@ function registerIpc(): void {
     let target = file ?? null;
     if (!target) {
       const r = await dialog.showSaveDialog(win!, {
-        title: 'Сохранить проект', defaultPath: path.join(app.getPath('documents'), `${project.name || 'Проект'}.kadro`),
-        filters: [{ name: 'Проект Kadro', extensions: ['kadro'] }],
+        title: tx('Сохранить проект'), defaultPath: path.join(app.getPath('documents'), `${project.name || tx('Проект')}.kadro`),
+        filters: [{ name: tx('Проект Kadro'), extensions: ['kadro'] }],
       });
       if (r.canceled || !r.filePath) return null;
       target = r.filePath;
@@ -547,13 +549,13 @@ function registerIpc(): void {
     if (process.env.KADRO_TEST_OPEN) files = process.env.KADRO_TEST_OPEN.split('|'); // автотесты: без системного окна
     else {
       const r = await dialog.showOpenDialog(win!, {
-        title: 'Открыть проект или видео',
+        title: tx('Открыть проект или видео'),
         properties: ['openFile', 'multiSelections'],
         filters: [
-          { name: 'Проекты Kadro, видео, фото и звук', extensions: ['kadro', ...MEDIA_EXT] },
-          { name: 'Проект Kadro', extensions: ['kadro'] },
-          { name: 'Видео, фото и звук', extensions: MEDIA_EXT },
-          { name: 'Все файлы', extensions: ['*'] },
+          { name: tx('Проекты Kadro, видео, фото и звук'), extensions: ['kadro', ...MEDIA_EXT] },
+          { name: tx('Проект Kadro'), extensions: ['kadro'] },
+          { name: tx('Видео, фото и звук'), extensions: MEDIA_EXT },
+          { name: tx('Все файлы'), extensions: ['*'] },
         ],
       });
       if (r.canceled || !r.filePaths.length) return null;
@@ -565,7 +567,7 @@ function registerIpc(): void {
     try {
       project = await readProjectFile(kadro);
     } catch {
-      dialog.showErrorBox('Kadro', 'Этот файл не похож на проект Kadro или повреждён.');
+      dialog.showErrorBox('Kadro', tx('Этот файл не похож на проект Kadro или повреждён.'));
       return null;
     }
     rememberProject(kadro);
@@ -582,13 +584,13 @@ function registerIpc(): void {
     return { ...r, info: cacheInfo() };
   });
   ipcMain.handle('project:openPath', async (_e, file: string) => {
-    if (!fs.existsSync(file)) return { error: 'Файла проекта больше нет на этом месте — его переместили или удалили.' };
+    if (!fs.existsSync(file)) return { error: tx('Файла проекта больше нет на этом месте — его переместили или удалили.') };
     try {
       const project = await readProjectFile(file);
       rememberProject(file);
       return { project, path: file };
     } catch {
-      return { error: 'Этот файл не похож на проект Kadro или повреждён.' };
+      return { error: tx('Этот файл не похож на проект Kadro или повреждён.') };
     }
   });
   // перед заменой несохранённого проекта (новый, демо, шаблон) — копия в «Черновики», чтобы ничего не потерять
@@ -596,7 +598,7 @@ function registerIpc(): void {
     const dir = path.join(dataDir(), 'drafts');
     fs.mkdirSync(dir, { recursive: true });
     const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ').replace(':', '-');
-    const safe = (project.name || 'Проект').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || 'Проект';
+    const safe = (project.name || tx('Проект')).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || tx('Проект');
     const file = path.join(dir, `${safe} ${stamp}.kadro`);
     writeProject(file, project);
     rememberProject(file);
@@ -612,7 +614,7 @@ function registerIpc(): void {
     if (!list) {
       if (process.env.KADRO_TEST_FOLDER) list = process.env.KADRO_TEST_FOLDER.split('|'); // автотесты: без системного окна
       else {
-        const r = await dialog.showOpenDialog(win!, { title: 'Добавить папку в библиотеку', properties: ['openDirectory', 'multiSelections'] });
+        const r = await dialog.showOpenDialog(win!, { title: tx('Добавить папку в библиотеку'), properties: ['openDirectory', 'multiSelections'] });
         if (r.canceled) return libFolders();
         list = r.filePaths;
       }
@@ -625,7 +627,7 @@ function registerIpc(): void {
     writeSettings({ ...s, library: (s.library ?? []).filter((x) => x !== p) });
     return libFolders();
   });
-  ipcMain.handle('lib:list', (_e, dir: string) => (inLibrary(dir) ? listDir(dir) : { dir, dirs: [], files: [], error: 'Эта папка не в библиотеке' }));
+  ipcMain.handle('lib:list', (_e, dir: string) => (inLibrary(dir) ? listDir(dir) : { dir, dirs: [], files: [], error: tx('Эта папка не в библиотеке') }));
   ipcMain.handle('lib:search', (_e, root: string, q: string) => (inLibrary(root) ? searchDir(root, q) : []));
   ipcMain.handle('lib:meta', (_e, file: string) => (inLibrary(file) ? libMeta(file) : { missing: true }));
   ipcMain.handle('fs:dirs', (_e, paths: string[]) => paths.map((p) => { try { return fs.statSync(p).isDirectory(); } catch { return false; } }));
@@ -633,18 +635,18 @@ function registerIpc(): void {
   ipcMain.handle('projects:rename', (_e, file: string, name: string) => {
     try {
       const p = JSON.parse(fs.readFileSync(file, 'utf8')) as Project;
-      const clean = name.trim().slice(0, 120) || 'Проект';
+      const clean = name.trim().slice(0, 120) || tx('Проект');
       const target = path.join(path.dirname(file), `${safeFileName(clean)}.kadro`);
       if (path.resolve(target) !== path.resolve(file) && fs.existsSync(target)) {
         // Windows: «Проект» и «проект» — один и тот же файл, переименование только регистра разрешаем
-        if (target.toLowerCase() !== file.toLowerCase()) return { error: `Проект «${safeFileName(clean)}» уже есть в этой папке` };
+        if (target.toLowerCase() !== file.toLowerCase()) return { error: tx('Проект «{0}» уже есть в этой папке', safeFileName(clean)) };
       }
       writeProject(file, { ...p, name: clean });
       if (path.resolve(target) !== path.resolve(file)) fs.renameSync(file, target);
       replaceRecent(file, target);
       return { path: target };
     } catch (e) {
-      return { error: `Не получилось переименовать: ${e instanceof Error ? e.message : String(e)}` };
+      return { error: tx('Не получилось переименовать: {0}', e instanceof Error ? e.message : String(e)) };
     }
   });
   ipcMain.handle('projects:duplicate', (_e, file: string) => {
@@ -657,7 +659,7 @@ function registerIpc(): void {
       rememberProject(target);
       return { path: target };
     } catch (e) {
-      return { error: `Не получилось сделать копию: ${e instanceof Error ? e.message : String(e)}` };
+      return { error: tx('Не получилось сделать копию: {0}', e instanceof Error ? e.message : String(e)) };
     }
   });
   ipcMain.handle('projects:trash', async (_e, file: string) => {
@@ -668,7 +670,7 @@ function registerIpc(): void {
       replaceRecent(file, null);
       return { ok: true as const };
     } catch (e) {
-      return { error: `Не получилось переместить в корзину: ${e instanceof Error ? e.message : String(e)}` };
+      return { error: tx('Не получилось переместить в корзину: {0}', e instanceof Error ? e.message : String(e)) };
     }
   });
   ipcMain.on('project:forget', (_e, file: string) => {
@@ -703,8 +705,8 @@ function registerIpc(): void {
   ipcMain.handle('dialog:exportPath', async (_e, name: string) => {
     if (process.env.KADRO_TEST_EXPORT) return process.env.KADRO_TEST_EXPORT; // автотесты: без системного окна
     const r = await dialog.showSaveDialog(win!, {
-      title: 'Куда сохранить видео', defaultPath: path.join(app.getPath('videos'), `${name || 'Kadro'}.mp4`),
-      filters: [{ name: 'Видео MP4', extensions: ['mp4'] }],
+      title: tx('Куда сохранить видео'), defaultPath: path.join(app.getPath('videos'), `${name || 'Kadro'}.mp4`),
+      filters: [{ name: tx('Видео MP4'), extensions: ['mp4'] }],
     });
     return r.canceled ? null : r.filePath ?? null;
   });
@@ -732,7 +734,7 @@ function registerIpc(): void {
   ipcMain.handle('lut:pick', async () => {
     let src = process.env.KADRO_TEST_LUT; // автотесты: без системного окна
     if (!src) {
-      const r = await dialog.showOpenDialog(win!, { title: 'Загрузить LUT', properties: ['openFile'], filters: [{ name: 'LUT (.cube)', extensions: ['cube'] }] });
+      const r = await dialog.showOpenDialog(win!, { title: tx('Загрузить LUT'), properties: ['openFile'], filters: [{ name: 'LUT (.cube)', extensions: ['cube'] }] });
       if (r.canceled || !r.filePaths[0]) return null;
       src = r.filePaths[0];
     }
@@ -750,18 +752,18 @@ function registerIpc(): void {
   ipcMain.handle('dialog:model', async () => {
     if (process.env.KADRO_TEST_MODEL) return process.env.KADRO_TEST_MODEL; // автотесты: без системного окна
     const r = await dialog.showOpenDialog(win!, {
-      title: 'Открыть 3D-модель',
+      title: tx('Открыть 3D-модель'),
       properties: ['openFile'],
-      filters: [{ name: '3D-модели', extensions: ['glb', 'gltf', 'obj', 'stl', 'fbx'] }, { name: 'Все файлы', extensions: ['*'] }],
+      filters: [{ name: tx('3D-модели'), extensions: ['glb', 'gltf', 'obj', 'stl', 'fbx'] }, { name: tx('Все файлы'), extensions: ['*'] }],
     });
     return r.canceled ? null : r.filePaths[0] ?? null;
   });
   ipcMain.handle('dialog:music', async () => {
     if (process.env.KADRO_TEST_MUSIC) return process.env.KADRO_TEST_MUSIC; // автотесты: без системного окна
     const r = await dialog.showOpenDialog(win!, {
-      title: 'Музыка для ролика',
+      title: tx('Музыка для ролика'),
       properties: ['openFile'],
-      filters: [{ name: 'Музыка', extensions: ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'opus', 'flac', 'wma', 'mp4', 'webm', 'mkv', 'mov'] }, { name: 'Все файлы', extensions: ['*'] }],
+      filters: [{ name: tx('Музыка'), extensions: ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'opus', 'flac', 'wma', 'mp4', 'webm', 'mkv', 'mov'] }, { name: tx('Все файлы'), extensions: ['*'] }],
     });
     return r.canceled ? null : r.filePaths[0] ?? null;
   });
@@ -778,7 +780,7 @@ function registerIpc(): void {
     const key = crypto.createHash('sha1').update(`${src}|${st.size}|${st.mtimeMs}`).digest('hex').slice(0, 16);
     const dir = path.join(cacheDir('audio'), key);
     fs.mkdirSync(dir, { recursive: true });
-    const out = path.join(dir, `${path.basename(src, path.extname(src))} — звук.flac`);
+    const out = path.join(dir, tx('{0} — звук.flac', path.basename(src, path.extname(src))));
     if (fs.existsSync(out) && fs.statSync(out).size > 0) return out;
     const tmp = path.join(dir, 'tmp.flac');
     await runFfmpeg(['-hide_banner', '-y', '-i', src, '-map', '0:a:0', '-vn', '-c:a', 'flac', tmp]);
@@ -804,6 +806,15 @@ function registerIpc(): void {
   });
   ipcMain.on('shell:show', (_e, p: string) => shell.showItemInFolder(p));
   ipcMain.on('win:title', (_e, t: string) => win?.setTitle(t));
+  // язык интерфейса: окно спрашивает его до загрузки; смена — перезапуск всей программы
+  ipcMain.on('lang:get', (e) => { e.returnValue = uiLang(); });
+  ipcMain.handle('lang:set', (_e, l: 'ru' | 'en') => {
+    if (l !== 'ru' && l !== 'en') return false;
+    writeSettings({ ...readSettings(), lang: l });
+    log('language', l);
+    if (!process.env.KADRO_NO_RELAUNCH) { app.relaunch(); app.quit(); }
+    return true;
+  });
   ipcMain.on('theme:get', (e) => { e.returnValue = { pref: readSettings().theme ?? 'dark', dark: nativeTheme.shouldUseDarkColors }; });
   ipcMain.on('theme:set', (_e, pref: ThemePref) => {
     if (!['dark', 'light', 'system'].includes(pref)) return;
@@ -825,8 +836,8 @@ function registerIpc(): void {
     } catch { /* журнала ещё нет */ }
     const gpu = app.getGPUFeatureStatus();
     return {
-      version: app.getVersion(), os: `${os.type()} ${os.release()} (${os.arch()}), ${Math.round(os.totalmem() / 2 ** 30)} ГБ памяти, ${os.cpus().length} ядер`,
-      electron: process.versions.electron, gpu: `${gpu.webgl}${gpu.gpu_compositing ? `, композитинг ${gpu.gpu_compositing}` : ''}`,
+      version: app.getVersion(), os: tx('{0} {1} ({2}), {3} ГБ памяти, {4} ядер', os.type(), os.release(), os.arch(), Math.round(os.totalmem() / 2 ** 30), os.cpus().length),
+      electron: process.versions.electron, gpu: `${gpu.webgl}${gpu.gpu_compositing ? tx(', композитинг {0}', gpu.gpu_compositing) : ''}`,
       log: scrubLog(tail, os.homedir()),
     };
   });
@@ -861,9 +872,9 @@ function registerIpc(): void {
     let file = process.env.KADRO_TEST_ICON; // автотесты: без системного окна
     if (!file) {
       const r = await dialog.showOpenDialog(win!, {
-        title: 'Свой значок Kadro',
+        title: tx('Свой значок Kadro'),
         properties: ['openFile'],
-        filters: [{ name: 'Картинки', extensions: ['png', 'jpg', 'jpeg', 'ico', 'webp', 'bmp'] }],
+        filters: [{ name: tx('Картинки'), extensions: ['png', 'jpg', 'jpeg', 'ico', 'webp', 'bmp'] }],
       });
       if (r.canceled || !r.filePaths[0]) return { ok: false };
       file = r.filePaths[0];
@@ -888,7 +899,9 @@ function registerIpc(): void {
   });
   ipcMain.on('app:docs', (_e, page: 'customize' | 'guide' | 'plugins') => {
     const doc = page === 'customize' ? 'CUSTOMIZE' : page === 'plugins' ? 'PLUGINS' : 'GUIDE';
-    void shell.openExternal(`https://github.com/honeyjostar/kadro/blob/master/docs/${doc}.md`);
+    // руководство по-английски — README.en.md; остальные инструкции пока только по-русски
+    const url = uiLang() === 'en' && page === 'guide' ? 'https://github.com/honeyjostar/kadro/blob/master/README.en.md' : `https://github.com/honeyjostar/kadro/blob/master/docs/${doc}.md`;
+    if (!process.env.KADRO_NO_OPEN) void shell.openExternal(url);
   });
   // плагины-шейдеры: список файлов и папка
   ipcMain.handle('plugins:list', () => { try { ensurePluginDirs(); } catch { /* папка данных только для чтения */ } return listPlugins(); });
@@ -905,7 +918,7 @@ function registerIpc(): void {
     let paths: string[];
     if (process.env.KADRO_TEST_PICK) paths = process.env.KADRO_TEST_PICK.split('|');
     else {
-      const r = await dialog.showOpenDialog(win!, { title: 'Установить плагин', properties: ['openFile', 'multiSelections'], filters: [{ name: 'Шейдеры GLSL', extensions: ['glsl', 'frag'] }] });
+      const r = await dialog.showOpenDialog(win!, { title: tx('Установить плагин'), properties: ['openFile', 'multiSelections'], filters: [{ name: tx('Шейдеры GLSL'), extensions: ['glsl', 'frag'] }] });
       if (r.canceled) return { ok: true, installed: [], errors: [] };
       paths = r.filePaths;
     }

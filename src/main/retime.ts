@@ -1,5 +1,6 @@
 // Реверс, кривая скорости и стоп-кадр: строим копию фрагмента отдельным файлом.
 // Реверс длинных фрагментов — кусками (фильтр reverse держит весь кусок в памяти), куски склеиваются без перекодирования.
+import { tx } from '../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
 import { cacheDir, ffmpegMajor } from './bins';
@@ -117,6 +118,6 @@ export async function freezeFrame(src: string, t: number, fps: number, alpha: bo
   const ss = Math.max(0, t - 0.5 / Math.max(1, fps || 30));
   await runFfmpeg(['-hide_banner', '-y', ...(alpha && /\.webm$/i.test(src) ? ['-c:v', 'libvpx-vp9'] : []), '-ss', fmt(ss), '-i', src, '-frames:v', '1', '-update', '1',
     '-pix_fmt', alpha ? 'rgba' : 'rgb24', out]);
-  if (!fs.existsSync(out)) throw new Error('Кадр не получился');
+  if (!fs.existsSync(out)) throw new Error(tx('Кадр не получился'));
   return out;
 }

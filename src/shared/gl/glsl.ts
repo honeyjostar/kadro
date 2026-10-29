@@ -1,6 +1,7 @@
 // Шейдеры Kadro: переходы gl-transitions и эффекты-плагины на GLSL (WebGL).
 // Здесь — чистые функции: разбор заголовка шейдера, параметры, обёртка в полный фрагментный шейдер,
 // русские названия и разделы. Рисует их renderer/engine/gl.ts, экспорт — тот же движок по кадрам.
+import { tx } from '../i18n';
 
 export type GlParamType = 'float' | 'int' | 'bool' | 'vec2' | 'vec3' | 'vec4' | 'ivec2' | 'ivec3' | 'ivec4';
 export type GlValue = number | boolean | number[];
@@ -76,7 +77,7 @@ export function parseGlsl(src: string): GlMeta {
       const type = u[1] as GlParamType;
       const name = u[2];
       if (BUILTIN.has(name) || type.startsWith('sampler')) { pendingRange = null; continue; }
-      if (!PARAM_TYPES.has(type)) { meta.errors.push(`Параметр ${name}: тип ${type} не поддерживается`); pendingRange = null; continue; }
+      if (!PARAM_TYPES.has(type)) { meta.errors.push(tx('Параметр {0}: тип {1} не поддерживается', name, type)); pendingRange = null; continue; }
       const value = u[3] !== undefined ? parseValue(type, u[3]) : undefined;
       meta.params.push({ name, type, value: value ?? defaultValue(type), ...(pendingRange ?? {}) });
       pendingRange = null;
@@ -139,7 +140,7 @@ void main() {
 /** Проверка до компиляции: нужная функция есть. */
 export function checkBody(kind: GlDef['kind'], glsl: string): string | null {
   const fn = kind === 'transition' ? 'transition' : 'effect';
-  return new RegExp(`vec4\\s+${fn}\\s*\\(\\s*vec2\\s+\\w+\\s*\\)`).test(glsl) ? null : `Нет функции vec4 ${fn}(vec2 uv)`;
+  return new RegExp(`vec4\\s+${fn}\\s*\\(\\s*vec2\\s+\\w+\\s*\\)`).test(glsl) ? null : tx('Нет функции vec4 {0}(vec2 uv)', fn);
 }
 
 // ---------- разделы и названия ----------
@@ -149,9 +150,9 @@ export function checkBody(kind: GlDef['kind'], glsl: string): string | null {
  */
 export const GL_TRANSITION_CATS: { id: string; label: string; tags: string[] }[] = [
   { id: 'gl3d', label: '3D', tags: ['3d', 'cube', 'page', 'curl', 'fold', 'doors', 'swap', 'roll', 'flip', 'cards'] },
-  { id: 'glglitch', label: 'Глитч и ретро', tags: ['glitch', 'static', 'datamosh', 'scanlines', 'retro'] },
-  { id: 'glzoom', label: 'Зум и вращение', tags: ['zoom', 'rotate', 'spin', 'swirl', 'pinwheel'] },
-  { id: 'glwarp', label: 'Искажения и огонь', tags: ['distort', 'warp', 'wave', 'ripple', 'kaleidoscope', 'chromatic', 'displace', 'morph', 'lens', 'psychedelic', 'melt', 'burn', 'fire', 'shatter'] },
+  { id: 'glglitch', label: tx('Глитч и ретро'), tags: ['glitch', 'static', 'datamosh', 'scanlines', 'retro'] },
+  { id: 'glzoom', label: tx('Зум и вращение'), tags: ['zoom', 'rotate', 'spin', 'swirl', 'pinwheel'] },
+  { id: 'glwarp', label: tx('Искажения и огонь'), tags: ['distort', 'warp', 'wave', 'ripple', 'kaleidoscope', 'chromatic', 'displace', 'morph', 'lens', 'psychedelic', 'melt', 'burn', 'fire', 'shatter'] },
 ];
 const SHARED_CATS: { id: string; tags: string[] }[] = [
   { id: 'move', tags: ['slide', 'push', 'split', 'bounce', 'motion-blur'] },
@@ -172,31 +173,31 @@ export function prettyName(name: string): string {
 
 /** Русские названия переходов gl-transitions. */
 export const GL_RU: Record<string, string> = {
-  BlockDissolve: 'Блоки', BookFlip: 'Листание книги', Bounce: 'Падение с отскоком', BowTie: 'Бабочка', BowTieHorizontal: 'Бабочка по горизонтали',
-  BowTieVertical: 'Бабочка по вертикали', Box: 'Коробка', BurnThrough: 'Прожигание', ButterflyWaveScrawler: 'Волны-каракули', Chessboard: 'Шахматы',
-  CircleIris: 'Круг через цвет', CircleOpen: 'Мягкий круг', ClockWipe: 'Часы', ColorCoords: 'Цветовой сдвиг', ColorDistance: 'По цвету',
-  ColorPhase: 'Каналы по очереди', ColorWrap: 'Психоделика', CrazyParametricFun: 'Безумная спираль', CrossWarp: 'Перекрёстный зум', CrossZoom: 'Зум-размытие',
-  Crosshatch: 'Штриховка', Cube: 'Куб', DefocusBlur: 'Расфокус', Directional: 'Толчок', DirectionalEased: 'Толчок плавный',
-  DirectionalScaled: 'Толчок с уменьшением', DirectionalWarp: 'Диагональ с размытием', DirectionalWipe: 'Мягкая диагональ', DoomMelt: 'Таяние Doom', Doorway: 'Двери',
-  Dreamy: 'Сон', DreamyZoom: 'Сон с зумом', EdgeGlow: 'Светящиеся края', Fade: 'Растворение (GL)', FadeColor: 'Через цвет',
-  FadeGrayscale: 'Через ч/б', FilmBurn: 'Засвет плёнки', FlashFade: 'Вспышка цвета', FlowerWipe: 'Цветок', FlyEye: 'Глаз мухи',
-  Fold: 'Сгиб', GlitchBands: 'Глитч-полосы', GlitchDisplace: 'Глитч-сдвиг', GlitchFlicker: 'Глитч-мерцание', GlitchMemories: 'Глитч-воспоминания',
-  GlowDissolve: 'Горячий край', GridFlip: 'Плитки-перевёртыши', HeartWipe: 'Сердце', Hexagonalize: 'Шестиугольники', HorizontalClose: 'Сверху и снизу',
-  HorizontalOpen: 'Из середины вверх и вниз', HsvFade: 'Через радугу', InvertedPageCurl: 'Загиб страницы', Kaleidoscope: 'Калейдоскоп', LeafWipe: 'Лист',
-  LeftRight: 'Уезд влево', LinearBlur: 'Размытие', LissajousTiles: 'Плитки-фигуры', LuminanceMelt: 'Таяние по яркости', Morph: 'Морфинг',
-  Mosaic: 'Мозаика-панорама', MosaicBlend: 'Крупная мозаика', MosaicFade: 'Мозаика', MultiplyBlend: 'Умножение', NoiseDissolve: 'Шум',
-  Overexposure: 'Пересвет', PerlinDissolve: 'Пятна', Pinwheel: 'Вертушка', Pixelize: 'Пиксели (GL)', PolkaDotsCurtain: 'Горошек',
-  PowerKaleido: 'Калейдоскоп-вихрь', RadialWipe: 'Стрелка часов', RandomSquares: 'Случайные квадраты', RectangleCover: 'Прямоугольник', RectangleIris: 'Окошко',
-  Revolve: 'Вихрь с зумом', Ripple: 'Рябь', Rolls: 'Перекат', RotateFade: 'Поворот', RotateScaleFade: 'Поворот с зумом',
-  RotateScaleVanish: 'Улёт в точку', ScaleIn: 'Наплыв', Shatter: 'Осколки', SimpleFlip: 'Переворот', SimpleZoom: 'Зум в кадр',
-  SimpleZoomOut: 'Зум из кадра', SlideAwayRight: 'Уезд вправо', Slides: 'Слайды', SplitSlideInHorizontal: 'Половинки въезжают', SplitSlideInOutHorizontal: 'Половинки меняются',
-  SplitSlideInOutVertical: 'Половинки меняются вертикально', SplitSlideInVertical: 'Половинки въезжают вертикально', SplitSlideOutHorizontal: 'Половинки разъезжаются', SplitSlideOutVertical: 'Половинки разъезжаются вертикально', SquaresWipe: 'Квадраты по диагонали',
-  Squeeze: 'Сжатие в линию', StarWipe: 'Звезда', StaticFade: 'Помехи', StaticWipe: 'Шторка-помехи', StereoViewer: 'Стереоскоп',
-  StripDatamoshGlitch: 'Датамош', Swap: 'Обмен в 3D', Swirl: 'Водоворот', TangentMotionBlur: 'Бросок', TilesWave: 'Волна плиток',
-  TopBottom: 'Уезд вверх', TvLostSignal: 'Пропал сигнал', TvStatic: 'Телевизор', UndulatingBurnOut: 'Огненный круг', VerticalClose: 'Слева и справа',
-  VerticalOpen: 'Из середины в стороны', WaterDrop: 'Капля', Wind: 'Ветер (GL)', WindowBlinds: 'Жалюзи', WindowSlices: 'Ломтики',
-  WipeDown: 'Шторка вниз (GL)', WipeLeft: 'Шторка влево (GL)', WipeRight: 'Шторка вправо (GL)', WipeUp: 'Шторка вверх (GL)', ZoomInCircles: 'Кольца',
-  ZoomInOut: 'Зум туда-обратно', ZoomWipeLeft: 'Зум и шторка влево', ZoomWipeRight: 'Зум и шторка вправо',
+  BlockDissolve: tx('Блоки'), BookFlip: tx('Листание книги'), Bounce: tx('Падение с отскоком'), BowTie: tx('Бабочка'), BowTieHorizontal: tx('Бабочка по горизонтали'),
+  BowTieVertical: tx('Бабочка по вертикали'), Box: tx('Коробка'), BurnThrough: tx('Прожигание'), ButterflyWaveScrawler: tx('Волны-каракули'), Chessboard: tx('Шахматы'),
+  CircleIris: tx('Круг через цвет'), CircleOpen: tx('Мягкий круг'), ClockWipe: tx('Часы'), ColorCoords: tx('Цветовой сдвиг'), ColorDistance: tx('По цвету'),
+  ColorPhase: tx('Каналы по очереди'), ColorWrap: tx('Психоделика'), CrazyParametricFun: tx('Безумная спираль'), CrossWarp: tx('Перекрёстный зум'), CrossZoom: tx('Зум-размытие'),
+  Crosshatch: tx('Штриховка'), Cube: tx('Куб'), DefocusBlur: tx('Расфокус'), Directional: tx('Толчок'), DirectionalEased: tx('Толчок плавный'),
+  DirectionalScaled: tx('Толчок с уменьшением'), DirectionalWarp: tx('Диагональ с размытием'), DirectionalWipe: tx('Мягкая диагональ'), DoomMelt: tx('Таяние Doom'), Doorway: tx('Двери'),
+  Dreamy: tx('Сон'), DreamyZoom: tx('Сон с зумом'), EdgeGlow: tx('Светящиеся края'), Fade: tx('Растворение (GL)'), FadeColor: tx('Через цвет'),
+  FadeGrayscale: tx('Через ч/б'), FilmBurn: tx('Засвет плёнки'), FlashFade: tx('Вспышка цвета'), FlowerWipe: tx('Цветок'), FlyEye: tx('Глаз мухи'),
+  Fold: tx('Сгиб'), GlitchBands: tx('Глитч-полосы'), GlitchDisplace: tx('Глитч-сдвиг'), GlitchFlicker: tx('Глитч-мерцание'), GlitchMemories: tx('Глитч-воспоминания'),
+  GlowDissolve: tx('Горячий край'), GridFlip: tx('Плитки-перевёртыши'), HeartWipe: tx('Сердце'), Hexagonalize: tx('Шестиугольники'), HorizontalClose: tx('Сверху и снизу'),
+  HorizontalOpen: tx('Из середины вверх и вниз'), HsvFade: tx('Через радугу'), InvertedPageCurl: tx('Загиб страницы'), Kaleidoscope: tx('Калейдоскоп'), LeafWipe: tx('Лист'),
+  LeftRight: tx('Уезд влево'), LinearBlur: tx('Размытие'), LissajousTiles: tx('Плитки-фигуры'), LuminanceMelt: tx('Таяние по яркости'), Morph: tx('Морфинг'),
+  Mosaic: tx('Мозаика-панорама'), MosaicBlend: tx('Крупная мозаика'), MosaicFade: tx('Мозаика'), MultiplyBlend: tx('Умножение'), NoiseDissolve: tx('Шум'),
+  Overexposure: tx('Пересвет'), PerlinDissolve: tx('Пятна'), Pinwheel: tx('Вертушка'), Pixelize: tx('Пиксели (GL)'), PolkaDotsCurtain: tx('Горошек'),
+  PowerKaleido: tx('Калейдоскоп-вихрь'), RadialWipe: tx('Стрелка часов'), RandomSquares: tx('Случайные квадраты'), RectangleCover: tx('Прямоугольник'), RectangleIris: tx('Окошко'),
+  Revolve: tx('Вихрь с зумом'), Ripple: tx('Рябь'), Rolls: tx('Перекат'), RotateFade: tx('Поворот'), RotateScaleFade: tx('Поворот с зумом'),
+  RotateScaleVanish: tx('Улёт в точку'), ScaleIn: tx('Наплыв'), Shatter: tx('Осколки'), SimpleFlip: tx('Переворот'), SimpleZoom: tx('Зум в кадр'),
+  SimpleZoomOut: tx('Зум из кадра'), SlideAwayRight: tx('Уезд вправо'), Slides: tx('Слайды'), SplitSlideInHorizontal: tx('Половинки въезжают'), SplitSlideInOutHorizontal: tx('Половинки меняются'),
+  SplitSlideInOutVertical: tx('Половинки меняются вертикально'), SplitSlideInVertical: tx('Половинки въезжают вертикально'), SplitSlideOutHorizontal: tx('Половинки разъезжаются'), SplitSlideOutVertical: tx('Половинки разъезжаются вертикально'), SquaresWipe: tx('Квадраты по диагонали'),
+  Squeeze: tx('Сжатие в линию'), StarWipe: tx('Звезда'), StaticFade: tx('Помехи'), StaticWipe: tx('Шторка-помехи'), StereoViewer: tx('Стереоскоп'),
+  StripDatamoshGlitch: tx('Датамош'), Swap: tx('Обмен в 3D'), Swirl: tx('Водоворот'), TangentMotionBlur: tx('Бросок'), TilesWave: tx('Волна плиток'),
+  TopBottom: tx('Уезд вверх'), TvLostSignal: tx('Пропал сигнал'), TvStatic: tx('Телевизор'), UndulatingBurnOut: tx('Огненный круг'), VerticalClose: tx('Слева и справа'),
+  VerticalOpen: tx('Из середины в стороны'), WaterDrop: tx('Капля'), Wind: tx('Ветер (GL)'), WindowBlinds: tx('Жалюзи'), WindowSlices: tx('Ломтики'),
+  WipeDown: tx('Шторка вниз (GL)'), WipeLeft: tx('Шторка влево (GL)'), WipeRight: tx('Шторка вправо (GL)'), WipeUp: tx('Шторка вверх (GL)'), ZoomInCircles: tx('Кольца'),
+  ZoomInOut: tx('Зум туда-обратно'), ZoomWipeLeft: tx('Зум и шторка влево'), ZoomWipeRight: tx('Зум и шторка вправо'),
 };
 
 export interface GlTransitionJson {

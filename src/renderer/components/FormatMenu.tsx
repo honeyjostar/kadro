@@ -1,5 +1,6 @@
 // Формат кадра под плеером — как «Соотношение сторон» в CapCut: кнопка с текущим форматом, по нажатию —
 // плитки форматов, «как у видео», фон за видео, разрешение и частота кадров проекта. Меняется на лету.
+import { tx } from '../../shared/i18n';
 import { ChevronDown, Film } from 'lucide-react';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ASPECTS, FPS_LIST, RESOLUTIONS, shortSideOf, sizeFor } from '../../shared/defaults';
@@ -10,8 +11,8 @@ import { getState, useStore } from '../store';
 import { Seg } from './controls';
 
 const WHERE: Record<AspectKey, string> = {
-  '9:16': 'TikTok, Reels', '16:9': 'YouTube', '1:1': 'Квадрат', '4:5': 'Instagram',
-  '3:4': 'Портрет', '4:3': 'Старое ТВ', '21:9': 'Кино',
+  '9:16': 'TikTok, Reels', '16:9': 'YouTube', '1:1': tx('Квадрат'), '4:5': 'Instagram',
+  '3:4': tx('Портрет'), '4:3': tx('Старое ТВ'), '21:9': tx('Кино'),
 };
 
 function Frame({ a, size = 22 }: { a: AspectKey; size?: number }) {
@@ -67,16 +68,16 @@ export function FormatMenu() {
 
   return (
     <div className="format-menu" ref={ref}>
-      <button className={`btn small format-btn ${open ? 'active' : ''}`} onClick={() => setOpen(!open)} title="Формат кадра: соотношение сторон и фон"
+      <button className={`btn small format-btn ${open ? 'active' : ''}`} onClick={() => setOpen(!open)} title={tx('Формат кадра: соотношение сторон и фон')}
         aria-expanded={open} data-testid="aspect">
         <Frame a={settings.aspect} size={14} /><b>{settings.aspect}</b><span className="format-res">{RESOLUTIONS.find((r) => r.short === short)?.label}</span><ChevronDown size={13} />
       </button>
       {open && (
-        <div className="format-pop" role="dialog" aria-label="Формат кадра" data-testid="format-pop" style={{ maxHeight: maxH }}>
-          <div className="format-title">Формат кадра</div>
+        <div className="format-pop" role="dialog" aria-label={tx('Формат кадра')} data-testid="format-pop" style={{ maxHeight: maxH }}>
+          <div className="format-title">{tx('Формат кадра')}</div>
           {original && (
             <button className={`format-orig ${settings.aspect === original ? 'active' : ''}`} onClick={() => pick(original)} data-testid="aspect-original">
-              <Film size={15} /><span>Как у видео</span><em>{original}</em>
+              <Film size={15} /><span>{tx('Как у видео')}</span><em>{original}</em>
             </button>
           )}
           <div className="format-grid">
@@ -89,17 +90,17 @@ export function FormatMenu() {
               </button>
             ))}
           </div>
-          <div className="format-title">Фон за видео</div>
+          <div className="format-title">{tx('Фон за видео')}</div>
           <Seg value={settings.background} onChange={(v) => set({ background: v })} options={[
-            { value: 'black', label: 'Чёрный' }, { value: 'blur', label: 'Размытие' }, { value: 'white', label: 'Белый' },
+            { value: 'black', label: tx('Чёрный') }, { value: 'blur', label: tx('Размытие') }, { value: 'white', label: tx('Белый') },
           ]} />
-          <div className="format-title format-row">Разрешение<span>{settings.width}×{settings.height}</span></div>
+          <div className="format-title format-row">{tx('Разрешение')}<span>{settings.width}×{settings.height}</span></div>
           <Seg value={short} onChange={setShort} options={RESOLUTIONS.map((r) => ({ value: r.short, label: r.label }))} />
-          <div className="format-title">Кадров в секунду</div>
+          <div className="format-title">{tx('Кадров в секунду')}</div>
           <Seg value={settings.fps} onChange={(v) => set({ fps: v })} options={FPS_LIST.map((f) => ({ value: f as number, label: String(f) }))} />
-          <div className="format-title">Клипы основной дорожки</div>
-          <Seg value={fit} onChange={fitAll} options={[{ value: 'contain', label: 'Целиком, с фоном' }, { value: 'cover', label: 'Заполнить кадр' }]} />
-          <p className="hint small">«Целиком» — видео другого формата видно полностью, по краям фон. «Заполнить» — без полос, края обрезаются. Разрешение и частота — значения для экспорта по умолчанию.</p>
+          <div className="format-title">{tx('Клипы основной дорожки')}</div>
+          <Seg value={fit} onChange={fitAll} options={[{ value: 'contain', label: tx('Целиком, с фоном') }, { value: 'cover', label: tx('Заполнить кадр') }]} />
+          <p className="hint small">{tx('«Целиком» — видео другого формата видно полностью, по краям фон. «Заполнить» — без полос, края обрезаются. Разрешение и частота — значения для экспорта по умолчанию.')}</p>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 // «Мои проекты» на главном экране — как в CapCut: обложки, поиск, порядок, переименовать, копия,
 // показать в папке, убрать из списка, удалить в корзину (правая кнопка мыши или «⋯»).
+import { tx, uiLocale } from '../../shared/i18n';
 import { Copy, FolderOpen, MoreHorizontal, PencilLine, Play, Search, Trash2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { RecentProject } from '../../shared/ipc';
@@ -17,10 +18,10 @@ export function when(ms: number): string {
   const now = new Date();
   const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const diff = Math.round((day(now) - day(d)) / 86_400_000);
-  const hm = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  if (diff === 0) return `сегодня в ${hm}`;
-  if (diff === 1) return `вчера в ${hm}`;
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+  const hm = d.toLocaleTimeString(uiLocale(), { hour: '2-digit', minute: '2-digit' });
+  if (diff === 0) return tx('сегодня в {0}', hm);
+  if (diff === 1) return tx('вчера в {0}', hm);
+  return d.toLocaleDateString(uiLocale(), { day: 'numeric', month: 'long' });
 }
 
 export function ProjectsSection({ list, busy, run, reload }: {
@@ -44,36 +45,36 @@ export function ProjectsSection({ list, busy, run, reload }: {
     if (!name.trim() || name.trim() === r.name) return;
     const res = await api.renameProjectFile(r.path, name);
     if ('error' in res) { toast(res.error, 'err'); return; }
-    toast('Проект переименован', 'ok');
+    toast(tx('Проект переименован'), 'ok');
     reload();
   };
   const duplicate = async (r: RecentProject) => {
     const res = await api.duplicateProject(r.path);
-    if ('error' in res) toast(res.error, 'err'); else { toast('Копия проекта готова', 'ok'); reload(); }
+    if ('error' in res) toast(res.error, 'err'); else { toast(tx('Копия проекта готова'), 'ok'); reload(); }
   };
   const trash = async (r: RecentProject) => {
-    if (!confirm(`Удалить проект «${r.name}»? Файл проекта уйдёт в корзину Windows (видео и фото останутся на месте).`)) return;
+    if (!confirm(tx('Удалить проект «{0}»? Файл проекта уйдёт в корзину Windows (видео и фото останутся на месте).', r.name))) return;
     const res = await api.trashProject(r.path);
-    if ('error' in res) toast(res.error, 'err'); else { toast('Проект в корзине', 'ok'); reload(); }
+    if ('error' in res) toast(res.error, 'err'); else { toast(tx('Проект в корзине'), 'ok'); reload(); }
   };
   const forget = (r: RecentProject) => { api.forgetRecent(r.path); reload(); };
 
   return (
     <section className="home-section" data-testid="projects">
       <div className="home-section-head">
-        <h2>Мои проекты</h2>
+        <h2>{tx('Мои проекты')}</h2>
         {others.length > 0 && <span className="hint">{others.length + (hasClips ? 1 : 0)}</span>}
         <div className="spacer" />
         {others.length > 4 && (
           <>
             <label className="proj-search">
               <Search size={14} />
-              <input className="input" placeholder="Найти проект" value={query} onChange={(e) => setQuery(e.target.value)} data-testid="projects-search" />
-              {query && <button className="icon-btn" onClick={() => setQuery('')} title="Очистить"><X size={13} /></button>}
+              <input className="input" placeholder={tx('Найти проект')} value={query} onChange={(e) => setQuery(e.target.value)} data-testid="projects-search" />
+              {query && <button className="icon-btn" onClick={() => setQuery('')} title={tx('Очистить')}><X size={13} /></button>}
             </label>
-            <select className="input proj-sort" value={sort} onChange={(e) => setSort(e.target.value as ProjectSort)} data-testid="projects-sort" title="Порядок">
-              <option value="date">Сначала новые</option>
-              <option value="name">По названию</option>
+            <select className="input proj-sort" value={sort} onChange={(e) => setSort(e.target.value as ProjectSort)} data-testid="projects-sort" title={tx('Порядок')}>
+              <option value="date">{tx('Сначала новые')}</option>
+              <option value="name">{tx('По названию')}</option>
             </select>
           </>
         )}
@@ -87,10 +88,10 @@ export function ProjectsSection({ list, busy, run, reload }: {
             onDuplicate={() => void duplicate(r)} onTrash={() => void trash(r)} onForget={() => forget(r)} />
         ))}
       </div>
-      {query && !shown.length && <p className="hint">Ничего не нашлось.</p>}
+      {query && !shown.length && <p className="hint">{tx('Ничего не нашлось.')}</p>}
       {!query && shown.length > FIRST && (
         <button className="btn ghost proj-more" onClick={() => setAll(!all)} data-testid="projects-all">
-          {all ? 'Свернуть' : `Показать все (${shown.length})`}
+          {all ? tx('Свернуть') : tx('Показать все ({0})', shown.length)}
         </button>
       )}
     </section>
@@ -101,13 +102,13 @@ function CurrentCard({ name }: { name: string }) {
   const [edit, setEdit] = useState(false);
   return (
     <div className="recent-card now">
-      <button className="recent-open" onClick={() => getState().setHome(false)} data-testid="project-current" aria-label={`Вернуться к проекту «${name}»`}>
+      <button className="recent-open" onClick={() => getState().setHome(false)} data-testid="project-current" aria-label={tx('Вернуться к проекту «{0}»', name)}>
         <span className="recent-thumb now"><Play size={20} fill="currentColor" /></span>
       </button>
       {edit
         ? <NameInput value={name} onDone={(n) => { setEdit(false); if (n.trim()) getState().commit((p) => renameProject(p, n.trim()), 'rename'); }} onCancel={() => setEdit(false)} />
-        : <b className="proj-name" onDoubleClick={() => setEdit(true)} title="Двойной щелчок — переименовать">{name}</b>}
-      <span className="hint small proj-meta">открыт сейчас</span>
+        : <b className="proj-name" onDoubleClick={() => setEdit(true)} title={tx('Двойной щелчок — переименовать')}>{name}</b>}
+      <span className="hint small proj-meta">{tx('открыт сейчас')}</span>
     </div>
   );
 }
@@ -119,29 +120,29 @@ function ProjectCard({ r, disabled, renaming, onOpen, onRename, onRenameDone, on
 }) {
   const menu = useMenu();
   const items = () => [
-    { label: 'Открыть', icon: <Play size={14} />, onClick: onOpen, testId: 'proj-open' },
-    { label: 'Переименовать', icon: <PencilLine size={14} />, onClick: onRename, testId: 'proj-rename' },
-    { label: 'Копия проекта', icon: <Copy size={14} />, onClick: onDuplicate, testId: 'proj-copy' },
-    { label: 'Показать в папке', icon: <FolderOpen size={14} />, onClick: () => api.showInFolder(r.path), testId: 'proj-folder' },
+    { label: tx('Открыть'), icon: <Play size={14} />, onClick: onOpen, testId: 'proj-open' },
+    { label: tx('Переименовать'), icon: <PencilLine size={14} />, onClick: onRename, testId: 'proj-rename' },
+    { label: tx('Копия проекта'), icon: <Copy size={14} />, onClick: onDuplicate, testId: 'proj-copy' },
+    { label: tx('Показать в папке'), icon: <FolderOpen size={14} />, onClick: () => api.showInFolder(r.path), testId: 'proj-folder' },
     'sep' as const,
-    { label: 'Убрать из списка', hint: 'файл останется', icon: <X size={14} />, onClick: onForget, testId: 'proj-forget' },
-    { label: 'Удалить в корзину', icon: <Trash2 size={14} />, onClick: onTrash, danger: true, testId: 'proj-trash' },
+    { label: tx('Убрать из списка'), hint: tx('файл останется'), icon: <X size={14} />, onClick: onForget, testId: 'proj-forget' },
+    { label: tx('Удалить в корзину'), icon: <Trash2 size={14} />, onClick: onTrash, danger: true, testId: 'proj-trash' },
   ];
   const ratio = r.aspect && /^\d+:\d+$/.test(r.aspect) ? r.aspect.replace(':', ' / ') : '16 / 9';
   return (
     <div className="recent-card" title={r.path} data-testid="project-card" onContextMenu={(e) => menu.open(e, items())}>
-      <button className="recent-open" disabled={disabled} onClick={onOpen} aria-label={`Открыть «${r.name}»`}>
+      <button className="recent-open" disabled={disabled} onClick={onOpen} aria-label={tx('Открыть «{0}»', r.name)}>
         <span className="recent-thumb" style={r.thumb ? { backgroundImage: `url("${api.mediaUrl(r.thumb)}")` } : undefined}>
           {!r.thumb && <span className="proj-shape" style={{ aspectRatio: ratio }} />}
           {r.duration > 0 && <span className="proj-dur">{fmtDur(r.duration)}</span>}
-          {r.draft && <span className="proj-tag">черновик</span>}
+          {r.draft && <span className="proj-tag">{tx('черновик')}</span>}
         </span>
       </button>
       {renaming
         ? <NameInput value={r.name} onDone={onRenameDone} onCancel={onRenameCancel} />
-        : <b className="proj-name" onDoubleClick={onRename} title="Двойной щелчок — переименовать">{r.name}</b>}
+        : <b className="proj-name" onDoubleClick={onRename} title={tx('Двойной щелчок — переименовать')}>{r.name}</b>}
       <span className="hint small proj-meta">{when(r.mtime)}{r.aspect ? `, ${r.aspect}` : ''}</span>
-      <button className="recent-forget proj-more-btn" onClick={(e) => menu.open(e, items())} title="Переименовать, копия, удалить…" aria-label="Действия с проектом" data-testid="project-more">
+      <button className="recent-forget proj-more-btn" onClick={(e) => menu.open(e, items())} title={tx('Переименовать, копия, удалить…')} aria-label={tx('Действия с проектом')} data-testid="project-more">
         <MoreHorizontal size={14} />
       </button>
       {menu.node}
@@ -158,6 +159,6 @@ function NameInput({ value, onDone, onCancel }: { value: string; onDone: (v: str
   return (
     <input ref={ref} className="input proj-rename" value={v} onChange={(e) => setV(e.target.value)} data-testid="project-rename-input"
       onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); }}
-      onBlur={() => finish(true)} maxLength={120} aria-label="Название проекта" />
+      onBlur={() => finish(true)} maxLength={120} aria-label={tx('Название проекта')} />
   );
 }

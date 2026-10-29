@@ -1,5 +1,6 @@
 // Кэш Kadro (%USERPROFILE%\.kadro\cache): что в нём лежит, сколько места занимает и что можно удалить.
 // Здесь — чистые функции (план очистки); удаление файлов — в главном процессе (main/cache.ts).
+import { tx } from './i18n';
 
 /** Папки кэша по смыслу. */
 export const CACHE_GROUPS = {
@@ -68,7 +69,7 @@ export function planCleanup(files: CacheFile[], keep: Set<string>, what: CacheGr
 }
 
 export function fmtBytes(n: number): string {
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} КБ`;
-  if (n < 1024 ** 3) return `${Math.round(n / 1024 / 1024)} МБ`;
-  return `${(n / 1024 ** 3).toFixed(1).replace('.', ',')} ГБ`;
+  if (n < 1024 * 1024) return tx('{0} КБ', Math.round(n / 1024));
+  if (n < 1024 ** 3) return tx('{0} МБ', Math.round(n / 1024 / 1024));
+  return tx('{0} ГБ', (n / 1024 ** 3).toFixed(1).replace('.', ','));
 }

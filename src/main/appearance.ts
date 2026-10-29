@@ -1,5 +1,6 @@
 // Оформление в главном процессе: значок окна и ярлыков Windows, размер интерфейса,
 // «своё оформление» — custom.css и theme.json из папки данных, подхватываются на лету.
+import { tx } from '../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
 import { app, nativeImage, shell, type BrowserWindow } from 'electron';
@@ -71,7 +72,7 @@ export function applyShortcutIcons(a: Appearance): number {
 /** Свой значок из картинки (PNG, JPG, ICO): квадрат 256×256 → .png и .ico в папке данных. */
 export function makeCustomIcon(file: string): string {
   let img = nativeImage.createFromPath(file);
-  if (img.isEmpty()) throw new Error('Не получилось открыть картинку. Подойдут PNG, JPG или ICO.');
+  if (img.isEmpty()) throw new Error(tx('Не получилось открыть картинку. Подойдут PNG, JPG или ICO.'));
   const { width, height } = img.getSize();
   const side = Math.min(width, height);
   img = img.crop({ x: Math.floor((width - side) / 2), y: Math.floor((height - side) / 2), width: side, height: side }).resize({ width: 256, height: 256, quality: 'best' });

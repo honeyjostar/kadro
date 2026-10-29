@@ -1,3 +1,4 @@
+import { tx } from '../../shared/i18n';
 import { X } from 'lucide-react';
 import { cancelJob } from '../actions';
 import { useStore } from '../store';
@@ -24,7 +25,7 @@ export function Jobs() {
             <span>{j.stage && j.stage !== j.label ? `${j.label} · ${j.stage}` : j.label}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span className="value">{Math.round(j.progress * 100)}%</span>
-              {j.cancellable && <button className="icon-btn" style={{ width: 22, height: 22 }} title="Отменить" onClick={() => cancelJob(j.id)}><X size={14} /></button>}
+              {j.cancellable && <button className="icon-btn" style={{ width: 22, height: 22 }} title={tx('Отменить')} onClick={() => cancelJob(j.id)}><X size={14} /></button>}
             </span>
           </div>
           <Progress value={j.progress} />

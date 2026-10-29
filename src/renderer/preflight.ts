@@ -1,6 +1,7 @@
 // Проверка перед публикацией: то, что CapCut и Premiere не подсказывают, а зрители замечают сразу —
 // надписи под кнопками TikTok/Reels/Shorts, мелкий текст, текст за краем, не тот формат, слишком длинный ролик,
 // видео с низким разрешением, растянутое на большой экспорт.
+import { tx } from '../shared/i18n';
 import { isGlType } from '../shared/gl/glsl';
 import { glCatalogLoaded, glDef } from './glRegistry';
 import { exportSize } from '../shared/geometry';
@@ -50,9 +51,9 @@ export function preflight(p: Project, platform: Platform | null, exportShort: nu
 
   // формат и длина
   if (pf && !isVertical(W, H)) {
-    out.push({ id: 'aspect', text: `Для ${pf.label} нужен вертикальный кадр 9:16, а у проекта ${p.settings.aspect}. По бокам будут чёрные полосы.`, fix: 'aspect916' });
+    out.push({ id: 'aspect', text: tx('Для {0} нужен вертикальный кадр 9:16, а у проекта {1}. По бокам будут чёрные полосы.', pf.label, p.settings.aspect), fix: 'aspect916' });
   }
-  if (pf && dur > pf.maxSec) out.push({ id: 'long', text: `Ролик длится ${fmtDur(dur)}. ${pf.maxNote}.` });
+  if (pf && dur > pf.maxSec) out.push({ id: 'long', text: tx('Ролик длится {0}. {1}.', fmtDur(dur), pf.maxNote) });
 
   // плагины-шейдеры, которых нет на этом компьютере (проект открыли на другом)
   const lost = new Map<string, { clipId: string; t: number }>();
@@ -63,7 +64,7 @@ export function preflight(p: Project, platform: Platform | null, exportShort: nu
   }
   for (const [ty, at] of lost) {
     const name = ty.replace(/^plug:[te]\//, '').replace(/^gl:/, '');
-    out.push({ id: `plug-${ty}`, text: `Плагин «${name}» не найден на этом компьютере — ${ty.startsWith('plug:t/') ? 'вместо перехода будет растворение' : 'эффект не попадёт в видео'}. Положи файл плагина в папку плагинов (Настройки → Плагины).`, clipId: at.clipId, t: at.t });
+    out.push({ id: `plug-${ty}`, text: tx('Плагин «{0}» не найден на этом компьютере — {1}. Положи файл плагина в папку плагинов (Настройки → Плагины).', name, ty.startsWith('plug:t/') ? tx('вместо перехода будет растворение') : tx('эффект не попадёт в видео')), clipId: at.clipId, t: at.t });
   }
 
   // надписи
@@ -82,21 +83,21 @@ export function preflight(p: Project, platform: Platform | null, exportShort: nu
         if (hits.length) { cap.hit++; cap.first ??= c; cap.zone ||= hits[0].label.toLowerCase(); }
       } else if (hits.length && titlesShown < 6) {
         titlesShown++;
-        out.push({ id: `zone-${c.id}`, text: `Надпись «${short(c.text)}» (${fmtDur(c.start)}) закроет ${pf.label}: ${hits.map((z) => z.label.toLowerCase()).join(', ')}.`, clipId: c.id, t: at });
+        out.push({ id: `zone-${c.id}`, text: tx('Надпись «{0}» ({1}) закроет {2}: {3}.', short(c.text), fmtDur(c.start), pf.label, hits.map((z) => z.label.toLowerCase()).join(', ')), clipId: c.id, t: at });
       }
     }
     if (!isCaption && (r.x < -0.01 || r.y < -0.01 || r.x + r.w > 1.01 || r.y + r.h > 1.01)) {
-      out.push({ id: `edge-${c.id}`, text: `Надпись «${short(c.text)}» (${fmtDur(c.start)}) выходит за край кадра.`, clipId: c.id, t: at });
+      out.push({ id: `edge-${c.id}`, text: tx('Надпись «{0}» ({1}) выходит за край кадра.', short(c.text), fmtDur(c.start)), clipId: c.id, t: at });
     }
     const size1080 = c.style.size * (c.scale ?? 1);
     if (!isCaption && size1080 < 34) {
-      out.push({ id: `small-${c.id}`, text: `Надпись «${short(c.text)}» мелкая — на телефоне её трудно прочитать. Сделай размер больше 40.`, clipId: c.id, t: at });
+      out.push({ id: `small-${c.id}`, text: tx('Надпись «{0}» мелкая — на телефоне её трудно прочитать. Сделай размер больше 40.', short(c.text)), clipId: c.id, t: at });
     }
   }
   if (cap.hit > 0 && cap.first) {
     out.push({
       id: 'captions-zone',
-      text: `Субтитры (${cap.hit} из ${cap.total}) попадают под ${pf!.label}: ${cap.zone}. Подними их выше во вкладке «Субтитры».`,
+      text: tx('Субтитры ({0} из {1}) попадают под {2}: {3}. Подними их выше во вкладке «Субтитры».', cap.hit, cap.total, pf!.label, cap.zone),
       clipId: cap.first.id, t: cap.first.start + 0.1,
     });
   }
@@ -115,7 +116,7 @@ export function preflight(p: Project, platform: Platform | null, exportShort: nu
       // наложение в маленьком окошке может быть мельче — считаем с его масштабом
       if (has * 1.6 < need * Math.min(1, scale) && clipDuration(c) > 0.5) {
         seen.add(a.id);
-        out.push({ id: `res-${a.id}`, text: `«${short(a.name)}» — ${has}p, а экспорт ${need}p: картинка будет нечёткой. Выбери разрешение ниже или замени файл.`, clipId: c.id, t: c.start + 0.1 });
+        out.push({ id: `res-${a.id}`, text: tx('«{0}» — {1}p, а экспорт {2}p: картинка будет нечёткой. Выбери разрешение ниже или замени файл.', short(a.name), has, need), clipId: c.id, t: c.start + 0.1 });
       }
     }
   }

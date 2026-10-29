@@ -1,6 +1,7 @@
 // «Ролик по сценарию»: текст → сцены → (озвучка) → кадры из своих видео и фото на всю длину сцены →
 // субтитры точно по тексту → музыка тише под голос. Здесь — чистые функции (тестируются без Electron);
 // озвучка и разбор видео — в renderer/actions.ts.
+import { tx } from './i18n';
 import { goodSeconds, pickWindows, rng, type Highlights } from './autoEdit';
 import { ASPECTS, CAPTION_STYLE, newProject } from './defaults';
 import { addAsset, addFree, addToMain, setCaptions, setSettings, updateClip, type Cue } from './timeline';
@@ -86,9 +87,9 @@ const usableLen = (a: MediaAsset) => a.duration - 2 * edgeOf(a);
 export function scriptEdit(base: Project, inp: ScriptInput): { project: Project; summary: ScriptSummary } {
   const rand = rng(inp.seed);
   const media = inp.media.filter((m) => isVisual(m.asset));
-  if (!media.length) throw new Error('Нужны видео или фото');
+  if (!media.length) throw new Error(tx('Нужны видео или фото'));
   const scenes = inp.scenes.filter((s) => s.text.trim() && s.dur > 0);
-  if (!scenes.length) throw new Error('Сценарий пустой');
+  if (!scenes.length) throw new Error(tx('Сценарий пустой'));
   let p = base;
   const { w, h } = ASPECTS[inp.aspect];
   p = setSettings(p, { aspect: inp.aspect, width: w, height: h });
@@ -186,4 +187,4 @@ export function scriptEdit(base: Project, inp: ScriptInput): { project: Project;
 }
 
 /** Пустой проект под ролик по сценарию. */
-export const scriptBase = (aspect: AspectKey, title: string): Project => newProject(title.trim() || 'Ролик по сценарию', aspect);
+export const scriptBase = (aspect: AspectKey, title: string): Project => newProject(title.trim() || tx('Ролик по сценарию'), aspect);

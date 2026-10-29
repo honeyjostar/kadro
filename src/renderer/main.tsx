@@ -1,3 +1,4 @@
+import { tx, uiLang } from '../shared/i18n';
 import { createRoot } from 'react-dom/client';
 import './fonts';
 import './styles.css';
@@ -16,6 +17,8 @@ import { warper } from './engine/warp';
 import * as glReg from './glRegistry';
 import { glRunner } from './engine/gl';
 
+document.documentElement.lang = uiLang();
+
 // доступ для автотестов (window.__kadro) — в обычной работе не используется
 (window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates, gl: { ...glReg, runner: glRunner } };
 // каталог шейдеров (переходы gl-transitions) — в фоне, не задерживая окно
@@ -27,7 +30,7 @@ api.onPluginsChanged?.(glReg.applyPluginFiles);
 // ошибки вне React (обработчики, промисы) не роняют окно: в журнал и короткое сообщение
 const report = (msg: string) => {
   try { api.logError(msg); } catch { /* журнал недоступен */ }
-  try { getState().toast(`Произошла ошибка: ${msg.split('\n')[0].slice(0, 160)}`, 'err'); } catch { /* интерфейс ещё не готов */ }
+  try { getState().toast(tx('Произошла ошибка: {0}', msg.split('\n')[0].slice(0, 160)), 'err'); } catch { /* интерфейс ещё не готов */ }
 };
 window.addEventListener('error', (e) => { if (e.error) report(e.error instanceof Error ? e.error.stack ?? e.error.message : String(e.error)); });
 window.addEventListener('unhandledrejection', (e) => {
@@ -54,7 +57,7 @@ api.onAppearanceChanged((a) => { getState().setAppearance(a); applyAccent(a); })
 let lastCustomError = '';
 api.onCustomStatus((st) => {
   getState().setCustomStatus(st);
-  if (st.error && st.error !== lastCustomError) getState().toast(`Своё оформление: ${st.error}`, 'err');
+  if (st.error && st.error !== lastCustomError) getState().toast(tx('Своё оформление: {0}', st.error), 'err');
   lastCustomError = st.error ?? '';
 });
 

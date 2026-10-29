@@ -1,3 +1,5 @@
+import { tx } from '../../shared/i18n';
+import { txj } from '../txj';
 import { AudioLines, Box, X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
 import { alignToBeats, extractAudio, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection, userCurve, userSpeed } from '../actions';
@@ -60,10 +62,10 @@ function ProjectInspector({ multi }: { multi: number }) {
   const clips = project.tracks.reduce((n, t) => n + t.clips.length, 0);
   return (
     <>
-      <div className="panel-head">{multi > 1 ? `Выделено клипов: ${multi}` : 'Проект'}</div>
+      <div className="panel-head">{multi > 1 ? tx('Выделено клипов: {0}', multi) : tx('Проект')}</div>
       <div className="panel-body">
-        {multi <= 1 && <p className="hint inspector-tip">Нажми на клип на таймлайне — здесь появятся его настройки: размер, цвет, эффекты, скорость, звук и анимация.</p>}
-        <div className="section-title" style={{ marginTop: 4 }}>Формат кадра</div>
+        {multi <= 1 && <p className="hint inspector-tip">{tx('Нажми на клип на таймлайне — здесь появятся его настройки: размер, цвет, эффекты, скорость, звук и анимация.')}</p>}
+        <div className="section-title" style={{ marginTop: 4 }}>{tx('Формат кадра')}</div>
         <div className="aspect-grid">
           {(Object.keys(ASPECTS) as AspectKey[]).map((a) => (
             <button key={a} className={`aspect-tile ${settings.aspect === a ? 'active' : ''}`} onClick={() => set({ aspect: a, ...sizeFor(a, shortSideOf(settings)) })}
@@ -72,35 +74,35 @@ function ProjectInspector({ multi }: { multi: number }) {
             </button>
           ))}
         </div>
-        <p className="hint small">{ASPECTS[settings.aspect].label.split('·')[1]?.trim() || 'Свой формат'}</p>
-        <Field label="Фон за видео">
+        <p className="hint small">{ASPECTS[settings.aspect].label.split('·')[1]?.trim() || tx('Свой формат')}</p>
+        <Field label={tx('Фон за видео')}>
           <Seg value={settings.background} onChange={(v) => set({ background: v })} options={[
-            { value: 'black', label: 'Чёрный' }, { value: 'blur', label: 'Размытие' }, { value: 'white', label: 'Белый' },
+            { value: 'black', label: tx('Чёрный') }, { value: 'blur', label: tx('Размытие') }, { value: 'white', label: tx('Белый') },
           ]} />
         </Field>
-        <Field label="Разрешение" right={<span className="value">{settings.width}×{settings.height}</span>}>
+        <Field label={tx('Разрешение')} right={<span className="value">{settings.width}×{settings.height}</span>}>
           <Seg value={shortSideOf(settings)} onChange={(v) => set(sizeFor(settings.aspect, v))} options={RESOLUTIONS.map((r) => ({ value: r.short, label: r.label }))} />
         </Field>
-        <Field label="Кадров в секунду">
+        <Field label={tx('Кадров в секунду')}>
           <Seg value={settings.fps} onChange={(v) => set({ fps: v })} options={FPS_LIST.map((f) => ({ value: f as number, label: String(f) }))} />
         </Field>
         <div className="stats">
-          <div><span>Длительность</span><b>{fmtDur(projectDuration(project))}</b></div>
-          <div><span>Клипов</span><b>{clips}</b></div>
-          <div><span>Файлов</span><b>{project.assets.filter((a) => !a.derived).length}</b></div>
+          <div><span>{tx('Длительность')}</span><b>{fmtDur(projectDuration(project))}</b></div>
+          <div><span>{tx('Клипов')}</span><b>{clips}</b></div>
+          <div><span>{tx('Файлов')}</span><b>{project.assets.filter((a) => !a.derived).length}</b></div>
         </div>
-        <div className="section-title">Клавиши</div>
+        <div className="section-title">{tx('Клавиши')}</div>
         <dl className="keys">
-          <dt>Пробел</dt><dd>пуск и пауза</dd>
-          <dt>S или Ctrl+B</dt><dd>разрезать у курсора</dd>
-          <dt>Delete</dt><dd>удалить выделенное</dd>
-          <dt>Ctrl+D</dt><dd>копия клипа</dd>
-          <dt>Ctrl/Shift+щелчок</dt><dd>выделить несколько (Ctrl+A — все)</dd>
-          <dt>Ctrl+G</dt><dd>сгруппировать (с Shift — разгруппировать)</dd>
-          <dt>Ctrl+S / Ctrl+E</dt><dd>сохранить проект / экспорт</dd>
-          <dt>Ctrl+Z / Ctrl+Y</dt><dd>отменить / вернуть</dd>
-          <dt>← →</dt><dd>на кадр (с Shift — на секунду)</dd>
-          <dt>Ctrl+колесо</dt><dd>масштаб таймлайна</dd>
+          <dt>{tx('Пробел')}</dt><dd>{tx('пуск и пауза')}</dd>
+          <dt>{tx('S или Ctrl+B')}</dt><dd>{tx('разрезать у курсора')}</dd>
+          <dt>Delete</dt><dd>{tx('удалить выделенное')}</dd>
+          <dt>Ctrl+D</dt><dd>{tx('копия клипа')}</dd>
+          <dt>{tx('Ctrl/Shift+щелчок')}</dt><dd>{tx('выделить несколько (Ctrl+A — все)')}</dd>
+          <dt>Ctrl+G</dt><dd>{tx('сгруппировать (с Shift — разгруппировать)')}</dd>
+          <dt>Ctrl+S / Ctrl+E</dt><dd>{tx('сохранить проект / экспорт')}</dd>
+          <dt>Ctrl+Z / Ctrl+Y</dt><dd>{tx('отменить / вернуть')}</dd>
+          <dt>← →</dt><dd>{tx('на кадр (с Shift — на секунду)')}</dd>
+          <dt>{tx('Ctrl+колесо')}</dt><dd>{tx('масштаб таймлайна')}</dd>
         </dl>
       </div>
     </>
@@ -115,13 +117,13 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   const isAudio = asset?.kind === 'audio';
   const isImage = asset?.kind === 'image';
   const tabs: { id: MTab; label: string }[] = isAudio
-    ? [{ id: 'audio', label: 'Звук' }, { id: 'speed', label: 'Скорость' }]
+    ? [{ id: 'audio', label: tx('Звук') }, { id: 'speed', label: tx('Скорость') }]
     : [
-      { id: 'basic', label: 'Кадр' }, { id: 'anim', label: 'Анимация' }, { id: 'color', label: 'Цвет' }, { id: 'mask', label: 'Маска' },
-      ...(clip.effects?.length ? [{ id: 'fx' as MTab, label: 'Эффекты' }] : []),
-      ...(!isImage ? [{ id: 'speed' as MTab, label: 'Скорость' }] : []),
-      ...(asset?.hasAudio ? [{ id: 'audio' as MTab, label: 'Звук' }] : []),
-      ...(!isImage ? [{ id: 'ai' as MTab, label: 'ИИ' }] : []),
+      { id: 'basic', label: tx('Кадр') }, { id: 'anim', label: tx('Анимация') }, { id: 'color', label: tx('Цвет') }, { id: 'mask', label: tx('Маска') },
+      ...(clip.effects?.length ? [{ id: 'fx' as MTab, label: tx('Эффекты') }] : []),
+      ...(!isImage ? [{ id: 'speed' as MTab, label: tx('Скорость') }] : []),
+      ...(asset?.hasAudio ? [{ id: 'audio' as MTab, label: tx('Звук') }] : []),
+      ...(!isImage ? [{ id: 'ai' as MTab, label: tx('ИИ') }] : []),
     ];
   const [tab, setTab] = useState<MTab>(() => (lastMediaTab && tabs.some((t) => t.id === lastMediaTab) ? lastMediaTab : tabs[0].id));
   useEffect(() => { lastMediaTab = tab; }, [tab]);
@@ -133,12 +135,12 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   const dur = clipDuration(clip);
   return (
     <>
-      <div className="panel-head"><span className="ellipsis" title={asset?.name}>{asset?.name ?? 'Клип'}</span></div>
+      <div className="panel-head"><span className="ellipsis" title={asset?.name}>{asset?.name ?? tx('Клип')}</span></div>
       {clip.group && (
         <div className="group-bar" data-testid="group-bar">
-          <span>Группа: {clip.group.tracks.reduce((n, t) => n + t.clips.length, 0)} клипа внутри</span>
-          <button className="btn small" onClick={ungroupSelection} data-testid="ungroup">Разгруппировать</button>
-          <button className="btn small" title="Собрать заново (например, после смены формата кадра)" onClick={() => void rebuildGroup(clip.id)}>Пересобрать</button>
+          <span>{txj('Группа: {0} клипа внутри', clip.group.tracks.reduce((n, t) => n + t.clips.length, 0))}</span>
+          <button className="btn small" onClick={ungroupSelection} data-testid="ungroup">{tx('Разгруппировать')}</button>
+          <button className="btn small" title={tx('Собрать заново (например, после смены формата кадра)')} onClick={() => void rebuildGroup(clip.id)}>{tx('Пересобрать')}</button>
         </div>
       )}
       <Tabs value={cur} tabs={tabs} onChange={setTab} />
@@ -148,28 +150,27 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
             {clip.model3d && (
               <div className="m3d-bar" data-testid="m3d-bar">
                 <Box size={16} /><span>3D: {clip.model3d.name}</span>
-                <button className="btn small primary" onClick={() => getState().setModel3dEdit({ init: clip.model3d!, clipId: clip.id })} data-testid="m3d-edit">Изменить 3D</button>
+                <button className="btn small primary" onClick={() => getState().setModel3dEdit({ init: clip.model3d!, clipId: clip.id })} data-testid="m3d-edit">{tx('Изменить 3D')}</button>
               </div>
             )}
-            <Field label="Вписать в кадр">
-              <Seg value={clip.fit} onChange={(v) => up({ fit: v }, 'fit')} options={[{ value: 'contain', label: 'Целиком' }, { value: 'cover', label: 'Заполнить' }]} />
+            <Field label={tx('Вписать в кадр')}>
+              <Seg value={clip.fit} onChange={(v) => up({ fit: v }, 'fit')} options={[{ value: 'contain', label: tx('Целиком') }, { value: 'cover', label: tx('Заполнить') }]} />
             </Field>
             <AnimFields clip={clip} defs={MEDIA_ANIM} />
             {trackKind === 'video' && (
-              <Field label="Режим наложения">
+              <Field label={tx('Режим наложения')}>
                 <select className="input" value={clip.blend ?? 'normal'} data-testid="blend" onChange={(e) => up({ blend: e.target.value as BlendMode }, 'blend')}>
                   {BLENDS.map((b) => <option key={b.mode} value={b.mode}>{b.label}</option>)}
                 </select>
               </Field>
             )}
             {isImage && (
-              <Slider label="Длительность" min={0.5} max={30} step={0.1} value={dur} format={(v) => `${v.toFixed(1)} с`}
+              <Slider label={tx('Длительность')} min={0.5} max={30} step={0.1} value={dur} format={(v) => tx('{0} с', v.toFixed(1))}
                 onChange={(v) => up({ out: clip.in + v * clip.speed }, 'idur')} />
             )}
             <MediaPerspective clip={clip} asset={asset} />
             <button className="btn block" onClick={() => commit((p) => clearKeyframes(updateClip(p, clip.id, { transform: { ...DEFAULT_TRANSFORM, scale: trackKind === 'main' ? 1 : 0.6 }, opacity: 1 }), clip.id), `reset-${clip.id}`)}>
-              <RotateCcw size={14} />Сбросить положение и анимацию
-            </button>
+              <RotateCcw size={14} />{tx('Сбросить положение и анимацию')}</button>
           </>
         )}
         {cur === 'anim' && <ClipAnimTab clip={clip} />}
@@ -179,12 +180,12 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
             {(clip.effects ?? []).map((e) => {
               const def = EFFECTS.find((x) => x.type === e.type);
               const del = (
-                <button className="icon-btn" style={{ width: 22, height: 22 }} title="Убрать эффект"
+                <button className="icon-btn" style={{ width: 22, height: 22 }} title={tx('Убрать эффект')}
                   onClick={() => up({ effects: clip.effects!.filter((x) => x.type !== e.type) }, 'fxdel')}><X size={13} /></button>
               );
               if (def?.toggle) return <div key={e.type} className="field-row fx-toggle-row"><label>{def.label}</label>{del}</div>;
               const gl = isGlType(e.type) ? glDef(e.type) : undefined;
-              const label = def?.label ?? gl?.name ?? (isGlType(e.type) ? `Плагин не найден: ${e.type.replace(/^plug:e\//, '')}` : e.type);
+              const label = def?.label ?? gl?.name ?? (isGlType(e.type) ? tx('Плагин не найден: {0}', e.type.replace(/^plug:e\//, '')) : e.type);
               const setParam = (name: string, v: number) => up({ effects: clip.effects!.map((x) => (x.type === e.type ? { ...x, params: { ...x.params, [name]: v } } : x)) }, `fxp-${e.type}-${name}`);
               return (
                 <div key={e.type} className={gl ? 'fx-gl' : undefined}>
@@ -200,14 +201,14 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
                 </div>
               );
             })}
-            {!(clip.effects ?? []).length && <p className="hint">Эффектов пока нет.</p>}
-            <p className="hint small">Новые эффекты — в разделе «Эффекты» слева, наведи мышь, чтобы посмотреть. Шейдеры и свои плагины — там же, «Шейдеры» и «Плагины».</p>
+            {!(clip.effects ?? []).length && <p className="hint">{tx('Эффектов пока нет.')}</p>}
+            <p className="hint small">{tx('Новые эффекты — в разделе «Эффекты» слева, наведи мышь, чтобы посмотреть. Шейдеры и свои плагины — там же, «Шейдеры» и «Плагины».')}</p>
           </>
         )}
         {cur === 'color' && (
           <div style={{ marginBottom: 6 }}>
             <Seg value={colorSub} onChange={setColorSub} options={[
-              { value: 'basic', label: 'Основное' }, { value: 'curves', label: 'Кривые' }, { value: 'hsl', label: 'HSL' }, { value: 'lut', label: 'LUT' },
+              { value: 'basic', label: tx('Основное') }, { value: 'curves', label: tx('Кривые') }, { value: 'hsl', label: 'HSL' }, { value: 'lut', label: 'LUT' },
             ]} />
           </div>
         )}
@@ -216,9 +217,9 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
         {cur === 'color' && colorSub === 'lut' && <LutPanel clip={clip} />}
         {cur === 'color' && colorSub === 'basic' && (
           <>
-            <Field label="Фильтр">
+            <Field label={tx('Фильтр')}>
               <select className="input" value={c.preset} onChange={(e) => up({ color: { ...c, preset: e.target.value, presetAmount: 1 } }, 'preset')}>
-                <option value="none">Нет</option>
+                <option value="none">{tx('Нет')}</option>
                 {FILTER_CATS.map((cat) => (
                   <optgroup key={cat.id} label={cat.label}>
                     {FILTER_PRESETS.filter((f) => f.cat === cat.id).map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
@@ -227,37 +228,36 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
               </select>
             </Field>
             {c.preset !== 'none' && (
-              <Slider label="Сила фильтра" min={0} max={1} value={c.presetAmount} format={pct}
+              <Slider label={tx('Сила фильтра')} min={0} max={1} value={c.presetAmount} format={pct}
                 onChange={(v) => up({ color: { ...c, presetAmount: v } }, 'pamt')} />
             )}
-            <Slider label="Яркость" min={0.3} max={1.7} value={c.brightness} format={(v) => signedPct(v - 1)} testId="brightness"
+            <Slider label={tx('Яркость')} min={0.3} max={1.7} value={c.brightness} format={(v) => signedPct(v - 1)} testId="brightness"
               onChange={(v) => up({ color: { ...c, brightness: v } }, 'br')} onReset={() => up({ color: { ...c, brightness: 1 } }, 'br')} />
-            <Slider label="Контраст" min={0.3} max={1.7} value={c.contrast} format={(v) => signedPct(v - 1)}
+            <Slider label={tx('Контраст')} min={0.3} max={1.7} value={c.contrast} format={(v) => signedPct(v - 1)}
               onChange={(v) => up({ color: { ...c, contrast: v } }, 'ct')} onReset={() => up({ color: { ...c, contrast: 1 } }, 'ct')} />
-            <Slider label="Насыщенность" min={0} max={2} value={c.saturation} format={(v) => signedPct(v - 1)}
+            <Slider label={tx('Насыщенность')} min={0} max={2} value={c.saturation} format={(v) => signedPct(v - 1)}
               onChange={(v) => up({ color: { ...c, saturation: v } }, 'sat')} onReset={() => up({ color: { ...c, saturation: 1 } }, 'sat')} />
-            <Slider label="Теплота" min={-1} max={1} value={c.warmth} format={signedPct}
+            <Slider label={tx('Теплота')} min={-1} max={1} value={c.warmth} format={signedPct}
               onChange={(v) => up({ color: { ...c, warmth: v } }, 'warm')} onReset={() => up({ color: { ...c, warmth: 0 } }, 'warm')} />
-            <button className="btn block" onClick={() => up({ color: { ...DEFAULT_COLOR } }, 'creset')}><RotateCcw size={14} />Сбросить цвет</button>
-            <p className="hint small" style={{ marginTop: 8 }}>Двойной клик по ползунку — вернуть значение по умолчанию.</p>
+            <button className="btn block" onClick={() => up({ color: { ...DEFAULT_COLOR } }, 'creset')}><RotateCcw size={14} />{tx('Сбросить цвет')}</button>
+            <p className="hint small" style={{ marginTop: 8 }}>{tx('Двойной клик по ползунку — вернуть значение по умолчанию.')}</p>
           </>
         )}
         {cur === 'speed' && <SpeedTab clip={clip} asset={asset} />}
         {cur === 'audio' && (
           <>
-            <Toggle label="Без звука" on={clip.muted} onChange={(v) => up({ muted: v }, 'mute')} testId="mute" />
-            <Slider label="Громкость" min={0} max={2} value={clip.volume} format={pct} testId="volume"
+            <Toggle label={tx('Без звука')} on={clip.muted} onChange={(v) => up({ muted: v }, 'mute')} testId="mute" />
+            <Slider label={tx('Громкость')} min={0} max={2} value={clip.volume} format={pct} testId="volume"
               onChange={(v) => up({ volume: v }, 'vol')} onReset={() => up({ volume: 1 }, 'vol')} />
-            <Slider label="Плавное появление" min={0} max={Math.min(10, dur / 2)} step={0.05} value={clip.fadeIn} format={(v) => `${v.toFixed(1)} с`}
+            <Slider label={tx('Плавное появление')} min={0} max={Math.min(10, dur / 2)} step={0.05} value={clip.fadeIn} format={(v) => tx('{0} с', v.toFixed(1))}
               onChange={(v) => up({ fadeIn: v }, 'fi')} onReset={() => up({ fadeIn: 0 }, 'fi')} />
-            <Slider label="Плавное затухание" min={0} max={Math.min(10, dur / 2)} step={0.05} value={clip.fadeOut} format={(v) => `${v.toFixed(1)} с`}
+            <Slider label={tx('Плавное затухание')} min={0} max={Math.min(10, dur / 2)} step={0.05} value={clip.fadeOut} format={(v) => tx('{0} с', v.toFixed(1))}
               onChange={(v) => up({ fadeOut: v }, 'fo')} onReset={() => up({ fadeOut: 0 }, 'fo')} />
             {!isAudio && (
               <button className="btn block" onClick={() => void extractAudio(clip.id)} data-testid="extract-audio" style={{ marginTop: 6 }}>
-                <AudioLines size={14} />Извлечь звук на отдельную дорожку
-              </button>
+                <AudioLines size={14} />{tx('Извлечь звук на отдельную дорожку')}</button>
             )}
-            {!isAudio && <p className="hint small">Шум, паузы и эффекты голоса — во вкладке «ИИ».</p>}
+            {!isAudio && <p className="hint small">{tx('Шум, паузы и эффекты голоса — во вкладке «ИИ».')}</p>}
             {isAudio && asset && <BeatBox asset={asset} />}
             {isAudio && <AiTools compact />}
           </>
@@ -270,10 +270,10 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
 let lastMediaTab: MTab | null = null;
 
 const TILT_PRESETS: { label: string; tilt: { x: number; y: number }; hint: string }[] = [
-  { label: 'Лёжа', tilt: { x: 55, y: 0 }, hint: 'Как лист на столе — верх уходит вдаль' },
-  { label: 'Стена слева', tilt: { x: 0, y: -45 }, hint: 'Левый край уходит вдаль' },
-  { label: 'Стена справа', tilt: { x: 0, y: 45 }, hint: 'Правый край уходит вдаль' },
-  { label: 'Титры', tilt: { x: 62, y: 0 }, hint: 'Уходит к горизонту, как вступление в кино' },
+  { label: tx('Лёжа'), tilt: { x: 55, y: 0 }, hint: tx('Как лист на столе — верх уходит вдаль') },
+  { label: tx('Стена слева'), tilt: { x: 0, y: -45 }, hint: tx('Левый край уходит вдаль') },
+  { label: tx('Стена справа'), tilt: { x: 0, y: 45 }, hint: tx('Правый край уходит вдаль') },
+  { label: tx('Титры'), tilt: { x: 62, y: 0 }, hint: tx('Уходит к горизонту, как вступление в кино') },
 ];
 
 /** Наклон в перспективе: два ползунка и готовые углы. */
@@ -286,11 +286,11 @@ function TiltFields({ tilt, onChange, disabled, testPrefix }: { tilt?: { x: numb
         {TILT_PRESETS.map((pr) => (
           <button key={pr.label} title={pr.hint} disabled={disabled} className={t.x === pr.tilt.x && t.y === pr.tilt.y ? 'active' : ''} onClick={() => set(pr.tilt)}>{pr.label}</button>
         ))}
-        <button disabled={disabled || (!t.x && !t.y)} onClick={() => onChange(undefined)}>Ровно</button>
+        <button disabled={disabled || (!t.x && !t.y)} onClick={() => onChange(undefined)}>{tx('Ровно')}</button>
       </div>
-      <Slider label="Наклон вперёд-назад" min={-70} max={70} step={1} value={t.x} format={(v) => `${Math.round(v)}°`} testId={`${testPrefix}-x`}
+      <Slider label={tx('Наклон вперёд-назад')} min={-70} max={70} step={1} value={t.x} format={(v) => `${Math.round(v)}°`} testId={`${testPrefix}-x`}
         onChange={(v) => !disabled && set({ ...t, x: v })} onReset={() => set({ ...t, x: 0 })} />
-      <Slider label="Поворот влево-вправо" min={-70} max={70} step={1} value={t.y} format={(v) => `${Math.round(v)}°`} testId={`${testPrefix}-y`}
+      <Slider label={tx('Поворот влево-вправо')} min={-70} max={70} step={1} value={t.y} format={(v) => `${Math.round(v)}°`} testId={`${testPrefix}-y`}
         onChange={(v) => !disabled && set({ ...t, y: v })} onReset={() => set({ ...t, y: 0 })} />
     </div>
   );
@@ -304,15 +304,14 @@ function MediaPerspective({ clip, asset }: { clip: MediaClip; asset?: MediaAsset
   const pinOn = !!clip.pin;
   return (
     <>
-      <div className="section-title">Перспектива</div>
+      <div className="section-title">{tx('Перспектива')}</div>
       <TiltFields tilt={clip.tilt} disabled={pinOn} onChange={(t) => up({ tilt: t }, 'tilt')} testPrefix="tilt" />
-      <Toggle label="Углы — натянуть на 4 точки" hint={pinOn ? 'Тяни белые точки в окне просмотра. Подходит, чтобы вставить видео в экран телефона, на билборд или стену.' : 'Например, вставить видео в экран телефона или на стену'}
+      <Toggle label={tx('Углы — натянуть на 4 точки')} hint={pinOn ? tx('Тяни белые точки в окне просмотра. Подходит, чтобы вставить видео в экран телефона, на билборд или стену.') : tx('Например, вставить видео в экран телефона или на стену')}
         on={pinOn} testId="pin-toggle"
         onChange={(v) => up({ pin: v && asset ? pinFromTransform(clip, asset.width, asset.height, settings.width, settings.height) : undefined }, 'pin')} />
       {pinOn && (
         <button className="btn block small" onClick={() => asset && up({ pin: pinFromTransform({ ...clip, tilt: undefined }, asset.width, asset.height, settings.width, settings.height) }, 'pinreset')}>
-          Вернуть углы ровно
-        </button>
+          {tx('Вернуть углы ровно')}</button>
       )}
     </>
   );
@@ -331,16 +330,16 @@ function ClipAnimTab({ clip }: { clip: MediaClip }) {
     const cur = clip.anim?.[kind];
     return (
       <>
-        <div className="section-title">{kind === 'in' ? 'Появление' : 'Исчезновение'}</div>
+        <div className="section-title">{kind === 'in' ? tx('Появление') : tx('Исчезновение')}</div>
         <div className="anim-grid" data-testid={`canim-${kind}`}>
-          <button className={!cur ? 'active' : ''} onClick={() => set(kind, undefined)}>Нет</button>
+          <button className={!cur ? 'active' : ''} onClick={() => set(kind, undefined)}>{tx('Нет')}</button>
           {CLIP_ANIMS.map((a) => (
             <button key={a.type} className={cur?.type === a.type ? 'active' : ''} title={a.hint} data-testid={`canim-${kind}-${a.type}`}
               onClick={() => set(kind, { type: a.type, dur: cur?.dur ?? Math.min(CLIP_ANIM_DEFAULT_DUR, maxDur) })}>{kind === 'in' ? a.in : a.out}</button>
           ))}
         </div>
         {cur && (
-          <Slider label="Длительность" min={0.1} max={maxDur} step={0.05} value={Math.min(cur.dur, maxDur)} format={(v) => `${v.toFixed(2)} с`}
+          <Slider label={tx('Длительность')} min={0.1} max={maxDur} step={0.05} value={Math.min(cur.dur, maxDur)} format={(v) => tx('{0} с', v.toFixed(2))}
             onChange={(v) => set(kind, { ...cur, dur: v })} />
         )}
       </>
@@ -348,7 +347,7 @@ function ClipAnimTab({ clip }: { clip: MediaClip }) {
   };
   return (
     <>
-      <p className="hint">Как клип появляется в начале и исчезает в конце. Работает и на основной дорожке, и в наложениях, вместе с переходами.</p>
+      <p className="hint">{tx('Как клип появляется в начале и исчезает в конце. Работает и на основной дорожке, и в наложениях, вместе с переходами.')}</p>
       {section('in')}
       {section('out')}
     </>
@@ -392,28 +391,28 @@ function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
   };
   return (
     <>
-      <Field label="Скорость">
+      <Field label={tx('Скорость')}>
         <Seg value={speed} onChange={setSpeed} options={[0.25, 0.5, 1, 1.5, 2, 3].map((v) => ({ value: v, label: `${v}×` }))} />
       </Field>
-      <Slider label="Точно" min={0.25} max={4} step={0.05} value={speed} format={(v) => `${v.toFixed(2)}×`} testId="speed"
+      <Slider label={tx('Точно')} min={0.25} max={4} step={0.05} value={speed} format={(v) => `${v.toFixed(2)}×`} testId="speed"
         onChange={setSpeed} onReset={() => setSpeed(1)} />
-      <p className="hint">Длина на таймлайне: {fmtDur(dur)}. Высота голоса сохраняется.</p>
+      <p className="hint">{txj('Длина на таймлайне: {0}. Высота голоса сохраняется.', fmtDur(dur))}</p>
       {isVideo && (
         <div className={`smooth-box ${smooth ? 'on' : ''}`}>
-          <Toggle label="Плавное замедление" on={smooth} testId="smooth"
+          <Toggle label={tx('Плавное замедление')} on={smooth} testId="smooth"
             hint={smooth
-              ? 'Промежуточные кадры дорисованы по движению — замедление без рывков. Новая скорость или кривая пересоберёт копию.'
+              ? tx('Промежуточные кадры дорисованы по движению — замедление без рывков. Новая скорость или кривая пересоберёт копию.')
               : slowSomewhere
-                ? 'Сейчас кадры при замедлении повторяются и картинка дёргается. Kadro дорисует промежуточные кадры по движению.'
-                : 'Пригодится, когда замедляешь клип (скорость меньше 1×) или ставишь кривую со слоу-мо.'}
+                ? tx('Сейчас кадры при замедлении повторяются и картинка дёргается. Kadro дорисует промежуточные кадры по движению.')
+                : tx('Пригодится, когда замедляешь клип (скорость меньше 1×) или ставишь кривую со слоу-мо.')}
             onChange={(v) => { if (!busy) void retimeClip(clip.id, { smooth: v }); }} />
-          {!smooth && slowSomewhere && <p className="hint small">Дорисовка занимает время — примерно столько же, сколько длится клип, или дольше.</p>}
+          {!smooth && slowSomewhere && <p className="hint small">{tx('Дорисовка занимает время — примерно столько же, сколько длится клип, или дольше.')}</p>}
         </div>
       )}
 
-      <div className="sub-head">Кривая скорости</div>
+      <div className="sub-head">{tx('Кривая скорости')}</div>
       <div className="ramp-grid">
-        {[{ id: 'none', label: 'Нет', hint: 'Без кривой', points: null as RampPoint[] | null }, ...RAMP_PRESETS, { id: 'custom', label: 'Своя', hint: 'Нарисуй кривую сам', points: null }].map((pr) => (
+        {[{ id: 'none', label: tx('Нет'), hint: tx('Без кривой'), points: null as RampPoint[] | null }, ...RAMP_PRESETS, { id: 'custom', label: tx('Своя'), hint: tx('Нарисуй кривую сам'), points: null }].map((pr) => (
           <button key={pr.id} className={`ramp-tile ${(draft ? 'custom' : active) === pr.id ? 'active' : ''}`} title={pr.hint} disabled={busy}
             onClick={() => pick(pr.id)} data-testid={`ramp-${pr.id}`}>
             <RampThumb points={pr.id === 'custom' ? r?.preset === 'custom' ? userRamp ?? null : null : pr.points} />
@@ -425,29 +424,25 @@ function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
         <>
           <RampEditor points={curve} onChange={setDraft} disabled={busy} />
           <p className="hint small">
-            Тяни точки вверх — быстрее, вниз — медленнее. Двойной клик добавляет точку, двойной клик по точке — убирает.
-            {' '}Длина станет {fmtDur(new RampMap(normalizeRamp(curve), srcLen).total / (smooth ? 1 : clip.speed))}.
-          </p>
+            {txj('Тяни точки вверх — быстрее, вниз — медленнее. Двойной клик добавляет точку, двойной клик по точке — убирает.{0}Длина станет {1}.', ' ', fmtDur(new RampMap(normalizeRamp(curve), srcLen).total / (smooth ? 1 : clip.speed)))}</p>
           {draft && (
             <div className="row-btns">
-              <button className="btn primary" disabled={busy} data-testid="ramp-apply" onClick={() => { const d = draft; setDraft(null); void retimeClip(clip.id, { ramp: d, preset: 'custom' }); }}>Применить</button>
-              <button className="btn" onClick={() => setDraft(null)}>Отмена</button>
+              <button className="btn primary" disabled={busy} data-testid="ramp-apply" onClick={() => { const d = draft; setDraft(null); void retimeClip(clip.id, { ramp: d, preset: 'custom' }); }}>{tx('Применить')}</button>
+              <button className="btn" onClick={() => setDraft(null)}>{tx('Отмена')}</button>
             </div>
           )}
         </>
       )}
 
-      <div className="sub-head">Ещё</div>
-      <Toggle label="Реверс — проиграть задом наперёд" on={!!r?.reverse} testId="reverse"
+      <div className="sub-head">{tx('Ещё')}</div>
+      <Toggle label={tx('Реверс — проиграть задом наперёд')} on={!!r?.reverse} testId="reverse"
         onChange={(v) => { if (!busy) void retimeClip(clip.id, { reverse: v }); }} />
       {isVideo && (
         <button className="btn block" disabled={busy} data-testid="freeze" onClick={() => void freezeFrame()} style={{ marginTop: 10 }}>
-          <Snowflake size={14} />Стоп-кадр в позиции курсора
-        </button>
+          <Snowflake size={14} />{tx('Стоп-кадр в позиции курсора')}</button>
       )}
       <p className="hint small" style={{ marginTop: 8 }}>
-        Реверс, кривая и плавное замедление создают копию фрагмента — это занимает немного времени. Обрезка и разрезание работают как обычно.
-      </p>
+        {tx('Реверс, кривая и плавное замедление создают копию фрагмента — это занимает немного времени. Обрезка и разрезание работают как обычно.')}</p>
     </>
   );
 }
@@ -517,13 +512,13 @@ function RampEditor({ points, onChange, disabled }: { points: RampPoint[]; onCha
 }
 
 const BLENDS: { mode: BlendMode; label: string }[] = [
-  { mode: 'normal', label: 'Обычный' }, { mode: 'multiply', label: 'Умножение' }, { mode: 'screen', label: 'Осветление (экран)' },
-  { mode: 'overlay', label: 'Перекрытие' }, { mode: 'darken', label: 'Замена тёмным' }, { mode: 'lighten', label: 'Замена светлым' },
-  { mode: 'add', label: 'Сложение' },
+  { mode: 'normal', label: tx('Обычный') }, { mode: 'multiply', label: tx('Умножение') }, { mode: 'screen', label: tx('Осветление (экран)') },
+  { mode: 'overlay', label: tx('Перекрытие') }, { mode: 'darken', label: tx('Замена тёмным') }, { mode: 'lighten', label: tx('Замена светлым') },
+  { mode: 'add', label: tx('Сложение') },
 ];
 const MASKS: { shape: Mask['shape'] | 'none'; label: string }[] = [
-  { shape: 'none', label: 'Нет' }, { shape: 'linear', label: 'Линия' }, { shape: 'mirror', label: 'Полоса' },
-  { shape: 'circle', label: 'Круг' }, { shape: 'rect', label: 'Прямоугольник' },
+  { shape: 'none', label: tx('Нет') }, { shape: 'linear', label: tx('Линия') }, { shape: 'mirror', label: tx('Полоса') },
+  { shape: 'circle', label: tx('Круг') }, { shape: 'rect', label: tx('Прямоугольник') },
 ];
 
 function MaskTab({ clip }: { clip: MediaClip }) {
@@ -535,7 +530,7 @@ function MaskTab({ clip }: { clip: MediaClip }) {
   const setC = (patch: Partial<ChromaKey>, key: string) => up({ chroma: { ...(ch ?? DEFAULT_CHROMA), ...patch } }, key);
   const pick = async () => {
     const ED = (window as unknown as { EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> } }).EyeDropper;
-    if (!ED) { getState().toast('Пипетка недоступна — выбери цвет вручную'); return; }
+    if (!ED) { getState().toast(tx('Пипетка недоступна — выбери цвет вручную')); return; }
     try { const r = await new ED().open(); setC({ color: r.sRGBHex }, 'chc'); } catch { /* отменено */ }
   };
   return (
@@ -550,32 +545,32 @@ function MaskTab({ clip }: { clip: MediaClip }) {
       </div>
       {m && (
         <>
-          <Slider label="Сдвиг по горизонтали" min={-0.5} max={0.5} step={0.005} value={m.x} format={signedPct} onChange={(v) => setM({ x: v }, 'mx')} onReset={() => setM({ x: 0 }, 'mx')} />
-          <Slider label="Сдвиг по вертикали" min={-0.5} max={0.5} step={0.005} value={m.y} format={signedPct} onChange={(v) => setM({ y: v }, 'my')} onReset={() => setM({ y: 0 }, 'my')} />
+          <Slider label={tx('Сдвиг по горизонтали')} min={-0.5} max={0.5} step={0.005} value={m.x} format={signedPct} onChange={(v) => setM({ x: v }, 'mx')} onReset={() => setM({ x: 0 }, 'mx')} />
+          <Slider label={tx('Сдвиг по вертикали')} min={-0.5} max={0.5} step={0.005} value={m.y} format={signedPct} onChange={(v) => setM({ y: v }, 'my')} onReset={() => setM({ y: 0 }, 'my')} />
           {m.shape !== 'linear' && m.shape !== 'mirror' && (
-            <Slider label="Ширина" min={0.02} max={1.5} step={0.01} value={m.w} format={pct} onChange={(v) => setM({ w: v }, 'mw')} />
+            <Slider label={tx('Ширина')} min={0.02} max={1.5} step={0.01} value={m.w} format={pct} onChange={(v) => setM({ w: v }, 'mw')} />
           )}
           {m.shape !== 'linear' && (
-            <Slider label={m.shape === 'mirror' ? 'Толщина полосы' : 'Высота'} min={0.02} max={1.5} step={0.01} value={m.h} format={pct} onChange={(v) => setM({ h: v }, 'mh')} />
+            <Slider label={m.shape === 'mirror' ? tx('Толщина полосы') : tx('Высота')} min={0.02} max={1.5} step={0.01} value={m.h} format={pct} onChange={(v) => setM({ h: v }, 'mh')} />
           )}
-          <Slider label="Поворот" min={-180} max={180} step={1} value={m.rotation} format={deg} onChange={(v) => setM({ rotation: v }, 'mr')} onReset={() => setM({ rotation: 0 }, 'mr')} />
-          <Slider label="Растушёвка" min={0} max={0.5} step={0.005} value={m.feather} format={pct} onChange={(v) => setM({ feather: v }, 'mf')} />
-          <Toggle label="Инвертировать" on={m.invert} onChange={(v) => setM({ invert: v }, 'mi')} />
+          <Slider label={tx('Поворот')} min={-180} max={180} step={1} value={m.rotation} format={deg} onChange={(v) => setM({ rotation: v }, 'mr')} onReset={() => setM({ rotation: 0 }, 'mr')} />
+          <Slider label={tx('Растушёвка')} min={0} max={0.5} step={0.005} value={m.feather} format={pct} onChange={(v) => setM({ feather: v }, 'mf')} />
+          <Toggle label={tx('Инвертировать')} on={m.invert} onChange={(v) => setM({ invert: v }, 'mi')} />
         </>
       )}
-      <div className="section-title">Хромакей — убрать цвет фона</div>
-      <Toggle label="Убрать цвет" hint="Зелёный или синий фон за человеком" on={!!ch} onChange={(v) => up({ chroma: v ? { ...DEFAULT_CHROMA } : undefined }, 'chon')} testId="chroma-toggle" />
+      <div className="section-title">{tx('Хромакей — убрать цвет фона')}</div>
+      <Toggle label={tx('Убрать цвет')} hint={tx('Зелёный или синий фон за человеком')} on={!!ch} onChange={(v) => up({ chroma: v ? { ...DEFAULT_CHROMA } : undefined }, 'chon')} testId="chroma-toggle" />
       {ch && (
         <>
           <div className="field-row" style={{ margin: '10px 0' }}>
-            <label>Цвет фона</label>
+            <label>{tx('Цвет фона')}</label>
             <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button className="btn small" onClick={() => void pick()} title="Ткни в цвет на экране"><Pipette size={13} />Пипетка</button>
+              <button className="btn small" onClick={() => void pick()} title={tx('Ткни в цвет на экране')}><Pipette size={13} />{tx('Пипетка')}</button>
               <input type="color" className="color-input" value={ch.color} onChange={(e) => setC({ color: e.target.value }, 'chc')} />
             </span>
           </div>
-          <Slider label="Сила" min={0.01} max={0.5} step={0.005} value={ch.similarity} format={pct} onChange={(v) => setC({ similarity: v }, 'chs')} testId="chroma-sim" />
-          <Slider label="Мягкость края" min={0} max={0.3} step={0.005} value={ch.smoothness} format={pct} onChange={(v) => setC({ smoothness: v }, 'chb')} />
+          <Slider label={tx('Сила')} min={0.01} max={0.5} step={0.005} value={ch.similarity} format={pct} onChange={(v) => setC({ similarity: v }, 'chs')} testId="chroma-sim" />
+          <Slider label={tx('Мягкость края')} min={0} max={0.3} step={0.005} value={ch.smoothness} format={pct} onChange={(v) => setC({ smoothness: v }, 'chb')} />
         </>
       )}
     </>
@@ -610,14 +605,14 @@ function SpeakBox({ clip }: { clip: TextClip }) {
   const v = voices.find((x) => x.id === voice);
   return (
     <div className="ai-card" style={{ marginTop: 14 }}>
-      <h4><Volume2 size={15} />Озвучить текст</h4>
-      <p className="hint">Голос прочитает текст — звук ляжет на аудиодорожку, длина текста подстроится.</p>
+      <h4><Volume2 size={15} />{tx('Озвучить текст')}</h4>
+      <p className="hint">{tx('Голос прочитает текст — звук ляжет на аудиодорожку, длина текста подстроится.')}</p>
       <select className="input" value={voice} onChange={(e) => setVoice(e.target.value as TtsVoiceId)} data-testid="tts-voice">
-        {voices.map((x) => <option key={x.id} value={x.id}>{x.label}{x.ready ? '' : ` · скачается ${x.sizeMb} МБ`}</option>)}
+        {voices.map((x) => <option key={x.id} value={x.id}>{x.label}{x.ready ? '' : tx(' · скачается {0} МБ', x.sizeMb)}</option>)}
       </select>
-      <Slider label="Темп" min={0.6} max={1.6} step={0.05} value={speed} format={(x) => `${x.toFixed(2)}×`} onChange={setSpeed} onReset={() => setSpeed(1)} />
+      <Slider label={tx('Темп')} min={0.6} max={1.6} step={0.05} value={speed} format={(x) => `${x.toFixed(2)}×`} onChange={setSpeed} onReset={() => setSpeed(1)} />
       <button className="btn block" disabled={busy || !clip.text.trim()} onClick={() => void speakText(clip.id, voice, speed)} data-testid="tts-run">
-        {busy ? 'Озвучиваю…' : v && !v.ready ? 'Скачать голос и озвучить' : 'Озвучить'}
+        {busy ? tx('Озвучиваю…') : v && !v.ready ? tx('Скачать голос и озвучить') : tx('Озвучить')}
       </button>
     </div>
   );
@@ -627,11 +622,11 @@ function BeatBox({ asset }: { asset: MediaAsset }) {
   const busy = useJobRunning('bt_');
   return (
     <div className="ai-card">
-      <h4><Activity size={15} />Ритм</h4>
-      <p className="hint">{asset.beats?.length ? `${Math.round(asset.bpm ?? 0)} ударов в минуту, ${asset.beats.length} долей — отмечены жёлтым на клипе. Склейки прилипают к долям.` : 'Найду доли такта: к ним прилипают склейки, а кнопка «Под бит» подгонит клипы.'}</p>
+      <h4><Activity size={15} />{tx('Ритм')}</h4>
+      <p className="hint">{asset.beats?.length ? tx('{0} ударов в минуту, {1} долей — отмечены жёлтым на клипе. Склейки прилипают к долям.', Math.round(asset.bpm ?? 0), asset.beats.length) : tx('Найду доли такта: к ним прилипают склейки, а кнопка «Под бит» подгонит клипы.')}</p>
       <div style={{ display: 'flex', gap: 6 }}>
-        <button className="btn small" disabled={busy} onClick={() => void findBeats(asset.id)} data-testid="find-beats">{asset.beats?.length ? 'Найти заново' : 'Найти ритм'}</button>
-        {!!asset.beats?.length && <button className="btn small" onClick={() => alignToBeats()} data-testid="align-beats">Подогнать склейки</button>}
+        <button className="btn small" disabled={busy} onClick={() => void findBeats(asset.id)} data-testid="find-beats">{asset.beats?.length ? tx('Найти заново') : tx('Найти ритм')}</button>
+        {!!asset.beats?.length && <button className="btn small" onClick={() => alignToBeats()} data-testid="align-beats">{tx('Подогнать склейки')}</button>}
       </div>
     </div>
   );
@@ -647,12 +642,12 @@ function AnimPick({ label, kind, clip }: { label: string; kind: 'in' | 'out'; cl
       <Field label={label}>
         <select className="input" value={cur?.type ?? 'none'} data-testid={`anim-${kind}`}
           onChange={(e) => set(e.target.value === 'none' ? undefined : { type: e.target.value as TextAnimType, dur: cur?.dur ?? Math.min(0.5, maxDur) })}>
-          <option value="none">Нет</option>
+          <option value="none">{tx('Нет')}</option>
           {TEXT_ANIMS.map((a) => <option key={a.type} value={a.type}>{kind === 'in' ? a.in : a.out}</option>)}
         </select>
       </Field>
       {cur && (
-        <Slider label="Длительность" min={0.1} max={maxDur} step={0.05} value={Math.min(cur.dur, maxDur)} format={(v) => `${v.toFixed(2)} с`}
+        <Slider label={tx('Длительность')} min={0.1} max={maxDur} step={0.05} value={Math.min(cur.dur, maxDur)} format={(v) => tx('{0} с', v.toFixed(2))}
           onChange={(v) => set({ ...cur, dur: v })} />
       )}
     </>
@@ -665,13 +660,13 @@ function HighlightPick({ clip }: { clip: TextClip }) {
   const setAll = (h: WordHighlight) => commit((p) => styleAllCaptions(p, { highlight: h }), 'hl');
   return (
     <>
-      <Field label="Подсветка слова (для всех субтитров)">
+      <Field label={tx('Подсветка слова (для всех субтитров)')}>
         <select className="input" value={hl.mode} onChange={(e) => setAll({ ...hl, mode: e.target.value as WordHighlight['mode'] })} data-testid="highlight-mode">
           {HIGHLIGHTS.map((h) => <option key={h.mode} value={h.mode}>{h.label}</option>)}
         </select>
       </Field>
-      {hl.mode !== 'none' && <ColorField label="Цвет подсветки" value={hl.color} onChange={(v) => setAll({ ...hl, color: v })} />}
-      {!clip.words?.length && <p className="hint small">У этого субтитра нет разметки слов — пересоздай субтитры, чтобы подсветка заработала.</p>}
+      {hl.mode !== 'none' && <ColorField label={tx('Цвет подсветки')} value={hl.color} onChange={(v) => setAll({ ...hl, color: v })} />}
+      {!clip.words?.length && <p className="hint small">{tx('У этого субтитра нет разметки слов — пересоздай субтитры, чтобы подсветка заработала.')}</p>}
     </>
   );
 }
@@ -680,18 +675,18 @@ function HighlightPick({ clip }: { clip: TextClip }) {
 interface AnimDef { prop: AnimProp; label: string; min: number; max: number; step: number; format: (v: number) => string; reset: number }
 const deg = (v: number) => `${Math.round(v)}°`;
 const MEDIA_ANIM: AnimDef[] = [
-  { prop: 'scale', label: 'Масштаб', min: 0.1, max: 3, step: 0.01, format: pct, reset: 1 },
-  { prop: 'x', label: 'Сдвиг по горизонтали', min: -1, max: 1, step: 0.005, format: signedPct, reset: 0 },
-  { prop: 'y', label: 'Сдвиг по вертикали', min: -1, max: 1, step: 0.005, format: signedPct, reset: 0 },
-  { prop: 'rotation', label: 'Поворот', min: -180, max: 180, step: 1, format: deg, reset: 0 },
-  { prop: 'opacity', label: 'Непрозрачность', min: 0, max: 1, step: 0.01, format: pct, reset: 1 },
+  { prop: 'scale', label: tx('Масштаб'), min: 0.1, max: 3, step: 0.01, format: pct, reset: 1 },
+  { prop: 'x', label: tx('Сдвиг по горизонтали'), min: -1, max: 1, step: 0.005, format: signedPct, reset: 0 },
+  { prop: 'y', label: tx('Сдвиг по вертикали'), min: -1, max: 1, step: 0.005, format: signedPct, reset: 0 },
+  { prop: 'rotation', label: tx('Поворот'), min: -180, max: 180, step: 1, format: deg, reset: 0 },
+  { prop: 'opacity', label: tx('Непрозрачность'), min: 0, max: 1, step: 0.01, format: pct, reset: 1 },
 ];
 const TEXT_ANIM: AnimDef[] = [
-  { prop: 'x', label: 'По горизонтали', min: 0, max: 1, step: 0.005, format: pct, reset: 0.5 },
-  { prop: 'y', label: 'По вертикали', min: 0, max: 1, step: 0.005, format: pct, reset: 0.5 },
-  { prop: 'scale', label: 'Масштаб', min: 0.2, max: 4, step: 0.01, format: pct, reset: 1 },
-  { prop: 'rotation', label: 'Поворот', min: -180, max: 180, step: 1, format: deg, reset: 0 },
-  { prop: 'opacity', label: 'Непрозрачность', min: 0, max: 1, step: 0.01, format: pct, reset: 1 },
+  { prop: 'x', label: tx('По горизонтали'), min: 0, max: 1, step: 0.005, format: pct, reset: 0.5 },
+  { prop: 'y', label: tx('По вертикали'), min: 0, max: 1, step: 0.005, format: pct, reset: 0.5 },
+  { prop: 'scale', label: tx('Масштаб'), min: 0.2, max: 4, step: 0.01, format: pct, reset: 1 },
+  { prop: 'rotation', label: tx('Поворот'), min: -180, max: 180, step: 1, format: deg, reset: 0 },
+  { prop: 'opacity', label: tx('Непрозрачность'), min: 0, max: 1, step: 0.01, format: pct, reset: 1 },
 ];
 
 function AnimFields({ clip, defs }: { clip: Clip; defs: AnimDef[] }) {
@@ -706,18 +701,18 @@ function AnimFields({ clip, defs }: { clip: Clip; defs: AnimDef[] }) {
   return (
     <>
       <div className="key-nav">
-        <button className="icon-btn" style={{ width: 24, height: 24 }} disabled={prev === undefined} onClick={() => go(prev!)} title="К предыдущему ключу"><ChevronLeft size={15} /></button>
-        <span className="grow">{animated ? `Ключей: ${times.length}` : 'Ромбик — анимация во времени'}</span>
-        <button className="icon-btn" style={{ width: 24, height: 24 }} disabled={next === undefined} onClick={() => go(next!)} title="К следующему ключу"><ChevronRight size={15} /></button>
-        {animated && <button className="btn ghost small" onClick={() => commit((p) => clearKeyframes(p, clip.id))} title="Убрать все ключи клипа">Убрать</button>}
+        <button className="icon-btn" style={{ width: 24, height: 24 }} disabled={prev === undefined} onClick={() => go(prev!)} title={tx('К предыдущему ключу')}><ChevronLeft size={15} /></button>
+        <span className="grow">{animated ? tx('Ключей: {0}', times.length) : tx('Ромбик — анимация во времени')}</span>
+        <button className="icon-btn" style={{ width: 24, height: 24 }} disabled={next === undefined} onClick={() => go(next!)} title={tx('К следующему ключу')}><ChevronRight size={15} /></button>
+        {animated && <button className="btn ghost small" onClick={() => commit((p) => clearKeyframes(p, clip.id))} title={tx('Убрать все ключи клипа')}>{tx('Убрать')}</button>}
       </div>
-      {!inClip && animated && <p className="hint small">Поставь курсор на клип, чтобы менять ключи.</p>}
+      {!inClip && animated && <p className="hint small">{tx('Поставь курсор на клип, чтобы менять ключи.')}</p>}
       {defs.map((d) => {
         const st = hasKeyHere(clip, d.prop, playhead) ? 'here' : isAnimated(clip, d.prop) ? 'animated' : 'none';
         return (
           <Slider key={d.prop} label={d.label} min={d.min} max={d.max} step={d.step} value={propValue(clip, d.prop, playhead)} format={d.format}
             testId={`anim-${d.prop}`}
-            extra={<KeyButton state={st} testId={`key-${d.prop}`} onClick={() => { if (inClip) commit((p) => toggleKey(p, clip, d.prop, playhead)); else getState().toast('Поставь курсор на клип'); }} />}
+            extra={<KeyButton state={st} testId={`key-${d.prop}`} onClick={() => { if (inClip) commit((p) => toggleKey(p, clip, d.prop, playhead)); else getState().toast(tx('Поставь курсор на клип')); }} />}
             onChange={(v) => commit((p) => writeProps(p, clip, { [d.prop]: v }, playhead), `anim-${d.prop}-${clip.id}`)}
             onReset={() => commit((p) => writeProps(p, clip, { [d.prop]: d.reset }, playhead), `anim-${d.prop}-${clip.id}`)} />
         );
@@ -743,34 +738,33 @@ function TextInspector({ clip }: { clip: TextClip }) {
   const isCaption = clip.role === 'caption';
   return (
     <>
-      <div className="panel-head">{isCaption ? 'Субтитр' : 'Текст'}</div>
-      <Tabs value={tab} tabs={[{ id: 'text', label: 'Текст' }, { id: 'style', label: 'Оформление' }, { id: 'anim', label: 'Анимация' }]} onChange={setTab} />
+      <div className="panel-head">{isCaption ? tx('Субтитр') : tx('Текст')}</div>
+      <Tabs value={tab} tabs={[{ id: 'text', label: tx('Текст') }, { id: 'style', label: tx('Оформление') }, { id: 'anim', label: tx('Анимация') }]} onChange={setTab} />
       <div className="panel-body">
         {tab === 'text' && (
           <>
             <textarea ref={area} className="input" value={clip.text} rows={3} data-testid="text-input"
-              onChange={(e) => up({ text: e.target.value, words: retimeWords(e.target.value, clip.words) }, 'text')} placeholder="Напиши текст" />
-            <Field label="Шрифт">
+              onChange={(e) => up({ text: e.target.value, words: retimeWords(e.target.value, clip.words) }, 'text')} placeholder={tx('Напиши текст')} />
+            <Field label={tx('Шрифт')}>
               <FontPicker value={s.font} onChange={(font) => st({ font }, 'font')} testId="text-font" />
             </Field>
-            <Slider label="Размер" min={12} max={300} step={1} value={s.size} format={(v) => String(Math.round(v))} testId="text-size"
+            <Slider label={tx('Размер')} min={12} max={300} step={1} value={s.size} format={(v) => String(Math.round(v))} testId="text-size"
               onChange={(v) => st({ size: v }, 'size')} />
             <div className="text-tools">
-              <button className={`icon-btn ${s.bold ? 'on' : ''}`} title="Жирный" onClick={() => st({ bold: !s.bold }, 'b')}><Bold size={16} /></button>
-              <button className={`icon-btn ${s.italic ? 'on' : ''}`} title="Курсив" onClick={() => st({ italic: !s.italic }, 'i')}><Italic size={16} /></button>
-              <button className={`icon-btn ${s.uppercase ? 'on' : ''}`} title="Заглавные" onClick={() => st({ uppercase: !s.uppercase }, 'u')}><CaseUpper size={16} /></button>
+              <button className={`icon-btn ${s.bold ? 'on' : ''}`} title={tx('Жирный')} onClick={() => st({ bold: !s.bold }, 'b')}><Bold size={16} /></button>
+              <button className={`icon-btn ${s.italic ? 'on' : ''}`} title={tx('Курсив')} onClick={() => st({ italic: !s.italic }, 'i')}><Italic size={16} /></button>
+              <button className={`icon-btn ${s.uppercase ? 'on' : ''}`} title={tx('Заглавные')} onClick={() => st({ uppercase: !s.uppercase }, 'u')}><CaseUpper size={16} /></button>
               <span className="sep" />
-              <button className={`icon-btn ${s.align === 'left' ? 'on' : ''}`} title="По левому краю" onClick={() => st({ align: 'left' }, 'al')}><AlignLeft size={16} /></button>
-              <button className={`icon-btn ${s.align === 'center' ? 'on' : ''}`} title="По центру" onClick={() => st({ align: 'center' }, 'al')}><AlignCenter size={16} /></button>
-              <button className={`icon-btn ${s.align === 'right' ? 'on' : ''}`} title="По правому краю" onClick={() => st({ align: 'right' }, 'al')}><AlignRight size={16} /></button>
+              <button className={`icon-btn ${s.align === 'left' ? 'on' : ''}`} title={tx('По левому краю')} onClick={() => st({ align: 'left' }, 'al')}><AlignLeft size={16} /></button>
+              <button className={`icon-btn ${s.align === 'center' ? 'on' : ''}`} title={tx('По центру')} onClick={() => st({ align: 'center' }, 'al')}><AlignCenter size={16} /></button>
+              <button className={`icon-btn ${s.align === 'right' ? 'on' : ''}`} title={tx('По правому краю')} onClick={() => st({ align: 'right' }, 'al')}><AlignRight size={16} /></button>
             </div>
-            <ColorField label="Цвет текста" value={s.color} onChange={(v) => st({ color: v }, 'color')} />
-            <Slider label="Длительность" min={0.2} max={Math.max(30, clip.duration)} step={0.1} value={clip.duration} format={(v) => `${v.toFixed(1)} с`}
+            <ColorField label={tx('Цвет текста')} value={s.color} onChange={(v) => st({ color: v }, 'color')} />
+            <Slider label={tx('Длительность')} min={0.2} max={Math.max(30, clip.duration)} step={0.1} value={clip.duration} format={(v) => tx('{0} с', v.toFixed(1))}
               onChange={(v) => up({ duration: v }, 'dur')} />
             {isCaption && (
-              <button className="btn block" onClick={() => { commit((p) => styleAllCaptions(p, clip.style, clip.y)); getState().toast('Стиль применён ко всем субтитрам', 'ok'); }}>
-                Применить стиль ко всем субтитрам
-              </button>
+              <button className="btn block" onClick={() => { commit((p) => styleAllCaptions(p, clip.style, clip.y)); getState().toast(tx('Стиль применён ко всем субтитрам'), 'ok'); }}>
+                {tx('Применить стиль ко всем субтитрам')}</button>
             )}
             <SpeakBox clip={clip} />
           </>
@@ -780,33 +774,33 @@ function TextInspector({ clip }: { clip: TextClip }) {
             <div className="tile-grid" style={{ marginTop: 4 }}>
               {TEXT_PRESETS.map((t) => (
                 <button key={t.id} className="tile text-tile" onClick={() => st(t.style, 'preset')}>
-                  <div className="text-sample"><span style={textPreviewStyle({ ...s, ...t.style })}>Аа</span></div>
+                  <div className="text-sample"><span style={textPreviewStyle({ ...s, ...t.style })}>{tx('Аа')}</span></div>
                   <span className="label">{t.label}</span>
                 </button>
               ))}
             </div>
-            <div className="section-title">Обводка</div>
-            <ColorField label="Цвет обводки" value={s.strokeColor} onChange={(v) => st({ strokeColor: v, strokeWidth: s.strokeWidth || 6 }, 'sc')} />
-            <Slider label="Толщина" min={0} max={20} step={0.5} value={s.strokeWidth} format={(v) => v.toFixed(1)}
+            <div className="section-title">{tx('Обводка')}</div>
+            <ColorField label={tx('Цвет обводки')} value={s.strokeColor} onChange={(v) => st({ strokeColor: v, strokeWidth: s.strokeWidth || 6 }, 'sc')} />
+            <Slider label={tx('Толщина')} min={0} max={20} step={0.5} value={s.strokeWidth} format={(v) => v.toFixed(1)}
               onChange={(v) => st({ strokeWidth: v }, 'sw')} />
-            <Toggle label="Тень" on={s.shadow} onChange={(v) => st({ shadow: v }, 'sh')} />
-            <div className="section-title">Плашка</div>
-            <ColorField label="Цвет плашки" value={s.bgColor} onChange={(v) => st({ bgColor: v, bgOpacity: s.bgOpacity || 0.7 }, 'bgc')} />
-            <Slider label="Плотность" min={0} max={1} value={s.bgOpacity} format={pct} onChange={(v) => st({ bgOpacity: v }, 'bgo')} />
-            <div className="section-title">Строка</div>
-            <Slider label="Ширина строки" min={0.3} max={1} step={0.01} value={s.maxWidth} format={pct}
+            <Toggle label={tx('Тень')} on={s.shadow} onChange={(v) => st({ shadow: v }, 'sh')} />
+            <div className="section-title">{tx('Плашка')}</div>
+            <ColorField label={tx('Цвет плашки')} value={s.bgColor} onChange={(v) => st({ bgColor: v, bgOpacity: s.bgOpacity || 0.7 }, 'bgc')} />
+            <Slider label={tx('Плотность')} min={0} max={1} value={s.bgOpacity} format={pct} onChange={(v) => st({ bgOpacity: v }, 'bgo')} />
+            <div className="section-title">{tx('Строка')}</div>
+            <Slider label={tx('Ширина строки')} min={0.3} max={1} step={0.01} value={s.maxWidth} format={pct}
               onChange={(v) => st({ maxWidth: v }, 'mw')} />
-            <div className="section-title">Наклон в перспективе</div>
+            <div className="section-title">{tx('Наклон в перспективе')}</div>
             <TiltFields tilt={clip.tilt} onChange={(t) => commit((p) => updateClip(p, clip.id, { tilt: t }), `ttilt-${clip.id}`)} testPrefix="text-tilt" />
-            <p className="hint small">Текст можно двигать, растягивать и поворачивать прямо в окне просмотра.</p>
+            <p className="hint small">{tx('Текст можно двигать, растягивать и поворачивать прямо в окне просмотра.')}</p>
           </>
         )}
         {tab === 'anim' && (
           <>
-            <AnimPick label="Появление" kind="in" clip={clip} />
-            <AnimPick label="Исчезновение" kind="out" clip={clip} />
+            <AnimPick label={tx('Появление')} kind="in" clip={clip} />
+            <AnimPick label={tx('Исчезновение')} kind="out" clip={clip} />
             {isCaption && <HighlightPick clip={clip} />}
-            <div className="section-title">Движение по ключам</div>
+            <div className="section-title">{tx('Движение по ключам')}</div>
             <AnimFields clip={clip} defs={TEXT_ANIM} />
           </>
         )}

@@ -1,5 +1,7 @@
 // Главный экран (как «Главная» в Premiere): новый проект нужного формата, демо-ролик и демо-проект,
 // мои проекты (как в CapCut), шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
+import { tx } from '../../shared/i18n';
+import { txj } from '../txj';
 import { FileText, FolderOpen, Play, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
@@ -14,10 +16,10 @@ import { Seg, Toggle } from './controls';
 import { ProjectsSection } from './Projects';
 
 const FORMATS: { aspect: AspectKey; title: string; where: string }[] = [
-  { aspect: '9:16', title: 'Вертикальное', where: 'TikTok, Reels, Shorts' },
-  { aspect: '16:9', title: 'Горизонтальное', where: 'YouTube, ВК Видео' },
-  { aspect: '1:1', title: 'Квадрат', where: 'пост в ленту' },
-  { aspect: '4:5', title: 'Портрет', where: 'Instagram, Telegram' },
+  { aspect: '9:16', title: tx('Вертикальное'), where: 'TikTok, Reels, Shorts' },
+  { aspect: '16:9', title: tx('Горизонтальное'), where: tx('YouTube, ВК Видео') },
+  { aspect: '1:1', title: tx('Квадрат'), where: tx('пост в ленту') },
+  { aspect: '4:5', title: tx('Портрет'), where: 'Instagram, Telegram' },
 ];
 const HOME_TEMPLATES = ['trip', 'birthday', 'party', 'aesthetic', 'love', 'winter', 'neonnight', 'countdown', 'sport', 'collage'];
 
@@ -78,14 +80,14 @@ export function Home() {
   const reelSrc = info?.demo.reel ?? info?.demo.scenes.sunset ?? null;
 
   return (
-    <div className="home" data-testid="home" role="dialog" aria-label="Главный экран Kadro">
+    <div className="home" data-testid="home" role="dialog" aria-label={tx('Главный экран Kadro')}>
       <header className="home-top">
         <div className="logo"><LogoMark />Kadro</div>
         <div className="spacer" />
-        <button className="btn ghost home-settings" onClick={() => getState().setSettingsOpen(true)} data-testid="home-settings"><Settings size={15} />Настройки</button>
+        <button className="btn ghost home-settings" onClick={() => getState().setSettingsOpen(true)} data-testid="home-settings"><Settings size={15} />{tx('Настройки')}</button>
         {current && (
           <button className="btn" onClick={() => getState().setHome(false)} data-testid="home-close">
-            Вернуться к проекту «{current.name}»<X size={15} />
+            {txj('Вернуться к проекту «{0}»', current.name)}<X size={15} />
           </button>
         )}
       </header>
@@ -93,8 +95,8 @@ export function Home() {
       <main className="home-main">
         <section className="home-hero">
           <div className="home-start">
-            <h1>Что смонтируем сегодня?</h1>
-            <p className="home-lead">Выбери формат — откроется пустой проект нужного размера. Его можно поменять потом.</p>
+            <h1>{tx('Что смонтируем сегодня?')}</h1>
+            <p className="home-lead">{tx('Выбери формат — откроется пустой проект нужного размера. Его можно поменять потом.')}</p>
             <div className="home-formats">
               {FORMATS.map((f) => (
                 <button key={f.aspect} className="home-format" disabled={busy} data-testid={`home-new-${f.aspect.replace(':', '-')}`}
@@ -109,21 +111,21 @@ export function Home() {
             <div className="home-auto">
               <span className="home-auto-icon"><WandSparkles size={20} /></span>
               <span className="home-auto-text">
-                <b>Авто-ролик</b>
-                <span className="hint">Выбери видео, фото и музыку — Kadro сам возьмёт лучшие куски и смонтирует их в ритм.</span>
+                <b>{tx('Авто-ролик')}</b>
+                <span className="hint">{tx('Выбери видео, фото и музыку — Kadro сам возьмёт лучшие куски и смонтирует их в ритм.')}</span>
               </span>
-              <button className="btn primary" disabled={busy} onClick={() => getState().setAutoOpen({ files: [], fresh: true })} data-testid="home-auto">Собрать</button>
+              <button className="btn primary" disabled={busy} onClick={() => getState().setAutoOpen({ files: [], fresh: true })} data-testid="home-auto">{tx('Собрать')}</button>
             </div>
             <div className="home-auto">
               <span className="home-auto-icon"><FileText size={20} /></span>
               <span className="home-auto-text">
-                <b>Ролик по сценарию</b>
-                <span className="hint">Вставь текст — Kadro озвучит его, подберёт кадры из твоих видео и поставит субтитры.</span>
+                <b>{tx('Ролик по сценарию')}</b>
+                <span className="hint">{tx('Вставь текст — Kadro озвучит его, подберёт кадры из твоих видео и поставит субтитры.')}</span>
               </span>
-              <button className="btn" disabled={busy} onClick={() => getState().setScriptOpen(true)} data-testid="home-script">Написать</button>
+              <button className="btn" disabled={busy} onClick={() => getState().setScriptOpen(true)} data-testid="home-script">{tx('Написать')}</button>
             </div>
             <div className="home-more">
-              <button className="btn" disabled={busy} onClick={() => void run(openProject)} data-testid="home-open"><FolderOpen size={15} />Открыть проект или видео…</button>
+              <button className="btn" disabled={busy} onClick={() => void run(openProject)} data-testid="home-open"><FolderOpen size={15} />{tx('Открыть проект или видео…')}</button>
             </div>
           </div>
 
@@ -133,16 +135,15 @@ export function Home() {
                 ? <video ref={reel} src={api.mediaUrl(reelSrc)} autoPlay muted={!sound} loop playsInline data-testid="home-reel" />
                 : <div className="home-phone-empty" />}
               {reelSrc && info?.demo.reel && (
-                <button className="home-sound" onClick={() => setSound(!sound)} title={sound ? 'Выключить звук' : 'Включить звук'}>
-                  {sound ? <Volume2 size={15} /> : <VolumeX size={15} />}{sound ? 'Звук включён' : 'Со звуком'}
+                <button className="home-sound" onClick={() => setSound(!sound)} title={sound ? tx('Выключить звук') : tx('Включить звук')}>
+                  {sound ? <Volume2 size={15} /> : <VolumeX size={15} />}{sound ? tx('Звук включён') : tx('Со звуком')}
                 </button>
               )}
             </div>
             <figcaption>
-              <span>Этот ролик собран в Kadro из демо-видео. Открой его и посмотри, как он устроен.</span>
+              <span>{tx('Этот ролик собран в Kadro из демо-видео. Открой его и посмотри, как он устроен.')}</span>
               <button className="btn primary" disabled={busy || !info || !Object.keys(info.demo.scenes).length} onClick={() => void run(openDemo)} data-testid="home-demo">
-                <Play size={14} fill="currentColor" />Открыть демо-проект
-              </button>
+                <Play size={14} fill="currentColor" />{tx('Открыть демо-проект')}</button>
             </figcaption>
           </figure>
         </section>
@@ -151,10 +152,10 @@ export function Home() {
 
         <section className="home-section">
           <div className="home-section-head">
-            <h2>Начни с шаблона</h2>
-            <span className="hint">Наведи, чтобы посмотреть. Шаблон соберёт ролик из твоих видео и фото.</span>
+            <h2>{tx('Начни с шаблона')}</h2>
+            <span className="hint">{tx('Наведи, чтобы посмотреть. Шаблон соберёт ролик из твоих видео и фото.')}</span>
             <div className="spacer" />
-            <button className="btn ghost" onClick={() => { getState().setLeftTab('templates'); getState().setHome(false); }}>Все шаблоны ({BUILTIN_TEMPLATES.length})</button>
+            <button className="btn ghost" onClick={() => { getState().setLeftTab('templates'); getState().setHome(false); }}>{txj('Все шаблоны ({0})', BUILTIN_TEMPLATES.length)}</button>
           </div>
           <div className="home-templates">
             {templates.map((t) => (
@@ -166,8 +167,8 @@ export function Home() {
                   <span className="hint small">{t.aspect}, {fmtDur(templateDuration(t))}</span>
                 </div>
                 <div className="home-tpl-actions">
-                  <button className="btn primary small" disabled={busy} onClick={() => void run(() => templateFromFiles(t))}>Свои видео и фото</button>
-                  <button className="btn ghost small" disabled={busy} onClick={() => void run(() => tryTemplate(t))} data-testid={`home-try-${t.id}`}>Посмотреть пример</button>
+                  <button className="btn primary small" disabled={busy} onClick={() => void run(() => templateFromFiles(t))}>{tx('Свои видео и фото')}</button>
+                  <button className="btn ghost small" disabled={busy} onClick={() => void run(() => tryTemplate(t))} data-testid={`home-try-${t.id}`}>{tx('Посмотреть пример')}</button>
                 </div>
               </div>
             ))}
@@ -176,14 +177,14 @@ export function Home() {
       </main>
 
       <footer className="home-foot">
-        <Toggle label="Показывать этот экран при запуске" on={showAtStart} onChange={(v) => { setShowAtStart(v); api.setShowHome(v); }} testId="home-show" />
+        <Toggle label={tx('Показывать этот экран при запуске')} on={showAtStart} onChange={(v) => { setShowAtStart(v); api.setShowHome(v); }} testId="home-show" />
         <div className="home-theme">
-          <span className="hint">Тема</span>
+          <span className="hint">{tx('Тема')}</span>
           <Seg value={themePref} onChange={(v) => getState().setThemePref(v)}
-            options={[{ value: 'dark', label: 'Тёмная' }, { value: 'light', label: 'Светлая' }, { value: 'system', label: 'Как в Windows' }]} />
+            options={[{ value: 'dark', label: tx('Тёмная') }, { value: 'light', label: tx('Светлая') }, { value: 'system', label: tx('Как в Windows') }]} />
         </div>
-        <button className="btn ghost small" onClick={() => getState().setSettingsOpen(true)} data-testid="home-settings-foot">Цвет, значок, своё оформление…</button>
-        <span className="hint">Kadro работает без интернета и регистрации, видео сохраняется без водяных знаков.</span>
+        <button className="btn ghost small" onClick={() => getState().setSettingsOpen(true)} data-testid="home-settings-foot">{tx('Цвет, значок, своё оформление…')}</button>
+        <span className="hint">{tx('Kadro работает без интернета и регистрации, видео сохраняется без водяных знаков.')}</span>
       </footer>
     </div>
   );

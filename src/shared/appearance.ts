@@ -1,5 +1,6 @@
 // Оформление: цвет акцента, значок программы, размер интерфейса и «своё оформление» (custom.css + theme.json
 // в папке данных). Здесь — общие списки и чистые функции; применяет их главный процесс и окно.
+import { tx } from './i18n';
 
 export type AccentId = 'pink' | 'violet' | 'blue' | 'mono';
 export type IconId = 'black' | 'white' | 'pink' | 'violet' | 'blue' | 'custom';
@@ -14,18 +15,18 @@ export interface Appearance {
 export const DEFAULT_APPEARANCE: Appearance = { accent: 'pink', icon: 'black', uiScale: 1, custom: false };
 
 export const ACCENTS: { id: AccentId; label: string; swatch: string }[] = [
-  { id: 'pink', label: 'Розовый', swatch: '#ff3d7f' },
-  { id: 'violet', label: 'Фиолетовый', swatch: '#8f6bff' },
-  { id: 'blue', label: 'Синий', swatch: '#3d86ff' },
-  { id: 'mono', label: 'Чёрно-белый', swatch: 'linear-gradient(135deg,#fff 0 50%,#111 50% 100%)' },
+  { id: 'pink', label: tx('Розовый'), swatch: '#ff3d7f' },
+  { id: 'violet', label: tx('Фиолетовый'), swatch: '#8f6bff' },
+  { id: 'blue', label: tx('Синий'), swatch: '#3d86ff' },
+  { id: 'mono', label: tx('Чёрно-белый'), swatch: 'linear-gradient(135deg,#fff 0 50%,#111 50% 100%)' },
 ];
 
 export const APP_ICONS: { id: Exclude<IconId, 'custom'>; label: string; bg: string; fg: string }[] = [
-  { id: 'black', label: 'Чёрный', bg: '#000000', fg: '#ffffff' },
-  { id: 'white', label: 'Белый', bg: '#ffffff', fg: '#000000' },
-  { id: 'pink', label: 'Розовый', bg: '#ff3d7f', fg: '#ffffff' },
-  { id: 'violet', label: 'Фиолетовый', bg: '#7c4dff', fg: '#ffffff' },
-  { id: 'blue', label: 'Синий', bg: '#2f7bff', fg: '#ffffff' },
+  { id: 'black', label: tx('Чёрный'), bg: '#000000', fg: '#ffffff' },
+  { id: 'white', label: tx('Белый'), bg: '#ffffff', fg: '#000000' },
+  { id: 'pink', label: tx('Розовый'), bg: '#ff3d7f', fg: '#ffffff' },
+  { id: 'violet', label: tx('Фиолетовый'), bg: '#7c4dff', fg: '#ffffff' },
+  { id: 'blue', label: tx('Синий'), bg: '#2f7bff', fg: '#ffffff' },
 ];
 
 export const UI_SCALES: { value: number; label: string }[] = [
@@ -60,7 +61,7 @@ const SAFE = /^[^;{}<>\\]{1,200}$/;
  */
 export function themeJsonToCss(json: unknown): { css: string; skipped: string[] } {
   const skipped: string[] = [];
-  if (!json || typeof json !== 'object' || Array.isArray(json)) return { css: '', skipped: ['файл — не объект { "dark": {…}, "light": {…} }'] };
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return { css: '', skipped: [tx('файл — не объект { "dark": {…}, "light": {…} }')] };
   const blocks: string[] = [];
   const sel: Record<string, string> = {
     all: ':root',
@@ -84,71 +85,16 @@ export function themeJsonToCss(json: unknown): { css: string; skipped: string[] 
   return { css: blocks.join('\n'), skipped };
 }
 
-export const CUSTOM_CSS_TEMPLATE = `/* Своё оформление Kadro.
-   Этот файл подключается, если в «Настройки → Своё оформление» включён переключатель.
-   Сохранил файл — программа сразу применит изменения. Сломал вид — выключи переключатель
-   или переименуй этот файл. Подробная инструкция — README.txt рядом и docs/CUSTOMIZE.md на GitHub.
-
-   Примеры (убери /* и */ вокруг нужного): */
-
-/* Скруглённее кнопки и панели
-:root { --radius-s: 10px; --radius-m: 16px; }
-*/
-
-/* Другой шрифт интерфейса (любой из установленных в Windows)
-body { font-family: 'Segoe UI', sans-serif; }
-*/
-
-/* Картинка на главном экране
-.home { background: url('file:///C:/Users/Me/Pictures/bg.jpg') center / cover; }
-*/
-
-/* Крупнее подписи клипов на таймлайне
-.clip-label { font-size: 13px; }
-*/
-`;
+export const CUSTOM_CSS_TEMPLATE = tx('/* Своё оформление Kadro.\n   Этот файл подключается, если в «Настройки → Своё оформление» включён переключатель.\n   Сохранил файл — программа сразу применит изменения. Сломал вид — выключи переключатель\n   или переименуй этот файл. Подробная инструкция — README.txt рядом и docs/CUSTOMIZE.md на GitHub.\n\n   Примеры (убери /* и */ вокруг нужного): */\n\n/* Скруглённее кнопки и панели\n:root { --radius-s: 10px; --radius-m: 16px; }\n*/\n\n/* Другой шрифт интерфейса (любой из установленных в Windows)\nbody { font-family: \'Segoe UI\', sans-serif; }\n*/\n\n/* Картинка на главном экране\n.home { background: url(\'file:///C:/Users/Me/Pictures/bg.jpg\') center / cover; }\n*/\n\n/* Крупнее подписи клипов на таймлайне\n.clip-label { font-size: 13px; }\n*/\n');
 
 export const THEME_JSON_TEMPLATE = JSON.stringify({
-  _help: 'Цвета Kadro. dark — для тёмной темы, light — для светлой, all — для обеих. Ключ — переменная (список в README.txt), значение — цвет CSS. Удали строку — вернётся цвет по умолчанию.',
+  _help: tx('Цвета Kadro. dark — для тёмной темы, light — для светлой, all — для обеих. Ключ — переменная (список в README.txt), значение — цвет CSS. Удали строку — вернётся цвет по умолчанию.'),
   dark: { '--accent': '#ff3d7f' },
   light: {},
   all: {},
 }, null, 2);
 
-export const CUSTOM_README = `Своё оформление Kadro
-=====================
-
-Здесь два файла, которые меняют вид программы:
-
-  custom.css  — любые стили (CSS), как для сайта.
-  theme.json  — только цвета и размеры: переменные оформления для тёмной (dark), светлой (light) или обеих (all) тем.
-
-Как включить: Kadro → «Настройки» (шестерёнка на главном экране или вверху) → «Своё оформление» → включить.
-Изменения применяются сразу после сохранения файла — перезапускать программу не нужно.
-
-Если что-то сломалось и интерфейс не видно — выключи переключатель или переименуй custom.css и theme.json.
-
-Главные переменные (theme.json):
-  --bg          фон окна              --panel      фон панелей
-  --raised      фон кнопок и плиток   --raised-2   то же, светлее
-  --line        линии и рамки         --line-soft  тонкие линии
-  --text        основной текст        --muted      второстепенный текст
-  --accent      цвет акцента (кнопки, курсор, выделение)
-  --on-accent   цвет текста на кнопке с акцентом
-  --accent-soft полупрозрачная подсветка выделенного
-  --video, --overlay, --audio, --textclip, --caption  — цвета клипов на таймлайне
-  --radius-s, --radius-m  — скругления углов
-  --font        шрифт интерфейса
-
-Пример theme.json — бирюзовый акцент и синеватые панели в тёмной теме:
-  {
-    "dark": { "--accent": "#00d1c1", "--panel": "#121a24", "--bg": "#0c1118" },
-    "all":  { "--radius-m": "14px" }
-  }
-
-Классы элементов удобно смотреть в инструментах разработчика: F12 в окне Kadro.
-Полная инструкция с примерами: https://github.com/honeyjostar/kadro/blob/master/docs/CUSTOMIZE.md
-`;
+export const CUSTOM_README = tx('Своё оформление Kadro\n=====================\n\nЗдесь два файла, которые меняют вид программы:\n\n  custom.css  — любые стили (CSS), как для сайта.\n  theme.json  — только цвета и размеры: переменные оформления для тёмной (dark), светлой (light) или обеих (all) тем.\n\nКак включить: Kadro → «Настройки» (шестерёнка на главном экране или вверху) → «Своё оформление» → включить.\nИзменения применяются сразу после сохранения файла — перезапускать программу не нужно.\n\nЕсли что-то сломалось и интерфейс не видно — выключи переключатель или переименуй custom.css и theme.json.\n\nГлавные переменные (theme.json):\n  --bg          фон окна              --panel      фон панелей\n  --raised      фон кнопок и плиток   --raised-2   то же, светлее\n  --line        линии и рамки         --line-soft  тонкие линии\n  --text        основной текст        --muted      второстепенный текст\n  --accent      цвет акцента (кнопки, курсор, выделение)\n  --on-accent   цвет текста на кнопке с акцентом\n  --accent-soft полупрозрачная подсветка выделенного\n  --video, --overlay, --audio, --textclip, --caption  — цвета клипов на таймлайне\n  --radius-s, --radius-m  — скругления углов\n  --font        шрифт интерфейса\n\nПример theme.json — бирюзовый акцент и синеватые панели в тёмной теме:\n  {\n    "dark": { "--accent": "#00d1c1", "--panel": "#121a24", "--bg": "#0c1118" },\n    "all":  { "--radius-m": "14px" }\n  }\n\nКлассы элементов удобно смотреть в инструментах разработчика: F12 в окне Kadro.\nПолная инструкция с примерами: https://github.com/honeyjostar/kadro/blob/master/docs/CUSTOMIZE.md\n');
 
 // ---------- свой значок ----------
 /** PNG (до 256×256) → файл .ico с одной картинкой внутри (Windows Vista и новее читают PNG в .ico). */

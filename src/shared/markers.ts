@@ -1,15 +1,16 @@
 // Маркеры на таймлайне: поставить, переименовать, перекрасить, перейти к соседнему; главы для YouTube
 // и для MP4 (видны в плеерах). Чистые функции — проверяются без Electron.
+import { tx } from './i18n';
 import { uid } from './defaults';
 import { projectDuration } from './timeline';
 import type { Marker, MarkerColor, Project } from './types';
 
 export const MARKER_COLORS: { id: MarkerColor; label: string; css: string }[] = [
-  { id: 'pink', label: 'Розовый', css: '#ff3d8b' },
-  { id: 'yellow', label: 'Жёлтый', css: '#ffc53d' },
-  { id: 'green', label: 'Зелёный', css: '#3ddc84' },
-  { id: 'blue', label: 'Синий', css: '#4aa8ff' },
-  { id: 'violet', label: 'Фиолетовый', css: '#a77bff' },
+  { id: 'pink', label: tx('Розовый'), css: '#ff3d8b' },
+  { id: 'yellow', label: tx('Жёлтый'), css: '#ffc53d' },
+  { id: 'green', label: tx('Зелёный'), css: '#3ddc84' },
+  { id: 'blue', label: tx('Синий'), css: '#4aa8ff' },
+  { id: 'violet', label: tx('Фиолетовый'), css: '#a77bff' },
 ];
 export const markerCss = (c: MarkerColor | undefined): string => (MARKER_COLORS.find((x) => x.id === c) ?? MARKER_COLORS[0]).css;
 
@@ -23,7 +24,7 @@ export function addMarker(p: Project, t: number, init: Partial<Omit<Marker, 'id'
   const near = markersOf(p).find((m) => Math.abs(m.t - at) < 0.5 / p.settings.fps);
   if (near) return { project: p, id: near.id };
   const id = uid('mk');
-  const label = init.label ?? `Маркер ${markersOf(p).length + 1}`;
+  const label = init.label ?? tx('Маркер {0}', markersOf(p).length + 1);
   const m: Marker = { id, t: at, label, color: init.color ?? 'pink' };
   return { project: { ...p, markers: sorted([...markersOf(p), m]) }, id };
 }
@@ -64,10 +65,10 @@ export function chaptersOf(p: Project): Chapter[] {
   const ms = sorted(markersOf(p)).filter((m) => m.t < total - 0.5);
   if (!ms.length) return [];
   const pts: { t: number; title: string }[] = [];
-  if (ms[0].t >= 1) pts.push({ t: 0, title: 'Начало' });
+  if (ms[0].t >= 1) pts.push({ t: 0, title: tx('Начало') });
   for (const m of ms) {
     const t = pts.length ? Math.floor(m.t + 1e-6) : 0;
-    const title = m.label.trim() || `Глава ${pts.length + 1}`;
+    const title = m.label.trim() || tx('Глава {0}', pts.length + 1);
     if (pts.length && t <= pts[pts.length - 1].t) { pts[pts.length - 1].title = title; continue; }
     pts.push({ t, title });
   }
@@ -78,9 +79,9 @@ export function chaptersOf(p: Project): Chapter[] {
 export function youtubeChapters(p: Project): { text: string; problems: string[] } {
   const ch = chaptersOf(p);
   const problems: string[] = [];
-  if (ch.length && ch.length < 3) problems.push('YouTube покажет главы, только если их хотя бы три — добавь маркеров.');
+  if (ch.length && ch.length < 3) problems.push(tx('YouTube покажет главы, только если их хотя бы три — добавь маркеров.'));
   const short = ch.filter((c) => c.end - c.start < 10).map((c) => `«${c.title}»`);
-  if (short.length) problems.push(`Короче 10 секунд: ${short.join(', ')} — YouTube такие главы не покажет.`);
+  if (short.length) problems.push(tx('Короче 10 секунд: {0} — YouTube такие главы не покажет.', short.join(', ')));
   return { text: ch.map((c) => `${chapterTime(c.start)} ${c.title}`).join('\n'), problems };
 }
 

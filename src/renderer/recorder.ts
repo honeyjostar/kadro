@@ -1,4 +1,5 @@
 // Запись голоса с микрофона: MediaRecorder (Opus) + уровень сигнала для индикатора.
+import { tx } from '../shared/i18n';
 
 export interface MicInfo { id: string; label: string }
 
@@ -8,7 +9,7 @@ export const recPrefs = { mic: 'default', mute: true };
 export async function listMics(): Promise<MicInfo[]> {
   try {
     const all = await navigator.mediaDevices.enumerateDevices();
-    return all.filter((d) => d.kind === 'audioinput').map((d, i) => ({ id: d.deviceId, label: d.label || `Микрофон ${i + 1}` }));
+    return all.filter((d) => d.kind === 'audioinput').map((d, i) => ({ id: d.deviceId, label: d.label || tx('Микрофон {0}', i + 1) }));
   } catch {
     return [];
   }
@@ -44,7 +45,7 @@ export class VoiceRecorder {
     } catch { /* без индикатора уровня */ }
     await new Promise<void>((resolve, reject) => {
       this.rec!.onstart = () => resolve();
-      this.rec!.onerror = () => reject(new Error('Запись не началась'));
+      this.rec!.onerror = () => reject(new Error(tx('Запись не началась')));
       this.rec!.start(250);
     });
   }
@@ -64,7 +65,7 @@ export class VoiceRecorder {
 
   async stop(): Promise<Blob> {
     const rec = this.rec;
-    if (!rec) throw new Error('Запись не идёт');
+    if (!rec) throw new Error(tx('Запись не идёт'));
     if (rec.state !== 'inactive') await new Promise<void>((resolve) => { rec.onstop = () => resolve(); rec.stop(); });
     const blob = new Blob(this.chunks, { type: rec.mimeType || 'audio/webm' });
     this.release();

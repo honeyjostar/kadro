@@ -1,6 +1,7 @@
 // Перевод текста без интернета: модели OPUS-MT (Marian, Хельсинкский университет) в ONNX, onnxruntime-node.
 // Токенизатор SentencePiece (Unigram) — свой, по tokenizer.json; декодирование — жадное, по шагам, с
 // защитой от зацикливания. Модели качаются один раз из релиза translate-models репозитория Kadro.
+import { tx } from '../../shared/i18n';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -18,7 +19,7 @@ function loadTokenizer(file: string): Tok {
     model: { type: string; vocab: [string, number][]; unk_id?: number };
     added_tokens?: { id: number; content: string; special?: boolean }[];
   };
-  if (j.model?.type !== 'Unigram' || !Array.isArray(j.model.vocab)) throw new Error('Непонятный словарь модели перевода');
+  if (j.model?.type !== 'Unigram' || !Array.isArray(j.model.vocab)) throw new Error(tx('Непонятный словарь модели перевода'));
   const pieces = new Map<string, { id: number; score: number }>();
   const byId: string[] = [];
   let maxLen = 1;
@@ -204,7 +205,7 @@ export async function translateTexts(texts: string[], route: Pair[], onProgress:
     const m = await model(pair);
     const next: string[] = [];
     for (const t of cur) {
-      if (isCancelled()) throw Object.assign(new Error('Отменено'), { name: 'AbortError' });
+      if (isCancelled()) throw Object.assign(new Error(tx('Отменено')), { name: 'AbortError' });
       next.push(await m.translate(t));
       done++;
       onProgress(done / steps);

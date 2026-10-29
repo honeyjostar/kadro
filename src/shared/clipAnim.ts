@@ -1,18 +1,19 @@
 // Анимации появления и исчезновения видео и фото (как у текста): наезд, выезд, выскок, вращение…
 // Одна математика для превью (числа) и экспорта (выражения FFmpeg) — как у эффектов движения.
+import { tx } from './i18n';
 import type { ClipAnim, ClipAnimType, MediaClip } from './types';
 
 export const CLIP_ANIMS: { type: ClipAnimType; in: string; out: string; hint: string }[] = [
-  { type: 'fade', in: 'Проявление', out: 'Растворение', hint: 'плавно из прозрачного' },
-  { type: 'zoomin', in: 'Из далёкого', out: 'В далёкое', hint: 'вырастает из маленького' },
-  { type: 'zoomout', in: 'Из крупного', out: 'В крупное', hint: 'наплывает из большого' },
-  { type: 'pop', in: 'Выскок', out: 'Схлопывание', hint: 'с пружинкой, как в TikTok' },
-  { type: 'left', in: 'Слева', out: 'Влево', hint: 'выезжает из-за края' },
-  { type: 'right', in: 'Справа', out: 'Вправо', hint: 'выезжает из-за края' },
-  { type: 'top', in: 'Сверху', out: 'Вверх', hint: 'выезжает из-за края' },
-  { type: 'bottom', in: 'Снизу', out: 'Вниз', hint: 'выезжает из-за края' },
-  { type: 'drop', in: 'Падение', out: 'Подброс', hint: 'падает сверху и подпрыгивает' },
-  { type: 'spin', in: 'Вращение', out: 'Вращение', hint: 'крутится и растёт' },
+  { type: 'fade', in: tx('Проявление'), out: tx('Растворение'), hint: tx('плавно из прозрачного') },
+  { type: 'zoomin', in: tx('Из далёкого'), out: tx('В далёкое'), hint: tx('вырастает из маленького') },
+  { type: 'zoomout', in: tx('Из крупного'), out: tx('В крупное'), hint: tx('наплывает из большого') },
+  { type: 'pop', in: tx('Выскок'), out: tx('Схлопывание'), hint: tx('с пружинкой, как в TikTok') },
+  { type: 'left', in: tx('Слева'), out: tx('Влево'), hint: tx('выезжает из-за края') },
+  { type: 'right', in: tx('Справа'), out: tx('Вправо'), hint: tx('выезжает из-за края') },
+  { type: 'top', in: tx('Сверху'), out: tx('Вверх'), hint: tx('выезжает из-за края') },
+  { type: 'bottom', in: tx('Снизу'), out: tx('Вниз'), hint: tx('выезжает из-за края') },
+  { type: 'drop', in: tx('Падение'), out: tx('Подброс'), hint: tx('падает сверху и подпрыгивает') },
+  { type: 'spin', in: tx('Вращение'), out: tx('Вращение'), hint: tx('крутится и растёт') },
 ];
 
 export const CLIP_ANIM_DEFAULT_DUR = 0.5;

@@ -1,5 +1,6 @@
 // Готовит слои текста для экспорта: каждый текстовый клип — PNG размера экспорта
 // (рисуется той же функцией, что и в плеере).
+import { tx } from '../../shared/i18n';
 import { drawText, fontString, isTextAnimated, textStateAt, textStateKey } from '../../shared/textRender';
 import { particleEffects } from '../../shared/effects';
 import { drawParticles } from '../../shared/particles';
@@ -10,7 +11,7 @@ import type { MediaClip, Project, TextClip } from '../../shared/types';
 function toPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(async (b) => {
-      if (!b) { reject(new Error('Не удалось нарисовать текст')); return; }
+      if (!b) { reject(new Error(tx('Не удалось нарисовать текст'))); return; }
       resolve(new Uint8Array(await b.arrayBuffer()));
     }, 'image/png');
   });
@@ -20,7 +21,7 @@ function toPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
 export async function loadProjectFonts(p: Project): Promise<void> {
   const fonts = new Set<string>();
   for (const t of p.tracks) for (const c of t.clips) if (c.type === 'text') fonts.add(fontString(c, 40));
-  await Promise.all([...fonts].map((f) => document.fonts.load(f, 'АБВабвABCabc').catch(() => undefined)));
+  await Promise.all([...fonts].map((f) => document.fonts.load(f, tx('АБВабвABCabc')).catch(() => undefined)));
   await document.fonts.ready;
 }
 

@@ -1,5 +1,6 @@
 // Маркеры на линейке таймлайна: щелчок — перейти, двойной щелчок — переименовать, потянуть — сдвинуть,
 // правая кнопка — цвет, главы для YouTube, удалить. Ставятся клавишей M там, где линия времени.
+import { tx } from '../../shared/i18n';
 import { Bookmark, ClipboardList, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { MARKER_COLORS, addMarker, clearMarkers, markerCss, markersOf, removeMarker, updateMarker } from '../../shared/markers';
@@ -25,10 +26,10 @@ const colorItems = (m: Marker): MenuEntry[] => MARKER_COLORS.map((c) => ({
 export function rulerMenuItems(t: number): MenuEntry[] {
   const has = markersOf(getState().project).length > 0;
   return [
-    { label: 'Поставить маркер здесь', icon: <Bookmark size={14} />, hint: 'M — у линии времени', onClick: () => getState().commit((p) => addMarker(p, t).project), testId: 'ruler-add-marker' },
-    { label: 'Скопировать главы для YouTube', icon: <ClipboardList size={14} />, disabled: !has, onClick: () => void copyChapters(), testId: 'ruler-chapters' },
+    { label: tx('Поставить маркер здесь'), icon: <Bookmark size={14} />, hint: tx('M — у линии времени'), onClick: () => getState().commit((p) => addMarker(p, t).project), testId: 'ruler-add-marker' },
+    { label: tx('Скопировать главы для YouTube'), icon: <ClipboardList size={14} />, disabled: !has, onClick: () => void copyChapters(), testId: 'ruler-chapters' },
     'sep',
-    { label: 'Удалить все маркеры', icon: <Trash2 size={14} />, danger: true, disabled: !has, onClick: () => getState().commit(clearMarkers), testId: 'ruler-clear-markers' },
+    { label: tx('Удалить все маркеры'), icon: <Trash2 size={14} />, danger: true, disabled: !has, onClick: () => getState().commit(clearMarkers), testId: 'ruler-clear-markers' },
   ];
 }
 
@@ -66,12 +67,12 @@ export function MarkerLayer({ pps, timeAt }: { pps: number; timeAt: (clientX: nu
   };
 
   const onMenu = (e: React.MouseEvent, m: Marker) => menu.open(e, [
-    { label: 'Переименовать', icon: <Pencil size={14} />, hint: 'двойной щелчок', onClick: () => setEditing(m.id), testId: 'mk-rename' },
+    { label: tx('Переименовать'), icon: <Pencil size={14} />, hint: tx('двойной щелчок'), onClick: () => setEditing(m.id), testId: 'mk-rename' },
     'sep',
     ...colorItems(m),
     'sep',
-    { label: 'Скопировать главы для YouTube', icon: <ClipboardList size={14} />, onClick: () => void copyChapters(), testId: 'mk-chapters' },
-    { label: 'Удалить маркер', icon: <Trash2 size={14} />, danger: true, onClick: () => getState().commit((p) => removeMarker(p, m.id)), testId: 'mk-delete' },
+    { label: tx('Скопировать главы для YouTube'), icon: <ClipboardList size={14} />, onClick: () => void copyChapters(), testId: 'mk-chapters' },
+    { label: tx('Удалить маркер'), icon: <Trash2 size={14} />, danger: true, onClick: () => getState().commit((p) => removeMarker(p, m.id)), testId: 'mk-delete' },
   ]);
 
   return (
@@ -84,7 +85,7 @@ export function MarkerLayer({ pps, timeAt }: { pps: number; timeAt: (clientX: nu
         return (
           <div key={m.id} className={`marker ${drag?.id === m.id ? 'drag' : ''}`} style={{ left: xOf(t, pps), ['--mk' as string]: markerCss(m.color) }}
             data-testid="marker" data-id={m.id}
-            title={`${m.label} · ${fmtTime(m.t, fps, true)}\nЩелчок — перейти, двойной — переименовать, потянуть — сдвинуть, правая кнопка — цвет и главы`}
+            title={tx('{0} · {1}\nЩелчок — перейти, двойной — переименовать, потянуть — сдвинуть, правая кнопка — цвет и главы', m.label, fmtTime(m.t, fps, true))}
             onPointerDown={(e) => onDown(e, m)} onDoubleClick={(e) => { e.stopPropagation(); setEditing(m.id); }}
             onContextMenu={(e) => onMenu(e, m)}>
             <span className="mk-flag" />

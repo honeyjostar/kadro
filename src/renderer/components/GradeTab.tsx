@@ -1,4 +1,6 @@
 // Вкладка «Цвет» → кривые, HSL по цветам, свой LUT.
+import { tx } from '../../shared/i18n';
+import { txj } from '../txj';
 import { RotateCcw, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { HSL_BANDS, IDENTITY_CURVE, curveFn } from '../../shared/grade';
@@ -35,10 +37,10 @@ export function CurvesPanel({ clip }: { clip: MediaClip }) {
       <Seg value={ch} onChange={setCh} options={[{ value: 'all', label: 'RGB' }, { value: 'r', label: 'R' }, { value: 'g', label: 'G' }, { value: 'b', label: 'B' }]} />
       <CurveEditor key={ch} points={pts} color={CH_COLOR[ch]} onChange={(p) => put(isIdentity(p) ? undefined : p)}
         others={(['all', 'r', 'g', 'b'] as Ch[]).filter((c) => c !== ch && g.curves?.[c]).map((c) => ({ pts: g.curves![c]!, color: CH_COLOR[c] }))} />
-      <p className="hint small">Тяни точки: вверх — светлее, вниз — темнее. Двойной клик добавляет точку, двойной клик по точке — убирает.</p>
+      <p className="hint small">{tx('Тяни точки: вверх — светлее, вниз — темнее. Двойной клик добавляет точку, двойной клик по точке — убирает.')}</p>
       <div className="row-btns">
-        <button className="btn" onClick={() => put(undefined)} disabled={!g.curves?.[ch]}><RotateCcw size={14} />Сбросить канал</button>
-        <button className="btn" onClick={() => set({ ...g, curves: undefined }, 'curves')} disabled={!g.curves}>Все кривые</button>
+        <button className="btn" onClick={() => put(undefined)} disabled={!g.curves?.[ch]}><RotateCcw size={14} />{tx('Сбросить канал')}</button>
+        <button className="btn" onClick={() => set({ ...g, curves: undefined }, 'curves')} disabled={!g.curves}>{tx('Все кривые')}</button>
       </div>
     </>
   );
@@ -124,14 +126,14 @@ export function HslPanel({ clip }: { clip: MediaClip }) {
           );
         })}
       </div>
-      <p className="hint small" style={{ marginBottom: 4 }}>{HSL_BANDS.find((b) => b.id === band)!.label}: меняются только эти оттенки в кадре.</p>
-      <Slider label="Оттенок" min={-1} max={1} value={a.h} format={(v) => `${v > 0 ? '+' : ''}${Math.round(v * 30)}°`} testId="hsl-h"
+      <p className="hint small" style={{ marginBottom: 4 }}>{txj('{0}: меняются только эти оттенки в кадре.', HSL_BANDS.find((b) => b.id === band)!.label)}</p>
+      <Slider label={tx('Оттенок')} min={-1} max={1} value={a.h} format={(v) => `${v > 0 ? '+' : ''}${Math.round(v * 30)}°`} testId="hsl-h"
         onChange={(v) => put({ h: v })} onReset={() => put({ h: 0 })} />
-      <Slider label="Насыщенность" min={-1} max={1} value={a.s} format={pct} testId="hsl-s"
+      <Slider label={tx('Насыщенность')} min={-1} max={1} value={a.s} format={pct} testId="hsl-s"
         onChange={(v) => put({ s: v })} onReset={() => put({ s: 0 })} />
-      <Slider label="Яркость" min={-1} max={1} value={a.l} format={pct} testId="hsl-l"
+      <Slider label={tx('Яркость')} min={-1} max={1} value={a.l} format={pct} testId="hsl-l"
         onChange={(v) => put({ l: v })} onReset={() => put({ l: 0 })} />
-      <button className="btn block" disabled={!g.hsl} onClick={() => set({ ...g, hsl: undefined }, 'hsl')}><RotateCcw size={14} />Сбросить все цвета</button>
+      <button className="btn block" disabled={!g.hsl} onClick={() => set({ ...g, hsl: undefined }, 'hsl')}><RotateCcw size={14} />{tx('Сбросить все цвета')}</button>
     </>
   );
 }
@@ -144,7 +146,7 @@ export function LutPanel({ clip }: { clip: MediaClip }) {
   const load = async () => {
     const r = await api.pickLut();
     if (!r) return;
-    if ('error' in r) { getState().toast(`LUT не загрузился: ${r.error}`, 'err'); return; }
+    if ('error' in r) { getState().toast(tx('LUT не загрузился: {0}', r.error), 'err'); return; }
     set({ ...g, lut: { path: r.path, name: r.name, amount: g.lut?.amount ?? 1 } }, 'lut');
     refresh();
   };
@@ -152,21 +154,21 @@ export function LutPanel({ clip }: { clip: MediaClip }) {
   const opts = cur && !list.some((l) => l.path === cur.path) ? [...list, { path: cur.path, name: cur.name }] : list;
   return (
     <>
-      <p className="hint">LUT — готовая «цветовая таблица» из Premiere, DaVinci или от колористов (файл .cube).</p>
-      <button className="btn block" onClick={() => void load()} data-testid="lut-load" style={{ marginTop: 10 }}><Upload size={14} />Загрузить .cube</button>
+      <p className="hint">{tx('LUT — готовая «цветовая таблица» из Premiere, DaVinci или от колористов (файл .cube).')}</p>
+      <button className="btn block" onClick={() => void load()} data-testid="lut-load" style={{ marginTop: 10 }}><Upload size={14} />{tx('Загрузить .cube')}</button>
       {opts.length > 0 && (
         <select className="input" style={{ width: '100%', marginTop: 10 }} value={cur?.path ?? ''} data-testid="lut-select"
           onChange={(e) => {
             const l = opts.find((x) => x.path === e.target.value);
             set({ ...g, lut: l ? { path: l.path, name: l.name, amount: cur?.amount ?? 1 } : undefined }, 'lut');
           }}>
-          <option value="">Без LUT</option>
+          <option value="">{tx('Без LUT')}</option>
           {opts.map((l) => <option key={l.path} value={l.path}>{l.name}</option>)}
         </select>
       )}
       {cur && (
-        <Slider label="Сила" min={0} max={1} value={cur.amount} format={(v) => `${Math.round(v * 100)}%`} testId="lut-amount"
-          extra={<button className="icon-btn" style={{ width: 22, height: 22 }} title="Убрать LUT" onClick={() => set({ ...g, lut: undefined }, 'lut')}><X size={13} /></button>}
+        <Slider label={tx('Сила')} min={0} max={1} value={cur.amount} format={(v) => `${Math.round(v * 100)}%`} testId="lut-amount"
+          extra={<button className="icon-btn" style={{ width: 22, height: 22 }} title={tx('Убрать LUT')} onClick={() => set({ ...g, lut: undefined }, 'lut')}><X size={13} /></button>}
           onChange={(v) => set({ ...g, lut: { ...cur, amount: v } }, 'lutamt')} onReset={() => set({ ...g, lut: { ...cur, amount: 1 } }, 'lutamt')} />
       )}
     </>
