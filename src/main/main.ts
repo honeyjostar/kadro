@@ -13,6 +13,7 @@ import { cacheInfo, cleanTempOnStart, clearCache, knownProjectPaths } from './ca
 import { ensurePluginDirs, installFiles, installFromCatalog, listPlugins, loadCatalog, removePlugin, watchPlugins } from './plugins';
 import { FONT_EXT, installFonts, listUserFonts, loadableFace, removeUserFonts, systemFontDirs, systemFonts, userFontsDir } from './fonts';
 import { packProject, packageExtras, relinkProject } from './pack';
+import { referenceTemplate } from './refEdit';
 import { normPath } from '../shared/cache';
 import { copyName, safeFileName } from '../shared/projects';
 import { scrubLog, type BugInfo } from '../shared/bugReport';
@@ -289,6 +290,12 @@ async function runAi(job: AiJob): Promise<AiResponse> {
     if (job.kind === 'beats') {
       const r = await workerCall<{ beats: number[]; bpm: number; shape?: import('../shared/beats').MusicShape }>(id, { kind: 'beats', path: job.path });
       return { ok: true, output: { kind: 'beats', beats: r.beats, bpm: r.bpm, shape: r.shape } };
+    }
+    if (job.kind === 'refEdit') {
+      const ac = new AbortController();
+      aiAborts.set(id, ac);
+      const r = await referenceTemplate(job.path, (p, stage) => send(p, stage), ac.signal);
+      return { ok: true, output: { kind: 'refEdit', ...r } };
     }
     if (job.kind === 'highlights') {
       const ac = new AbortController();
@@ -759,7 +766,10 @@ function registerIpc(): void {
     try { const t = JSON.parse(fs.readFileSync(path.join(tplDir(), f), 'utf8')); return isTemplate(t) ? [{ ...t, custom: true }] : []; } catch { return []; }
   }));
   ipcMain.handle('tpl:save', (_e, t: Template) => { if (!isTemplate(t)) return false; fs.writeFileSync(tplFile(t.id), JSON.stringify(t)); return true; });
-  ipcMain.handle('tpl:delete', (_e, id: string) => { fs.rmSync(tplFile(id), { force: true }); });
+  ipcMain.handle('tpl:delete', (_e, id: string) => {
+    fs.rmSync(tplFile(id), { force: true });
+    fs.rmSync(tplFile(id).replace(/\.json$/, '.m4a'), { force: true }); // музыка шаблона «по ролику»
+  });
   // 3D: выбор файла модели и сборка кадров в видео с прозрачностью
   ipcMain.handle('dialog:model', async () => {
     if (process.env.KADRO_TEST_MODEL) return process.env.KADRO_TEST_MODEL; // автотесты: без системного окна

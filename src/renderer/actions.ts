@@ -5,7 +5,7 @@ import { normalizeRamp, originalRange } from '../shared/retime';
 import { reframeKeyframes } from '../shared/reframe';
 import { CAPTION_STYLE, newProject, shortSideOf, sizeFor } from '../shared/defaults';
 import { exportSize } from '../shared/geometry';
-import type { AiJob, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
+import type { AiJob, AiOutput, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
 import {
   addAsset, addFree, addToMain, alignMainToBeats, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
   splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip, setSettings, type SourceRange,
@@ -782,11 +782,24 @@ async function importForTemplate(paths: string[]): Promise<MediaAsset[]> {
   return ids.map((id) => getState().project.assets.find((a) => a.id === id)).filter((a): a is MediaAsset => !!a);
 }
 
-function applyTemplateNow(t: Template, all: MediaAsset[]): boolean {
+async function applyTemplateNow(t: Template, all: MediaAsset[], o: { useMusic?: boolean; videoSound?: 'off' | 'quiet' | 'on' } = {}): Promise<boolean> {
   const assets = all.filter((a) => a.kind === 'video' || a.kind === 'image');
   if (!assets.length) { getState().toast(tx('Нужны видео или фото — добавь их в медиатеку')); return false; }
   getState().setPlaying(false);
-  getState().commit((p) => applyTemplate(p, t, assets));
+  // музыка шаблона (у шаблона «по ролику» — звук образца)
+  let music: MediaAsset | null = null;
+  if (t.music?.path && o.useMusic !== false) {
+    const have = getState().project.assets.find((a) => a.path === t.music!.path && !a.missing);
+    if (have) music = have;
+    else {
+      const [id] = await importPaths([t.music.path]);
+      music = getState().project.assets.find((a) => a.id === id) ?? null;
+      if (!music) getState().toast(tx('Музыка шаблона не нашлась — ролик собран без неё'), 'err');
+    }
+  }
+  const hl = new Map<string, Highlights | null>();
+  for (const a of assets) if (a.kind === 'video' && hlMemo.has(a.path)) hl.set(a.id, hlMemo.get(a.path) ?? null);
+  getState().commit((p) => applyTemplate(p, t, assets, { hl, music, videoSound: o.videoSound ?? 'off' }));
   getState().select([]);
   getState().setPlayhead(0);
   getState().toast(tx('Шаблон «{0}» готов: {1} окошек из {2} файлов. Отменить — Ctrl+Z', t.name, t.slots.length, assets.length), 'ok');
@@ -1175,6 +1188,46 @@ export interface AutoStage { label: string; jobId?: string; step: number; steps:
 const hlMemo = new Map<string, Highlights | null>();
 let autoCancel: (() => void) | null = null;
 let autoStopped = false;
+
+// ---------- повторить монтаж по ролику ----------
+export type RefInfo = Extract<AiOutput, { kind: 'refEdit' }>;
+/** Разобрать ролик-образец: склейки, вспышки, наезды, музыка → шаблон в «Моих шаблонах». */
+export async function analyzeReference(ref: string, onStage?: (s: AutoStage) => void): Promise<RefInfo | null> {
+  autoStopped = false;
+  const job: AiJob = { kind: 'refEdit', jobId: `ref_${uidShort()}`, path: ref };
+  onStage?.({ label: tx('Разбираю ролик-образец'), jobId: job.jobId, step: 0, steps: 1 });
+  autoCancel = () => api.cancelAi(job.jobId);
+  try {
+    const r = await runJob(tx('Разбираю ролик-образец'), job);
+    if (autoStopped) return null;
+    if (!r.ok || r.output?.kind !== 'refEdit') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось разобрать ролик: {0}', r.error ?? ''), 'err'); return null; }
+    return r.output;
+  } finally { autoCancel = null; }
+}
+
+/** Собрать ролик по шаблону «по ролику»: свои файлы в окошки (лучшие куски видео), музыка образца. */
+export async function buildFromReference(t: Template, files: string[], o: { fresh: boolean; useMusic: boolean; videoSound: 'off' | 'quiet' | 'on'; onStage?: (s: AutoStage) => void }): Promise<boolean> {
+  autoStopped = false;
+  const stage = o.onStage ?? (() => undefined);
+  if (o.fresh) await replaceProject(newProject(t.name, t.aspect));
+  stage({ label: tx('Добавляю файлы'), step: 0, steps: 1 });
+  const byPath = await assetsForPaths(files);
+  const media = files.map((f) => byPath.get(f)).filter((a): a is MediaAsset => !!a && (a.kind === 'image' || (a.kind === 'video' && a.hasVideo)));
+  if (!media.length) { getState().toast(tx('Нужны видео или фото — выбери хотя бы один файл'), 'err'); return false; }
+  const todo = [...new Map(media.filter((a) => a.kind === 'video' && !hlMemo.has(a.path)).map((a) => [a.path, a])).values()];
+  for (const [n, a] of todo.entries()) {
+    const src = a.proxy === 'ready' && a.previewPath ? a.previewPath : a.path;
+    const job: AiJob = { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration };
+    stage({ label: todo.length > 1 ? tx('Смотрю видео {0} из {1}', n + 1, todo.length) : tx('Смотрю видео'), jobId: job.jobId, step: n, steps: todo.length });
+    autoCancel = () => api.cancelAi(job.jobId);
+    let r: AiResponse;
+    try { r = await runJob(tx('Смотрю видео'), job); } finally { autoCancel = null; }
+    if (autoStopped) return false;
+    hlMemo.set(a.path, r.ok && r.output?.kind === 'highlights' ? r.output.hl : null);
+  }
+  stage({ label: tx('Собираю ролик'), step: todo.length, steps: Math.max(1, todo.length) });
+  return applyTemplateNow(t, media, { useMusic: o.useMusic, videoSound: o.videoSound });
+}
 
 /** Остановить сборку авто-ролика (текущий разбор или поиск ритма). */
 export function cancelAutoEdit(): void {

@@ -4,8 +4,9 @@ import { tx } from './i18n';
 import { ASPECTS, DEFAULT_COLOR, DEFAULT_TRANSFORM, TEXT_PRESETS, newMediaClip, newProject, newTextClip, newTrack } from './defaults';
 import { clipDuration, layoutMain, mainTrack } from './timeline';
 import type {
-  AspectKey, ColorAdjust, Effect, Grade, MediaAsset, MediaClip, Project, TextAnim, TextClip, TextStyle, Transition,
+  AspectKey, ClipAnim, ColorAdjust, Effect, Grade, MediaAsset, MediaClip, Project, TextAnim, TextClip, TextStyle, Transition,
 } from './types';
+import { pickWindows, type Highlights } from './autoEdit';
 
 export interface TemplateSlot {
   duration: number;
@@ -14,6 +15,7 @@ export interface TemplateSlot {
   grade?: Grade;
   zoom?: [number, number];        // масштаб в начале и в конце окошка (плавный наезд/отъезд)
   transitionOut?: Transition;
+  anim?: { in?: ClipAnim; out?: ClipAnim }; // проявление из чёрного / уход в чёрное
 }
 export interface TemplateText {
   start: number;                  // секунды от начала; отрицательное — от конца ролика
@@ -37,6 +39,7 @@ export interface Template {
   demo?: DemoScene[];             // какие демо-ролики подставить в «Попробовать на примере» и в превью
   cat?: TemplateCat;
   poster?: number;                // секунда превью, которая видна до наведения (по умолчанию 1.2)
+  music?: { path: string };       // своя музыка шаблона (у шаблона «по ролику» — звук образца)
 }
 export type DemoScene = 'sunset' | 'city' | 'ocean' | 'synth' | 'space' | 'mountains' | 'liquid';
 export const DEMO_SCENES: DemoScene[] = ['sunset', 'city', 'ocean', 'synth', 'space', 'mountains', 'liquid'];
@@ -351,7 +354,15 @@ export function templateDuration(t: Template): number {
  * Собирает проект по шаблону. assets — видео и фото пользователя по порядку; если их меньше, чем окошек, идут по кругу.
  * Из видео берётся кусок ближе к началу (не с самого первого кадра).
  */
-export function applyTemplate(base: Project, t: Template, assets: MediaAsset[]): Project {
+export interface ApplyOpts {
+  /** Разбор видео: куски берутся из лучших мест (как в авто-ролике), а не подряд с начала. */
+  hl?: Map<string, Highlights | null>;
+  /** Музыка шаблона — на звуковую дорожку с начала ролика. */
+  music?: MediaAsset | null;
+  /** Звук своих видео: оставить, тише или выключить (когда есть музыка). */
+  videoSound?: 'off' | 'quiet' | 'on';
+}
+export function applyTemplate(base: Project, t: Template, assets: MediaAsset[], o: ApplyOpts = {}): Project {
   const media = assets.filter((a) => a.kind === 'video' || a.kind === 'image');
   if (!media.length) throw new Error(tx('Нужны видео или фото'));
   const asp = ASPECTS[t.aspect];
@@ -364,6 +375,16 @@ export function applyTemplate(base: Project, t: Template, assets: MediaAsset[]):
   for (const a of media) if (!p.assets.some((x) => x.id === a.id)) p.assets.push(a);
   const main = mainTrack(p);
   const used = new Map<string, number>(); // для повторов одного видео — следующий кусок
+  // с разбором — лучшие места видео по порядку, без наложений (если видео хватает на все его окошки)
+  const best = new Map<string, number[]>();
+  if (o.hl) {
+    for (const a of media) {
+      if (a.kind !== 'video' || best.has(a.id)) continue;
+      const needs = t.slots.filter((_, i) => media[i % media.length].id === a.id).map((s) => s.duration);
+      const edge = Math.min(0.2, a.duration * 0.05);
+      if (needs.reduce((x, y) => x + y, 0) <= a.duration - 2 * edge) best.set(a.id, pickWindows(o.hl.get(a.id) ?? null, needs, edge, a.duration - edge));
+    }
+  }
   t.slots.forEach((s, i) => {
     const a = media[i % media.length];
     const c: MediaClip = newMediaClip(a);
@@ -374,12 +395,17 @@ export function applyTemplate(base: Project, t: Template, assets: MediaAsset[]):
       used.set(a.id, n + 1);
       const len = Math.min(s.duration, a.duration);
       const free = Math.max(0, a.duration - len);
-      const start = Math.min(free, free * 0.12 + n * len);
+      const pick = best.get(a.id)?.[n];
+      const start = pick !== undefined ? Math.min(free, pick) : Math.min(free, free * 0.12 + n * len);
       c.in = Math.round(start * 1000) / 1000;
       c.out = Math.round((start + len) * 1000) / 1000;
+      if (len < s.duration - 1e-3) c.speed = Math.max(0.25, Math.round((len / s.duration) * 1e4) / 1e4); // видео короче окошка — чуть медленнее
+      if (o.music && o.videoSound === 'off') { c.muted = true; c.volume = 0; } else if (o.music && o.videoSound === 'quiet') c.volume = 0.3;
+      if (c.speed < 0.999) c.muted = true;
     } else {
       c.out = s.duration;
     }
+    if (s.anim && (s.anim.in || s.anim.out)) c.anim = structuredClone(s.anim);
     if (s.color) c.color = { ...DEFAULT_COLOR, ...s.color };
     if (s.grade) c.grade = structuredClone(s.grade);
     if (s.effects?.length) c.effects = structuredClone(s.effects);
@@ -393,6 +419,17 @@ export function applyTemplate(base: Project, t: Template, assets: MediaAsset[]):
   layoutMain(p);
   const last = main.clips[main.clips.length - 1];
   const total = last.start + clipDuration(last);
+  if (o.music) {
+    const m = o.music;
+    if (!p.assets.some((x) => x.id === m.id)) p.assets.push(m);
+    const mc = newMediaClip(m, 0);
+    mc.in = 0;
+    mc.out = Math.min(m.duration || total, total);
+    if ((m.duration || 0) > total + 0.1) mc.fadeOut = Math.round(Math.min(1.5, total * 0.1) * 100) / 100;
+    const tr2 = newTrack('audio', tx('Музыка'));
+    tr2.clips.push(mc);
+    p.tracks.push(tr2);
+  }
   if (t.texts.length) {
     // надписи, которые идут одновременно, — на разных дорожках (одна дорожка — одна надпись в момент времени)
     const lanes: ReturnType<typeof newTrack>[] = [];

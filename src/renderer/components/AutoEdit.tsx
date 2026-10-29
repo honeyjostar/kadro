@@ -6,6 +6,11 @@ import { Film, FolderOpen, Image as ImageIcon, Music, TriangleAlert, WandSparkle
 import { useEffect, useState } from 'react';
 import { AUTO_STYLES, type AutoStyle, type AutoStyleDef } from '../../shared/autoEdit';
 
+import type { AspectKey } from '../../shared/types';
+import { buildAutoEdit, cancelAutoEdit, loadDemoFiles, type AutoStage } from '../actions';
+import { api, getState, useStore } from '../store';
+import { Progress } from './controls';
+
 /** Длины первых кадров стиля (для полоски ритма на карточке). */
 function rhythmOf(s: AutoStyleDef): number[] {
   const out: number[] = [];
@@ -16,10 +21,6 @@ function rhythmOf(s: AutoStyleDef): number[] {
   }
   return out;
 }
-import type { AspectKey } from '../../shared/types';
-import { buildAutoEdit, cancelAutoEdit, loadDemoFiles, type AutoStage } from '../actions';
-import { api, getState, useStore } from '../store';
-import { Progress } from './controls';
 
 const VIDEO_EXT = /\.(mp4|mov|m4v|mkv|webm|avi|wmv|mts|m2ts|3gp|gif)$/i;
 const IMAGE_EXT = /\.(png|jpe?g|webp|bmp|heic)$/i;

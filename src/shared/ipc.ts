@@ -51,6 +51,7 @@ export type AiJob =
   | { kind: 'stab'; jobId: string; path: string; in: number; out: number; strength: number }
   | { kind: 'beats'; jobId: string; path: string }
   | { kind: 'highlights'; jobId: string; path: string; duration: number }
+  | { kind: 'refEdit'; jobId: string; path: string }
   | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number }
   | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; smooth?: boolean; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
   | { kind: 'freeze'; jobId: string; path: string; t: number; fps: number; alpha: boolean }
@@ -68,6 +69,7 @@ export type AiOutput =
   | { kind: 'stab'; path: string; range: [number, number] }
   | { kind: 'beats'; beats: number[]; bpm: number; shape?: import('./beats').MusicShape }
   | { kind: 'highlights'; hl: Highlights }
+  | { kind: 'refEdit'; template: import('./templates').Template; shots: number; flashes: number; zooms: number; music: boolean; duration: number }
   | { kind: 'reframe'; points: { t: number; x: number; y: number; found: boolean }[] }
   | { kind: 'retime'; path: string; duration: number }
   | { kind: 'freeze'; path: string }
