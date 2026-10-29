@@ -2,8 +2,8 @@
 
 ### ⬇ Скачать / Download
 
-- **[Kadro-Setup-0.8.0.exe](https://github.com/honeyjostar/kadro/releases/download/v0.8.0/Kadro-Setup-0.8.0.exe)** — установщик, около 520 МБ. Рекомендуется. / Installer, recommended.
-- [Kadro-0.8.0-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.8.0/Kadro-0.8.0-portable.zip) — без установки, около 610 МБ. / Portable.
+- **[Kadro-Setup-0.8.0.exe](https://github.com/honeyjostar/kadro/releases/download/v0.8.0/Kadro-Setup-0.8.0.exe)** — установщик, около 315 МБ. Рекомендуется. / Installer, recommended.
+- [Kadro-0.8.0-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.8.0/Kadro-0.8.0-portable.zip) — без установки, около 513 МБ. / Portable.
 
 Kadro 0.6.0 и новее обновится сам: «Вышел Kadro 0.8.0» → «Обновить». Со старых версий — поставь установщик поверх, проекты и настройки сохранятся. Установщик стал больше: в нём теперь перевод русский ⇄ английский.
 
