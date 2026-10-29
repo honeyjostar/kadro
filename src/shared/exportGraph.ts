@@ -735,14 +735,21 @@ export function encoderArgs(enc: 'nvenc' | 'x264', quality: Quality, fps: number
     '-movflags', '+faststart', '-t', fmt(duration)];
 }
 
-/** Полный список аргументов ffmpeg. filterArg — как передать граф: файл (для новых и старых версий FFmpeg). */
-export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number, enc: 'nvenc' | 'x264' | 'vp9alpha', quality: Quality, fps: number, out: string): string[] {
+/**
+ * Полный список аргументов ffmpeg. filterArg — как передать граф: файл (для новых и старых версий FFmpeg).
+ * metaFile — файл метаданных FFmpeg с главами (из маркеров): последним входом, главы и название — из него.
+ */
+export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number, enc: 'nvenc' | 'x264' | 'vp9alpha', quality: Quality, fps: number, out: string, metaFile?: string): string[] {
   const filterOpt = ffmpegMajor >= 7 ? ['-/filter_complex', filterFile] : ['-filter_complex_script', filterFile];
+  const flat = g.inputs.flat();
+  const metaIdx = flat.filter((a) => a === '-i').length;
   return [
     '-hide_banner', '-y', '-nostdin',
-    ...g.inputs.flat(),
+    ...flat,
+    ...(metaFile ? ['-f', 'ffmetadata', '-i', metaFile] : []),
     ...filterOpt,
     '-map', g.vOut, '-map', g.aOut,
+    ...(metaFile ? ['-map_metadata', String(metaIdx), '-map_chapters', String(metaIdx)] : []),
     ...(enc === 'vp9alpha' ? alphaEncoderArgs(fps, g.duration) : encoderArgs(enc, quality, fps, g.duration)),
     '-progress', 'pipe:1', '-nostats',
     out,

@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildGraph, fullArgs } from '../shared/exportGraph';
+import { ffmetadataChapters } from '../shared/markers';
 import { exportSize } from '../shared/geometry';
 import type { ExportReq, ExportResult, TextLayerReq } from '../shared/ipc';
 import { projectDuration } from '../shared/timeline';
@@ -115,6 +116,10 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments });
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);
+    // главы из маркеров — видны в плеерах (VLC, MPC-HC, «Кино и ТВ»)
+    const meta = ffmetadataChapters(project, project.name);
+    const metaFile = meta ? path.join(job, 'chapters.txt') : undefined;
+    if (metaFile) fs.writeFileSync(metaFile, meta!);
     fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });
     const ext = path.extname(opts.outPath) || '.mp4';
     const tmpOut = path.join(path.dirname(opts.outPath), `.${path.basename(opts.outPath, ext)}.kadro-part${ext}`);
@@ -123,7 +128,7 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     let lastErr: unknown;
     for (const enc of encoders) {
       try {
-        const args = fullArgs(graph, filterFile, ffmpegMajor(), enc, opts.quality, opts.fps, tmpOut);
+        const args = fullArgs(graph, filterFile, ffmpegMajor(), enc, opts.quality, opts.fps, tmpOut, metaFile);
         await runFfmpeg(args, { duration: total, onProgress, signal });
         fs.rmSync(opts.outPath, { force: true });
         fs.renameSync(tmpOut, opts.outPath);

@@ -1,10 +1,11 @@
-import { CheckCircle2, FolderOpen, ShieldCheck, TriangleAlert, X } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FolderOpen, ShieldCheck, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { exportSize } from '../../shared/geometry';
 import type { AppInfo, ExportResult } from '../../shared/ipc';
 import { projectDuration } from '../../shared/timeline';
 import type { ExportOptions } from '../../shared/types';
-import { staleAiClips } from '../actions';
+import { copyChapters, staleAiClips } from '../actions';
+import { chaptersOf } from '../../shared/markers';
 import { renderTextLayers } from '../engine/textExport';
 import { renderGlSegments, type GlRender } from '../engine/glExport';
 import { api, getState, useStore } from '../store';
@@ -61,6 +62,7 @@ export function ExportDialog() {
   const [platform, setPlatform] = useState<Platform | 'other'>(() => getState().safeZone ?? (isVertical(project.settings.width, project.settings.height) ? 'tiktok' : 'other'));
   const [fontsTick, setFontsTick] = useState(0);
   useEffect(() => { void ensureFonts(project).then(() => setFontsTick((x) => x + 1)); }, [project]);
+  const chapters = useMemo(() => chaptersOf(project).length, [project]);
   const issues = useMemo(() => preflight(project, platform === 'other' ? null : platform, opts.height), [project, platform, opts.height, fontsTick]);
   const showIssue = (i: Issue) => {
     close();
@@ -152,7 +154,7 @@ export function ExportDialog() {
                   </ul>
                 )}
             </div>
-            <p className="hint small">Примерный размер файла: {Math.max(1, Math.round(estimateMb(size.w, size.h, opts.fps, opts.quality, duration)))} МБ</p>
+            <p className="hint small">Примерный размер файла: {Math.max(1, Math.round(estimateMb(size.w, size.h, opts.fps, opts.quality, duration)))} МБ{chapters ? ` · главы из маркеров: ${chapters}` : ''}</p>
             {stale.length > 0 && (
               <div className="warn"><TriangleAlert size={15} />
                 <span>{stale.length === 1 ? 'У одного клипа' : `У ${stale.length} клипов`} ИИ-обработка не совпадает с обрезкой — они выйдут без неё. Обработай заново во вкладке «ИИ».</span>
@@ -179,6 +181,12 @@ export function ExportDialog() {
           <>
             <div className="done-line"><CheckCircle2 size={20} /><span>Видео готово{result.seconds ? ` за ${fmtDur(result.seconds)}` : ''}{result.encoder ? ` (${result.encoder === 'nvenc' ? 'видеокарта' : 'процессор'})` : ''}</span></div>
             <p className="hint path-line" title={result.path}>{result.path}</p>
+            {chapters > 0 && (
+              <div className="chapters-line" data-testid="export-chapters">
+                <span className="hint small">Главы из маркеров ({chapters}) уже в файле — их видно в плеере. Для YouTube вставь их в описание.</span>
+                <button className="btn small" onClick={() => void copyChapters()} data-testid="export-copy-chapters"><ClipboardList size={13} />Скопировать главы</button>
+              </div>
+            )}
             <div className="actions">
               <button className="btn" onClick={close}>Закрыть</button>
               <button className="btn primary" onClick={() => api.showInFolder(result.path!)} data-testid="export-show"><FolderOpen size={15} />Показать в папке</button>

@@ -1,5 +1,5 @@
 import {
-  Activity, AudioLines, Blend, Copy, Eye, EyeOff, Film, Group, Layers, Maximize2, Mic, Plus, Ungroup, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
+  Activity, AudioLines, Blend, Bookmark, Copy, Eye, EyeOff, Film, Group, Layers, Maximize2, Mic, Plus, Ungroup, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -9,12 +9,14 @@ import {
   setTrackFlag, trimClip,
 } from '../../shared/timeline';
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
-import { alignToBeats, extractAudio, placeLibraryFiles, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
+import { addMarkerAtPlayhead, alignToBeats, extractAudio, placeLibraryFiles, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
 import { useSelected } from '../hooks';
 import { recPrefs } from '../recorder';
 import { keyTimesOnTimeline } from '../animEdit';
 import { api, getState, useStore } from '../store';
 import { fmtDur, peakLevel } from '../util';
+import { MarkerLayer, rulerMenuItems } from './Markers';
+import { useMenu } from './Menu';
 
 const PAD = 16;
 const RULER_H = 26;
@@ -52,7 +54,7 @@ function displayRows(p: Project): Row[] {
 }
 
 function snapPoints(p: Project, exclude: string | string[], playhead: number): number[] {
-  const pts = [0, playhead, ...beatTimes(p)];
+  const pts = [0, playhead, ...beatTimes(p), ...(p.markers ?? []).map((m) => m.t)];
   const ex = Array.isArray(exclude) ? exclude : [exclude];
   for (const t of p.tracks) for (const c of t.clips) {
     if (ex.includes(c.id)) continue;
@@ -86,7 +88,8 @@ function rulerLabel(t: number, major: number): string {
 }
 
 // ---------- линейка ----------
-function Ruler({ pps, view, width, onScrub }: { pps: number; view: View; width: number; onScrub: (e: React.PointerEvent) => void }) {
+function Ruler({ pps, view, width, onScrub, timeAt }: { pps: number; view: View; width: number; onScrub: (e: React.PointerEvent) => void; timeAt: (clientX: number) => number }) {
+  const menu = useMenu();
   const ref = useRef<HTMLCanvasElement>(null);
   const theme = useStore((s) => s.theme);
   useLayoutEffect(() => {
@@ -114,8 +117,11 @@ function Ruler({ pps, view, width, onScrub }: { pps: number; view: View; width: 
     }
   }, [pps, view.left, view.width, theme]);
   return (
-    <div className="ruler" style={{ width }} onPointerDown={onScrub} data-testid="ruler">
+    <div className="ruler" style={{ width }} onPointerDown={onScrub} data-testid="ruler"
+      onContextMenu={(e) => menu.open(e, rulerMenuItems(timeAt(e.clientX)))}>
       <canvas ref={ref} style={{ position: 'absolute', left: view.left, top: 0, width: view.width, height: RULER_H }} />
+      <MarkerLayer pps={pps} timeAt={timeAt} />
+      {menu.node}
     </div>
   );
 }
@@ -727,6 +733,8 @@ export function Timeline() {
         {selClip?.group && selection.length === 1
           ? <Tool icon={<Ungroup size={17} />} label="Разгруппировать" title="Разобрать группу обратно на клипы (Ctrl+Shift+G)" onClick={ungroupSelection} testId="tl-ungroup" />
           : <Tool icon={<Group size={17} />} label="Группа" title="Склеить выделенные клипы в одну группу — выдели несколько с Ctrl (Ctrl+G)" onClick={() => void groupSelection()} disabled={selection.length < 2} testId="tl-group" />}
+        <Tool icon={<Bookmark size={17} />} label="Маркер" title="Поставить маркер там, где линия времени (M). Shift+M — к следующему, Ctrl+Shift+M — к предыдущему. Из маркеров получаются главы для YouTube"
+          onClick={() => addMarkerAtPlayhead()} testId="tl-marker" />
         <Tool icon={<Snowflake size={17} />} label="Стоп-кадр" title="Остановить кадр там, где розовая линия времени" onClick={() => void freezeFrame()} disabled={noClips} testId="tl-freeze" />
         <Tool icon={<Rewind size={17} />} label="Реверс" title="Проиграть выделенный клип задом наперёд" on={!!selClip?.retime?.reverse} disabled={!selClip || sel?.asset?.kind === 'image'}
           onClick={() => selClip && void retimeClip(selClip.id, { reverse: !selClip.retime?.reverse })} testId="tl-reverse" />
@@ -759,7 +767,7 @@ export function Timeline() {
         </div>
         <div className="tl-scroll" ref={scrollRef}>
           <div className="tl-content" style={{ width: contentW, height: contentH + RULER_H }}>
-            <Ruler pps={pps} view={view} width={contentW} onScrub={onScrub} />
+            <Ruler pps={pps} view={view} width={contentW} onScrub={onScrub} timeAt={timeAt} />
             <div className="tl-rows" style={{ height: contentH }} onPointerDown={onEmptyDown}
               onDragOver={(e) => onRowDragOver(e, null)} onDragLeave={() => setDropRow(null)} onDrop={(e) => onRowDrop(e, null)}>
               <div className={`new-zone ${drag?.rowTrackId === 'new' ? 'drop' : ''}`} style={{ height: TOP_PAD }}>

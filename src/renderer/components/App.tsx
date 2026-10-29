@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { deleteSelection, dropOnHome, dropPaths, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, ungroupSelection } from '../actions';
+import { deleteSelection, dropOnHome, dropPaths, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, ungroupSelection } from '../actions';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
@@ -96,6 +96,12 @@ export function App() {
       if (ctrl && (k === 'a' || k === 'ф')) { e.preventDefault(); s.select(s.project.tracks.flatMap((t) => t.clips.map((c) => c.id))); return; }
       if (ctrl && (k === 'g' || k === 'п')) { e.preventDefault(); if (e.shiftKey) ungroupSelection(); else void groupSelection(); return; }
       if (!ctrl && (k === 's' || k === 'ы')) { e.preventDefault(); splitAtPlayhead(); return; }
+      // маркеры: M — поставить, Shift+M — к следующему, Ctrl+Shift+M — к предыдущему
+      if (k === 'm' || k === 'ь' || e.code === 'KeyM') {
+        e.preventDefault();
+        if (ctrl && e.shiftKey) jumpMarker(-1); else if (e.shiftKey) jumpMarker(1); else if (!ctrl) addMarkerAtPlayhead();
+        return;
+      }
       if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelection(); return; }
       if (e.key === 'ArrowLeft') { e.preventDefault(); s.setPlaying(false); s.setPlayhead(Math.max(0, s.playhead - (e.shiftKey ? 1 : 1 / fps))); return; }
       if (e.key === 'ArrowRight') { e.preventDefault(); s.setPlaying(false); s.setPlayhead(Math.min(projectDuration(s.project), s.playhead + (e.shiftKey ? 1 : 1 / fps))); return; }

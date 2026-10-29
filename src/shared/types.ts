@@ -291,12 +291,17 @@ export interface Track {
   clips: Clip[];
 }
 
+export type MarkerColor = 'pink' | 'yellow' | 'green' | 'blue' | 'violet';
+/** Маркер на таймлайне: заметка во времени ролика; из маркеров получаются главы для YouTube и MP4. */
+export interface Marker { id: string; t: number; label: string; color: MarkerColor }
+
 export interface Project {
   version: 1;
   name: string;
   settings: ProjectSettings;
   assets: MediaAsset[];
   tracks: Track[]; // порядок отрисовки: [0] — самая нижняя (main), выше — поверх
+  markers?: Marker[]; // по времени
   createdAt: number;
   updatedAt: number;
 }

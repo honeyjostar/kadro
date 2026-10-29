@@ -464,6 +464,18 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .junction.has { width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 4px; background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); z-index: 6; pointer-events: none; }
 .playhead::before { content: ''; position: absolute; top: 0; left: -5px; width: 12px; height: 12px; background: var(--accent); clip-path: polygon(0 0, 100% 0, 100% 55%, 50% 100%, 0 55%); }
+/* маркеры на линейке */
+.marker { position: absolute; top: 0; height: 26px; z-index: 7; display: flex; align-items: flex-start; cursor: grab; transform: translateX(-1px); }
+.marker.drag { cursor: grabbing; z-index: 8; }
+.marker::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--mk); opacity: .9; }
+.mk-flag { position: relative; display: block; width: 11px; height: 13px; margin-top: 2px; background: var(--mk); clip-path: polygon(0 0, 100% 0, 100% 70%, 50% 100%, 0 70%); transform: translateX(-4.5px); }
+.marker:hover .mk-flag { filter: brightness(1.15); }
+.mk-label { margin: 3px 0 0 -2px; padding: 1px 5px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; line-height: 14px; color: var(--text); background: color-mix(in srgb, var(--mk) 22%, var(--panel)); border-radius: 4px; pointer-events: none; }
+.mk-input { margin: 2px 0 0 -2px; width: 150px; height: 20px; padding: 0 6px; font-size: 11px; color: var(--text); background: var(--bg); border: 1px solid var(--mk); border-radius: 4px; outline: none; cursor: text; }
+.chapters-line { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 9px 11px; border-radius: var(--radius-s); background: var(--bg); }
+.chapters-line .hint { flex: 1; margin: 0; }
+.chapters-line .btn { flex: none; }
+.mk-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
 .snap-line { position: absolute; top: 0; bottom: 0; width: 1px; background: #ffe14d; z-index: 6; pointer-events: none; }
 .tl-empty { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
 

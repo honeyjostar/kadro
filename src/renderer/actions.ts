@@ -18,6 +18,7 @@ import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project,
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
 import { fmtDur, fmtTime, plural, uidShort } from './util';
 import { VoiceRecorder } from './recorder';
+import { addMarker, nextMarker, prevMarker, youtubeChapters } from '../shared/markers';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -134,6 +135,34 @@ export function findOnTimeline(assetId: string): boolean {
   s.setPlayhead(clips[0].start);
   s.revealClip(clips[0].id);
   return true;
+}
+
+// ---------- маркеры ----------
+/** Маркер там, где линия времени (M). */
+export function addMarkerAtPlayhead(): string | null {
+  const s = getState();
+  s.setPlaying(false);
+  let id: string | null = null;
+  s.commit((p) => { const r = addMarker(p, s.playhead); id = r.id; return r.project; });
+  return id;
+}
+/** К следующему (dir = 1) или предыдущему (−1) маркеру. */
+export function jumpMarker(dir: 1 | -1): void {
+  const s = getState();
+  const m = dir > 0 ? nextMarker(s.project, s.playhead) : prevMarker(s.project, s.playhead);
+  if (!m) return;
+  s.setPlaying(false);
+  s.setPlayhead(m.t);
+}
+/** Главы для описания на YouTube — в буфер обмена. */
+export async function copyChapters(): Promise<string> {
+  const s = getState();
+  const { text, problems } = youtubeChapters(s.project);
+  if (!text) { s.toast('Поставь маркеры (клавиша M) и назови их — из них получатся главы', 'info'); return ''; }
+  try { await navigator.clipboard.writeText(text); } catch { s.toast('Не удалось скопировать главы', 'err'); return ''; }
+  s.toast('Главы скопированы — вставь их в описание ролика на YouTube', 'ok');
+  for (const p of problems) s.toast(p, 'info');
+  return text;
 }
 
 // ---------- правка ----------
