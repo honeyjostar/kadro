@@ -1,0 +1,54 @@
+# Зеркало моделей перевода (OPUS-MT, ONNX от Xenova) в релиз translate-models этого репозитория:
+# Kadro качает их с GitHub — он доступен везде, где доступен сам Kadro.
+# Запуск: отправить ветку mirror-models (или Actions → Models mirror → Run workflow).
+name: Models mirror
+
+on:
+  push:
+    branches: [mirror-models]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Скачать с Hugging Face и выложить в релиз
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -u
+          TAG=translate-models
+          gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "$REPO" --title "Модели перевода субтитров" \
+              --notes "Модели OPUS-MT (Helsinki-NLP, CC-BY 4.0) в формате ONNX (Xenova). Kadro скачивает их сам, когда впервые переводишь субтитры." --latest=false
+          mkdir -p out && cd out
+          echo '[' > manifest.json
+          first=1
+          for pair in ru-en en-ru en-uk uk-en en-de de-en en-es es-en en-fr fr-en en-it it-en en-zh zh-en en-pl pl-en en-tr tr-en ja-en en-ja ko-en en-ko ar-en en-ar; do
+            base="https://huggingface.co/Xenova/opus-mt-$pair/resolve/main"
+            if ! curl -fsSL -o "$pair.config.json" "$base/config.json"; then echo "нет модели $pair"; rm -f "$pair.config.json"; continue; fi
+            ok=1
+            for f in onnx/encoder_model_quantized.onnx onnx/decoder_model_quantized.onnx tokenizer.json; do
+              name="$pair.$(basename "$f" | sed 's/_model_quantized//')"
+              curl -fsSL --retry 3 -o "$name" "$base/$f" || { echo "нет $f у $pair"; ok=0; }
+            done
+            for f in generation_config.json tokenizer_config.json vocab.json source.spm target.spm; do
+              curl -fsSL --retry 3 -o "$pair.$f" "$base/$f" || rm -f "$pair.$f"
+            done
+            if [ $ok = 0 ]; then rm -f "$pair".*; continue; fi
+            ls -la "$pair".*
+            for f in "$pair".*; do
+              [ $first = 1 ] || echo ',' >> manifest.json; first=0
+              printf '{"file":"%s","size":%s,"sha256":"%s"}' "$f" "$(stat -c %s "$f")" "$(sha256sum "$f" | cut -d' ' -f1)" >> manifest.json
+            done
+            gh release upload "$TAG" "$pair".* --repo "$REPO" --clobber
+            rm -f "$pair".*
+          done
+          echo ']' >> manifest.json
+          cat manifest.json
+          gh release upload "$TAG" manifest.json --repo "$REPO" --clobber
