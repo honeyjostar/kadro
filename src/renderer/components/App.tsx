@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { useEffect, useRef } from 'react';
-import { deleteSelection, dropOnHome, dropPaths, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, ungroupSelection } from '../actions';
+import { deleteSelection, dropOnHome, dropPaths, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection } from '../actions';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
@@ -12,6 +12,7 @@ import { ScriptDialog } from './ScriptDialog';
 import { BugDialog } from './BugDialog';
 import { PluginCatalog, reportInstall } from './PluginCatalog';
 import { UpdateCard, useUpdateFeed } from './Update';
+import { PasteAttrsDialog } from './PasteAttrs';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts } from './Overlays';
@@ -39,6 +40,8 @@ export function App() {
   const bugOpen = useStore((s) => s.bugOpen);
   const catalogOpen = useStore((s) => s.pluginCatalogOpen);
   useUpdateFeed();
+  const pasteOpen = useStore((s) => s.pasteOpen);
+  const copiedAttrs = useStore((s) => s.copiedAttrs);
   const loaded = useRef(false);
 
   // восстановление последнего проекта, обновления файлов из главного процесса
@@ -96,6 +99,9 @@ export function App() {
       if (ctrl && ((k === 'z' || k === 'я') && e.shiftKey || k === 'y' || k === 'н')) { e.preventDefault(); s.redo(); return; }
       if (ctrl && (k === 's' || k === 'ы')) { e.preventDefault(); void saveProject(e.shiftKey); return; }
       if (ctrl && (k === 'e' || k === 'у')) { e.preventDefault(); s.setExportOpen(true); return; }
+      // параметры клипа: Ctrl+Shift+C — скопировать, Ctrl+Shift+V — вставить (по клавише — в любой раскладке)
+      if (ctrl && e.shiftKey && e.code === 'KeyC') { e.preventDefault(); copyClipAttrs(); return; }
+      if (ctrl && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); openPasteAttrs(); return; }
       if (ctrl && (k === 'd' || k === 'в')) { e.preventDefault(); duplicateSelection(); return; }
       if (ctrl && (k === 'b' || k === 'и')) { e.preventDefault(); splitAtPlayhead(); return; }
       if (ctrl && (k === 'a' || k === 'ф')) { e.preventDefault(); s.select(s.project.tracks.flatMap((t) => t.clips.map((c) => c.id))); return; }
@@ -171,6 +177,7 @@ export function App() {
       {sourceView && <SourceView />}
       {scriptOpen && <ScriptDialog />}
       {catalogOpen && <PluginCatalog />}
+      {pasteOpen && copiedAttrs && <PasteAttrsDialog attrs={copiedAttrs} />}
       {bugOpen && <BugDialog initial={bugOpen.what} onClose={() => getState().setBugOpen(null)} />}
       <UpdateCard />
       <Jobs />

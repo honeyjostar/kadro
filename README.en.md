@@ -92,6 +92,7 @@ The portable version is the `Kadro-X.Y.Z-portable.zip` file: unpack it anywhere 
 | Ctrl / Shift + click, Ctrl+A | select several clips / all |
 | Ctrl+Z / Ctrl+Y | undo / redo |
 | Ctrl+G / Ctrl+Shift+G | group / ungroup |
+| Ctrl+Shift+C / Ctrl+Shift+V | copy / paste clip settings |
 | ← → | by frame (with Shift — by second) |
 | Home / End | to the start / end |
 | M | marker at playhead |

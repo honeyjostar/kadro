@@ -71,6 +71,9 @@ interface State {
   /** Окно «Сообщить об ошибке» (текст — заготовка, например сообщение с экрана сбоя). */
   bugOpen: { what: string } | null;
   pluginCatalogOpen: boolean;
+  /** Скопированные параметры клипа (Ctrl+Shift+C) и окно вставки (Ctrl+Shift+V). */
+  copiedAttrs: import('../shared/attrs').ClipAttrs | null;
+  pasteOpen: boolean;
   /** Обновления Kadro (состояние из главного процесса). */
   update: import('../shared/update').UpdateState | null;
   /** Последний собранный авто-ролик — для «Ещё вариант». */
@@ -115,6 +118,8 @@ interface State {
   setScriptOpen: (b: boolean) => void;
   setBugOpen: (b: { what: string } | null) => void;
   setPluginCatalogOpen: (b: boolean) => void;
+  setCopiedAttrs: (a: import('../shared/attrs').ClipAttrs | null) => void;
+  setPasteOpen: (b: boolean) => void;
   setUpdate: (u: import('../shared/update').UpdateState | null) => void;
   setAutoLast: (p: AutoParams | null) => void;
   setAppearance: (a: Appearance) => void;
@@ -179,6 +184,8 @@ export const useStore = create<State>((set, get) => ({
   scriptOpen: false,
   bugOpen: null,
   pluginCatalogOpen: false,
+  copiedAttrs: null,
+  pasteOpen: false,
   update: null,
   autoLast: null,
   appearance: normalizeAppearance(api?.initialAppearance),
@@ -268,6 +275,8 @@ export const useStore = create<State>((set, get) => ({
   setScriptOpen: (b) => set({ scriptOpen: b }),
   setBugOpen: (b) => set({ bugOpen: b }),
   setPluginCatalogOpen: (b) => set({ pluginCatalogOpen: b }),
+  setCopiedAttrs: (a) => set({ copiedAttrs: a }),
+  setPasteOpen: (b) => set({ pasteOpen: b }),
   setUpdate: (u) => set({ update: u }),
   setAutoLast: (p) => set({ autoLast: p }),
   setAppearance: (a) => set({ appearance: a }),

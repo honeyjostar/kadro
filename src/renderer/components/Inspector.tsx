@@ -1,8 +1,8 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { AudioLines, Box, X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2 } from 'lucide-react';
+import { AudioLines, Box, X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2, ClipboardCopy, ClipboardPaste } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
-import { alignToBeats, extractAudio, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection, userCurve, userSpeed } from '../actions';
+import { alignToBeats, extractAudio, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection, userCurve, userSpeed, copyClipAttrs, openPasteAttrs } from '../actions';
 import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
 import { DEFAULT_MASK } from '../../shared/mask';
 import { EFFECTS } from '../../shared/effects';
@@ -99,6 +99,7 @@ function ProjectInspector({ multi }: { multi: number }) {
           <dt>Ctrl+D</dt><dd>{tx('копия клипа')}</dd>
           <dt>{tx('Ctrl/Shift+щелчок')}</dt><dd>{tx('выделить несколько (Ctrl+A — все)')}</dd>
           <dt>Ctrl+G</dt><dd>{tx('сгруппировать (с Shift — разгруппировать)')}</dd>
+          <dt>Ctrl+Shift+C / V</dt><dd>{tx('скопировать / вставить параметры клипа')}</dd>
           <dt>Ctrl+S / Ctrl+E</dt><dd>{tx('сохранить проект / экспорт')}</dd>
           <dt>Ctrl+Z / Ctrl+Y</dt><dd>{tx('отменить / вернуть')}</dd>
           <dt>← →</dt><dd>{tx('на кадр (с Shift — на секунду)')}</dd>
@@ -106,6 +107,17 @@ function ProjectInspector({ multi }: { multi: number }) {
         </dl>
       </div>
     </>
+  );
+}
+
+/** Скопировать параметры клипа и вставить их в другие — те же Ctrl+Shift+C и Ctrl+Shift+V. */
+function AttrButtons() {
+  const has = useStore((s) => !!s.copiedAttrs);
+  return (
+    <span className="attr-btns">
+      <button className="icon-btn" title={tx('Скопировать параметры клипа (Ctrl+Shift+C)')} onClick={() => copyClipAttrs()} data-testid="attrs-copy"><ClipboardCopy size={15} /></button>
+      <button className="icon-btn" title={tx('Вставить параметры в выделенные клипы (Ctrl+Shift+V)')} disabled={!has} onClick={() => openPasteAttrs()} data-testid="attrs-paste"><ClipboardPaste size={15} /></button>
+    </span>
   );
 }
 
@@ -135,7 +147,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   const dur = clipDuration(clip);
   return (
     <>
-      <div className="panel-head"><span className="ellipsis" title={asset?.name}>{asset?.name ?? tx('Клип')}</span></div>
+      <div className="panel-head"><span className="ellipsis" title={asset?.name}>{asset?.name ?? tx('Клип')}</span><AttrButtons /></div>
       {clip.group && (
         <div className="group-bar" data-testid="group-bar">
           <span>{txj('Группа: {0} клипа внутри', clip.group.tracks.reduce((n, t) => n + t.clips.length, 0))}</span>
@@ -511,12 +523,12 @@ function RampEditor({ points, onChange, disabled }: { points: RampPoint[]; onCha
   );
 }
 
-const BLENDS: { mode: BlendMode; label: string }[] = [
+export const BLENDS: { mode: BlendMode; label: string }[] = [
   { mode: 'normal', label: tx('Обычный') }, { mode: 'multiply', label: tx('Умножение') }, { mode: 'screen', label: tx('Осветление (экран)') },
   { mode: 'overlay', label: tx('Перекрытие') }, { mode: 'darken', label: tx('Замена тёмным') }, { mode: 'lighten', label: tx('Замена светлым') },
   { mode: 'add', label: tx('Сложение') },
 ];
-const MASKS: { shape: Mask['shape'] | 'none'; label: string }[] = [
+export const MASKS: { shape: Mask['shape'] | 'none'; label: string }[] = [
   { shape: 'none', label: tx('Нет') }, { shape: 'linear', label: tx('Линия') }, { shape: 'mirror', label: tx('Полоса') },
   { shape: 'circle', label: tx('Круг') }, { shape: 'rect', label: tx('Прямоугольник') },
 ];
@@ -738,7 +750,7 @@ function TextInspector({ clip }: { clip: TextClip }) {
   const isCaption = clip.role === 'caption';
   return (
     <>
-      <div className="panel-head">{isCaption ? tx('Субтитр') : tx('Текст')}</div>
+      <div className="panel-head"><span className="ellipsis">{isCaption ? tx('Субтитр') : tx('Текст')}</span><AttrButtons /></div>
       <Tabs value={tab} tabs={[{ id: 'text', label: tx('Текст') }, { id: 'style', label: tx('Оформление') }, { id: 'anim', label: tx('Анимация') }]} onChange={setTab} />
       <div className="panel-body">
         {tab === 'text' && (

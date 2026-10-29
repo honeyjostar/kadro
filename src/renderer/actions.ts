@@ -17,6 +17,7 @@ import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit'
 import { readingTime, scriptBase, scriptEdit, splitScript, type ScriptScene, type ScriptSummary } from '../shared/scriptVideo';
 import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, TextClip, VoiceEffect } from '../shared/types';
 import { retimeWords } from '../shared/captions';
+import { copyAttrs } from '../shared/attrs';
 import { groupCues, langLabel, splitTranslation, type LangCode } from '../shared/translate';
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
 import { fmtDur, fmtTime, plural, uidShort } from './util';
@@ -137,6 +138,27 @@ export function findOnTimeline(assetId: string): boolean {
   s.setPlaying(false);
   s.setPlayhead(clips[0].start);
   s.revealClip(clips[0].id);
+  return true;
+}
+
+// ---------- параметры клипа ----------
+/** Ctrl+Shift+C: запомнить параметры выделенного клипа. */
+export function copyClipAttrs(): boolean {
+  const s = getState();
+  const id = s.selection[0];
+  const f = id ? findClip(s.project, id) : undefined;
+  if (!f) { s.toast(tx('Выдели клип, с которого скопировать параметры')); return false; }
+  const name = f.clip.type === 'media' ? s.project.assets.find((a) => a.id === (f.clip as MediaClip).assetId)?.name ?? tx('Клип') : (f.clip as TextClip).text.split('\n')[0].slice(0, 40) || tx('Текст');
+  s.setCopiedAttrs(copyAttrs(f.clip, name));
+  s.toast(tx('Параметры «{0}» скопированы — выдели другие клипы и нажми Ctrl+Shift+V', name), 'ok');
+  return true;
+}
+/** Ctrl+Shift+V: окно со скопированными параметрами и выбором, что вставить. */
+export function openPasteAttrs(): boolean {
+  const s = getState();
+  if (!s.copiedAttrs) { s.toast(tx('Сначала скопируй параметры клипа: выдели его и нажми Ctrl+Shift+C')); return false; }
+  if (!s.selection.length) { s.toast(tx('Выдели клипы, в которые вставить параметры')); return false; }
+  s.setPasteOpen(true);
   return true;
 }
 
