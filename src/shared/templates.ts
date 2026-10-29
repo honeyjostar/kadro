@@ -399,7 +399,8 @@ export function applyTemplate(base: Project, t: Template, assets: MediaAsset[], 
       const start = pick !== undefined ? Math.min(free, pick) : Math.min(free, free * 0.12 + n * len);
       c.in = Math.round(start * 1000) / 1000;
       c.out = Math.round((start + len) * 1000) / 1000;
-      if (len < s.duration - 1e-3) c.speed = Math.max(0.25, Math.round((len / s.duration) * 1e4) / 1e4); // видео короче окошка — чуть медленнее
+      // видео короче окошка — чуть медленнее (вверх, чтобы кадр не вышел длиннее окошка)
+      if (len < s.duration - 1e-3) c.speed = Math.max(0.25, Math.ceil((len / s.duration) * 1e4) / 1e4);
       if (o.music && o.videoSound === 'off') { c.muted = true; c.volume = 0; } else if (o.music && o.videoSound === 'quiet') c.volume = 0.3;
       if (c.speed < 0.999) c.muted = true;
     } else {
