@@ -1,7 +1,7 @@
 {
   "name": "kadro",
   "productName": "Kadro",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Kadro — бесплатный видеоредактор с ИИ-функциями, работающими локально",
   "license": "GPL-3.0-or-later",
   "author": "yaposspall",

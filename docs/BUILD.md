@@ -117,6 +117,19 @@ node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip
 
 Можно и вручную: опубликовать релиз в интерфейсе GitHub или отправить тег `vX.Y.Z` — файлы приложатся к нему.
 
+К релизу прикладывается `SHA256SUMS.txt`: по нему установленный Kadro проверяет скачанное обновление
+(`src/main/updater.ts`) и запускает установщик с ключом `/UPDATE` — без приветствия и выбора папки, только
+полоска установки, затем новый Kadro открывается сам.
+
+### Модели перевода и каталог плагинов
+
+- Модели перевода OPUS-MT лежат в релизе `translate-models` (не «последний» — автообновление его не видит).
+  Их кладёт туда workflow `.github/workflows/models-mirror.yml` (ветка `mirror-models`): скачивает ONNX-версии
+  с Hugging Face и пишет `manifest.json` с размерами и SHA-256. Чтобы добавить направление — допиши пару в список
+  в workflow и отправь ветку `mirror-models`.
+- Каталог плагинов — папка `community-plugins/`. После правки или добавления шейдера: `npm run plugins:index`
+  (пересобирает `index.json`), тест `tests/unit/pluginCatalog.test.ts` проверяет, что список совпадает с файлами.
+
 ## Как устроено коротко
 
 ![Схема: проект, превью, экспорт и общие формулы](brand/architecture.png)
