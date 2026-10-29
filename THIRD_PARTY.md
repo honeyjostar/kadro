@@ -13,12 +13,15 @@ Kadro распространяется под GNU GPL v3 или новее. В �
 | [RNNoise](https://github.com/xiph/rnnoise) / [arnndn-models](https://github.com/GregorR/rnnoise-models) | BSD-3-Clause | чистка голоса |
 | NVIDIA Parakeet TDT 0.6B v3 (через sherpa-onnx) | CC-BY-4.0 | модель распознавания речи, скачивается по кнопке |
 | GigaAM v2 (через sherpa-onnx) | MIT | модель распознавания русской речи, скачивается по кнопке |
+| Модели перевода [OPUS-MT](https://github.com/Helsinki-NLP/Opus-MT) (Helsinki-NLP; Tiedemann, Thottingal, 2020) в формате ONNX ([Xenova](https://huggingface.co/Xenova)) | CC-BY-4.0 | перевод субтитров без интернета, скачиваются при первом переводе |
 | Голоса [Piper](https://github.com/rhasspy/piper) (ru_RU irina, dmitri, denis, ruslan; en_US amy, ryan) | лицензии авторов голосов (см. `MODEL_CARD` в архиве голоса) | озвучка текста, скачиваются по кнопке |
 | 122 шрифта с кириллицей через [Fontsource](https://fontsource.org/) (Google Fonts): полный список — `FONTS` в `src/shared/defaults.ts` | SIL Open Font License 1.1; Roboto Slab — Apache-2.0; Ubuntu и Ubuntu Mono — Ubuntu Font Licence 1.0 | интерфейс и текст в видео |
 | [React](https://react.dev/), [zustand](https://github.com/pmndrs/zustand), [lucide](https://lucide.dev/) | MIT / ISC | интерфейс |
 | [three.js](https://threejs.org/) (вместе с загрузчиками GLTF, OBJ, STL, FBX и RoomEnvironment) | MIT | 3D-объекты |
 | [gl-transitions](https://github.com/gl-transitions/gl-transitions) — 123 перехода (npm `gl-transitions` 2.0.0) | MIT; InvertedPageCurl — BSD-3-Clause (Hewlett-Packard), StereoViewer — BSD-2-Clause (Theodore K Schundler); авторы и лицензии всех переходов — [docs/licenses/gl-transitions.md](docs/licenses/gl-transitions.md), тексты BSD — в коде этих переходов | переходы-шейдеры |
 
-Модели, которые скачиваются по кнопке, не входят в установщик: программа берёт их с GitHub проекта sherpa-onnx.
+Модели, которые скачиваются по кнопке, не входят в установщик: программа берёт их с GitHub проекта sherpa-onnx,
+а модели перевода — из релиза [translate-models](https://github.com/honeyjostar/kadro/releases/tag/translate-models)
+этого репозитория (копия с Hugging Face, файлы сверяются по SHA-256).
 
 Демо-ролики, демо-бит и превью шаблонов (`resources/demo`, `resources/templates`) сделаны в самом проекте кодом — `scripts/make-demo.mjs`, `scripts/demo-scenes.js`, `tests/e2e/previews.spec.ts` — и распространяются под лицензией Kadro.

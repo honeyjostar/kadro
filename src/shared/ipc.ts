@@ -47,7 +47,8 @@ export type AiJob =
   | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number }
   | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; smooth?: boolean; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
   | { kind: 'freeze'; jobId: string; path: string; t: number; fps: number; alpha: boolean }
-  | { kind: 'beauty'; jobId: string; path: string; in: number; out: number; offset: number; smooth: number; bright: number; width: number; height: number };
+  | { kind: 'beauty'; jobId: string; path: string; in: number; out: number; offset: number; smooth: number; bright: number; width: number; height: number }
+  | { kind: 'translate'; jobId: string; texts: string[]; from: import('./translate').LangCode; to: import('./translate').LangCode };
 
 export type AiOutput =
   | { kind: 'captions'; cues: Cue[]; text: string }
@@ -63,6 +64,7 @@ export type AiOutput =
   | { kind: 'reframe'; points: { t: number; x: number; y: number; found: boolean }[] }
   | { kind: 'retime'; path: string; duration: number }
   | { kind: 'freeze'; path: string }
+  | { kind: 'translate'; texts: string[] }
   | { kind: 'beauty'; path: string; range: [number, number] };
 
 export interface AiResponse { ok: boolean; output?: AiOutput; error?: string }
@@ -136,6 +138,7 @@ export interface KadroApi {
   installPluginFiles(paths: string[]): Promise<import('./pluginCatalog').InstallResult>;
   pickPluginFiles(): Promise<import('./pluginCatalog').InstallResult>;
   removePlugin(file: string): Promise<boolean>;
+  mtInfo(): Promise<{ pairs: string[]; sizes: Record<string, number>; ready: string[] }>;
   updateState(): Promise<import('./update').UpdateState>;
   checkUpdate(): Promise<import('./update').UpdateState>;
   downloadUpdate(): Promise<import('./update').UpdateState>;

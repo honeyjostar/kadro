@@ -49,6 +49,7 @@ const api: KadroApi = {
   installPluginFiles: (paths) => ipcRenderer.invoke('plugins:installFiles', paths),
   pickPluginFiles: () => ipcRenderer.invoke('plugins:pickFiles'),
   removePlugin: (file) => ipcRenderer.invoke('plugins:remove', file),
+  mtInfo: () => ipcRenderer.invoke('mt:info'),
   updateState: () => ipcRenderer.invoke('update:state'),
   checkUpdate: () => ipcRenderer.invoke('update:check'),
   downloadUpdate: () => ipcRenderer.invoke('update:download'),

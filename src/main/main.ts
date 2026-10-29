@@ -196,7 +196,8 @@ function aiWorker(lane: Lane): UtilityProcess {
 }
 
 function workerCall<T>(id: string, msg: Record<string, unknown>): Promise<T> {
-  const lane: Lane = msg.kind === 'removeBg' || msg.kind === 'reframe' ? 'vision' : 'speech';
+  // onnxruntime-node (фон, слежение, перевод) — в процессе «vision», sherpa-onnx — в «speech»
+  const lane: Lane = msg.kind === 'removeBg' || msg.kind === 'reframe' || msg.kind === 'translate' || msg.kind === 'mtDownload' ? 'vision' : 'speech';
   return new Promise<T>((resolve, reject) => {
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject, lane });
     aiWorker(lane).postMessage({ id, ...msg });
@@ -267,6 +268,18 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       const out = path.join(cacheDir('tts'), `tts_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.wav`);
       const r = await workerCall<{ duration: number }>(id, { kind: 'tts', text: job.text, voice: job.voice, speed: job.speed, outPath: out });
       return { ok: true, output: { kind: 'tts', path: out, duration: r.duration } };
+    }
+    if (job.kind === 'translate') {
+      const { mtPairs, mtReady } = await import('./ai/mtModels');
+      const { routeFor } = await import('../shared/translate');
+      const info = await mtPairs();
+      const route = routeFor(job.from, job.to, new Set(info.pairs));
+      if (!route) return { ok: false, error: 'Для этих языков нет модели перевода' };
+      if (!route.length) return { ok: true, output: { kind: 'translate', texts: job.texts } };
+      const missing = route.filter((p) => !mtReady(p));
+      if (missing.length) await workerCall(`${id}`, { kind: 'mtDownload', pairs: missing });
+      const r = await workerCall<{ texts: string[] }>(id, { kind: 'translate', texts: job.texts, route });
+      return { ok: true, output: { kind: 'translate', texts: r.texts } };
     }
     if (job.kind === 'beats') {
       const r = await workerCall<{ beats: number[]; bpm: number }>(id, { kind: 'beats', path: job.path });
@@ -714,6 +727,8 @@ function registerIpc(): void {
   ipcMain.handle('ai:voices', async (): Promise<VoiceInfo[]> =>
     Object.values(TTS_VOICES).map((v) => ({ id: v.id, label: v.label, sizeMb: v.sizeMb, ready: ttsVoiceReady(v.id) })));
   ipcMain.handle('ai:run', (_e, job: AiJob) => runAi(job));
+  // перевод субтитров: какие направления есть и какие уже скачаны
+  ipcMain.handle('mt:info', async () => (await import('./ai/mtModels')).mtPairs());
   ipcMain.handle('lut:pick', async () => {
     let src = process.env.KADRO_TEST_LUT; // автотесты: без системного окна
     if (!src) {

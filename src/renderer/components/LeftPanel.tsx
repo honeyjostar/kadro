@@ -1,6 +1,6 @@
 import {
   Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -10,6 +10,7 @@ import { GL_TRANSITION_CATS } from '../../shared/gl/glsl';
 import { applyGlEffects, drawAnyTransition } from '../engine/glDraw';
 import { glEffects, glTransitions, useGlCatalog } from '../glRegistry';
 import { retimeWords } from '../../shared/captions';
+import { LANGS, guessLang, langLabel, routeFor, targetsFrom, type LangCode } from '../../shared/translate';
 import type { ModelInfo } from '../../shared/ipc';
 import {
   addText, animAllCaptions, clipEnd, findClip, mainTrack, projectDuration, removeAsset, setTransition, styleAllCaptions, updateClip,
@@ -19,7 +20,7 @@ import { drawParticles } from '../../shared/particles';
 import { applyPixelEffects } from '../engine/effectsPreview';
 import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
 import {
-  addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses,
+  addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
   loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline,
 } from '../actions';
@@ -540,6 +541,53 @@ function useCaptions(): TextClip[] {
   return useMemo(() => tracks.flatMap((t) => t.clips.filter((c): c is TextClip => c.type === 'text' && c.role === 'caption')).sort((a, b) => a.start - b.start), [tracks]);
 }
 
+/** Перевод субтитров без интернета (модели OPUS-MT): с какого, на какой, вместо оригинала или двумя строками. */
+function TranslateCard({ captions }: { captions: TextClip[] }) {
+  const [info, setInfo] = useState<{ pairs: string[]; sizes: Record<string, number>; ready: string[] } | null>(null);
+  const running = useJobRunning('mt_');
+  const guessed = useMemo(() => guessLang(captions.slice(0, 30).map((c) => c.text.split('\n')[0]).join(' ')), [captions]);
+  const [from, setFrom] = useState<LangCode | null>(null);
+  const [to, setTo] = useState<LangCode | null>(null);
+  const [mode, setMode] = useState<'replace' | 'both'>('replace');
+  useEffect(() => { void api.mtInfo().then(setInfo).catch(() => setInfo({ pairs: [], sizes: {}, ready: [] })); }, [running]);
+  const have = useMemo(() => new Set(info?.pairs ?? []), [info]);
+  const src = from ?? guessed;
+  const targets = targetsFrom(src, have);
+  const dst = to && targets.includes(to) ? to : targets.includes(src === 'en' ? 'ru' : 'en') ? (src === 'en' ? 'ru' : 'en') : targets[0];
+  const route = dst ? routeFor(src, dst, have) ?? [] : [];
+  const missing = route.filter((p) => !info?.ready.includes(p));
+  const mb = Math.round(missing.reduce((n, p) => n + (info?.sizes[p] ?? 0), 0) / 1e6);
+  const sources = LANGS.filter((l) => targetsFrom(l.code, have).length > 0);
+  return (
+    <div className="ai-card" data-testid="translate-card">
+      <h4><Languages size={15} />Перевод субтитров</h4>
+      <p className="hint">Переведу все субтитры на другой язык прямо на компьютере. Время и стиль не меняются.</p>
+      {info && !info.pairs.length && <p className="hint">Нужен интернет, чтобы один раз скачать модель перевода.</p>}
+      {info && info.pairs.length > 0 && <>
+        <div className="mt-langs">
+          <label>С языка
+            <select className="input" value={src} onChange={(e) => setFrom(e.target.value as LangCode)} data-testid="mt-from">
+              {sources.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+            </select>
+          </label>
+          <label>На язык
+            <select className="input" value={dst ?? ''} onChange={(e) => setTo(e.target.value as LangCode)} data-testid="mt-to">
+              {targets.map((c) => <option key={c} value={c}>{langLabel(c)}</option>)}
+            </select>
+          </label>
+        </div>
+        <Seg value={mode} onChange={setMode} options={[{ value: 'replace', label: 'Вместо оригинала' }, { value: 'both', label: 'Две строки' }]} />
+        <p className="hint small" data-testid="mt-note">
+          {route.length > 1 ? `Через английский. ` : ''}{missing.length ? `Модель скачается один раз, ~${mb} МБ.` : 'Модель уже скачана — работает без интернета.'}
+        </p>
+        <button className="btn primary block" disabled={running || !dst} onClick={() => dst && void translateCaptions(src, dst, mode)} data-testid="mt-run">
+          {running ? 'Перевожу…' : `Перевести на ${dst ? langLabel(dst).toLowerCase() : '…'}`}
+        </button>
+      </>}
+    </div>
+  );
+}
+
 function CaptionsPanel() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [model, setModel] = useState<'multi' | 'ru'>('multi');
@@ -576,6 +624,8 @@ function CaptionsPanel() {
             {running ? 'Распознаю…' : captions.length ? 'Создать заново' : 'Создать субтитры'}
           </button>
         </div>
+
+        {first && <TranslateCard captions={captions} />}
 
         {first && (
           <>

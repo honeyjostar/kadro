@@ -14,7 +14,9 @@ import { renderGlSegments } from './engine/glExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
 import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit';
 import { readingTime, scriptBase, scriptEdit, splitScript, type ScriptScene, type ScriptSummary } from '../shared/scriptVideo';
-import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, VoiceEffect } from '../shared/types';
+import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, TextClip, VoiceEffect } from '../shared/types';
+import { retimeWords } from '../shared/captions';
+import { groupCues, langLabel, splitTranslation, type LangCode } from '../shared/translate';
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
 import { fmtDur, fmtTime, plural, uidShort } from './util';
 import { VoiceRecorder } from './recorder';
@@ -866,6 +868,41 @@ export async function makeCaptions(model: 'multi' | 'ru', includeMusic: boolean)
   // на вертикальном видео — выше подписи и кнопок TikTok, Reels и Shorts
   getState().commit((p) => setCaptions(p, cues, CAPTION_STYLE, vertical ? 0.64 : 0.86));
   getState().toast(`Готово: ${cues.length} субтитров. Их можно поправить — кликни по любому.`, 'ok');
+  return true;
+}
+
+/**
+ * Перевести все субтитры без интернета: соседние обрывки фраз склеиваются в предложения, перевод
+ * раскладывается обратно по тем же субтитрам (время не меняется). mode: replace — вместо оригинала,
+ * both — две строки: оригинал и перевод.
+ */
+export async function translateCaptions(from: LangCode, to: LangCode, mode: 'replace' | 'both'): Promise<boolean> {
+  const caps = getState().project.tracks.flatMap((t) => t.clips)
+    .filter((c): c is TextClip => c.type === 'text' && c.role === 'caption')
+    .sort((a, b) => a.start - b.start);
+  if (!caps.length) { getState().toast('Сначала создай субтитры'); return false; }
+  const cues = caps.map((c) => ({ text: c.text.split('\n')[0].trim(), start: c.start, end: c.start + c.duration }));
+  const groups = groupCues(cues);
+  const r = await runJob(`Перевожу субтитры: ${langLabel(to).toLowerCase()}`, { kind: 'translate', jobId: `mt_${uidShort()}`, texts: groups.map((g) => g.map((i) => cues[i].text).join(' ')), from, to });
+  if (!r.ok || r.output?.kind !== 'translate') { if (r.error !== 'Отменено') getState().toast(`Перевод не получился: ${r.error}`, 'err'); return false; }
+  const texts = r.output.texts;
+  const next = new Map<string, string>();
+  groups.forEach((g, k) => {
+    const parts = splitTranslation(texts[k] ?? '', g.map((i) => cues[i].text.length));
+    g.forEach((i, j) => next.set(caps[i].id, parts[j] || parts.filter(Boolean).pop() || cues[i].text));
+  });
+  getState().commit((p) => {
+    let q = p;
+    for (const c of caps) {
+      const t = next.get(c.id);
+      if (t === undefined) continue;
+      q = updateClip(q, c.id, mode === 'both'
+        ? { text: `${cues[caps.indexOf(c)].text}\n${t}`, words: undefined }
+        : { text: t, words: retimeWords(t, c.words) });
+    }
+    return q;
+  });
+  getState().toast(`Субтитры переведены: ${langLabel(to).toLowerCase()}. Отменить — Ctrl+Z.`, 'ok');
   return true;
 }
 

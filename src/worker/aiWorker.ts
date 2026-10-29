@@ -15,6 +15,8 @@ type Msg =
   | { id: string; kind: 'tts'; text: string; voice: TtsVoiceId; speed: number; outPath: string }
   | { id: string; kind: 'beats'; path: string }
   | { id: string; kind: 'reframe'; path: string; in: number; out: number; width: number; height: number }
+  | { id: string; kind: 'mtDownload'; pairs: string[] }
+  | { id: string; kind: 'translate'; texts: string[]; route: import('../shared/translate').Pair[] }
   | { cancel: string };
 
 interface Port { on(ev: 'message', cb: (e: { data: Msg }) => void): void; postMessage(m: unknown): void }
@@ -79,6 +81,15 @@ port.on('message', async (e) => {
     } else if (m.kind === 'reframe') {
       const { trackPerson } = await import('../main/ai/matting');
       result = { points: await trackPerson({ src: m.path, ss: m.in, dur: m.out - m.in, width: m.width, height: m.height, onProgress: (p) => progress(p, 'Слежу за человеком'), signal: ac.signal }) };
+    }
+    else if (m.kind === 'mtDownload') {
+      const { downloadMt } = await import('../main/ai/mtModels');
+      await downloadMt(m.pairs, (p) => progress(p, 'Скачиваю модель перевода'), ac.signal);
+      result = {};
+    } else if (m.kind === 'translate') {
+      const { translateTexts } = await import('../main/ai/translate');
+      progress(0.02, 'Перевожу');
+      result = { texts: await translateTexts(m.texts, m.route, (p) => progress(0.02 + p * 0.98, 'Перевожу'), () => ac.signal.aborted) };
     }
     send({ id: m.id, type: 'done', result });
   } catch (err) {
