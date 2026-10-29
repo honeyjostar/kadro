@@ -63,9 +63,10 @@ export function ExportDialog() {
 
   const [platform, setPlatform] = useState<Platform | 'other'>(() => getState().safeZone ?? (isVertical(project.settings.width, project.settings.height) ? 'tiktok' : 'other'));
   const [fontsTick, setFontsTick] = useState(0);
-  useEffect(() => { void ensureFonts(project).then(() => setFontsTick((x) => x + 1)); }, [project]);
+  const [noFonts, setNoFonts] = useState<string[]>([]);
+  useEffect(() => { void ensureFonts(project).then((m) => { setNoFonts(m); setFontsTick((x) => x + 1); }); }, [project]);
   const chapters = useMemo(() => chaptersOf(project).length, [project]);
-  const issues = useMemo(() => preflight(project, platform === 'other' ? null : platform, opts.height), [project, platform, opts.height, fontsTick]);
+  const issues = useMemo(() => preflight(project, platform === 'other' ? null : platform, opts.height, noFonts), [project, platform, opts.height, fontsTick, noFonts]);
   const showIssue = (i: Issue) => {
     close();
     if (platform !== 'other') getState().setSafeZone(platform);

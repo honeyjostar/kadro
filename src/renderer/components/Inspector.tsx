@@ -105,6 +105,7 @@ function ProjectInspector({ multi }: { multi: number }) {
           <dt>← →</dt><dd>{tx('на кадр (с Shift — на секунду)')}</dd>
           <dt>{tx('Ctrl+колесо')}</dt><dd>{tx('масштаб таймлайна')}</dd>
         </dl>
+        <button className="btn ghost small" onClick={() => getState().setKeysOpen(true)} data-testid="all-keys">{tx('Все клавиши — F1')}</button>
       </div>
     </>
   );

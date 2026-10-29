@@ -6,6 +6,13 @@ import type { Appearance } from './appearance';
 import type { CacheInfo } from './cache';
 /** Файл плагина-шейдера из папки пользователя. */
 export interface PluginFile { kind: 'transition' | 'effect'; file: string; src: string }
+/** Шрифт с диска: свой (установлен в Kadro) или системный. index — номер в коллекции .ttc. */
+export interface FontFile { file: string; family: string; sub: string; full: string; weight: number; italic: boolean; variable: boolean; index: number; source: 'user' | 'system' }
+export interface FontInstallResult { installed: { family: string; file: string }[]; already: string[]; errors: string[] }
+/** «Собрать проект в папку»: что получилось. */
+export interface PackResult { ok: boolean; dir?: string; file?: string; media?: number; fonts?: number; plugins?: number; luts?: number; missing?: string[]; size?: number; error?: string }
+/** Проект открыт из собранной папки: что из неё поставлено и сколько файлов нашлось рядом. */
+export interface ProjectExtras { fonts: string[]; plugins: string[]; relinked: number }
 export interface AppearanceResult { appearance?: Appearance; shortcuts?: number; windows?: boolean }
 export interface CustomStatus { on: boolean; dir: string; error?: string; skipped?: string[] }
 import type { ExportOptions, MediaAsset, Project, RampPoint, VoiceEffect } from './types';
@@ -141,6 +148,19 @@ export interface KadroApi {
   installPluginFiles(paths: string[]): Promise<import('./pluginCatalog').InstallResult>;
   pickPluginFiles(): Promise<import('./pluginCatalog').InstallResult>;
   removePlugin(file: string): Promise<boolean>;
+  /** Шрифты: свои (папка fonts в данных Kadro) и системные (список читается при первом запросе). */
+  fontsList(): Promise<FontFile[]>;
+  fontsSystem(): Promise<FontFile[]>;
+  installFonts(paths: string[]): Promise<FontInstallResult>;
+  pickFonts(): Promise<FontInstallResult>;
+  removeFonts(files: string[]): Promise<boolean>;
+  openFontsDir(): Promise<string>;
+  /** Файл, который можно загрузить в окно (начертание из .ttc — отдельным .ttf в кэше). */
+  fontFace(file: string, index: number): Promise<string>;
+  onFontsChanged(cb: (list: FontFile[]) => void): () => void;
+  onProjectExtras(cb: (r: ProjectExtras) => void): () => void;
+  /** Собрать проект в папку: сам проект, видео, музыка, шрифты, плагины, LUT. null — отменили. */
+  packProject(project: Project): Promise<PackResult | null>;
   mtInfo(): Promise<{ pairs: string[]; sizes: Record<string, number>; ready: string[] }>;
   updateState(): Promise<import('./update').UpdateState>;
   checkUpdate(): Promise<import('./update').UpdateState>;

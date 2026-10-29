@@ -19,6 +19,7 @@ export interface MediaAsset {
   id: Id;
   kind: MediaKind;
   path: string;              // оригинал — из него идёт экспорт
+  rel?: string;              // путь от файла проекта (проект собран в папку): по нему файл находится на другом компьютере
   previewPath: string;       // что играет плеер (оригинал или прокси)
   name: string;
   duration: number;          // сек; для картинок 0
@@ -139,6 +140,7 @@ export interface AiResult {
   enabled: boolean;
   status: AiStatus;
   path?: string;            // обработанный файл; время 0 в нём = range[0] исходника
+  rel?: string;             // путь от файла проекта, если проект собран в папку
   range?: [number, number];
   progress?: number;        // 0..1
   error?: string;
@@ -216,7 +218,7 @@ export type HslBand = 'red' | 'orange' | 'yellow' | 'green' | 'cyan' | 'blue' | 
 export interface Grade {
   curves?: { all?: CurvePoint[]; r?: CurvePoint[]; g?: CurvePoint[]; b?: CurvePoint[] };
   hsl?: Partial<Record<HslBand, { h: number; s: number; l: number }>>; // каждое -1..1
-  lut?: { path: string; name: string; amount: number };              // файл .cube и сила 0..1
+  lut?: { path: string; name: string; amount: number; rel?: string }; // файл .cube и сила 0..1; rel — путь от файла проекта
 }
 
 /** Точка кривой скорости: x — доля фрагмента (0..1), v — скорость (0.1..10). */

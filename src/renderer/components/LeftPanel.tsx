@@ -2,7 +2,7 @@ import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
 import {
   Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -12,6 +12,7 @@ import { GL_TRANSITION_CATS } from '../../shared/gl/glsl';
 import { applyGlEffects, drawAnyTransition } from '../engine/glDraw';
 import { glEffects, glTransitions, useGlCatalog } from '../glRegistry';
 import { retimeWords } from '../../shared/captions';
+import { togglePreview, usePreview } from '../audioPreview';
 import { LANGS, guessLang, langLabel, routeFor, targetsFrom, type LangCode } from '../../shared/translate';
 import type { ModelInfo } from '../../shared/ipc';
 import {
@@ -350,7 +351,7 @@ function AudioRow({ a, used }: { a: MediaAsset; used: boolean }) {
     <div className={`audio-row ${a.missing ? 'missing' : ''}`} draggable title={a.missing ? tx('Файл не найден: {0}', a.path) : a.name} data-testid="audio-row"
       onDragStart={(e) => { e.dataTransfer.setData('application/x-kadro-asset', a.id); e.dataTransfer.effectAllowed = 'copy'; }}
       onDoubleClick={add} onContextMenu={(e) => menu.open(e, assetMenu(a, used))}>
-      <MiniWave peaks={a.peaks} />
+      <PreviewWave id={a.id} path={a.path} peaks={a.peaks} disabled={a.missing} />
       <div className="audio-name">
         <span className="name">{a.name}</span>
         <span className="hint small">{fmtTime(a.duration)}{used ? tx(' · на таймлайне') : a.missing ? tx(' · файл не найден') : tx(' · только в списке')}</span>
@@ -445,6 +446,28 @@ function RecordBox() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** Волна звука с кнопкой «слушать»: щелчок по кнопке — пуск/пауза, по волне — слушать с этого места. */
+export function PreviewWave({ id, path, peaks, disabled }: { id: string; path: string; peaks?: number[]; disabled?: boolean }) {
+  const { playing, progress } = usePreview(id);
+  return (
+    <div className={`preview-wave ${playing ? 'playing' : ''}`}>
+      <button className="preview-play" disabled={disabled} title={playing ? tx('Пауза') : tx('Послушать')} data-testid="audio-preview"
+        onClick={(e) => { e.stopPropagation(); togglePreview(id, path); }} onDoubleClick={(e) => e.stopPropagation()}>
+        {playing ? <Pause size={14} /> : <Play size={14} />}
+      </button>
+      <div className="preview-track" onClick={(e) => {
+        e.stopPropagation();
+        if (disabled) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        togglePreview(id, path, Math.min(0.99, Math.max(0, (e.clientX - r.left) / r.width)));
+      }} onDoubleClick={(e) => e.stopPropagation()}>
+        <MiniWave peaks={peaks} />
+        {progress > 0 && <span className="preview-pos" style={{ left: `${progress * 100}%` }} />}
+      </div>
     </div>
   );
 }

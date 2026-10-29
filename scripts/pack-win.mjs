@@ -83,6 +83,28 @@ if (fs.existsSync(path.join(ROOT, 'resources/templates'))) cp(path.join(ROOT, 'r
 fs.copyFileSync(path.join(ROOT, 'resources/icon.png'), path.join(RES, 'icon.png'));
 cp(path.join(ROOT, 'resources/icons'), path.join(RES, 'icons')); // значки разных цветов (Настройки → Значок)
 
+// перевод субтитров русский ⇄ английский — сразу в программе (остальные языки качаются при первом переводе)
+if (!process.argv.includes('--no-mt')) {
+  step('Модели перевода (русский ⇄ английский)');
+  const base = 'https://github.com/honeyjostar/kadro/releases/download/translate-models';
+  const manifest = await (await fetch(`${base}/manifest.json`)).json();
+  for (const pair of ['ru-en', 'en-ru']) {
+    const dir = path.join(RES, 'models', 'mt', pair);
+    fs.mkdirSync(dir, { recursive: true });
+    for (const f of ['encoder.onnx', 'decoder.onnx', 'decoder_with_past.onnx', 'tokenizer.json', 'config.json']) {
+      const e = manifest.find((x) => x.file === `${pair}.${f}`);
+      if (!e) throw new Error(`нет ${pair}.${f} в translate-models`);
+      const r = await fetch(`${base}/${e.file}`);
+      if (!r.ok) throw new Error(`${e.file}: HTTP ${r.status}`);
+      const buf = Buffer.from(await r.arrayBuffer());
+      const sha = (await import('node:crypto')).createHash('sha256').update(buf).digest('hex');
+      if (sha !== e.sha256) throw new Error(`${e.file}: SHA-256 не совпал`);
+      fs.writeFileSync(path.join(dir, f), buf);
+      console.log(`  ${pair}/${f} ${(buf.length / 1e6).toFixed(1)} МБ`);
+    }
+  }
+}
+
 step('Лицензии');
 cp(path.join(ROOT, 'docs/licenses'), path.join(APP_DIR, 'licenses')); // авторы и лицензии переходов gl-transitions
 fs.writeFileSync(path.join(APP_DIR, 'NOTICE.txt'), [
@@ -98,6 +120,7 @@ fs.writeFileSync(path.join(APP_DIR, 'NOTICE.txt'), [
   '- RNNoise / arnndn-models (BSD-3-Clause)',
   '- gl-transitions — 123 перехода-шейдера (MIT; InvertedPageCurl — BSD-3-Clause, Hewlett-Packard; StereoViewer — BSD-2-Clause, Theodore K Schundler); авторы и тексты лицензий — licenses/gl-transitions.md',
   '- Модели распознавания речи скачиваются при первом использовании: NVIDIA Parakeet TDT v3 (CC-BY-4.0), GigaAM v2 (MIT)',
+  '- Модели перевода OPUS-MT ru-en и en-ru (Helsinki-NLP, Tiedemann & Thottingal 2020; CC-BY-4.0), ONNX — Xenova; resources/models/mt',
   '- Шрифты Fontsource: Onest, Unbounded, Montserrat, Rubik, Russo One, Oswald, Comfortaa, Lobster, Caveat, PT Serif, Press Start 2P (SIL OFL 1.1)',
   '',
 ].join('\r\n'));

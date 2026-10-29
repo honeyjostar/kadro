@@ -7,6 +7,7 @@ import { drawParticles } from '../../shared/particles';
 import { clipEnd } from '../../shared/timeline';
 import type { TextLayerReq } from '../../shared/ipc';
 import type { MediaClip, Project, TextClip } from '../../shared/types';
+import { ensureFamily, projectFamilies } from '../userFonts';
 
 function toPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
@@ -19,6 +20,7 @@ function toPng(canvas: HTMLCanvasElement): Promise<Uint8Array> {
 
 /** Дожидается загрузки всех шрифтов, которые используются в проекте. */
 export async function loadProjectFonts(p: Project): Promise<void> {
+  await Promise.all(projectFamilies(p).map((f) => ensureFamily(f).catch(() => false))); // свои и системные шрифты
   const fonts = new Set<string>();
   for (const t of p.tracks) for (const c of t.clips) if (c.type === 'text') fonts.add(fontString(c, 40));
   await Promise.all([...fonts].map((f) => document.fonts.load(f, tx('АБВабвABCabc')).catch(() => undefined)));

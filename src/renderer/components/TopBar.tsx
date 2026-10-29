@@ -1,8 +1,8 @@
 import { tx } from '../../shared/i18n';
-import { FolderOpen, FilePlus2, House, Monitor, Moon, Save, Settings, Sun, Upload } from 'lucide-react';
+import { FolderOpen, FilePlus2, House, Keyboard, Monitor, Moon, Package, Save, Settings, Sun, Upload } from 'lucide-react';
 import type { ThemePref } from '../../shared/ipc';
 import type { ReactNode } from 'react';
-import { newProjectAction, openProject, saveProject } from '../actions';
+import { newProjectAction, openProject, packProjectAction, saveProject } from '../actions';
 import { renameProject } from '../../shared/timeline';
 import { getState, useStore } from '../store';
 import { LogoMark } from './Home';
@@ -36,9 +36,11 @@ export function TopBar() {
       <button className="btn ghost small" title={tx('{0}. Нажми, чтобы переключить: тёмная → светлая → как в Windows', th.label)}
         onClick={() => setThemePref(th.next)} data-testid="theme-btn">{th.icon}{th.short}</button>
       <button className="icon-btn" title={tx('Настройки: тема, цвет акцента, значок программы, размер интерфейса, своё оформление')} onClick={() => getState().setSettingsOpen(true)} data-testid="topbar-settings"><Settings size={16} /></button>
+      <button className="icon-btn" title={tx('Горячие клавиши (F1)')} onClick={() => getState().setKeysOpen(true)} data-testid="topbar-keys"><Keyboard size={16} /></button>
       <button className="btn ghost small" title={tx('Новый пустой проект. Текущий не пропадёт — он останется в «Моих проектах»')} onClick={() => void newProjectAction()}><FilePlus2 size={15} />{tx('Новый')}</button>
       <button className="btn ghost small" title={tx('Открыть проект .kadro или добавить видео, фото, звук')} onClick={() => void openProject()}><FolderOpen size={15} />{tx('Открыть')}</button>
       <button className="btn ghost small" title={tx('Сохранить проект (Ctrl+S)')} onClick={() => void saveProject()}><Save size={15} />{tx('Сохранить')}</button>
+      <button className="icon-btn" title={tx('Собрать проект в папку: проект, видео, музыка, шрифты и плагины вместе — чтобы открыть на другом компьютере')} onClick={() => void packProjectAction()} data-testid="topbar-pack"><Package size={16} /></button>
       <button className="btn primary" data-testid="export-open" onClick={() => setExportOpen(true)}><Upload size={15} />{tx('Экспорт')}</button>
     </header>
   );

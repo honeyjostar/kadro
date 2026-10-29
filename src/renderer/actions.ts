@@ -948,6 +948,23 @@ export async function saveProject(as = false): Promise<boolean> {
   return true;
 }
 
+/** «Собрать проект в папку»: проект, видео, музыка, обработанные копии, шрифты, плагины, LUT — для переноса. */
+export async function packProjectAction(): Promise<void> {
+  const s = getState();
+  const id = 'pack';
+  s.setJob({ id, label: tx('Собираю проект в папку…'), progress: 0.5, cancellable: false });
+  try {
+    const r = await api.packProject(s.project);
+    if (!r) return;
+    if (!r.ok) { getState().toast(tx('Не получилось собрать проект: {0}', r.error ?? ''), 'err'); return; }
+    const mb = Math.max(1, Math.round((r.size ?? 0) / 1e6));
+    getState().toast(tx('Проект собран: {0} — файлов {1}, шрифтов {2}, {3} МБ', r.dir ?? '', r.media ?? 0, r.fonts ?? 0, mb), 'ok');
+    if (r.missing?.length) getState().toast(tx('Не нашлись и не попали в папку: {0}', r.missing.join(', ')), 'err');
+  } finally {
+    getState().setJob(null, id);
+  }
+}
+
 /** «Открыть»: проект .kadro — открывается; видео, фото, звук — добавляются в проект (с главного экрана — в новый). */
 export async function openProject(): Promise<void> {
   const r = await api.openProject();

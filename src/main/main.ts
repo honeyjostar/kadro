@@ -11,6 +11,8 @@ import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, LibFolder, Mode
 import { countDeep, forgetLibMeta, libMeta, listDir, searchDir } from './library';
 import { cacheInfo, cleanTempOnStart, clearCache, knownProjectPaths } from './cache';
 import { ensurePluginDirs, installFiles, installFromCatalog, listPlugins, loadCatalog, removePlugin, watchPlugins } from './plugins';
+import { FONT_EXT, installFonts, listUserFonts, loadableFace, removeUserFonts, systemFontDirs, systemFonts, userFontsDir } from './fonts';
+import { packProject, packageExtras, relinkProject } from './pack';
 import { normPath } from '../shared/cache';
 import { copyName, safeFileName } from '../shared/projects';
 import { scrubLog, type BugInfo } from '../shared/bugReport';
@@ -57,6 +59,7 @@ const MIME: Record<string, string> = {
   '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.wav': 'audio/wav', '.ogg': 'audio/ogg', '.oga': 'audio/ogg',
   '.opus': 'audio/ogg', '.flac': 'audio/flac', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
   '.webp': 'image/webp', '.gif': 'image/gif', '.bmp': 'image/bmp', '.avif': 'image/avif',
+  '.ttf': 'font/ttf', '.otf': 'font/otf', '.woff': 'font/woff', '.woff2': 'font/woff2',
 };
 
 /** Отдаёт локальный файл плееру с поддержкой Range (без неё не работает перемотка видео). */
@@ -470,7 +473,15 @@ function demoFiles(): DemoFiles {
 async function readProjectFile(file: string): Promise<Project> {
   const p = JSON.parse(fs.readFileSync(file, 'utf8')) as Project;
   if (!p?.tracks || !p.assets) throw new Error('not a project');
-  return refreshProject(p);
+  const relinked = relinkProject(p, file); // проект перенесли вместе с файлами — находим их рядом
+  const project = await refreshProject(p);
+  // собранный в папку проект: шрифты и плагины из неё — ставим, если их нет
+  void packageExtras(file).then((x) => {
+    x.relinked = relinked;
+    if (x.fonts.length) win?.webContents.send('fonts:changed', listUserFonts());
+    if (x.fonts.length || x.plugins.length || relinked) setTimeout(() => win?.webContents.send('project:extras', x), 300);
+  }).catch((e) => log('package extras', e));
+  return project;
 }
 const autosaveFile = () => path.join(dataDir(), 'autosave.kadro');
 
@@ -925,6 +936,50 @@ function registerIpc(): void {
     return installFiles(paths);
   });
   ipcMain.handle('plugins:remove', (_e, file: string) => removePlugin(String(file)));
+  // шрифты: свои (папка fonts) и системные
+  const strs = (a: unknown) => (Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string') : []);
+  const fontsChanged = () => win?.webContents.send('fonts:changed', listUserFonts());
+  ipcMain.handle('fonts:list', () => listUserFonts());
+  ipcMain.handle('fonts:system', () => systemFonts());
+  ipcMain.handle('fonts:install', (_e, paths: string[]) => { const r = installFonts(strs(paths)); if (r.installed.length) fontsChanged(); return r; });
+  ipcMain.handle('fonts:pick', async () => {
+    let paths: string[];
+    if (process.env.KADRO_TEST_PICK) paths = process.env.KADRO_TEST_PICK.split('|');
+    else {
+      const r = await dialog.showOpenDialog(win!, { title: tx('Установить шрифт'), properties: ['openFile', 'multiSelections'], filters: [{ name: tx('Шрифты'), extensions: ['ttf', 'otf', 'ttc', 'otc', 'woff', 'woff2'] }] });
+      if (r.canceled) return { installed: [], already: [], errors: [] };
+      paths = r.filePaths;
+    }
+    const r = installFonts(paths);
+    if (r.installed.length) fontsChanged();
+    return r;
+  });
+  ipcMain.handle('fonts:remove', async (_e, files: string[]) => { const ok = await removeUserFonts(strs(files), (f) => shell.trashItem(f)); fontsChanged(); return ok; });
+  ipcMain.handle('fonts:open', async () => { const d = userFontsDir(); if (!process.env.KADRO_NO_OPEN) await shell.openPath(d); return d; });
+  ipcMain.handle('fonts:face', (_e, file: string, index: number) => {
+    const f = path.resolve(String(file));
+    const roots = [userFontsDir(), ...systemFontDirs()].map((d) => path.resolve(d));
+    if (!FONT_EXT.test(f) || !roots.some((r) => f.startsWith(r + path.sep))) throw new Error('not a font file');
+    return loadableFace(f, Math.max(0, Math.floor(Number(index) || 0)));
+  });
+  // собрать проект в папку (для переноса на другой компьютер)
+  ipcMain.handle('project:pack', async (_e, project: Project) => {
+    let parent: string;
+    if (process.env.KADRO_TEST_DIR) parent = process.env.KADRO_TEST_DIR;
+    else {
+      const r = await dialog.showOpenDialog(win!, { title: tx('Куда собрать проект'), buttonLabel: tx('Собрать сюда'), defaultPath: app.getPath('documents'), properties: ['openDirectory', 'createDirectory'] });
+      if (r.canceled || !r.filePaths.length) return null;
+      parent = r.filePaths[0];
+    }
+    try {
+      const res = await packProject(project, parent);
+      if (!process.env.KADRO_NO_OPEN && res.dir) void shell.openPath(res.dir);
+      return res;
+    } catch (e) {
+      log('pack failed', e);
+      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  });
   // обновления
   ipcMain.handle('update:state', () => updateState());
   ipcMain.handle('update:check', () => checkUpdate(true));
@@ -975,6 +1030,11 @@ if (!lock) {
     setTimeout(cleanTempOnStart, 6000); // временные файлы прошлых сеансов
     // плагины: правка файла в папке — сразу в окне
     try { ensurePluginDirs(); watchPlugins((list) => win?.webContents.send('plugins:changed', list)); } catch (e) { log('plugins', e); }
+    // свои шрифты: положили файл в папку через Проводник — сразу в списке
+    try {
+      let t: NodeJS.Timeout | undefined;
+      fs.watch(userFontsDir(), () => { clearTimeout(t); t = setTimeout(() => win?.webContents.send('fonts:changed', listUserFonts()), 400); });
+    } catch (e) { log('fonts watch', e); }
     // установщик пересоздаёт ярлыки со значком по умолчанию — возвращаем выбранный
     if (app.isPackaged) setTimeout(() => { try { applyShortcutIcons(appearance()); } catch (e) { log('shortcut icons', e); } }, 4000);
     log('Kadro started', app.getVersion(), process.platform, 'ffmpeg:', ffmpegPath());

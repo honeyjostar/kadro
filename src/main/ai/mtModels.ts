@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { modelsDir } from '../bins';
+import { bundledModel, modelsDir } from '../bins';
 
 export const MT_BASE = 'https://github.com/honeyjostar/kadro/releases/download/translate-models';
 const mtBase = () => process.env.KADRO_MT_BASE || MT_BASE;
@@ -15,8 +15,13 @@ const FILES = ['encoder.onnx', 'decoder.onnx', 'decoder_with_past.onnx', 'tokeni
 const REQUIRED = ['encoder.onnx', 'decoder.onnx', 'tokenizer.json', 'config.json'] as const;
 
 export interface MtManifestEntry { file: string; size: number; sha256: string }
-export const mtDir = (pair: string): string => path.join(modelsDir(), 'mt', pair);
-export const mtReady = (pair: string): boolean => REQUIRED.every((f) => fs.existsSync(path.join(mtDir(pair), f)));
+/** Скачанные модели — в папке данных; русский ⇄ английский идут в установщике (resources/models/mt). */
+const userDir = (pair: string): string => path.join(modelsDir(), 'mt', pair);
+const shippedDir = (pair: string): string => bundledModel(path.join('mt', pair));
+const complete = (d: string): boolean => REQUIRED.every((f) => fs.existsSync(path.join(d, f)));
+export const mtDir = (pair: string): string => (complete(userDir(pair)) ? userDir(pair) : complete(shippedDir(pair)) ? shippedDir(pair) : userDir(pair));
+export const mtReady = (pair: string): boolean => complete(mtDir(pair));
+const listDirs = (root: string): string[] => { try { return fs.readdirSync(root); } catch { return []; } };
 
 async function getManifest(signal?: AbortSignal): Promise<MtManifestEntry[]> {
   const url = `${mtBase()}/manifest.json`;
@@ -32,7 +37,7 @@ async function getManifest(signal?: AbortSignal): Promise<MtManifestEntry[]> {
 
 /** Какие направления перевода есть (по списку моделей в релизе); без интернета — только скачанные. */
 export async function mtPairs(signal?: AbortSignal): Promise<{ pairs: string[]; sizes: Record<string, number>; ready: string[] }> {
-  const ready = fs.existsSync(path.join(modelsDir(), 'mt')) ? fs.readdirSync(path.join(modelsDir(), 'mt')).filter(mtReady) : [];
+  const ready = [...new Set([...listDirs(path.join(modelsDir(), 'mt')), ...listDirs(path.dirname(shippedDir('ru-en')))])].filter((p) => /^[a-z]{2}-[a-z]{2}$/.test(p) && mtReady(p));
   try {
     const list = await getManifest(signal);
     const sizes: Record<string, number> = {};
@@ -60,7 +65,7 @@ export async function downloadMt(pairs: string[], onProgress: (p: number) => voi
   const total = items.reduce((n, x) => n + x.entry.size, 0);
   let done = 0;
   for (const it of items) {
-    const dir = mtDir(it.pair);
+    const dir = userDir(it.pair);
     fs.mkdirSync(dir, { recursive: true });
     const dest = path.join(dir, it.name);
     const part = `${dest}.part`;

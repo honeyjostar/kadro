@@ -2,7 +2,7 @@
 // мои проекты (как в CapCut), шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { FileText, FolderOpen, Play, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
+import { FileText, FolderOpen, Keyboard, Play, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
 import { APP_ICONS, type IconId } from '../../shared/appearance';
@@ -84,6 +84,7 @@ export function Home() {
       <header className="home-top">
         <div className="logo"><LogoMark />Kadro</div>
         <div className="spacer" />
+        <button className="btn ghost home-settings" onClick={() => getState().setKeysOpen(true)} title={tx('Горячие клавиши (F1)')} data-testid="home-keys"><Keyboard size={15} />{tx('Клавиши')}</button>
         <button className="btn ghost home-settings" onClick={() => getState().setSettingsOpen(true)} data-testid="home-settings"><Settings size={15} />{tx('Настройки')}</button>
         {current && (
           <button className="btn" onClick={() => getState().setHome(false)} data-testid="home-close">

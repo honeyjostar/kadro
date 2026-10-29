@@ -13,6 +13,7 @@ import { BugDialog } from './BugDialog';
 import { PluginCatalog, reportInstall } from './PluginCatalog';
 import { UpdateCard, useUpdateFeed } from './Update';
 import { PasteAttrsDialog } from './PasteAttrs';
+import { ShortcutsDialog } from './Shortcuts';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts } from './Overlays';
@@ -20,6 +21,7 @@ import { Player } from './Player';
 import { Timeline } from './Timeline';
 import { TopBar } from './TopBar';
 import { projectDuration } from '../../shared/timeline';
+import { initFonts, reportFontInstall } from '../userFonts';
 
 function isTyping(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null;
@@ -40,8 +42,10 @@ export function App() {
   const bugOpen = useStore((s) => s.bugOpen);
   const catalogOpen = useStore((s) => s.pluginCatalogOpen);
   useUpdateFeed();
+  useEffect(initFonts, []);
   const pasteOpen = useStore((s) => s.pasteOpen);
   const copiedAttrs = useStore((s) => s.copiedAttrs);
+  const keysOpen = useStore((s) => s.keysOpen);
   const loaded = useRef(false);
 
   // восстановление последнего проекта, обновления файлов из главного процесса
@@ -88,8 +92,10 @@ export function App() {
   // горячие клавиши
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e)) return;
       const s = getState();
+      // окно со всеми клавишами — отовсюду, и с главного экрана, и из поля ввода (F1 и Ctrl+/ текст не печатают)
+      if (e.key === 'F1' || ((e.ctrlKey || e.metaKey) && e.code === 'Slash')) { e.preventDefault(); s.setKeysOpen(!s.keysOpen); return; }
+      if (isTyping(e)) return;
       if (s.home) return;
       const ctrl = e.ctrlKey || e.metaKey;
       const fps = s.project.settings.fps;
@@ -136,6 +142,9 @@ export function App() {
       // шейдеры .glsl — это плагины: ставим в папку плагинов
       const shaders = paths.filter((p) => /\.(glsl|frag)$/i.test(p));
       if (shaders.length) { void api.installPluginFiles(shaders).then(reportInstall); paths = paths.filter((p) => !shaders.includes(p)); }
+      // шрифты — ставим в «Мои шрифты»
+      const fonts = paths.filter((p) => /\.(ttf|otf|ttc|otc|woff2?)$/i.test(p));
+      if (fonts.length) { void api.installFonts(fonts).then(reportFontInstall); paths = paths.filter((p) => !fonts.includes(p)); }
       if (!paths.length) return;
       // на главный экран — новым проектом (текущий не трогаем), в редактор — в текущий
       if (getState().home) { void dropOnHome(paths); return; }
@@ -178,6 +187,7 @@ export function App() {
       {scriptOpen && <ScriptDialog />}
       {catalogOpen && <PluginCatalog />}
       {pasteOpen && copiedAttrs && <PasteAttrsDialog attrs={copiedAttrs} />}
+      {keysOpen && <ShortcutsDialog />}
       {bugOpen && <BugDialog initial={bugOpen.what} onClose={() => getState().setBugOpen(null)} />}
       <UpdateCard />
       <Jobs />

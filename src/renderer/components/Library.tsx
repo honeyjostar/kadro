@@ -1,8 +1,9 @@
 // Библиотека во вкладке «Медиа»: папки с видео, фото и музыкой, добавленные один раз, — в любом проекте.
 // Внутри: подпапки, превью, поиск, фильтр; файл берётся в проект двойным кликом, кнопкой «+» или перетаскиванием на таймлайн.
 import { tx } from '../../shared/i18n';
+import { togglePreview, usePreview } from '../audioPreview';
 import { txj } from '../txj';
-import { AudioLines, ChevronRight, Film, Folder, FolderPlus, Image as ImageIcon, Plus, Search, WandSparkles, X } from 'lucide-react';
+import { AudioLines, ChevronRight, Film, Folder, FolderPlus, Image as ImageIcon, Plus, Search, WandSparkles, X, Play, Pause } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LibFile, LibFolder, LibListing, LibMeta } from '../../shared/ipc';
 import { placeLibraryFiles } from '../actions';
@@ -213,9 +214,22 @@ function LibTile({ f, used, selected, sel, onSelect, onPlace }: {
       </div>
       {used && <span className="used-dot" title={tx('Уже в проекте')} />}
       <div className="media-actions">
+        {f.kind === 'audio' && <ListenButton path={f.path} />}
         <button title={tx('На таймлайн к курсору')} onClick={(e) => { e.stopPropagation(); onPlace(); }} data-testid="lib-file-add"><Plus size={14} /></button>
       </div>
       <div className="media-meta"><span className="name">{f.name}</span><span className="dur">{badge}</span></div>
     </div>
+  );
+}
+
+/** Послушать звук из библиотеки, не добавляя его в проект. */
+function ListenButton({ path }: { path: string }) {
+  const { playing, progress } = usePreview(path);
+  return (
+    <button className={`lib-listen ${playing ? 'on' : ''}`} title={playing ? tx('Пауза') : tx('Послушать')} data-testid="lib-listen"
+      style={playing ? { background: `conic-gradient(var(--accent) ${progress * 360}deg, var(--raised) 0)` } : undefined}
+      onClick={(e) => { e.stopPropagation(); togglePreview(path, path); }} onDoubleClick={(e) => e.stopPropagation()}>
+      {playing ? <Pause size={14} /> : <Play size={14} />}
+    </button>
   );
 }

@@ -16,11 +16,12 @@ import type { Appearance } from '../shared/appearance';
 import { warper } from './engine/warp';
 import * as glReg from './glRegistry';
 import { glRunner } from './engine/gl';
+import * as userFonts from './userFonts';
 
 document.documentElement.lang = uiLang();
 
 // доступ для автотестов (window.__kadro) — в обычной работе не используется
-(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates, gl: { ...glReg, runner: glRunner } };
+(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates, gl: { ...glReg, runner: glRunner }, fonts: userFonts };
 // каталог шейдеров (переходы gl-transitions) — в фоне, не задерживая окно
 void glReg.loadGlCatalog();
 // плагины пользователя (папка %USERPROFILE%\\.kadro\\plugins) — при запуске и после каждой правки файла

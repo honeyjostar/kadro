@@ -74,6 +74,7 @@ interface State {
   /** Скопированные параметры клипа (Ctrl+Shift+C) и окно вставки (Ctrl+Shift+V). */
   copiedAttrs: import('../shared/attrs').ClipAttrs | null;
   pasteOpen: boolean;
+  keysOpen: boolean;
   /** Обновления Kadro (состояние из главного процесса). */
   update: import('../shared/update').UpdateState | null;
   /** Последний собранный авто-ролик — для «Ещё вариант». */
@@ -120,6 +121,7 @@ interface State {
   setPluginCatalogOpen: (b: boolean) => void;
   setCopiedAttrs: (a: import('../shared/attrs').ClipAttrs | null) => void;
   setPasteOpen: (b: boolean) => void;
+  setKeysOpen: (b: boolean) => void;
   setUpdate: (u: import('../shared/update').UpdateState | null) => void;
   setAutoLast: (p: AutoParams | null) => void;
   setAppearance: (a: Appearance) => void;
@@ -186,6 +188,7 @@ export const useStore = create<State>((set, get) => ({
   pluginCatalogOpen: false,
   copiedAttrs: null,
   pasteOpen: false,
+  keysOpen: false,
   update: null,
   autoLast: null,
   appearance: normalizeAppearance(api?.initialAppearance),
@@ -277,6 +280,7 @@ export const useStore = create<State>((set, get) => ({
   setPluginCatalogOpen: (b) => set({ pluginCatalogOpen: b }),
   setCopiedAttrs: (a) => set({ copiedAttrs: a }),
   setPasteOpen: (b) => set({ pasteOpen: b }),
+  setKeysOpen: (b) => set({ keysOpen: b }),
   setUpdate: (u) => set({ update: u }),
   setAutoLast: (p) => set({ autoLast: p }),
   setAppearance: (a) => set({ appearance: a }),

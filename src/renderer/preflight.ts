@@ -10,6 +10,7 @@ import { textBounds } from '../shared/textRender';
 import { clipDuration, projectDuration } from '../shared/timeline';
 import type { MediaClip, Project, TextClip } from '../shared/types';
 import { fmtDur } from './util';
+import { missingFonts } from './userFonts';
 
 export interface Issue {
   id: string;
@@ -33,20 +34,29 @@ const short = (s: string) => {
 };
 
 /** Загрузить шрифты всех надписей проекта: без них ширина текста считается по запасному шрифту. */
-export async function ensureFonts(p: Project): Promise<void> {
+export async function ensureFonts(p: Project): Promise<string[]> {
+  const missing = await missingFonts(p).catch(() => [] as string[]); // свои и системные — подключить к окну
   const specs = new Set<string>();
   for (const t of p.tracks) for (const c of t.clips) {
     if (c.type !== 'text') continue;
     specs.add(`${c.style.italic ? 'italic ' : ''}${c.style.bold ? 700 : 400} 40px "${c.style.font}"`);
   }
   try { await Promise.all([...specs].map((s) => document.fonts.load(s))); } catch { /* шрифт не нашёлся — считаем по запасному */ }
+  return missing;
 }
 
-export function preflight(p: Project, platform: Platform | null, exportShort: number): Issue[] {
+export function preflight(p: Project, platform: Platform | null, exportShort: number, noFonts: string[] = []): Issue[] {
   const out: Issue[] = [];
   const { width: W, height: H } = p.settings;
   const dur = projectDuration(p);
   const texts = p.tracks.filter((t) => t.kind === 'text' && !t.hidden).flatMap((t) => t.clips) as TextClip[];
+
+  // шрифты, которых нет ни в Kadro, ни на компьютере (проект с другого компьютера)
+  for (const fam of noFonts) {
+    const c = texts.find((x) => x.style.font === fam);
+    if (!c) continue;
+    out.push({ id: `font-${fam}`, clipId: c.id, t: c.start + 0.01, text: tx('Шрифта «{0}» нет на этом компьютере — надпись «{1}» выйдет шрифтом Onest. Перетащи файл шрифта (.ttf, .otf) в окно Kadro — он установится, или выбери другой шрифт.', fam, short(c.text)) });
+  }
   const pf = platform ? PLATFORMS.find((x) => x.id === platform)! : null;
 
   // формат и длина
