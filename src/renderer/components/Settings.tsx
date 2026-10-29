@@ -9,6 +9,7 @@ import { api, getState, useStore } from '../store';
 import { Seg, Toggle } from './controls';
 import { LogoMark } from './Home';
 import { reportInstall } from './PluginCatalog';
+import { UpdateSection } from './Update';
 
 export function SettingsDialog() {
   const a = useStore((s) => s.appearance);
@@ -109,6 +110,8 @@ export function SettingsDialog() {
         </section>
 
         <CacheSection />
+
+        <UpdateSection />
 
         <section className="settings-sec" data-testid="help">
           <b>Помощь</b>

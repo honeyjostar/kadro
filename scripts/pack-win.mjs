@@ -142,6 +142,7 @@ SetCompressor /SOLID lzma
 SetCompressorDictSize 64
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
+!include "LogicLib.nsh"
 !define APP "Kadro"
 !define VER "${pkg.version}"
 !define UNINST "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Kadro"
@@ -177,14 +178,43 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 !define MUI_FINISHPAGE_LINK "Руководство: как пользоваться Kadro"
 !define MUI_FINISHPAGE_LINK_LOCATION "https://github.com/honeyjostar/kadro/blob/master/docs/GUIDE.md"
 !define MUI_FINISHPAGE_LINK_COLOR "D81B60"
+; обновление из самого Kadro (ключ /UPDATE): без приветствия и выбора папки — только полоска установки,
+; потом сразу открывается новый Kadro
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipOnUpdate
 !insertmacro MUI_PAGE_WELCOME
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipOnUpdate
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE DirLeave
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
+!define MUI_PAGE_CUSTOMFUNCTION_PRE FinishOnUpdate
 !insertmacro MUI_PAGE_FINISH
 !insertmacro MUI_UNPAGE_CONFIRM
 !insertmacro MUI_UNPAGE_INSTFILES
 !insertmacro MUI_LANGUAGE "Russian"
+
+Var UPDATE
+Function .onInit
+  StrCpy $UPDATE "0"
+  \${GetParameters} $0
+  ClearErrors
+  \${GetOptions} $0 "/UPDATE" $1
+  \${IfNot} \${Errors}
+    StrCpy $UPDATE "1"
+  \${EndIf}
+FunctionEnd
+
+Function SkipOnUpdate
+  \${If} $UPDATE == "1"
+    Abort
+  \${EndIf}
+FunctionEnd
+
+Function FinishOnUpdate
+  \${If} $UPDATE == "1"
+    Exec '"$INSTDIR\\Kadro.exe"'
+    Abort
+  \${EndIf}
+FunctionEnd
 
 ; программа всегда ставится в отдельную папку Kadro — удаление не заденет чужие файлы
 Function DirLeave

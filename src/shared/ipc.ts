@@ -136,6 +136,14 @@ export interface KadroApi {
   installPluginFiles(paths: string[]): Promise<import('./pluginCatalog').InstallResult>;
   pickPluginFiles(): Promise<import('./pluginCatalog').InstallResult>;
   removePlugin(file: string): Promise<boolean>;
+  updateState(): Promise<import('./update').UpdateState>;
+  checkUpdate(): Promise<import('./update').UpdateState>;
+  downloadUpdate(): Promise<import('./update').UpdateState>;
+  installUpdate(): Promise<import('./update').UpdateState>;
+  cancelUpdate(): Promise<import('./update').UpdateState>;
+  setAutoUpdate(on: boolean): Promise<import('./update').UpdateState>;
+  updateSeen(): Promise<import('./update').UpdateState>;
+  onUpdate(cb: (s: import('./update').UpdateState) => void): () => void;
   onAppearanceChanged(cb: (a: Appearance) => void): () => void;
   onCustomStatus(cb: (s: CustomStatus) => void): () => void;
   forgetRecent(path: string): void;

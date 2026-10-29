@@ -12,6 +12,7 @@ import { ensurePluginDirs, installFiles, installFromCatalog, listPlugins, loadCa
 import { normPath } from '../shared/cache';
 import { copyName, safeFileName } from '../shared/projects';
 import { scrubLog, type BugInfo } from '../shared/bugReport';
+import { cancelDownload, check as checkUpdate, clearUpdated, download as downloadUpdate, initUpdater, install as installUpdate, setAutoCheck, updateState } from './updater';
 import * as m3d from './model3d';
 import { highlights } from './highlights';
 import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
@@ -896,6 +897,14 @@ function registerIpc(): void {
     return installFiles(paths);
   });
   ipcMain.handle('plugins:remove', (_e, file: string) => removePlugin(String(file)));
+  // обновления
+  ipcMain.handle('update:state', () => updateState());
+  ipcMain.handle('update:check', () => checkUpdate(true));
+  ipcMain.handle('update:download', () => downloadUpdate());
+  ipcMain.handle('update:install', () => installUpdate());
+  ipcMain.handle('update:cancel', () => { cancelDownload(); return updateState(); });
+  ipcMain.handle('update:auto', (_e, on: boolean) => setAutoCheck(!!on));
+  ipcMain.handle('update:seen', () => clearUpdated());
 }
 
 // неожиданная ошибка в главном процессе — в журнал, программа продолжает работать
@@ -931,6 +940,7 @@ if (!lock) {
     registerIpc();
     nativeTheme.themeSource = readSettings().theme ?? 'dark';
     nativeTheme.on('updated', () => applyTheme(nativeTheme.themeSource as ThemePref));
+    initUpdater({ emit: (s) => win?.webContents.send('update:changed', s), log });
     createWindow();
     customStyles.setEnabled(appearance().custom);
     setTimeout(() => { try { hasNvenc(); } catch { /* проверим позже */ } }, 3000);

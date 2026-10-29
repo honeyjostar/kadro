@@ -71,6 +71,8 @@ interface State {
   /** Окно «Сообщить об ошибке» (текст — заготовка, например сообщение с экрана сбоя). */
   bugOpen: { what: string } | null;
   pluginCatalogOpen: boolean;
+  /** Обновления Kadro (состояние из главного процесса). */
+  update: import('../shared/update').UpdateState | null;
   /** Последний собранный авто-ролик — для «Ещё вариант». */
   autoLast: AutoParams | null;
   /** Оформление (акцент, значок, размер интерфейса, своё оформление) и окно настроек. */
@@ -113,6 +115,7 @@ interface State {
   setScriptOpen: (b: boolean) => void;
   setBugOpen: (b: { what: string } | null) => void;
   setPluginCatalogOpen: (b: boolean) => void;
+  setUpdate: (u: import('../shared/update').UpdateState | null) => void;
   setAutoLast: (p: AutoParams | null) => void;
   setAppearance: (a: Appearance) => void;
   setCustomStatus: (s: CustomStatus | null) => void;
@@ -176,6 +179,7 @@ export const useStore = create<State>((set, get) => ({
   scriptOpen: false,
   bugOpen: null,
   pluginCatalogOpen: false,
+  update: null,
   autoLast: null,
   appearance: normalizeAppearance(api?.initialAppearance),
   customStatus: null,
@@ -264,6 +268,7 @@ export const useStore = create<State>((set, get) => ({
   setScriptOpen: (b) => set({ scriptOpen: b }),
   setBugOpen: (b) => set({ bugOpen: b }),
   setPluginCatalogOpen: (b) => set({ pluginCatalogOpen: b }),
+  setUpdate: (u) => set({ update: u }),
   setAutoLast: (p) => set({ autoLast: p }),
   setAppearance: (a) => set({ appearance: a }),
   setCustomStatus: (st) => set({ customStatus: st }),

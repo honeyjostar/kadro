@@ -10,6 +10,7 @@ import { SourceView } from './SourceView';
 import { ScriptDialog } from './ScriptDialog';
 import { BugDialog } from './BugDialog';
 import { PluginCatalog, reportInstall } from './PluginCatalog';
+import { UpdateCard, useUpdateFeed } from './Update';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts } from './Overlays';
@@ -36,6 +37,7 @@ export function App() {
   const scriptOpen = useStore((s) => s.scriptOpen);
   const bugOpen = useStore((s) => s.bugOpen);
   const catalogOpen = useStore((s) => s.pluginCatalogOpen);
+  useUpdateFeed();
   const loaded = useRef(false);
 
   // восстановление последнего проекта, обновления файлов из главного процесса
@@ -169,6 +171,7 @@ export function App() {
       {scriptOpen && <ScriptDialog />}
       {catalogOpen && <PluginCatalog />}
       {bugOpen && <BugDialog initial={bugOpen.what} onClose={() => getState().setBugOpen(null)} />}
+      <UpdateCard />
       <Jobs />
       <Toasts />
     </div>

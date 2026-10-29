@@ -475,6 +475,23 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .chapters-line { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 9px 11px; border-radius: var(--radius-s); background: var(--bg); }
 .chapters-line .hint { flex: 1; margin: 0; }
 .chapters-line .btn { flex: none; }
+/* обновления */
+.update-card { position: fixed; right: 16px; top: 58px; width: 320px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--radius-m); box-shadow: 0 16px 40px var(--shadow); z-index: 120; }
+.update-head { display: flex; align-items: center; gap: 8px; color: var(--accent); }
+.update-head b { flex: 1; color: var(--text); font-size: 13.5px; }
+.update-head .icon-btn { width: 24px; height: 24px; }
+.update-card p { margin: 6px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.update-card .progress { margin-top: 8px; }
+.update-err { color: var(--warn-text) !important; }
+.update-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+.notes-modal { width: 560px; }
+.notes-modal h3 { display: flex; align-items: center; gap: 8px; }
+.notes-body { max-height: 50vh; overflow-y: auto; margin: 8px 0 4px; padding-right: 6px; font-size: 13px; line-height: 1.5; }
+.notes-body h4 { margin: 14px 0 4px; font-size: 13.5px; }
+.notes-body h4:first-child { margin-top: 0; }
+.notes-body p { margin: 4px 0; color: var(--muted); }
+.notes-body p.li { position: relative; padding-left: 14px; color: var(--text); }
+.notes-body p.li::before { content: ''; position: absolute; left: 2px; top: 8px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
 .mk-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
 .snap-line { position: absolute; top: 0; bottom: 0; width: 1px; background: #ffe14d; z-index: 6; pointer-events: none; }
 .tl-empty { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }

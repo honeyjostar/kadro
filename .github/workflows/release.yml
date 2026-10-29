@@ -93,6 +93,14 @@ jobs:
         if: steps.ver.outputs.skip != 'true'
         run: node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip --portable
 
+      # контрольные суммы: Kadro сверяет по ним скачанное обновление
+      - name: SHA256SUMS.txt
+        if: steps.ver.outputs.skip != 'true'
+        run: |
+          cd release
+          sha256sum Kadro-Setup-*.exe Kadro-*-portable.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
       - name: Файлы в артефакты сборки
         if: steps.ver.outputs.skip != 'true'
         uses: actions/upload-artifact@v4
@@ -101,6 +109,7 @@ jobs:
           path: |
             release/Kadro-Setup-*.exe
             release/Kadro-*-portable.zip
+            release/SHA256SUMS.txt
           retention-days: 14
 
       - name: Релиз на GitHub
@@ -114,3 +123,4 @@ jobs:
           files: |
             release/Kadro-Setup-*.exe
             release/Kadro-*-portable.zip
+            release/SHA256SUMS.txt
