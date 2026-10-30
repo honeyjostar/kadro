@@ -1,0 +1,29 @@
+vosk не вышел: Traceback (most recent call last):
+  File "/home/runner/work/kadro/kadro/gen.py", line 23, in <module>
+    vm = Model(lang='ru')
+         ^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/vosk_tts/model.py", line 46, in __init__
+    self.onnx = onnxruntime.InferenceSession(str(model_path / "model.onnx"), sess_options=sess_options, providers=providers)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/onnxruntime/capi/onnxruntime_inference_collection.py", line 683, in __init__
+    self._create_inference_session(providers, provider_options, disabled_optimizers)
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/onnxruntime/capi/onnxruntime_inference_collection.py", line 778, in _create_inference_session
+    sess = C.InferenceSession(session_options, self._model_path, True, self._read_config_from_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+onnxruntime.capi.onnxruntime_pybind11_state.NoSuchFile: [ONNXRuntimeError] : 3 : NO_SUCHFILE : Load model from /home/runner/.cache/vosk/vosk-model-small-ru-0.22/model.onnx failed:Load model /home/runner/.cache/vosk/vosk-model-small-ru-0.22/model.onnx failed. File doesn't exist
+
+chatterbox: знак ударения в словаре: True частота 24000
+пример: Э́то Ка́дро. Вот так он вы́глядит изну́три. → э́то ка́дро. вот так он вы́глядит изну́три.
+chatterbox cb-dmitri дубль 1 58.2 с звука за 488 с 641
+chatterbox cb-denis дубль 1 77.2 с звука за 630 с 1271
+chatterbox cb-ruslan дубль 1 62.9 с звука за 515 с 1786
+chatterbox cb-builtin дубль 1 62.9 с звука за 501 с 2287
+chatterbox cb-dmitri дубль 2 57.7 с звука за 469 с 2757
+chatterbox cb-denis дубль 2 72.3 с звука за 598 с 3355
+chatterbox cb-ruslan дубль 2 61.5 с звука за 515 с 3870
+chatterbox cb-builtin дубль 2 61.5 с звука за 498 с 4368
+chatterbox cb-dmitri дубль 3 58.6 с звука за 491 с 4859
+chatterbox cb-denis дубль 3 73.5 с звука за 617 с 5476
+chatterbox cb-ruslan дубль 3 62.2 с звука за 529 с 6005
+chatterbox cb-builtin дубль 3 62.2 с звука за 507 с 6512
+всё 6512 с

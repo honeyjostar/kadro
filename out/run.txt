@@ -1,0 +1,546 @@
+[0;93m2026-10-30 13:20:48.942969714 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+vosk не вышел: Traceback (most recent call last):
+  File "/home/runner/work/kadro/kadro/gen.py", line 23, in <module>
+    vm = Model(lang='ru')
+         ^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/vosk_tts/model.py", line 46, in __init__
+    self.onnx = onnxruntime.InferenceSession(str(model_path / "model.onnx"), sess_options=sess_options, providers=providers)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/onnxruntime/capi/onnxruntime_inference_collection.py", line 683, in __init__
+    self._create_inference_session(providers, provider_options, disabled_optimizers)
+  File "/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/onnxruntime/capi/onnxruntime_inference_collection.py", line 778, in _create_inference_session
+    sess = C.InferenceSession(session_options, self._model_path, True, self._read_config_from_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+onnxruntime.capi.onnxruntime_pybind11_state.NoSuchFile: [ONNXRuntimeError] : 3 : NO_SUCHFILE : Load model from /home/runner/.cache/vosk/vosk-model-small-ru-0.22/model.onnx failed:Load model /home/runner/.cache/vosk/vosk-model-small-ru-0.22/model.onnx failed. File doesn't exist
+
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/diffusers/models/lora.py:393: FutureWarning: `LoRACompatibleLinear` is deprecated and will be removed in version 1.0.0. Use of `LoRACompatibleLinear` is deprecated. Please switch to PEFT backend by installing PEFT: `pip install peft`.
+  deprecate("LoRACompatibleLinear", "1.0.0", deprecation_message)
+Downloading: "https://github.com/explosion/spacy-pkuseg/releases/download/v0.0.26/spacy_ontonotes.zip" to /home/runner/.pkuseg/spacy_ontonotes.zip
+loaded PerthNet (Implicit) at step 250,000
+chatterbox: знак ударения в словаре: True частота 24000
+пример: Э́то Ка́дро. Вот так он вы́глядит изну́три. → э́то ка́дро. вот так он вы́глядит изну́три.
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/contextlib.py:105: FutureWarning: `torch.backends.cuda.sdp_kernel()` is deprecated. In the future, this context manager will be removed. Please see `torch.nn.attention.sdpa_kernel()` for the new context manager, with updated signature.
+  self.gen = func(*args, **kwds)
+The following generation flags are not valid and may be ignored: ['output_attentions']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+WARNING:transformers.generation.configuration_utils:The following generation flags are not valid and may be ignored: ['output_attentions']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-dmitri дубль 1 58.2 с звука за 488 с 641
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-denis дубль 1 77.2 с звука за 630 с 1271
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-ruslan дубль 1 62.9 с звука за 515 с 1786
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-builtin дубль 1 62.9 с звука за 501 с 2287
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-dmitri дубль 2 57.7 с звука за 469 с 2757
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-denis дубль 2 72.3 с звука за 598 с 3355
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-ruslan дубль 2 61.5 с звука за 515 с 3870
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-builtin дубль 2 61.5 с звука за 498 с 4368
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(True), alignment_repetition=tensor(False), token_repetition=True
+chatterbox cb-dmitri дубль 3 58.6 с звука за 491 с 4859
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-denis дубль 3 73.5 с звука за 617 с 5476
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:root:Reference mel length is not equal to 2 * reference token length.
+
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-ruslan дубль 3 62.2 с звука за 529 с 6005
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.t3.inference.alignment_stream_analyzer:forcing EOS token, long_tail=tensor(False), alignment_repetition=tensor(False), token_repetition=True
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+WARNING:chatterbox.models.tokenizers.tokenizer:russian_text_stresser not available - Russian stress labeling skipped
+chatterbox cb-builtin дубль 3 62.2 с звука за 507 с 6512
+всё 6512 с
