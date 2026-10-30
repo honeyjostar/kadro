@@ -16,20 +16,26 @@ plain = lambda s: s.replace('+', '')
 REF_TEXT = 'Прив+ет! Сег+одня покаж+у, как я монт+ирую р+олики. +Это совс+ем не сл+ожно, +если знать п+ару приёмов.'
 
 # ---------- Vosk ----------
-from vosk_tts import Model, Synth
-vm = Model(lang='ru')
-vs = Synth(vm)
-cfg = vm.config
-nspk = cfg.get('num_speakers') or len(cfg.get('speaker_id_map', {})) or 5
-say('vosk модель', getattr(vm, 'model_path', '?'), 'голосов', nspk, 'тип', cfg.get('model_type'))
-for spk in range(min(nspk, 6)):
-    d = OUT / f'vosk-s{spk}'; d.mkdir(exist_ok=True)
-    for lid, text in LINES:
-        a = vs.synth_audio(text, speaker_id=spk)
-        sf.write(d / f'{lid}.wav', np.asarray(a, dtype=np.int16), cfg['audio']['sample_rate'])
-    a = vs.synth_audio(REF_TEXT, speaker_id=spk)
-    sf.write(f'refs/vosk-s{spk}.wav', np.asarray(a, dtype=np.int16), cfg['audio']['sample_rate'])
-    say('vosk голос', spk, 'готов', round(time.time() - T0), 'с')
+import traceback
+nspk = 0
+try:
+  from vosk_tts import Model, Synth
+  vm = Model(lang='ru')
+  vs = Synth(vm)
+  cfg = vm.config
+  nspk = cfg.get('num_speakers') or len(cfg.get('speaker_id_map', {})) or 5
+  say('vosk модель', getattr(vm, 'model_path', '?'), 'голосов', nspk, 'тип', cfg.get('model_type'))
+  for spk in range(min(nspk, 6)):
+      d = OUT / f'vosk-s{spk}'; d.mkdir(exist_ok=True)
+      for lid, text in LINES:
+          a = vs.synth_audio(text, speaker_id=spk)
+          sf.write(d / f'{lid}.wav', np.asarray(a, dtype=np.int16), cfg['audio']['sample_rate'])
+      a = vs.synth_audio(REF_TEXT, speaker_id=spk)
+      sf.write(f'refs/vosk-s{spk}.wav', np.asarray(a, dtype=np.int16), cfg['audio']['sample_rate'])
+      say('vosk голос', spk, 'готов', round(time.time() - T0), 'с')
+except Exception:
+  say('vosk не вышел:', traceback.format_exc()[-1500:])
+  nspk = 0
 
 # ---------- Chatterbox ----------
 import torch
@@ -48,7 +54,7 @@ def cb_text(s):
     return ''.join(out)
 say('пример:', cb_text(LINES[2][1]), '→', cb.tokenizer.preprocess_text(cb_text(LINES[2][1])))
 voices = [('cb-dmitri', 'refs/piper-dmitri.wav'), ('cb-denis', 'refs/piper-denis.wav'), ('cb-ruslan', 'refs/piper-ruslan.wav'), ('cb-builtin', None)]
-voices += [(f'cb-vosk{s}', f'refs/vosk-s{s}.wav') for s in range(min(nspk, 6))]
+voices += [(f'cb-vosk{s}', f'refs/vosk-s{s}.wav') for s in range(min(nspk, 6)) if os.path.exists(f'refs/vosk-s{s}.wav')]
 def gen(name, ref, lid, text, take, seed):
     torch.manual_seed(seed)
     t = time.time()

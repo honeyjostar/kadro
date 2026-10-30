@@ -22,7 +22,10 @@ jobs:
       - name: Озвучка
         env:
           BUDGET_MIN: '120'
-        run: python gen.py
+        run: |
+          set -o pipefail
+          mkdir -p out
+          python gen.py 2>&1 | grep --line-buffered -v '%|' | tee out/run.txt
       - name: В ветку promo-vo
         if: always()
         run: |
