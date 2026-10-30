@@ -1,0 +1,34 @@
+# Временная ветка: озвучка промо-ролика Kadro (Vosk TTS — Apache-2.0, Chatterbox Multilingual — MIT).
+# Результат — в ветку promo-vo. Потом обе ветки удаляются.
+name: Promo voice
+on:
+  push:
+    branches: [promo-vo-src]
+permissions:
+  contents: write
+jobs:
+  tts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 200
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Пакеты
+        run: |
+          pip install -q torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q chatterbox-tts==0.1.7 vosk-tts==0.3.61 soundfile
+      - name: Озвучка
+        env:
+          BUDGET_MIN: '120'
+        run: python gen.py
+      - name: В ветку promo-vo
+        if: always()
+        run: |
+          mkdir -p ../pub && cp -r out refs ../pub/ && cd ../pub
+          git init -q && git checkout -q -b promo-vo
+          git config user.name "kadro-bot" && git config user.email "kadro-bot@users.noreply.github.com"
+          git add -A && git commit -qm "Озвучка промо (временно)"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -q -f origin promo-vo
