@@ -208,9 +208,9 @@ function ModelsSection() {
         {ready
           ? <button className="btn ghost small" disabled={!!job} onClick={() => after(api.deleteModel(what, id))} data-testid="model-del" title={tx('Удалить с диска — освободит место, скачать можно снова')}><Trash2 size={13} /></button>
           : <>
-            <button className="btn small primary" disabled={!!job} onClick={() => after(what === 'asr' ? ensureModel(id as ModelInfo['id']) : ensureVoice(id as VoiceInfo['id']))} data-testid="model-dl"><Download size={13} />{tx('Скачать')}</button>
+            <button className="btn small" disabled={!!job} onClick={() => after(what === 'asr' ? ensureModel(id as ModelInfo['id']) : ensureVoice(id as VoiceInfo['id']))} data-testid="model-dl"><Download size={13} />{tx('Скачать')}</button>
             <button className="btn ghost small" disabled={!!job} onClick={() => void modelInBrowser(what, id)} title={tx('Скачать файл в браузере — если Kadro сам не может (VPN, прокси, антивирус)')} data-testid="model-browser"><Globe size={13} /></button>
-            <button className="btn ghost small" disabled={!!job} onClick={() => after(importModelFile(what, id))} data-testid="model-file">{tx('Из файла…')}</button>
+            <button className="btn ghost small" disabled={!!job} onClick={() => after(importModelFile(what, id))} title={tx('Из файла…')} data-testid="model-file"><FileUp size={13} /></button>
           </>}
       </div>
     </div>
@@ -218,7 +218,7 @@ function ModelsSection() {
   return (
     <section className="settings-sec" data-testid="models">
       <b><Brain size={14} />{tx('Модели ИИ')}</b>
-      <p className="hint">{tx('Скачиваются один раз и дальше работают без интернета. Не скачивается — нажми значок глобуса: файл скачает браузер, потом укажи его кнопкой «Из файла…».')}</p>
+      <p className="hint">{tx('Скачиваются один раз и дальше работают без интернета. Не скачивается — нажми значок глобуса: файл скачает браузер, потом укажи его кнопкой со стрелкой («Из файла…»).')}</p>
       {job && <div className="model-job" data-testid="model-job"><span>{job.stage ?? job.label}</span><Progress value={job.progress} /></div>}
       <div className="model-group">{tx('Субтитры (распознавание речи)')}</div>
       {asr.map((m) => row('asr', m.id, m.label, m.sizeMb, m.ready))}

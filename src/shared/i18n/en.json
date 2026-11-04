@@ -1424,7 +1424,7 @@
  "Скачиваю модель": "Downloading the model",
  "Скачиваю модель перевода": "Downloading the translation model",
  "Скачиваю модель распознавания": "Downloading the recognition model",
- "Скачиваются один раз и дальше работают без интернета. Не скачивается — нажми значок глобуса: файл скачает браузер, потом укажи его кнопкой «Из файла…».": "Downloaded once, then they work offline. If a download fails, click the globe icon: your browser downloads the file, then select it with “From file…”.",
+ "Скачиваются один раз и дальше работают без интернета. Не скачивается — нажми значок глобуса: файл скачает браузер, потом укажи его кнопкой со стрелкой («Из файла…»).": "Downloaded once, then they work offline. If a download fails, click the globe icon: your browser downloads the file, then select it with the arrow button (“From file…”).",
  "Скачиваю… {0}%{1}": "Downloading… {0}%{1}",
  "Склеить выделенные клипы в одну группу — выдели несколько с Ctrl (Ctrl+G)": "Join the selected clips into one group — select several with Ctrl (Ctrl+G)",
  "Склейки встанут точно в её ритм": "Cuts will land right on its beat",
