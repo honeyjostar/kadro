@@ -30,17 +30,19 @@ test.afterEach(async () => { expect(K.errors, `ошибки в окне:\n${K.er
 
 const dialog = () => win.getByTestId('auto-dialog');
 const mainClips = async () => (await project(win)).tracks[0].clips as MediaClip[];
-/** Каждый кадр основной дорожки начинается на доле музыки. */
+/** Каждая склейка основной дорожки — на доле музыки (у перехода на доле его середина). */
 async function onBeats(): Promise<void> {
   const p = await project(win);
   const mc = p.tracks.find((t) => t.kind === 'audio')!.clips[0] as MediaClip;
   const beats = p.assets.find((a) => a.id === mc.assetId)!.beats!;
   expect(beats.length).toBeGreaterThan(8);
   const grid = [0, ...beats.map((b) => b - mc.in)];
-  for (const c of p.tracks[0].clips) {
-    const near = Math.min(...grid.map((g) => Math.abs(g - c.start)));
-    expect(near, `кадр с ${c.start.toFixed(3)} не на доле`).toBeLessThan(0.01);
-  }
+  const cl = p.tracks[0].clips as MediaClip[];
+  cl.forEach((c, i) => {
+    const at = c.start + (i > 0 ? (cl[i - 1].transitionOut?.duration ?? 0) / 2 : 0);
+    const near = Math.min(...grid.map((g) => Math.abs(g - at)));
+    expect(near, `склейка на ${at.toFixed(3)} не на доле`).toBeLessThan(0.01);
+  });
 }
 
 test('с главного экрана: свои файлы + демо-бит → новый проект, склейки в ритм, надпись', async () => {

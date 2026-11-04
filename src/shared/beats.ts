@@ -179,28 +179,74 @@ export function musicShape(pcm: Float32Array, sr: number, beats: number[]): Musi
     if (drops.every((d) => Math.abs(d - c.t) > 10)) drops.push(c.t);
   }
   drops.sort((a, b) => a - b);
-  // сильная доля: где в такте из четырёх долей атаки (бочка) обычно сильнее
-  // (доля из detectBeats — центр окна анализа: кадр огибающей = (b·sr − 512) / 256)
-  const env = onsetEnvelope(pcm, sr);
-  const peaks: number[] = []; const rms: number[] = [];
-  for (const b of beats) {
-    const f = Math.round((b * sr - 512) / 256);
-    let m = 0;
-    for (let k = f - 2; k <= f + 2; k++) if (k >= 0 && k < env.length) m = Math.max(m, env[k]);
-    peaks.push(m);
-    let e = 0; let c = 0;
-    for (let k = Math.max(0, Math.floor((b - 0.03) * sr)); k < Math.min(pcm.length, Math.floor((b + 0.07) * sr)); k++) { e += pcm[k] * pcm[k]; c++; }
-    rms.push(Math.sqrt(e / Math.max(1, c)));
-  }
-  // громкость удара — относительно соседних долей (песня то тише, то громче)
-  const rel = rms.map((v, i) => {
-    let s = 0; let c = 0;
-    for (let k = i - 4; k <= i + 4; k++) if (k >= 0 && k < rms.length) { s += rms[k]; c++; }
-    return v / Math.max(1e-6, s / c);
-  });
-  const sums = [0, 0, 0, 0]; const cnt = [0, 0, 0, 0];
-  beats.forEach((_, i) => { sums[i % 4] += peaks[i] + rel[i]; cnt[i % 4]++; });
-  let phase = 0;
-  for (let k = 1; k < 4; k++) if (sums[k] / Math.max(1, cnt[k]) > sums[phase] / Math.max(1, cnt[phase]) * 1.04) phase = k;
+  const phase = downbeatPhase(pcm, sr, beats);
   return { step: MS_STEP, energy, drops: drops.map((d) => Math.round(d * 1000) / 1000), phase };
+}
+
+/**
+ * Сильная доля такта («раз»). Бочка бьёт на 1 и 3, малый барабан и хлопок — на 2 и 4: чётность долей — по тембру
+ * (у «бочковых» долей низа больше, чем середины), а если тембр везде одинаковый — по силе низа. Из двух долей этой
+ * чётности «раз» — та, где сильнее низ и где меняется гармония (аккорд обычно меняется с началом такта).
+ * 0..3 — номер доли среди первых четырёх.
+ */
+export function downbeatPhase(pcm: Float32Array, sr: number, beats: number[]): number {
+  if (beats.length < 8) return 0;
+  const size = 1024;
+  const win = new Float64Array(size).map((_, i) => 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / size));
+  const binHz = sr / size;
+  const lowTo = Math.max(2, Math.round(150 / binHz));
+  const midTo = Math.min(size / 2 - 1, Math.round(5000 / binHz)); const midFrom = Math.min(midTo - 1, Math.round(1000 / binHz));
+  // гармония: длинное окно сразу после удара (барабаны затихли, звучат аккорд и бас), 150–1500 Гц
+  const HS = 4096;
+  const hwin = new Float64Array(HS).map((_, i) => 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / HS));
+  const hre = new Float64Array(HS); const him = new Float64Array(HS);
+  const harmFrom = Math.max(1, Math.round((150 * HS) / sr)); const harmTo = Math.min(HS / 2 - 1, Math.round((1500 * HS) / sr));
+  const harm = (start: number): Float64Array => {
+    for (let i = 0; i < HS; i++) { const k = start + i; hre[i] = (k >= 0 && k < pcm.length ? pcm[k] : 0) * hwin[i]; him[i] = 0; }
+    fft(hre, him);
+    const out = new Float64Array(harmTo + 1);
+    let sum = 0;
+    for (let b2 = harmFrom; b2 <= harmTo; b2++) { out[b2] = Math.log1p(100 * Math.hypot(hre[b2], him[b2])); sum += out[b2]; }
+    const m = sum / (harmTo - harmFrom + 1);
+    for (let b2 = harmFrom; b2 <= harmTo; b2++) out[b2] -= m; // форма спектра, а не громкость
+    return out;
+  };
+  const re = new Float64Array(size); const im = new Float64Array(size);
+  const spec = (start: number): Float64Array => {
+    for (let i = 0; i < size; i++) { const k = start + i; re[i] = (k >= 0 && k < pcm.length ? pcm[k] : 0) * win[i]; im[i] = 0; }
+    fft(re, im);
+    const out = new Float64Array(size / 2);
+    for (let b2 = 1; b2 < size / 2; b2++) out[b2] = Math.log1p(10 * Math.hypot(re[b2], im[b2]));
+    return out;
+  };
+  const low: number[] = []; const mid: number[] = []; const nov: number[] = [];
+  const afters: Float64Array[] = [];
+  for (const t of beats) {
+    // атака: спектр сразу после доли минус спектр перед ней
+    const at = Math.round(t * sr);
+    const before = spec(at - size - Math.round(0.02 * sr));
+    const after = spec(at - size / 2);
+    let lo = 0; let mi = 0; let nv = 0;
+    for (let b2 = 1; b2 <= lowTo; b2++) lo += Math.max(0, after[b2] - before[b2]);
+    for (let b2 = midFrom; b2 <= midTo; b2++) mi += Math.max(0, after[b2] - before[b2]);
+    // смена гармонии — со спектром через долю (тот же барабан: бочка с бочкой), а не с соседней долей
+    const h = harm(at + Math.round(0.07 * sr));
+    const prev2 = afters.length >= 2 ? afters[afters.length - 2] : null;
+    if (prev2) for (let b2 = harmFrom; b2 <= harmTo; b2++) nv += Math.abs(h[b2] - prev2[b2]);
+    low.push(lo / lowTo); mid.push(mi / (midTo - midFrom + 1)); nov.push(nv / Math.max(1, harmTo - harmFrom + 1));
+    afters.push(h);
+  }
+  // относительно соседей: песня то тише, то громче
+  const rel = (xs: number[]) => xs.map((v, i) => {
+    let sum = 0; let c = 0;
+    for (let k = i - 4; k <= i + 4; k++) if (k >= 0 && k < xs.length) { sum += xs[k]; c++; }
+    return v / Math.max(1e-6, sum / c);
+  });
+  const L = rel(low); const N = rel(nov);
+  const tone = low.map((v, i) => v / Math.max(1e-6, v + mid[i]));
+  const mean = (f: (i: number) => boolean, xs: number[]) => { let sum = 0; let c = 0; xs.forEach((v, i) => { if (f(i)) { sum += v; c++; } }); return c ? sum / c : 0; };
+  const dT = mean((i) => i % 2 === 1, tone) - mean((i) => i % 2 === 0, tone);
+  const par = Math.abs(dT) > 0.03 ? (dT > 0 ? 1 : 0) : mean((i) => i % 2 === 1, L) > mean((i) => i % 2 === 0, L) * 1.04 ? 1 : 0;
+  const score = (p: number) => mean((i) => i % 4 === p, L) + 0.6 * mean((i) => i % 4 === p && i > 1, N);
+  return score(par + 2) > score(par) * 1.05 ? par + 2 : par;
 }

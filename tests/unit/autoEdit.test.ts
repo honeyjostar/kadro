@@ -27,6 +27,14 @@ const base = (over: Partial<AutoInput> = {}): AutoInput => ({
 });
 const mainClips = (p: ReturnType<typeof autoEdit>['project']) => mainTrack(p).clips as MediaClip[];
 
+/** Склейка на доле: резкая — начало кадра, переход — его середина. */
+function onBeats(cl: MediaClip[], grid: number[]): void {
+  cl.forEach((c, i) => {
+    const at = c.start + (i > 0 ? (cl[i - 1].transitionOut?.duration ?? 0) / 2 : 0);
+    expect(grid.some((g) => Math.abs(g - at) < 0.002), `склейка ${at}`).toBe(true);
+  });
+}
+
 describe('авто-ролик: разбор видео', () => {
   const frame = (fn: (x: number, y: number) => number) => {
     const g = new Uint8Array(HL_W * HL_H);
@@ -88,11 +96,15 @@ describe('авто-ролик: сборка', () => {
   it('сетка долей: тихое вступление пропускается, сетка до конца музыки', () => {
     const g = beatGrid(song(30, 2.0), 120, 600);
     expect(g.onBeats).toBe(true);
-    expect(g.musicIn).toBeCloseTo(1.95, 5);
+    expect(g.musicIn).toBeCloseTo(1.98, 5);
     expect(g.beat).toBeCloseTo(0.5, 5);
     expect(g.grid[0]).toBe(0);
-    expect(g.grid[1]).toBeCloseTo(0.55, 5);
-    expect(g.grid[g.grid.length - 1]).toBeLessThanOrEqual(30 - 1.95 + 1e-6);
+    expect(g.grid[1]).toBeCloseTo(0.52, 5);
+    expect(g.grid[g.grid.length - 1]).toBeLessThanOrEqual(30 - 1.98 + 1e-6);
+    // музыка начинается с сильной доли: третья доля — «раз», значит две первые пропускаются
+    const g3 = beatGrid({ ...song(30, 2.0), shape: { step: 0.2, energy: [], drops: [], phase: 2 } }, 120, 600);
+    expect(g3.musicIn).toBeCloseTo(2.98, 5);
+    expect(g3.phase).toBe(0);
     const flat = beatGrid(null, 100, 10);
     expect(flat.onBeats).toBe(false);
     expect(flat.grid[1]).toBeCloseTo(0.6, 5);
@@ -106,8 +118,8 @@ describe('авто-ролик: сборка', () => {
     expect(cl.length).toBeGreaterThan(3);
     expect(summary.cuts).toBe(cl.length - 1);
     expect(summary.onBeats).toBe(true);
-    // каждый следующий кадр начинается на доле
-    for (const c of cl) expect(grid.some((g) => Math.abs(g - c.start) < 0.002), `начало ${c.start}`).toBe(true);
+    // каждая склейка — на доле (у перехода на доле его середина)
+    onBeats(cl, grid);
     const total = projectDuration(p);
     expect(grid.some((g) => Math.abs(g - total) < 0.002), `конец ${total}`).toBe(true);
     expect(summary.duration).toBeCloseTo(total, 2);
@@ -199,8 +211,7 @@ describe('авто-ролик: сборка', () => {
     }));
     const c = mainClips(p).find((x) => x.assetId === 'short')!;
     expect(c.speed).toBeGreaterThanOrEqual(0.8 - 1e-6);
-    const grid = beatGrid(song(60), 120, 600).grid;
-    for (const x of mainClips(p)) expect(grid.some((g) => Math.abs(g - x.start) < 0.002)).toBe(true);
+    onBeats(mainClips(p), beatGrid(song(60), 120, 600).grid);
   });
 
   it('вертикальное видео в горизонтальном ролике — целиком, с размытым фоном; горизонтальное в вертикальном — на весь кадр', () => {

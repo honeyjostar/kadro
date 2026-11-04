@@ -79,7 +79,7 @@ describe('ритм монтажа', () => {
     for (const c of cl) expect(c.out).toBeLessThanOrEqual(30 + 1e-6);
   });
 
-  it('«Бит-флеш»: удары масштабом на долях внутри кадра, частые склейки', () => {
+  it('«Бит-флеш»: удары масштабом на сильных долях внутри кадра, частые склейки', () => {
     const r = autoEdit(newProject('x'), base({ style: 'flash' }));
     const cl = clips(r);
     expect(cl.length).toBeGreaterThan(30);
@@ -88,7 +88,7 @@ describe('ритм монтажа', () => {
     for (const c of punched) {
       const t = c.keyframes!.scale!.map((k) => k.t);
       for (let i = 1; i < t.length; i++) expect(t[i]).toBeGreaterThan(t[i - 1]);
-      expect(Math.max(...c.keyframes!.scale!.map((k) => k.v))).toBeCloseTo(1.06, 5);
+      expect(Math.max(...c.keyframes!.scale!.map((k) => k.v))).toBeCloseTo(1.04, 5);
     }
   });
 
