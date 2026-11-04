@@ -8,7 +8,7 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
-import type { Model3D } from '../../shared/types';
+import type { Model3D, Model3DEase, Pose3D } from '../../shared/types';
 
 // ---------- готовые фигуры ----------
 function extrude(shape: THREE.Shape, depth: number, bevel: number): THREE.BufferGeometry {
@@ -111,25 +111,54 @@ export function loadSource(source: string, mediaUrl: (p: string) => string): Pro
   return p.then((r) => ({ object: r.object.clone(true), own: r.own }));
 }
 
-// ---------- движение ----------
+// ---------- положение и движение ----------
 const rad = (d: number) => (d * Math.PI) / 180;
 const TAU = Math.PI * 2;
-export function pose(m: Model3D, t: number): { rx: number; ry: number; rz: number; y: number; s: number } {
-  let rx = rad(m.tiltX);
-  let ry = rad(m.turnY);
-  let rz = 0;
+/** Начальное положение модели (у старых проектов — только наклон и поворот). */
+export function startPose(m: Model3D): Pose3D {
+  return { tiltX: m.tiltX, turnY: m.turnY, rollZ: m.rollZ ?? 0, posX: m.posX ?? 0, posY: m.posY ?? 0, zoom: m.zoom ?? 1 };
+}
+export function easeK(e: Model3DEase | undefined, k: number): number {
+  const x = Math.min(1, Math.max(0, k));
+  switch (e) {
+    case 'linear': return x;
+    case 'in': return x * x * x;
+    case 'out': return 1 - Math.pow(1 - x, 3);
+    default: return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  }
+}
+/** Положение в момент t: от начального к конечному (если оно задано), с плавностью. */
+export function poseAt(m: Model3D, t: number): Pose3D {
+  const a = startPose(m);
+  if (!m.end) return a;
+  const k = easeK(m.ease, m.duration > 0 ? t / m.duration : 1);
+  const l = (x: number, y: number) => x + (y - x) * k;
+  return { tiltX: l(a.tiltX, m.end.tiltX), turnY: l(a.turnY, m.end.turnY), rollZ: l(a.rollZ, m.end.rollZ), posX: l(a.posX, m.end.posX), posY: l(a.posY, m.end.posY), zoom: l(a.zoom, m.end.zoom) };
+}
+/** Половина видимой ширины сцены на глубине объекта (камера на 3.4, угол 35°). */
+export const HALF_VIEW = 3.4 * Math.tan(rad(35 / 2));
+
+export function pose(m: Model3D, t: number): { rx: number; ry: number; rz: number; x: number; y: number; s: number } {
+  const p = poseAt(m, t);
+  let rx = rad(p.tiltX);
+  let ry = rad(p.turnY);
+  let rz = rad(p.rollZ);
   let y = 0;
   let s = 1;
   const w = m.speed;
   switch (m.motion) {
-    case 'spin': ry += (t * w * TAU) / 4; break;
-    case 'sway': ry += Math.sin((t * w * TAU) / 3) * 0.6; rz = Math.sin((t * w * TAU) / 3 + 0.6) * 0.08; break;
+    case 'spin': {
+      const a = (t * w * TAU) / 4;
+      if (m.spinAxis === 'x') rx += a; else if (m.spinAxis === 'z') rz += a; else ry += a;
+      break;
+    }
+    case 'sway': ry += Math.sin((t * w * TAU) / 3) * 0.6; rz += Math.sin((t * w * TAU) / 3 + 0.6) * 0.08; break;
     case 'float': y = Math.sin((t * w * TAU) / 2.5) * 0.08; ry += Math.sin((t * w * TAU) / 6) * 0.35; rx += Math.sin((t * w * TAU) / 4) * 0.08; break;
     case 'tumble': rx += (t * w * TAU) / 5; ry += (t * w * TAU) / 3.5; break;
     case 'pulse': s = 1 + 0.08 * (0.5 + 0.5 * Math.sin(t * w * TAU)); ry += Math.sin((t * w * TAU) / 5) * 0.3; break;
     case 'still': break;
   }
-  return { rx, ry, rz, y, s };
+  return { rx, ry, rz, x: p.posX * HALF_VIEW, y: y + p.posY * HALF_VIEW, s: s * p.zoom };
 }
 
 // ---------- сцена ----------
@@ -228,7 +257,7 @@ export class Stage3D {
   frame(m: Model3D, t: number): void {
     const p = pose(m, t);
     this.pivot.rotation.set(p.rx, p.ry, p.rz, 'XYZ');
-    this.pivot.position.set(0, p.y, 0);
+    this.pivot.position.set(p.x, p.y, 0);
     this.pivot.scale.setScalar(p.s);
     this.renderer.render(this.scene, this.camera);
   }

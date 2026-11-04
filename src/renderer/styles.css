@@ -893,7 +893,13 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .m3d-stage { width: 340px; height: 340px; border-radius: 12px; overflow: hidden;
   background: repeating-conic-gradient(var(--checker-a) 0 25%, var(--checker-b) 0 50%) 0 0 / 20px 20px; }
 .m3d-stage canvas { display: block; }
-.m3d-controls { max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.m3d-controls { max-height: 470px; overflow-y: auto; padding-right: 4px; }
+.m3d-left { display: grid; gap: 8px; }
+.m3d-mouse { display: flex; gap: 6px; align-items: flex-start; margin: 0; }
+.m3d-mouse svg { flex: none; margin-top: 1px; }
+.m3d-stage canvas:active { cursor: grabbing; }
+.field-inline { display: grid; gap: 4px; font-size: 12px; margin: 4px 0 8px; }
+.field-inline > span { color: var(--muted); }
 .m3d-controls .section-title:first-child { margin-top: 0; }
 .m3d-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin: 0 0 10px; border-radius: var(--radius-s); background: var(--accent-soft); }
 .m3d-bar span { flex: 1; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

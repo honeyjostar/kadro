@@ -194,13 +194,24 @@ export interface MediaClip {
 export type Model3DMotion = 'spin' | 'sway' | 'float' | 'tumble' | 'pulse' | 'still';
 export type Model3DMaterial = 'model' | 'gloss' | 'metal' | 'matte' | 'glass' | 'neon';
 export type Model3DLight = 'studio' | 'soft' | 'sunset' | 'neon';
+/** Положение 3D-объекта: поворот по трём осям (градусы), сдвиг в кадре и приближение. */
+export interface Pose3D { tiltX: number; turnY: number; rollZ: number; posX: number; posY: number; zoom: number }
+export type Model3DEase = 'linear' | 'smooth' | 'in' | 'out';
+
 export interface Model3D {
   source: string;            // 'shape:heart' … или путь к файлу модели
   name: string;
   motion: Model3DMotion;
   speed: number;             // 1 — обычная
-  tiltX: number;             // наклон к зрителю, градусы
-  turnY: number;             // поворот, градусы
+  tiltX: number;             // наклон к зрителю (поворот вокруг оси X), градусы
+  turnY: number;             // поворот (вокруг оси Y), градусы
+  rollZ?: number;            // крен (вокруг оси Z), градусы
+  posX?: number;             // сдвиг в кадре: −1 — левый край, 1 — правый
+  posY?: number;             // −1 — низ, 1 — верх
+  zoom?: number;             // приближение: 1 — как есть, 2 — вдвое крупнее
+  end?: Pose3D | null;       // конечное положение: объект плавно переходит из начального в него за длительность
+  ease?: Model3DEase;        // как идёт переход в конечное положение
+  spinAxis?: 'x' | 'y' | 'z'; // ось «Вращения»
   material: Model3DMaterial; // 'model' — как в файле модели
   color: string;
   light: Model3DLight;

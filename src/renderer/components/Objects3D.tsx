@@ -2,12 +2,12 @@
 // three.js загружается только здесь (отдельным куском), чтобы не замедлять запуск программы.
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { Box, FolderOpen, TriangleAlert, X } from 'lucide-react';
+import { Box, FolderOpen, Move3d, RotateCcw, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { Model3D, Model3DLight, Model3DMaterial, Model3DMotion } from '../../shared/types';
+import type { Model3D, Model3DEase, Model3DLight, Model3DMaterial, Model3DMotion, Pose3D } from '../../shared/types';
 import { place3D } from '../actions';
 import { api, getState, useStore } from '../store';
-import { ColorField, Progress, Slider } from './controls';
+import { ColorField, Progress, Seg, Slider, Toggle } from './controls';
 
 type Scene3D = typeof import('../three/scene3d');
 let mod: Promise<Scene3D> | null = null;
@@ -21,6 +21,12 @@ const MATERIALS: { id: Model3DMaterial; label: string }[] = [
   { id: 'model', label: tx('Как в модели') }, { id: 'gloss', label: tx('Глянец') }, { id: 'metal', label: tx('Металл') },
   { id: 'matte', label: tx('Матовый') }, { id: 'glass', label: tx('Стекло') }, { id: 'neon', label: tx('Неон') },
 ];
+const EASES: { id: Model3DEase; label: string }[] = [
+  { id: 'smooth', label: tx('Плавно') }, { id: 'linear', label: tx('Ровно') }, { id: 'in', label: tx('Разгон') }, { id: 'out', label: tx('Торможение') },
+];
+const POSE0: Pose3D = { tiltX: 12, turnY: 0, rollZ: 0, posX: 0, posY: 0, zoom: 1 };
+/** Угол в пределах −180…180 (чтобы ползунок не упирался после нескольких оборотов мышкой). */
+const wrap = (a: number) => ((((a + 180) % 360) + 360) % 360) - 180;
 const LIGHTS: { id: Model3DLight; label: string }[] = [
   { id: 'studio', label: tx('Студия') }, { id: 'soft', label: tx('Мягкий') }, { id: 'sunset', label: tx('Закат') }, { id: 'neon', label: tx('Неон') },
 ];
@@ -100,6 +106,10 @@ export function Model3DDialog() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const live = useRef<{ m: Model3D | null }>({ m: null });
   const cancelled = useRef(false);
+  const [target, setTarget] = useState<'start' | 'end'>('start');
+  // пока крутишь — превью показывает правимое положение, через секунду снова играет анимация
+  const editing = useRef<{ at: number; target: 'start' | 'end' }>({ at: 0, target: 'start' });
+  const drag = useRef<{ x: number; y: number; mode: 'rotate' | 'roll' | 'move' } | null>(null);
   live.current.m = m;
   const close = () => { if (progress === null) getState().setModel3dEdit(null); else cancelled.current = true; };
 
@@ -125,7 +135,13 @@ export function Model3DDialog() {
         const cur = live.current.m;
         if (cur) {
           stage.setLook(cur);
-          stage.frame(cur, ((performance.now() - t0) / 1000) % Math.max(0.5, cur.duration));
+          const ed = editing.current;
+          if (performance.now() - ed.at < 1200) {
+            const p = ed.target === 'end' && cur.end ? cur.end : s.startPose(cur);
+            stage.frame({ ...cur, ...p, motion: 'still', end: null }, 0);
+          } else {
+            stage.frame(cur, ((performance.now() - t0) / 1000) % Math.max(0.5, cur.duration));
+          }
         }
         raf = requestAnimationFrame(loop);
       };
@@ -142,6 +158,38 @@ export function Model3DDialog() {
 
   if (!edit || !m) return null;
   const set = (patch: Partial<Model3D>) => setM({ ...m, ...patch });
+  const tgt = target === 'end' && m.end ? 'end' : 'start';
+  const cur: Pose3D = tgt === 'end' ? m.end! : { tiltX: m.tiltX, turnY: m.turnY, rollZ: m.rollZ ?? 0, posX: m.posX ?? 0, posY: m.posY ?? 0, zoom: m.zoom ?? 1 };
+  /** Поправить правимое положение; patch может зависеть от текущего (при быстром движении мыши кадры не успевают обновиться). */
+  const setPose = (patch: Partial<Pose3D> | ((p: Pose3D) => Partial<Pose3D>)) => {
+    editing.current = { at: performance.now(), target: tgt };
+    const mm = live.current.m ?? m;
+    const base: Pose3D = tgt === 'end' && mm.end ? mm.end : { tiltX: mm.tiltX, turnY: mm.turnY, rollZ: mm.rollZ ?? 0, posX: mm.posX ?? 0, posY: mm.posY ?? 0, zoom: mm.zoom ?? 1 };
+    const next = { ...base, ...(typeof patch === 'function' ? patch(base) : patch) };
+    const upd = tgt === 'end' ? { ...mm, end: next } : { ...mm, ...next };
+    live.current.m = upd;
+    setM(upd);
+  };
+  // мышкой по превью: тянуть — поворот, с Shift — крен, правой кнопкой (или с Ctrl) — сдвиг, колёсико — приближение
+  const onDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    (e.target as HTMLCanvasElement).setPointerCapture(e.pointerId);
+    drag.current = { x: e.clientX, y: e.clientY, mode: e.button === 2 || e.ctrlKey ? 'move' : e.shiftKey ? 'roll' : 'rotate' };
+  };
+  const onMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.x; const dy = e.clientY - d.y;
+    d.x = e.clientX; d.y = e.clientY;
+    if (d.mode === 'move') setPose((p) => ({ posX: Math.max(-1.5, Math.min(1.5, p.posX + dx / 170)), posY: Math.max(-1.5, Math.min(1.5, p.posY - dy / 170)) }));
+    else if (d.mode === 'roll') setPose((p) => ({ rollZ: wrap(p.rollZ + dx * 0.6) }));
+    else setPose((p) => ({ turnY: wrap(p.turnY + dx * 0.6), tiltX: wrap(p.tiltX + dy * 0.6) }));
+  };
+  const onUp = () => { drag.current = null; };
+  const onWheel = (e: React.WheelEvent<HTMLCanvasElement>) => setPose((p) => ({ zoom: Math.max(0.3, Math.min(3, p.zoom * Math.exp(-e.deltaY * 0.0015))) }));
+  const animOn = !!m.end;
+  const toggleAnim = (on: boolean) => {
+    if (on) { setM({ ...m, end: { ...cur }, ease: m.ease ?? 'smooth', motion: m.motion === 'spin' ? 'still' : m.motion }); setTarget('end'); } else { setM({ ...m, end: null }); setTarget('start'); }
+  };
   const go = async () => {
     setError('');
     setProgress(0);
@@ -164,13 +212,37 @@ export function Model3DDialog() {
           <button className="icon-btn" onClick={close} title={tx('Закрыть')}><X size={17} /></button>
         </div>
         <div className="m3d-body">
-          <div className="m3d-stage"><canvas ref={canvasRef} style={{ width: 340, height: 340 }} data-testid="m3d-canvas" /></div>
+          <div className="m3d-left"><div className="m3d-stage">
+            <canvas ref={canvasRef} style={{ width: 340, height: 340, cursor: 'grab', touchAction: 'none' }} data-testid="m3d-canvas"
+              onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} onWheel={onWheel} onContextMenu={(e) => e.preventDefault()} />
+          </div>
+            <p className="hint small m3d-mouse"><Move3d size={13} />{tx('Тяни — поворот, с Shift — крен, правой кнопкой — сдвиг, колёсико — приближение')}</p>
+          </div>
           <div className="m3d-controls">
             <div className="section-title">{tx('Движение')}</div>
             <div className="chips">{MOTIONS.map((x) => <button key={x.id} className={m.motion === x.id ? 'active' : ''} onClick={() => set({ motion: x.id })} data-testid={`m3d-motion-${x.id}`}>{x.label}</button>)}</div>
             {m.motion !== 'still' && <Slider label={tx('Скорость')} min={0.25} max={3} step={0.05} value={m.speed} format={(v) => `${v.toFixed(2)}×`} onChange={(v) => set({ speed: v })} onReset={() => set({ speed: 1 })} />}
-            <Slider label={tx('Наклон к зрителю')} min={-60} max={60} step={1} value={m.tiltX} format={(v) => `${Math.round(v)}°`} onChange={(v) => set({ tiltX: v })} onReset={() => set({ tiltX: 12 })} />
-            <Slider label={tx('Поворот')} min={-180} max={180} step={1} value={m.turnY} format={(v) => `${Math.round(v)}°`} onChange={(v) => set({ turnY: v })} onReset={() => set({ turnY: 0 })} />
+            {m.motion === 'spin' && (
+              <div className="field-inline"><span>{tx('Ось вращения')}</span>
+                <Seg value={m.spinAxis ?? 'y'} onChange={(v) => set({ spinAxis: v })} testId="m3d-axis"
+                  options={[{ value: 'y', label: tx('Вокруг Y') }, { value: 'x', label: tx('Вокруг X') }, { value: 'z', label: tx('Вокруг Z') }]} /></div>
+            )}
+            <div className="section-title">{tx('Положение')}</div>
+            <Toggle label={tx('Анимация от угла к углу')} hint={tx('Объект плавно переходит из начального положения в конечное за длительность')} on={animOn} onChange={toggleAnim} testId="m3d-anim" />
+            {animOn && (
+              <>
+                <Seg value={tgt} onChange={(v) => { setTarget(v); editing.current = { at: performance.now(), target: v }; }} testId="m3d-target"
+                  options={[{ value: 'start', label: tx('Начало') }, { value: 'end', label: tx('Конец') }]} />
+                <div className="chips">{EASES.map((x) => <button key={x.id} className={(m.ease ?? 'smooth') === x.id ? 'active' : ''} onClick={() => set({ ease: x.id })} data-testid={`m3d-ease-${x.id}`}>{x.label}</button>)}</div>
+              </>
+            )}
+            <Slider label={tx('Наклон (ось X)')} min={-180} max={180} step={1} value={cur.tiltX} format={(v) => `${Math.round(v)}°`} onChange={(v) => setPose({ tiltX: v })} onReset={() => setPose({ tiltX: POSE0.tiltX })} testId="m3d-rx" />
+            <Slider label={tx('Поворот (ось Y)')} min={-180} max={180} step={1} value={cur.turnY} format={(v) => `${Math.round(v)}°`} onChange={(v) => setPose({ turnY: v })} onReset={() => setPose({ turnY: 0 })} testId="m3d-ry" />
+            <Slider label={tx('Крен (ось Z)')} min={-180} max={180} step={1} value={cur.rollZ} format={(v) => `${Math.round(v)}°`} onChange={(v) => setPose({ rollZ: v })} onReset={() => setPose({ rollZ: 0 })} testId="m3d-rz" />
+            <Slider label={tx('Сдвиг влево-вправо')} min={-1.5} max={1.5} step={0.01} value={cur.posX} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => setPose({ posX: v })} onReset={() => setPose({ posX: 0 })} testId="m3d-px" />
+            <Slider label={tx('Сдвиг вниз-вверх')} min={-1.5} max={1.5} step={0.01} value={cur.posY} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => setPose({ posY: v })} onReset={() => setPose({ posY: 0 })} testId="m3d-py" />
+            <Slider label={tx('Приближение')} min={0.3} max={3} step={0.01} value={cur.zoom} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => setPose({ zoom: v })} onReset={() => setPose({ zoom: 1 })} testId="m3d-zoom" />
+            <button className="btn ghost small" onClick={() => setPose({ ...POSE0 })} data-testid="m3d-reset"><RotateCcw size={13} />{tx('Сбросить положение')}</button>
             <div className="section-title">{tx('Материал')}</div>
             <div className="chips">{mats.map((x) => <button key={x.id} className={m.material === x.id ? 'active' : ''} onClick={() => set({ material: x.id })} data-testid={`m3d-mat-${x.id}`}>{x.label}</button>)}</div>
             {m.material !== 'model' && <ColorField label={tx('Цвет')} value={m.color} onChange={(v) => set({ color: v })} />}

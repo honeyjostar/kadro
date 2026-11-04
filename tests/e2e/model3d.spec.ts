@@ -94,3 +94,48 @@ test('своя модель (OBJ): открывается, получает ма
   const ov = (await project(win)).tracks.filter((t) => t.kind === 'video').flatMap((t) => t.clips) as any[];
   expect(ov[0].model3d).toMatchObject({ name: 'кубик', motion: 'still' });
 });
+
+test('крутить мышкой, оси X/Y/Z, сдвиг, приближение и анимация от угла к углу', async () => {
+  await reset(win);
+  await win.getByTestId('tab-3d').click();
+  await win.getByTestId('m3d-star').click();
+  const dlg = win.getByTestId('m3d-dialog');
+  await expect(dlg).toBeVisible();
+  const val = (id: string) => dlg.getByTestId(id).inputValue().then(Number);
+  const box = (await dlg.getByTestId('m3d-canvas').boundingBox())!;
+  const cx = box.x + box.width / 2; const cy = box.y + box.height / 2;
+  // тянуть — поворот по Y (вправо) и наклон по X (вниз)
+  await win.mouse.move(cx, cy);
+  await win.mouse.down();
+  await win.mouse.move(cx + 50, cy + 20, { steps: 10 });
+  await win.mouse.up();
+  expect(await val('m3d-ry')).toBeCloseTo(30, 0);
+  expect(await val('m3d-rx')).toBeCloseTo(12 + 12, 0);
+  // с Shift — крен
+  await win.keyboard.down('Shift');
+  await win.mouse.move(cx, cy); await win.mouse.down(); await win.mouse.move(cx - 25, cy, { steps: 5 }); await win.mouse.up();
+  await win.keyboard.up('Shift');
+  expect(await val('m3d-rz')).toBeCloseTo(-15, 0);
+  // правой кнопкой — сдвиг; колёсико — приближение
+  await win.mouse.move(cx, cy); await win.mouse.down({ button: 'right' }); await win.mouse.move(cx + 85, cy, { steps: 5 }); await win.mouse.up({ button: 'right' });
+  expect(await val('m3d-px')).toBeCloseTo(0.5, 1);
+  await win.mouse.wheel(0, -300);
+  await expect.poll(() => val('m3d-zoom')).toBeGreaterThan(1.3);
+  // анимация: конечное положение — своё, начальное не меняется
+  await dlg.getByTestId('m3d-anim').click();
+  await expect(dlg.getByTestId('m3d-target').locator('[data-value=end]')).toHaveClass(/active/);
+  await dlg.getByTestId('m3d-ry').evaluate((el: HTMLInputElement) => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(el, '170');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await dlg.getByTestId('m3d-ease-out').click();
+  await dlg.getByTestId('m3d-target').locator('[data-value=start]').click();
+  expect(await val('m3d-ry')).toBeCloseTo(30, 0);
+  await dlg.getByTestId('m3d-place').click();
+  await expect(dlg).toBeHidden({ timeout: 120000 });
+  const p = await project(win);
+  const c = p.tracks.flatMap((t) => t.clips).find((x: any) => x.model3d?.source === 'shape:star') as any;
+  expect(c.model3d).toMatchObject({ turnY: 30, rollZ: -15, ease: 'out', end: { turnY: 170 } });
+  expect(c.model3d.posX).toBeCloseTo(0.5, 1);
+  expect(c.model3d.zoom).toBeGreaterThan(1.3);
+});
