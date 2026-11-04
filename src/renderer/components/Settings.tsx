@@ -2,7 +2,8 @@
 // своё оформление (custom.css и theme.json в папке данных — подхватываются на лету), качество превью и кэш.
 import { LANGS_UI, tx, uiLang } from '../../shared/i18n';
 import { txj } from '../txj';
-import { BookOpen, Bug, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, Settings as Gear, Trash2, TriangleAlert, X } from 'lucide-react';
+import { BookOpen, Bug, CheckCircle2, Cpu, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, RefreshCw, Settings as Gear, Trash2, TriangleAlert, X, XCircle } from 'lucide-react';
+import { encoderLabel, encoderName, reasonText, type GpuVendor, type HwInfo } from '../../shared/hw';
 import { glPluginErrors, glPlugins, useGlCatalog } from '../glRegistry';
 import { useEffect, useState } from 'react';
 import { ACCENTS, APP_ICONS, UI_SCALES, type Appearance } from '../../shared/appearance';
@@ -108,6 +109,8 @@ export function SettingsDialog() {
 
         <PluginsSection />
 
+        <HardwareSection />
+
         <section className="settings-sec">
           <b>{tx('Качество превью')}</b>
           <Seg value={previewQuality} onChange={(v) => getState().setPreviewQuality(v)}
@@ -129,6 +132,55 @@ export function SettingsDialog() {
         </section>
       </div>
     </div>
+  );
+}
+
+/** Компьютер: процессор, память, видеокарты и чем кодируется видео (с причиной, если видеокарта не кодирует). */
+function HardwareSection() {
+  const [hw, setHw] = useState<HwInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { void api.hardware().then(setHw); }, []);
+  const recheck = async () => {
+    setBusy(true);
+    try { setHw(await api.hardware(true)); } finally { setBusy(false); }
+  };
+  // кому обновить драйвер: производитель видеокарты, у которой кодировщик упёрся в драйвер
+  const vendorOfEnc: Record<string, GpuVendor> = { nvenc: 'nvidia', amf: 'amd', qsv: 'intel' };
+  const driverFix = hw?.encoders.find((e) => !e.ok && (e.code === 'driver-old' || e.code === 'no-driver') && vendorOfEnc[e.id]);
+  const fixVendor = driverFix ? vendorOfEnc[driverFix.id] as 'nvidia' | 'amd' | 'intel' : null;
+  return (
+    <section className="settings-sec" data-testid="hw">
+      <b><Cpu size={14} />{tx('Компьютер')}</b>
+      {!hw ? <p className="hint">{tx('Проверяю процессор и видеокарту…')}</p> : (
+        <>
+          <div className="hw-list">
+            <div className="hw-row"><span>{tx('Процессор')}</span><em data-testid="hw-cpu">{txj('{0}, потоков: {1}', hw.cpu || tx('неизвестный'), hw.threads)}</em></div>
+            <div className="hw-row"><span>{tx('Память')}</span><em>{tx('{0} ГБ', hw.ramGb)}</em></div>
+            {hw.gpus.length === 0 && <div className="hw-row"><span>{tx('Видеокарта')}</span><em>{tx('не определилась')}</em></div>}
+            {hw.gpus.map((g, i) => (
+              <div className="hw-row" key={i} data-testid="hw-gpu"><span>{tx('Видеокарта')}</span>
+                <em>{g.name}{g.driver ? tx(', драйвер {0}', g.driver) : ''}{g.vramGb ? tx(', {0} ГБ', g.vramGb) : ''}</em></div>
+            ))}
+          </div>
+          <div className="hw-enc-list">
+            {hw.encoders.map((e) => (
+              <div key={e.id} className={`hw-enc ${e.ok ? 'ok' : 'bad'}`} data-testid={`hw-enc-${e.id}`} title={e.detail}>
+                {e.ok ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                <span><b>{encoderName(e.id)}</b> — {reasonText(e, hw.gpus)}</span>
+              </div>
+            ))}
+          </div>
+          <p className="hint" data-testid="hw-summary">{hw.best
+            ? tx('Экспорт в режиме «Авто» кодирует видео: {0}. Это в несколько раз быстрее процессора.', encoderLabel(hw.best))
+            : tx('Видео кодирует процессор — медленнее, чем видеокарта, но качество то же.')}</p>
+          <div className="custom-row">
+            <button className="btn small" disabled={busy} onClick={() => void recheck()} data-testid="hw-recheck"><RefreshCw size={13} />{busy ? tx('Проверяю…') : tx('Проверить снова')}</button>
+            {fixVendor && <button className="btn small primary" onClick={() => void api.openDriverPage(fixVendor)} data-testid="hw-driver">{tx('Скачать драйвер {0}', { nvidia: 'NVIDIA', amd: 'AMD', intel: 'Intel' }[fixVendor])}</button>}
+          </div>
+          {fixVendor && <p className="hint">{tx('После обновления драйвера нажми «Проверить снова» — перезапускать Kadro не нужно.')}</p>}
+        </>
+      )}
+    </section>
   );
 }
 

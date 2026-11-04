@@ -78,7 +78,7 @@ export type AiOutput =
 
 export interface AiResponse { ok: boolean; output?: AiOutput; error?: string }
 
-export interface AppInfo { version: string; platform: string; nvenc: boolean; dataDir: string; mattingProvider?: string }
+export interface AppInfo { version: string; platform: string; dataDir: string; mattingProvider?: string }
 
 export interface ImportResult { assets: MediaAsset[]; errors: { path: string; message: string }[] }
 
@@ -101,6 +101,9 @@ export interface HomeInfo { show: boolean; autoOpen: boolean; demo: DemoFiles; r
 
 export interface KadroApi {
   info(): Promise<AppInfo>;
+  /** Процессор, память, видеокарты и их кодировщики (force — проверить заново). */
+  hardware(force?: boolean): Promise<import('./hw').HwInfo>;
+  openDriverPage(vendor: 'nvidia' | 'amd' | 'intel'): Promise<boolean>;
   pickMedia(): Promise<string[]>;
   importMedia(paths: string[]): Promise<ImportResult>;
   onAssetUpdate(cb: (id: string, patch: Partial<MediaAsset>) => void): () => void;

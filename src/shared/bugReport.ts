@@ -6,7 +6,7 @@ export const ISSUES_NEW = 'https://github.com/honeyjostar/kadro/issues/new';
 /** GitHub и браузеры режут слишком длинные ссылки — укладываемся с запасом. */
 export const MAX_URL = 7500;
 
-export interface BugInfo { version: string; os: string; electron: string; gpu: string; log: string }
+export interface BugInfo { version: string; os: string; electron: string; gpu: string; log: string; hw?: string }
 
 /** Убрать из журнала личные пути: C:\Users\Имя\… → %USERPROFILE%\…, /home/имя/… → ~/… */
 export function scrubLog(text: string, home: string): string {
@@ -33,7 +33,7 @@ export function bugBody(what: string, steps: string, info: BugInfo, withLog: boo
     tx('### Что случилось'), what.trim() || '—', '',
     ...(steps.trim() ? [tx('### Что делал перед этим'), steps.trim(), ''] : []),
     tx('### Система'),
-    `- Kadro ${info.version}`, `- ${info.os}`, `- Electron ${info.electron}`, tx('- Видеокарта (WebGL): {0}', info.gpu), '',
+    `- Kadro ${info.version}`, `- ${info.os}`, `- Electron ${info.electron}`, tx('- Видеокарта (WebGL): {0}', info.gpu), ...(info.hw ? [tx('- Железо: {0}', info.hw)] : []), '',
   ];
   if (withLog && info.log.trim()) {
     const lines = info.log.trim().split(/\r?\n/);

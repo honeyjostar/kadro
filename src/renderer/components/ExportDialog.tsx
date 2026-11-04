@@ -3,7 +3,8 @@ import { txj } from '../txj';
 import { CheckCircle2, ClipboardList, FolderOpen, ShieldCheck, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { exportSize } from '../../shared/geometry';
-import type { AppInfo, ExportResult } from '../../shared/ipc';
+import type { ExportResult } from '../../shared/ipc';
+import { encoderLabel, reasonText, type HwInfo } from '../../shared/hw';
 import { projectDuration } from '../../shared/timeline';
 import type { ExportOptions } from '../../shared/types';
 import { copyChapters, staleAiClips } from '../actions';
@@ -33,10 +34,10 @@ let lastOpts: Omit<ExportOptions, 'outPath'> | null = null;
 export function ExportDialog() {
   const project = useStore((s) => s.project);
   const close = () => getState().setExportOpen(false);
-  const [info, setInfo] = useState<AppInfo | null>(null);
+  const [hw, setHw] = useState<HwInfo | null>(null);
   // разрешение и частота — из настроек проекта (формат кадра под плеером), качество и кодер — как в прошлый раз
   const [opts, setOpts] = useState<Omit<ExportOptions, 'outPath'>>(() => ({
-    quality: 'high', encoder: 'auto', ...lastOpts,
+    quality: 'high', ...lastOpts, encoder: lastOpts?.encoder === 'nvenc' ? 'gpu' : lastOpts?.encoder ?? 'auto',
     height: shortSideOf(project.settings) as ExportOptions['height'],
     fps: ([24, 25, 30, 50, 60].includes(project.settings.fps) ? project.settings.fps : 30) as ExportOptions['fps'],
   }));
@@ -48,7 +49,7 @@ export function ExportDialog() {
   const cancelled = useRef(false);
   const [eta, setEta] = useState<number | null>(null);
 
-  useEffect(() => { void api.info().then(setInfo); }, []);
+  useEffect(() => { void api.hardware().then(setHw); }, []);
   useEffect(() => { lastOpts = opts; }, [opts]);
   useEffect(() => api.onExportProgress((p) => {
     setProgress(p);
@@ -79,7 +80,11 @@ export function ExportDialog() {
   const duration = projectDuration(project);
   const size = exportSize(project.settings.width, project.settings.height, opts.height);
   const stale = staleAiClips(project);
-  const nvenc = info?.nvenc ?? false;
+  // какая видеокарта будет кодировать — или почему не будет
+  const bestGpu = hw?.best ? hw.gpus.find((g) => ({ nvenc: 'nvidia', amf: 'amd', qsv: 'intel', mf: '' }[hw.best!] === g.vendor)) ?? hw.gpus[0] : undefined;
+  const failed = hw && !hw.best ? hw.encoders.find((e) => e.id !== 'mf') ?? hw.encoders[0] : undefined;
+  const hwShort = !hw ? tx('проверяю видеокарту…') : hw.best ? tx('кодирует {0}', bestGpu?.name ?? encoderLabel(hw.best)) : tx('видеокарта не кодирует');
+  const hwWhy = hw && !hw.best && failed && hw.gpus.length ? tx('{0}: {1}', hw.gpus[0].name, reasonText(failed, hw.gpus)) : '';
 
   const start = async () => {
     const outPath = await api.pickExportPath(project.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Kadro');
@@ -130,9 +135,10 @@ export function ExportDialog() {
               <Seg value={opts.quality} onChange={(v) => setOpts({ ...opts, quality: v })}
                 options={[{ value: 'normal', label: tx('Обычное') }, { value: 'high', label: tx('Высокое') }, { value: 'max', label: tx('Максимум') }]} />
             </Field>
-            <Field label={tx('Чем кодировать')} right={<span className="hint small">{info ? (nvenc ? tx('видеокарта NVIDIA найдена') : tx('видеокарта NVIDIA не найдена')) : tx('проверяю…')}</span>}>
-              <Seg value={opts.encoder} onChange={(v) => setOpts({ ...opts, encoder: v })}
-                options={[{ value: 'auto', label: tx('Авто') }, { value: 'nvenc', label: tx('Видеокарта') }, { value: 'x264', label: tx('Процессор') }]} />
+            <Field label={tx('Чем кодировать')} right={<span className="hint small" data-testid="export-hw">{hwShort}</span>}>
+              <Seg value={opts.encoder === 'nvenc' ? 'gpu' : opts.encoder} onChange={(v) => setOpts({ ...opts, encoder: v })} testId="export-encoder"
+                options={[{ value: 'auto', label: tx('Авто') }, { value: 'gpu', label: tx('Видеокарта') }, { value: 'x264', label: tx('Процессор') }]} />
+              {hwWhy && <p className="hint small bad" data-testid="export-hw-why">{hwWhy} {tx('Подробнее — в настройках, раздел «Компьютер».')}</p>}
             </Field>
             <Field label={tx('Куда выкладываешь')}>
               <Seg value={platform} onChange={setPlatform}
@@ -182,7 +188,7 @@ export function ExportDialog() {
 
         {phase === 'done' && result?.path && (
           <>
-            <div className="done-line"><CheckCircle2 size={20} /><span>{txj('Видео готово{0}{1}', result.seconds ? tx(' за {0}', fmtDur(result.seconds)) : '', result.encoder ? ` (${result.encoder === 'nvenc' ? tx('видеокарта') : tx('процессор')})` : '')}</span></div>
+            <div className="done-line"><CheckCircle2 size={20} /><span>{txj('Видео готово{0}{1}', result.seconds ? tx(' за {0}', fmtDur(result.seconds)) : '', result.encoder ? ` (${encoderLabel(result.encoder)})` : '')}</span></div>
             <p className="hint path-line" title={result.path}>{result.path}</p>
             {chapters > 0 && (
               <div className="chapters-line" data-testid="export-chapters">

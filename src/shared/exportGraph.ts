@@ -1,4 +1,5 @@
 // Построение графа FFmpeg для экспорта проекта. Чистая функция — тестируется без Electron.
+import type { EncoderEngine } from './hw';
 import { tx } from './i18n';
 import { aiSource, audioSource, videoSource } from './ai';
 import { hasAnim, kfExpr, maxScale, valueAt } from './anim';
@@ -748,13 +749,39 @@ export function alphaEncoderArgs(fps: number, duration: number): string[] {
     '-auto-alt-ref', '0', '-r', String(fps), '-c:a', 'libopus', '-b:a', '192k', '-ar', '48000', '-t', fmt(duration)];
 }
 
-export function encoderArgs(enc: 'nvenc' | 'x264', quality: Quality, fps: number, duration: number): string[] {
-  const v = enc === 'nvenc'
-    ? ['-c:v', 'h264_nvenc', '-preset', quality === 'max' ? 'p7' : quality === 'high' ? 'p5' : 'p4', '-rc', 'vbr',
-      '-cq', quality === 'max' ? '18' : quality === 'high' ? '21' : '25', '-b:v', '0']
-    : ['-c:v', 'libx264', '-preset', quality === 'max' ? 'slow' : quality === 'high' ? 'medium' : 'veryfast',
-      '-crf', quality === 'max' ? '17' : quality === 'high' ? '20' : '23'];
-  return [...v, '-pix_fmt', 'yuv420p', '-r', String(fps), '-c:a', 'aac', '-b:a', '192k', '-ar', '48000',
+/** Битрейт для кодировщика без режима «по качеству» (Windows Media Foundation): от размера кадра и частоты. */
+export function mfBitrate(quality: Quality, fps: number, size?: { w: number; h: number }): number {
+  const px = (size?.w ?? 1920) * (size?.h ?? 1080) * fps;
+  const bpp = quality === 'max' ? 0.2 : quality === 'high' ? 0.12 : 0.08;
+  return Math.round(Math.min(120e6, Math.max(2e6, px * bpp)));
+}
+
+export function encoderArgs(enc: Exclude<EncoderEngine, 'vp9alpha'>, quality: Quality, fps: number, duration: number, size?: { w: number; h: number }): string[] {
+  const q3 = <T,>(max: T, high: T, normal: T): T => (quality === 'max' ? max : quality === 'high' ? high : normal);
+  let pix = 'yuv420p';
+  let v: string[];
+  switch (enc) {
+    case 'nvenc':
+      v = ['-c:v', 'h264_nvenc', '-preset', q3('p7', 'p5', 'p4'), '-rc', 'vbr', '-cq', q3('18', '21', '25'), '-b:v', '0'];
+      break;
+    case 'amf': {
+      const qp = q3(18, 21, 25);
+      v = ['-c:v', 'h264_amf', '-usage', 'transcoding', '-quality', q3('quality', 'quality', 'balanced'), '-rc', 'cqp',
+        '-qp_i', String(qp), '-qp_p', String(qp + 1), '-qp_b', String(qp + 2)];
+      break;
+    }
+    case 'qsv':
+      pix = 'nv12';
+      v = ['-c:v', 'h264_qsv', '-preset', q3('veryslow', 'slower', 'medium'), '-global_quality', q3('18', '21', '25')];
+      break;
+    case 'mf':
+      pix = 'nv12';
+      v = ['-c:v', 'h264_mf', '-hw_encoding', '1', '-b:v', String(mfBitrate(quality, fps, size))];
+      break;
+    default:
+      v = ['-c:v', 'libx264', '-preset', q3('slow', 'medium', 'veryfast'), '-crf', q3('17', '20', '23')];
+  }
+  return [...v, '-pix_fmt', pix, '-r', String(fps), '-c:a', 'aac', '-b:a', '192k', '-ar', '48000',
     '-movflags', '+faststart', '-t', fmt(duration)];
 }
 
@@ -762,7 +789,7 @@ export function encoderArgs(enc: 'nvenc' | 'x264', quality: Quality, fps: number
  * Полный список аргументов ffmpeg. filterArg — как передать граф: файл (для новых и старых версий FFmpeg).
  * metaFile — файл метаданных FFmpeg с главами (из маркеров): последним входом, главы и название — из него.
  */
-export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number, enc: 'nvenc' | 'x264' | 'vp9alpha', quality: Quality, fps: number, out: string, metaFile?: string): string[] {
+export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number, enc: EncoderEngine, quality: Quality, fps: number, out: string, metaFile?: string, size?: { w: number; h: number }): string[] {
   const filterOpt = ffmpegMajor >= 7 ? ['-/filter_complex', filterFile] : ['-filter_complex_script', filterFile];
   const flat = g.inputs.flat();
   const metaIdx = flat.filter((a) => a === '-i').length;
@@ -773,7 +800,7 @@ export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number,
     ...filterOpt,
     '-map', g.vOut, '-map', g.aOut,
     ...(metaFile ? ['-map_metadata', String(metaIdx), '-map_chapters', String(metaIdx)] : []),
-    ...(enc === 'vp9alpha' ? alphaEncoderArgs(fps, g.duration) : encoderArgs(enc, quality, fps, g.duration)),
+    ...(enc === 'vp9alpha' ? alphaEncoderArgs(fps, g.duration) : encoderArgs(enc, quality, fps, g.duration, size)),
     '-progress', 'pipe:1', '-nostats',
     out,
   ];

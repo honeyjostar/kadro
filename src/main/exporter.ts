@@ -11,9 +11,10 @@ import { projectDuration } from '../shared/timeline';
 import { cacheDir, ffmpegMajor, ffmpegPath } from './bins';
 import { runFfmpeg } from './ffrun';
 import { grayPng, rgbPng } from './png';
+import { encoderPlan, type EncoderEngine } from '../shared/hw';
+import { hardwareInfo } from './hardware';
 import { loadLuts } from './luts';
 
-let nvencCache: Promise<boolean> | undefined;
 
 /** Папки с кадрами шейдеров (окно рисует, экспорт накладывает). Токен — чтобы окно не писало куда попало. */
 export const glFrames = {
@@ -41,22 +42,6 @@ export const glFrames = {
     if (dir) fs.rmSync(dir, { recursive: true, force: true });
   },
 };
-
-/** Проверка, работает ли аппаратный кодер NVIDIA (пробное кодирование 0.2 с). Не блокирует окно. */
-export function hasNvenc(): Promise<boolean> {
-  nvencCache ??= new Promise<boolean>((resolve) => {
-    try {
-      const p = spawn(ffmpegPath(), ['-hide_banner', '-v', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=256x256:d=0.2',
-        '-c:v', 'h264_nvenc', '-f', 'null', '-'], { windowsHide: true, stdio: 'ignore' });
-      const t = setTimeout(() => { p.kill(); resolve(false); }, 20000);
-      p.on('error', () => { clearTimeout(t); resolve(false); });
-      p.on('exit', (code) => { clearTimeout(t); resolve(code === 0); });
-    } catch {
-      resolve(false);
-    }
-  });
-  return nvencCache;
-}
 
 const fwd = (p: string) => p.replace(/\\/g, '/').replace(/'/g, "'\\''");
 
@@ -124,12 +109,13 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });
     const ext = path.extname(opts.outPath) || '.mp4';
     const tmpOut = path.join(path.dirname(opts.outPath), `.${path.basename(opts.outPath, ext)}.kadro-part${ext}`);
-    const wantNv = !opts.alpha && (opts.encoder === 'nvenc' || (opts.encoder === 'auto' && (await hasNvenc())));
-    const encoders: ('nvenc' | 'x264' | 'vp9alpha')[] = opts.alpha ? ['vp9alpha'] : wantNv ? ['nvenc', 'x264'] : ['x264'];
+    // видеокарта: то, что прошло пробное кодирование; не вышло — следующий кодировщик, в конце процессор
+    const hw = opts.alpha || opts.encoder === 'x264' ? null : await hardwareInfo();
+    const encoders: EncoderEngine[] = opts.alpha ? ['vp9alpha'] : encoderPlan(opts.encoder, hw?.encoders ?? null, process.platform);
     let lastErr: unknown;
     for (const enc of encoders) {
       try {
-        const args = fullArgs(graph, filterFile, ffmpegMajor(), enc, opts.quality, opts.fps, tmpOut, metaFile);
+        const args = fullArgs(graph, filterFile, ffmpegMajor(), enc, opts.quality, opts.fps, tmpOut, metaFile, size);
         await runFfmpeg(args, { duration: total, onProgress, signal });
         fs.rmSync(opts.outPath, { force: true });
         fs.renameSync(tmpOut, opts.outPath);

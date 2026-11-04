@@ -101,7 +101,7 @@ sudo apt-get install -y nsis unzip
 npm ci && npm run build
 EV=$(node -p "require('electron/package.json').version")
 curl -fL -o electron-win.zip "https://github.com/electron/electron/releases/download/v${EV}/electron-v${EV}-win32-x64.zip"
-curl -fL -o ffmpeg-win.zip "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
+curl -fL -o ffmpeg-win.zip "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip"
 node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip
 ```
 

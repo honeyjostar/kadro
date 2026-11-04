@@ -34,7 +34,8 @@ import { importLutFile, listLutFiles } from './luts';
 import { BUILTIN_TEMPLATES, DEMO_SCENES, isTemplate, type Template } from '../shared/templates';
 import { projectDuration } from '../shared/timeline';
 import { bundledFile, cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
-import { exportProject, exportSpeechAudio, glFrames, hasNvenc } from './exporter';
+import { exportProject, exportSpeechAudio, glFrames } from './exporter';
+import { DRIVER_PAGES, hardwareInfo } from './hardware';
 import { MEDIA_EXT, analyze, coverIfReady, makeCover, makePeaks, makeProxy, makeThumbs } from './media';
 import { Queue, backgroundLimit } from '../shared/queue';
 
@@ -533,8 +534,15 @@ let exportAbort: AbortController | null = null;
 
 function registerIpc(): void {
   ipcMain.handle('app:info', async () => ({
-    version: app.getVersion(), platform: process.platform, nvenc: await hasNvenc(), dataDir: dataDir(),
+    version: app.getVersion(), platform: process.platform, dataDir: dataDir(),
   }));
+  ipcMain.handle('hw:info', (_e, force?: boolean) => hardwareInfo(!!force));
+  ipcMain.handle('hw:driverPage', async (_e, vendor: string) => {
+    const url = DRIVER_PAGES[vendor as keyof typeof DRIVER_PAGES];
+    if (!url) return false;
+    if (!process.env.KADRO_NO_OPEN) await shell.openExternal(url);
+    return true;
+  });
   ipcMain.handle('dialog:media', async () => {
     if (process.env.KADRO_TEST_PICK) return process.env.KADRO_TEST_PICK.split('|'); // автотесты: без системного окна
     const r = await dialog.showOpenDialog(win!, {
@@ -860,6 +868,7 @@ function registerIpc(): void {
     return {
       version: app.getVersion(), os: tx('{0} {1} ({2}), {3} ГБ памяти, {4} ядер', os.type(), os.release(), os.arch(), Math.round(os.totalmem() / 2 ** 30), os.cpus().length),
       electron: process.versions.electron, gpu: `${gpu.webgl}${gpu.gpu_compositing ? tx(', композитинг {0}', gpu.gpu_compositing) : ''}`,
+      hw: await hardwareInfo().then((h) => [h.cpu, ...h.gpus.map((g) => `${g.name}${g.driver ? ` (${g.driver})` : ''}`), h.encoders.map((e) => (e.ok ? e.id : `${e.id}: ${e.code}${e.need ? ` ≥${e.need}` : ''}`)).join(', ')].join('; ')).catch(() => ''),
       log: scrubLog(tail, os.homedir()),
     };
   });
@@ -1047,7 +1056,7 @@ if (!lock) {
     initUpdater({ emit: (s) => win?.webContents.send('update:changed', s), log });
     createWindow();
     customStyles.setEnabled(appearance().custom);
-    setTimeout(() => { try { hasNvenc(); } catch { /* проверим позже */ } }, 3000);
+    setTimeout(() => { void hardwareInfo().then((h) => log('hw', JSON.stringify({ cpu: h.cpu, threads: h.threads, ram: h.ramGb, gpus: h.gpus, enc: h.encoders.map((e) => (e.ok ? e.id : `${e.id}:${e.code}${e.need ? `>=${e.need}` : ''}`)) }))); }, 3000);
     setTimeout(cleanTempOnStart, 6000); // временные файлы прошлых сеансов
     // плагины: правка файла в папке — сразу в окне
     try { ensurePluginDirs(); watchPlugins((list) => win?.webContents.send('plugins:changed', list)); } catch (e) { log('plugins', e); }

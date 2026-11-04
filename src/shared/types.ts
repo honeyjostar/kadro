@@ -319,7 +319,7 @@ export interface ExportOptions {
   height: 720 | 1080 | 1440 | 2160; // по короткой стороне
   fps: 24 | 25 | 30 | 50 | 60;
   quality: 'normal' | 'high' | 'max';
-  encoder: 'auto' | 'nvenc' | 'x264';
+  encoder: 'auto' | 'gpu' | 'nvenc' | 'x264'; // nvenc — из старых настроек, значит «видеокарта»
   outPath: string;
   alpha?: boolean;   // прозрачный фон, WebM VP9 (рендер группы из наложений)
 }
