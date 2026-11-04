@@ -6,6 +6,7 @@ name: Models mirror
 on:
   push:
     branches: [mirror-models]
+    paths: ['.github/workflows/models-mirror.yml']
   workflow_dispatch:
 
 permissions:

@@ -1,0 +1,51 @@
+# Зеркало моделей распознавания речи и голосов озвучки (sherpa-onnx, k2-fsa) в релиз ai-models этого репозитория.
+# Архивы перепаковываются в простой .tar (ONNX почти не сжимается, а распаковка .bz2 долгая) и сверяются по SHA-256.
+# Запуск: отправить ветку mirror-models с изменённым этим файлом (или Actions → AI models mirror → Run workflow).
+name: AI models mirror
+
+on:
+  push:
+    branches: [mirror-models]
+    paths: ['.github/workflows/ai-mirror.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Скачать, перепаковать, выложить
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          TAG=ai-models
+          gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1 || \
+            gh release create "$TAG" --repo "$REPO" --title "Модели ИИ (распознавание речи и озвучка)" \
+              --notes "Копии моделей sherpa-onnx (k2-fsa): распознавание речи Parakeet v3 и GigaAM v2, голоса Piper. Kadro скачивает их сам, когда впервые делает субтитры или озвучку. Лицензии — у авторов моделей (см. THIRD_PARTY.md)." --latest=false --prerelease
+          mkdir -p work out && cd work
+          echo '[' > ../out/manifest.json
+          first=1
+          ASR=https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models
+          TTS=https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models
+          for item in \
+            "$ASR/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8" \
+            "$ASR/sherpa-onnx-nemo-transducer-giga-am-v2-russian-2025-04-19" \
+            "$TTS/vits-piper-ru_RU-irina-medium" "$TTS/vits-piper-ru_RU-dmitri-medium" "$TTS/vits-piper-ru_RU-denis-medium" \
+            "$TTS/vits-piper-ru_RU-ruslan-medium" "$TTS/vits-piper-en_US-amy-low" "$TTS/vits-piper-en_US-ryan-medium"; do
+            name=$(basename "$item")
+            curl -fsSL --retry 5 -o "$name.tar.bz2" "$item.tar.bz2"
+            bunzip2 "$name.tar.bz2"
+            ls -la "$name.tar"
+            [ $first = 1 ] || echo ',' >> ../out/manifest.json; first=0
+            printf '{"file":"%s.tar","size":%s,"sha256":"%s"}' "$name" "$(stat -c %s "$name.tar")" "$(sha256sum "$name.tar" | cut -d' ' -f1)" >> ../out/manifest.json
+            gh release upload "$TAG" "$name.tar" --repo "$REPO" --clobber
+            rm -f "$name.tar"
+          done
+          echo ']' >> ../out/manifest.json
+          cat ../out/manifest.json
+          gh release upload "$TAG" ../out/manifest.json --repo "$REPO" --clobber
