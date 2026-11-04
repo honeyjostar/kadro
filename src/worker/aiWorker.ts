@@ -13,6 +13,7 @@ type Msg =
   | { id: string; kind: 'removeBg'; path: string; in: number; out: number; width: number; height: number; fps: number; outPath: string }
   | { id: string; kind: 'download'; model: AsrModelId }
   | { id: string; kind: 'ttsDownload'; voice: TtsVoiceId }
+  | { id: string; kind: 'install'; what: 'asr' | 'tts'; model: string; file: string }
   | { id: string; kind: 'tts'; text: string; voice: TtsVoiceId; speed: number; outPath: string }
   | { id: string; kind: 'beats'; path: string }
   | { id: string; kind: 'reframe'; path: string; in: number; out: number; width: number; height: number }
@@ -62,7 +63,13 @@ port.on('message', async (e) => {
       await downloadAsrModel(m.model, (p, stage) => progress(stage === 'download' ? p * 0.85 : 0.85 + p * 0.15, stage === 'download' ? tx('Скачиваю модель') : tx('Распаковываю')), ac.signal);
       result = {};
     }
-    else if (m.kind === 'ttsDownload') {
+    else if (m.kind === 'install') {
+      const mod = await import('../main/ai/models');
+      const onP = (p: number) => progress(p, tx('Распаковываю модель'));
+      if (m.what === 'asr') await mod.installAsrFromFile(m.model as AsrModelId, m.file, onP);
+      else await mod.installTtsFromFile(m.model as TtsVoiceId, m.file, onP);
+      result = {};
+    } else if (m.kind === 'ttsDownload') {
       const { downloadTtsVoice } = await import('../main/ai/models');
       await downloadTtsVoice(m.voice, (p, stage) => progress(stage === 'download' ? p * 0.85 : 0.85 + p * 0.15, stage === 'download' ? tx('Скачиваю голос') : tx('Распаковываю')), ac.signal);
       result = {};

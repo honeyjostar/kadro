@@ -2,16 +2,18 @@
 // своё оформление (custom.css и theme.json в папке данных — подхватываются на лету), качество превью и кэш.
 import { LANGS_UI, tx, uiLang } from '../../shared/i18n';
 import { txj } from '../txj';
-import { BookOpen, Bug, CheckCircle2, Cpu, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, RefreshCw, Settings as Gear, Trash2, TriangleAlert, X, XCircle } from 'lucide-react';
+import { BookOpen, Brain, Bug, CheckCircle2, Cpu, Download, Globe, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, RefreshCw, Settings as Gear, Trash2, TriangleAlert, X, XCircle } from 'lucide-react';
 import { encoderLabel, encoderName, reasonText, type GpuVendor, type HwInfo } from '../../shared/hw';
 import { glPluginErrors, glPlugins, useGlCatalog } from '../glRegistry';
 import { useEffect, useState } from 'react';
 import { ACCENTS, APP_ICONS, UI_SCALES, type Appearance } from '../../shared/appearance';
 import { collectPaths, fmtBytes, type CacheInfo } from '../../shared/cache';
 import { api, getState, useStore } from '../store';
-import { Seg, Toggle } from './controls';
+import { Progress, Seg, Toggle } from './controls';
 import { LogoMark } from './Home';
 import { reportInstall } from './PluginCatalog';
+import { ensureModel, ensureVoice, importModelFile, modelInBrowser } from '../actions';
+import type { ModelInfo, VoiceInfo } from '../../shared/ipc';
 import { UpdateSection } from './Update';
 
 export function SettingsDialog() {
@@ -118,6 +120,8 @@ export function SettingsDialog() {
           <p className="hint">{tx('Картинка в плеере. «Быстрое» — плавнее на слабом компьютере и ноутбуке. На экспорт не влияет.')}</p>
         </section>
 
+        <ModelsSection />
+
         <CacheSection />
 
         <UpdateSection />
@@ -180,6 +184,49 @@ function HardwareSection() {
           {fixVendor && <p className="hint">{tx('После обновления драйвера нажми «Проверить снова» — перезапускать Kadro не нужно.')}</p>}
         </>
       )}
+    </section>
+  );
+}
+
+/** Модели ИИ: что скачано, скачать, скачать в браузере и указать файл, удалить. */
+function ModelsSection() {
+  const [asr, setAsr] = useState<ModelInfo[]>([]);
+  const [voices, setVoices] = useState<VoiceInfo[]>([]);
+  const [mt, setMt] = useState<string[]>([]);
+  const jobs = useStore((s) => s.jobs);
+  const job = Object.values(jobs).find((j) => /^(dl|tdl|imp)_/.test(j.id));
+  const reload = async () => {
+    const [a, v, m] = await Promise.all([api.models(), api.ttsVoices(), api.mtInfo().catch(() => ({ ready: [] as string[] }))]);
+    setAsr(a); setVoices(v); setMt(m.ready);
+  };
+  useEffect(() => { void reload(); }, []);
+  const after = (p: Promise<unknown>) => void p.finally(() => void reload());
+  const row = (what: 'asr' | 'tts', id: string, label: string, sizeMb: number, ready: boolean) => (
+    <div className={`model-row ${ready ? 'ready' : ''}`} key={`${what}-${id}`} data-testid={`model-${what}-${id}`}>
+      <div className="model-name"><span>{label}</span><em>{ready ? tx('скачана') : tx('{0} МБ', sizeMb)}</em></div>
+      <div className="model-btns">
+        {ready
+          ? <button className="btn ghost small" disabled={!!job} onClick={() => after(api.deleteModel(what, id))} data-testid="model-del" title={tx('Удалить с диска — освободит место, скачать можно снова')}><Trash2 size={13} /></button>
+          : <>
+            <button className="btn small primary" disabled={!!job} onClick={() => after(what === 'asr' ? ensureModel(id as ModelInfo['id']) : ensureVoice(id as VoiceInfo['id']))} data-testid="model-dl"><Download size={13} />{tx('Скачать')}</button>
+            <button className="btn ghost small" disabled={!!job} onClick={() => void modelInBrowser(what, id)} title={tx('Скачать файл в браузере — если Kadro сам не может (VPN, прокси, антивирус)')} data-testid="model-browser"><Globe size={13} /></button>
+            <button className="btn ghost small" disabled={!!job} onClick={() => after(importModelFile(what, id))} data-testid="model-file">{tx('Из файла…')}</button>
+          </>}
+      </div>
+    </div>
+  );
+  return (
+    <section className="settings-sec" data-testid="models">
+      <b><Brain size={14} />{tx('Модели ИИ')}</b>
+      <p className="hint">{tx('Скачиваются один раз и дальше работают без интернета. Не скачивается — нажми значок глобуса: файл скачает браузер, потом укажи его кнопкой «Из файла…».')}</p>
+      {job && <div className="model-job" data-testid="model-job"><span>{job.stage ?? job.label}</span><Progress value={job.progress} /></div>}
+      <div className="model-group">{tx('Субтитры (распознавание речи)')}</div>
+      {asr.map((m) => row('asr', m.id, m.label, m.sizeMb, m.ready))}
+      <div className="model-group">{tx('Озвучка текста')}</div>
+      {voices.map((v) => row('tts', v.id, v.label, v.sizeMb, v.ready))}
+      <p className="hint" data-testid="models-mt">{mt.length
+        ? txj('Перевод субтитров: есть {0}. Другие языки скачаются сами при первом переводе.', mt.join(', '))
+        : tx('Перевод субтитров: модели скачаются сами при первом переводе.')}</p>
     </section>
   );
 }

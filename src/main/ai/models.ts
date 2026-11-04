@@ -2,10 +2,7 @@
 import { tx } from '../../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Readable } from 'node:stream';
-import { pipeline } from 'node:stream/promises';
-import bz2 from 'unbzip2-stream';
-import * as tar from 'tar';
+import { downloadModelArchive, netFetch, unpackArchive, type ArchiveSource } from './download';
 import { bundledModel, modelsDir } from '../bins';
 
 export type AsrModelId = 'multi' | 'ru';
@@ -63,48 +60,56 @@ export const VAD_MODEL = () => bundledModel('silero_vad.onnx');
 export const MATTING_MODEL = () => bundledModel('rvm_mobilenetv3_fp32.onnx');
 export const RNNOISE_MODEL = () => bundledModel('std.rnnn');
 
-/** Скачивает архив .tar.bz2 и распаковывает в modelsDir()/dirName. onProgress: скачивание, затем распаковка. */
-async function downloadArchive(url: string, dirName: string, sizeMb: number, ready: () => boolean,
+// ---------- откуда качать ----------
+// Сначала копия в релизе ai-models репозитория Kadro (простой .tar с контрольной суммой — распаковывается быстро),
+// потом оригинал у k2-fsa (.tar.bz2). KADRO_AI_MIRROR — подменить адрес копии (автотесты).
+export const AI_MIRROR = 'https://github.com/honeyjostar/kadro/releases/download/ai-models';
+const mirrorBase = () => process.env.KADRO_AI_MIRROR || AI_MIRROR;
+interface MirrorEntry { file: string; size: number; sha256: string }
+let manifest: Promise<MirrorEntry[]> | null = null;
+function mirrorManifest(signal?: AbortSignal): Promise<MirrorEntry[]> {
+  manifest ??= (async () => {
+    const r = await netFetch()(`${mirrorBase()}/manifest.json`, { signal, redirect: 'follow' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const list = JSON.parse(await r.text()) as MirrorEntry[];
+    return Array.isArray(list) ? list : [];
+  })().catch(() => { manifest = null; return []; });
+  return manifest;
+}
+
+/** Источники архива: копия Kadro (если она есть в списке) и оригинал. */
+async function sourcesFor(dirName: string, upstream: string, signal?: AbortSignal): Promise<ArchiveSource[]> {
+  const list = await mirrorManifest(signal);
+  const e = list.find((x) => x.file === `${dirName}.tar`);
+  const out: ArchiveSource[] = [];
+  if (e) out.push({ url: `${mirrorBase()}/${e.file}`, size: e.size, sha256: e.sha256, label: tx('копия Kadro на GitHub') });
+  if (!process.env.KADRO_AI_MIRROR_ONLY) out.push({ url: upstream, label: tx('сайт авторов модели (GitHub k2-fsa)') });
+  return out;
+}
+
+/** Ссылки для скачивания вручную (в браузере): копия Kadro и оригинал. */
+export function manualUrls(dirName: string, upstream: string): string[] {
+  return [`${AI_MIRROR}/${dirName}.tar`, upstream];
+}
+
+async function downloadArchive(url: string, dirName: string, _sizeMb: number, ready: () => boolean,
   onProgress: (p: number, stage: 'download' | 'unpack') => void, signal?: AbortSignal): Promise<void> {
   if (ready()) return;
-  const dir = modelsDir();
-  const tmp = path.join(dir, `${dirName}.tar.bz2.part`);
-  const res = await fetch(url, { signal, redirect: 'follow' });
-  if (!res.ok || !res.body) throw new Error(tx('Не удалось скачать модель (HTTP {0}). Проверь интернет или VPN.', res.status));
-  const total = Number(res.headers.get('content-length') || sizeMb * 1e6);
-  let got = 0;
-  const out = fs.createWriteStream(tmp);
-  const reader = res.body.getReader();
+  await downloadModelArchive(await sourcesFor(dirName, url, signal), modelsDir(), dirName, ready, onProgress, signal);
+}
+
+/** Поставить модель из архива, скачанного вручную (.tar или .tar.bz2). */
+export async function installFromArchive(file: string, dirName: string, ready: () => boolean, onProgress: (p: number) => void): Promise<void> {
+  if (!fs.existsSync(file)) throw new Error(tx('Файл не найден'));
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      got += value.length;
-      if (!out.write(value)) await new Promise<void>((r) => out.once('drain', () => r()));
-      onProgress(Math.min(0.999, got / total), 'download');
-    }
-  } finally {
-    await new Promise<void>((r) => out.end(() => r()));
+    await unpackArchive(file, modelsDir(), dirName, onProgress);
+  } catch (e) {
+    throw new Error(tx('Не получилось распаковать архив: {0}', e instanceof Error ? e.message : String(e)));
   }
-  if (signal?.aborted) throw new Error(tx('Отменено'));
-  onProgress(0, 'unpack');
-  const extractTo = path.join(dir, `${dirName}.unpack`);
-  fs.rmSync(extractTo, { recursive: true, force: true });
-  fs.mkdirSync(extractTo, { recursive: true });
-  const size = fs.statSync(tmp).size;
-  let read = 0;
-  const src = fs.createReadStream(tmp);
-  src.on('data', (d) => { read += (d as Buffer).length; onProgress(Math.min(0.999, read / size), 'unpack'); });
-  await pipeline(src, bz2(), tar.x({ cwd: extractTo }) as unknown as NodeJS.WritableStream);
-  const inner = path.join(extractTo, dirName);
-  const finalDir = path.join(dir, dirName);
-  fs.rmSync(finalDir, { recursive: true, force: true });
-  fs.renameSync(fs.existsSync(inner) ? inner : extractTo, finalDir);
-  fs.rmSync(extractTo, { recursive: true, force: true });
-  fs.rmSync(tmp, { force: true });
-  if (!ready()) throw new Error(tx('Модель скачалась не полностью. Попробуй ещё раз.'));
-  onProgress(1, 'unpack');
-  void Readable;
+  if (!ready()) {
+    fs.rmSync(path.join(modelsDir(), dirName), { recursive: true, force: true });
+    throw new Error(tx('Это не та модель: в архиве нет нужных файлов'));
+  }
 }
 
 /** Скачивает и распаковывает модель распознавания. */
@@ -112,6 +117,9 @@ export async function downloadAsrModel(id: AsrModelId, onProgress: (p: number, s
   const m = ASR_MODELS[id];
   await downloadArchive(m.url, m.dir, m.sizeMb, () => asrModelReady(id), onProgress, signal);
 }
+export const asrManualUrls = (id: AsrModelId): string[] => manualUrls(ASR_MODELS[id].dir, ASR_MODELS[id].url);
+export const installAsrFromFile = (id: AsrModelId, file: string, onProgress: (p: number) => void): Promise<void> =>
+  installFromArchive(file, ASR_MODELS[id].dir, () => asrModelReady(id), onProgress);
 
 // ---------- голоса для озвучки текста (Piper) ----------
 export type TtsVoiceId = 'irina' | 'dmitri' | 'denis' | 'ruslan' | 'amy' | 'ryan';
@@ -136,3 +144,6 @@ export async function downloadTtsVoice(id: TtsVoiceId, onProgress: (p: number, s
   const v = TTS_VOICES[id];
   await downloadArchive(`${TTS_GH}/vits-piper-${v.name}.tar.bz2`, `vits-piper-${v.name}`, v.sizeMb, () => ttsVoiceReady(id), onProgress, signal);
 }
+export const ttsManualUrls = (id: TtsVoiceId): string[] => manualUrls(`vits-piper-${TTS_VOICES[id].name}`, `${TTS_GH}/vits-piper-${TTS_VOICES[id].name}.tar.bz2`);
+export const installTtsFromFile = (id: TtsVoiceId, file: string, onProgress: (p: number) => void): Promise<void> =>
+  installFromArchive(file, `vits-piper-${TTS_VOICES[id].name}`, () => ttsVoiceReady(id), onProgress);

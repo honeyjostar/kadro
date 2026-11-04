@@ -48,6 +48,7 @@ export type AiJob =
   | { kind: 'voice'; jobId: string; path: string; in: number; out: number; effect: VoiceEffect; denoise: boolean }
   | { kind: 'tts'; jobId: string; text: string; voice: TtsVoiceId; speed: number }
   | { kind: 'ttsDownload'; jobId: string; voice: TtsVoiceId }
+  | { kind: 'modelImport'; jobId: string; what: 'asr' | 'tts'; id: string; file: string }
   | { kind: 'stab'; jobId: string; path: string; in: number; out: number; strength: number }
   | { kind: 'beats'; jobId: string; path: string }
   | { kind: 'highlights'; jobId: string; path: string; duration: number }
@@ -201,6 +202,11 @@ export interface KadroApi {
   cancelExport(): void;
   onExportProgress(cb: (p: number) => void): () => void;
   models(): Promise<ModelInfo[]>;
+  /** Модели ИИ вручную: выбрать скачанный архив, ссылки для браузера, открыть ссылку, удалить модель. */
+  pickModelArchive(): Promise<string | null>;
+  modelUrls(what: 'asr' | 'tts', id: string): Promise<string[]>;
+  openModelUrl(url: string): Promise<boolean>;
+  deleteModel(what: 'asr' | 'tts', id: string): Promise<boolean>;
   ttsVoices(): Promise<VoiceInfo[]>;
   runAi(job: AiJob): Promise<AiResponse>;
   /** Запись с микрофона (webm/opus) → FLAC в папке данных. */

@@ -117,7 +117,7 @@ export function explainEncoder(id: HwEncoder, stderr: string, exitCode: number |
   if (id === 'nvenc') {
     const need = /minimum required Nvidia driver for nvenc is ([\d.]+)/i.exec(text)?.[1];
     if (need || /required nvenc API version|driver is too old/i.test(text)) return res('driver-old', need);
-    if (/Cannot load (nvcuda|nvEncodeAPI)/i.test(text)) return res('no-driver');
+    if (/Cannot load (nvcuda|nvEncodeAPI|libcuda|libnvidia-encode)/i.test(text)) return res('no-driver');
     if (/No capable devices|unsupported device|OpenEncodeSessionEx failed|No NVENC capable|incompatible client/i.test(text)) return res('no-hw');
   }
   if (id === 'amf' && /amfrt|AMF failed to init|DLL .* failed to open|AMF.*not supported|Failed to create.*AMF/i.test(text)) return res('no-driver');

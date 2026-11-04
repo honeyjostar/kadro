@@ -1,6 +1,5 @@
 // Экспорт проекта в MP4: слои текста → списки concat, граф FFmpeg, кодирование с прогрессом.
 import { tx } from '../shared/i18n';
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildGraph, fullArgs } from '../shared/exportGraph';
@@ -8,7 +7,7 @@ import { ffmetadataChapters } from '../shared/markers';
 import { exportSize } from '../shared/geometry';
 import type { ExportReq, ExportResult, TextLayerReq } from '../shared/ipc';
 import { projectDuration } from '../shared/timeline';
-import { cacheDir, ffmpegMajor, ffmpegPath } from './bins';
+import { cacheDir, ffmpegMajor } from './bins';
 import { runFfmpeg } from './ffrun';
 import { grayPng, rgbPng } from './png';
 import { encoderPlan, type EncoderEngine } from '../shared/hw';

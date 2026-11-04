@@ -837,6 +837,23 @@ function shrink(dataUrl: string, max: number): Promise<string> {
   });
 }
 
+// ---------- модели ИИ вручную ----------
+/** Поставить модель из архива, скачанного в браузере. */
+export async function importModelFile(what: 'asr' | 'tts', id: string): Promise<boolean> {
+  const file = await api.pickModelArchive();
+  if (!file) return false;
+  const r = await runJob(tx('Ставлю модель из файла'), { kind: 'modelImport', jobId: `imp_${uidShort()}`, what, id, file });
+  if (!r.ok) { if (r.error !== tx('Отменено')) getState().toast(tx('Модель не встала: {0}', r.error), 'err'); return false; }
+  getState().toast(tx('Модель установлена — работает без интернета'), 'ok');
+  return true;
+}
+/** Открыть ссылку на архив модели в браузере (браузер качает через свой VPN и прокси). */
+export async function modelInBrowser(what: 'asr' | 'tts', id: string): Promise<void> {
+  const urls = await api.modelUrls(what, id);
+  const url = urls[urls.length - 1];
+  if (url && (await api.openModelUrl(url))) getState().toast(tx('Открыл ссылку в браузере. Когда файл скачается — нажми «Из файла…» и укажи его.'));
+}
+
 // ---------- озвучка текста ----------
 export async function ensureVoice(voice: TtsVoiceId): Promise<boolean> {
   const list = await api.ttsVoices();

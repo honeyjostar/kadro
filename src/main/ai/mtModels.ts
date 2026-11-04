@@ -1,12 +1,11 @@
 // Модели перевода OPUS-MT: список направлений, скачивание с проверкой SHA-256 (без onnxruntime — можно
 // звать из главного процесса). Модели лежат в релизе translate-models репозитория Kadro.
 import { tx } from '../../shared/i18n';
-import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { bundledModel, modelsDir } from '../bins';
+import { fetchToFile, netFetch, netReason, sha256File } from './download';
 
 export const MT_BASE = 'https://github.com/honeyjostar/kadro/releases/download/translate-models';
 const mtBase = () => process.env.KADRO_MT_BASE || MT_BASE;
@@ -26,7 +25,7 @@ const listDirs = (root: string): string[] => { try { return fs.readdirSync(root)
 async function getManifest(signal?: AbortSignal): Promise<MtManifestEntry[]> {
   const url = `${mtBase()}/manifest.json`;
   const text = url.startsWith('file:') ? fs.readFileSync(new URL(url), 'utf8') : await (async () => {
-    const r = await fetch(url, { signal });
+    const r = await netFetch()(url, { signal, redirect: 'follow' }).catch((e) => { throw new Error(tx('Список моделей перевода недоступен: {0}', netReason(e))); });
     if (!r.ok) throw new Error(tx('Список моделей перевода недоступен ({0})', r.status));
     return r.text();
   })();
@@ -68,23 +67,20 @@ export async function downloadMt(pairs: string[], onProgress: (p: number) => voi
     const dir = userDir(it.pair);
     fs.mkdirSync(dir, { recursive: true });
     const dest = path.join(dir, it.name);
-    const part = `${dest}.part`;
-    const hash = createHash('sha256');
     const url = `${mtBase()}/${it.entry.file}`;
-    const body: Readable = url.startsWith('file:')
-      ? fs.createReadStream(new URL(url))
-      : await (async () => {
-        const r = await fetch(url, { signal });
-        if (!r.ok || !r.body) throw new Error(tx('Модель перевода не скачалась ({0})', r.status));
-        return Readable.fromWeb(r.body as never);
-      })();
-    let got = 0;
-    body.on('data', (c: Buffer) => { hash.update(c); got += c.length; onProgress(Math.min(0.999, (done + got) / total)); });
-    try {
-      await pipeline(body, fs.createWriteStream(part), { signal });
-    } catch (e) { fs.rmSync(part, { force: true }); throw e; }
-    if (hash.digest('hex') !== it.entry.sha256) { fs.rmSync(part, { force: true }); throw new Error(tx('Модель перевода скачалась с ошибкой — попробуй ещё раз')); }
-    fs.renameSync(part, dest);
+    const tmp = `${dest}.dl`;
+    if (url.startsWith('file:')) {
+      await pipeline(fs.createReadStream(new URL(url)), fs.createWriteStream(tmp), { signal });
+    } else {
+      try {
+        await fetchToFile(url, tmp, { size: it.entry.size, signal, onBytes: (got) => onProgress(Math.min(0.999, (done + got) / total)) });
+      } catch (e) {
+        if (signal?.aborted) throw new Error(tx('Отменено'));
+        throw new Error(tx('Модель перевода не скачалась: {0}', e instanceof Error && /HTTP|скачалось/.test(e.message) ? e.message : netReason(e)));
+      }
+    }
+    if ((await sha256File(tmp)) !== it.entry.sha256) { fs.rmSync(tmp, { force: true }); throw new Error(tx('Модель перевода скачалась с ошибкой — попробуй ещё раз')); }
+    fs.renameSync(tmp, dest);
     done += it.entry.size;
   }
   onProgress(1);

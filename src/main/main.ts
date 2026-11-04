@@ -23,7 +23,7 @@ import { highlights } from './highlights';
 import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
 import { normalizeAppearance, type Appearance } from '../shared/appearance';
 import type { MediaAsset, Project } from '../shared/types';
-import { ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady } from './ai/models';
+import { AI_MIRROR, ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady, type AsrModelId, type TtsVoiceId } from './ai/models';
 import { denoise } from './ai/denoise';
 import { processVoice } from './ai/voice';
 import { stabilize } from './ai/stab';
@@ -265,6 +265,10 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       const out = path.join(cacheDir('ai'), `stab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.mp4`);
       await stabilize(job.path, job.in, job.out - job.in, job.strength, out, (p) => send(p, tx('Стабилизирую')), ac.signal);
       return { ok: true, output: { kind: 'stab', path: out, range: [job.in, job.out] } };
+    }
+    if (job.kind === 'modelImport') {
+      await workerCall(id, { kind: 'install', what: job.what, model: job.id, file: job.file });
+      return { ok: true, output: { kind: 'download' } };
     }
     if (job.kind === 'ttsDownload') {
       await workerCall(id, { kind: 'ttsDownload', voice: job.voice });
@@ -756,6 +760,31 @@ function registerIpc(): void {
   ipcMain.handle('ai:voices', async (): Promise<VoiceInfo[]> =>
     Object.values(TTS_VOICES).map((v) => ({ id: v.id, label: v.label, sizeMb: v.sizeMb, ready: ttsVoiceReady(v.id) })));
   ipcMain.handle('ai:run', (_e, job: AiJob) => runAi(job));
+  // модели вручную: архив, скачанный в браузере (если Kadro сам скачать не смог)
+  ipcMain.handle('ai:pickArchive', async () => {
+    if (process.env.KADRO_TEST_ARCHIVE) return process.env.KADRO_TEST_ARCHIVE; // автотесты: без системного окна
+    const r = await dialog.showOpenDialog(win!, { title: tx('Архив модели'), properties: ['openFile'], filters: [{ name: tx('Архив модели (.tar, .tar.bz2)'), extensions: ['tar', 'bz2'] }] });
+    return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
+  });
+  ipcMain.handle('ai:modelUrls', async (_e, what: 'asr' | 'tts', id: string) => {
+    const m = await import('./ai/models');
+    if (what === 'asr' && id in m.ASR_MODELS) return m.asrManualUrls(id as AsrModelId);
+    if (what === 'tts' && id in m.TTS_VOICES) return m.ttsManualUrls(id as TtsVoiceId);
+    return [];
+  });
+  ipcMain.handle('ai:openModelUrl', async (_e, url: string) => {
+    const ok = typeof url === 'string' && (url.startsWith(`${AI_MIRROR}/`) || /^https:\/\/github\.com\/k2-fsa\/sherpa-onnx\/releases\/download\/(asr|tts)-models\/[\w.-]+\.tar\.bz2$/.test(url));
+    if (ok && !process.env.KADRO_NO_OPEN) await shell.openExternal(url);
+    return ok;
+  });
+  ipcMain.handle('ai:deleteModel', async (_e, what: 'asr' | 'tts', id: string) => {
+    const m = await import('./ai/models');
+    const dir = what === 'asr' && id in m.ASR_MODELS ? path.join(modelsDir(), m.ASR_MODELS[id as AsrModelId].dir)
+      : what === 'tts' && id in m.TTS_VOICES ? m.ttsVoiceDir(id as TtsVoiceId) : '';
+    if (!dir || !dir.startsWith(modelsDir())) return false;
+    fs.rmSync(dir, { recursive: true, force: true });
+    return true;
+  });
   // перевод субтитров: какие направления есть и какие уже скачаны
   ipcMain.handle('mt:info', async () => (await import('./ai/mtModels')).mtPairs());
   ipcMain.handle('lut:pick', async () => {
