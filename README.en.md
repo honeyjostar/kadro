@@ -35,7 +35,7 @@ time you use it, and to check for updates (you can turn that off).
 ## What it can do
 
 **Auto Video and Script to Video**
-- Choose videos, photos and music — Kadro finds the best parts (sharp, bright, steady, with motion, no repeats) and cuts them exactly to the beat; 10 styles including **Velocity**, Beat flash, 3D zoom and Text on the beat; shorter shots where the music is loud, a cut right on the **drop**, “Another take”.
+- Choose videos, photos and music — Kadro finds the best parts (in focus, bright, steady, with motion — no freeze frames, shake or whip pans) and cuts them on the strong beats: it finds the downbeat, phrase starts and the **drop**; clips from different files are interleaved, flashes are rare and well placed; 10 styles including **Velocity**, Beat flash, 3D zoom and Text on the beat; “Another take”.
 - **Repeat an edit from a video** (like CapCut templates): pick a video you like — Kadro finds its cuts, flashes and zooms, takes its music and puts your footage into the same slots.
 - Paste a script — Kadro splits it into scenes, voices them (6 offline voices), picks shots from your footage and adds captions that match the text.
 
@@ -44,7 +44,7 @@ time you use it, and to check for updates (you can turn that off).
 - **Markers** (key M) with names and colors; they become YouTube chapters and chapters inside the exported MP4.
 - Frame formats 9:16, 16:9, 1:1, 4:5, 3:4, 4:3, 21:9; resolution 720p–4K, 24–60 fps; opens almost any video, photo and audio file.
 - **Collect project into a folder** with media, fonts and plugins — on another computer everything is found and installed by itself; **shortcuts window** (F1).
-- Groups, keyframes, masks, chroma key with an **eraser and restore brush**, blend modes, perspective tilt and corner pinning, 3D objects (GLB, GLTF, OBJ, STL, FBX).
+- Groups, keyframes, masks, chroma key with an **eraser and restore brush**, blend modes, perspective tilt and corner pinning, 3D objects (GLB, GLTF, OBJ, STL, FBX) — rotate them with the mouse, on the X/Y/Z axes, move, zoom, animate from one angle to another.
 - Speed 0.25×–4× with pitch kept, speed curves, smooth slow motion with generated frames, reverse, freeze frame.
 
 **Transitions, effects, color**
@@ -61,7 +61,7 @@ time you use it, and to check for updates (you can turn that off).
 
 **Publishing**
 - Safe zones for TikTok, Reels and Shorts in the player and a pre-publish check.
-- MP4 (H.264) export, NVIDIA NVENC acceleration; autosaved drafts, `.kadro` projects.
+- MP4 (H.264) export with GPU encoding on NVIDIA (NVENC), AMD (AMF) and Intel (Quick Sync); Settings → Computer shows your GPU and why it doesn't encode, if it doesn't; autosaved drafts, `.kadro` projects.
 - **Auto-update** and **Report a bug** (a ready GitHub issue with version and log — you see everything before sending).
 
 ## System requirements
@@ -69,7 +69,7 @@ time you use it, and to check for updates (you can turn that off).
 - Windows 10 or 11, 64-bit
 - 8 GB RAM (16 GB is better for 4K and background removal)
 - About 1 GB of disk space plus optional AI models (speech recognition up to 0.5 GB, translation ~165 MB per direction)
-- A graphics card is optional; NVIDIA speeds up export
+- A graphics card is optional; NVIDIA (driver 570+), AMD and Intel speed up export
 
 ## Install
 

@@ -46,6 +46,8 @@ npm run dev          # сборка и запуск
 | `KADRO_FFMPEG`, `KADRO_FFPROBE` | свой FFmpeg |
 | `KADRO_DATA` | папка данных вместо `~/.kadro` (черновик, кэш, модели) |
 | `KADRO_MODELS` | папка моделей ИИ |
+| `KADRO_AI_MIRROR` | откуда качать модели распознавания и голоса вместо релиза `ai-models` (автотесты; `KADRO_AI_MIRROR_ONLY=1` — без запасного источника) |
+| `KADRO_TEST_HW` | подставное «железо» (JSON или путь к JSON): видеокарты и итог проверки кодировщиков — для тестов окна «Компьютер» |
 | `KADRO_MULTI=1` | разрешить несколько окон программы (для тестов) |
 | `ONNXRUNTIME_NODE_INSTALL=skip` | при `npm ci` не качать CUDA-версию ONNX Runtime (она не нужна) |
 
@@ -105,7 +107,11 @@ curl -fL -o ffmpeg-win.zip "https://github.com/BtbN/FFmpeg-Builds/releases/downl
 node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip
 ```
 
-Результат — `release/Kadro-Setup-<версия>.exe` (около 195 МБ; после установки программа занимает около 700 МБ) и папка `release/win-unpacked` с готовой программой.
+Результат — `release/Kadro-Setup-<версия>.exe` (около 315 МБ) и папка `release/win-unpacked` с готовой программой.
+
+FFmpeg — стабильная ветка 8.1, а не `master`: в сборках `master` кодировщик NVENC собран под новейший NVIDIA Video Codec SDK
+и требует драйвер 610+, а 8.1 — драйвер 570+. Кодировщики видеокарт (NVENC, AMF, Quick Sync, Media Foundation) Kadro
+проверяет пробным кодированием при запуске (`src/main/hardware.ts`), причины отказа разбирает `src/shared/hw.ts`.
 Скрипт сам подкладывает Windows-версии нативных модулей (sherpa-onnx, ONNX Runtime), FFmpeg, встроенные модели, значок и лицензии.
 Оформление установщика — картинки `resources/installer/wizard.bmp` (боковая панель) и `header.bmp` (шапка); их рисует `node scripts/make-installer-art.mjs` (HTML со шрифтами Kadro → снимок в 2× → BMP).
 

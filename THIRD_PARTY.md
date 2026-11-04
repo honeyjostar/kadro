@@ -20,8 +20,10 @@ Kadro распространяется под GNU GPL v3 или новее. В �
 | [three.js](https://threejs.org/) (вместе с загрузчиками GLTF, OBJ, STL, FBX и RoomEnvironment) | MIT | 3D-объекты |
 | [gl-transitions](https://github.com/gl-transitions/gl-transitions) — 123 перехода (npm `gl-transitions` 2.0.0) | MIT; InvertedPageCurl — BSD-3-Clause (Hewlett-Packard), StereoViewer — BSD-2-Clause (Theodore K Schundler); авторы и лицензии всех переходов — [docs/licenses/gl-transitions.md](docs/licenses/gl-transitions.md), тексты BSD — в коде этих переходов | переходы-шейдеры |
 
-Модели, которые скачиваются по кнопке, не входят в установщик: программа берёт их с GitHub проекта sherpa-onnx,
-а модели перевода — из релиза [translate-models](https://github.com/honeyjostar/kadro/releases/tag/translate-models)
-этого репозитория (копия с Hugging Face, файлы сверяются по SHA-256).
+Модели, которые скачиваются по кнопке, не входят в установщик: распознавание речи и голоса программа берёт из релиза
+[ai-models](https://github.com/honeyjostar/kadro/releases/tag/ai-models) этого репозитория (копия моделей проекта sherpa-onnx
+без изменений, только перепакована в .tar; файлы сверяются по SHA-256), а если там их нет — с GitHub проекта sherpa-onnx;
+модели перевода — из релиза [translate-models](https://github.com/honeyjostar/kadro/releases/tag/translate-models)
+(копия с Hugging Face, файлы сверяются по SHA-256).
 
 Демо-ролики, демо-бит и превью шаблонов (`resources/demo`, `resources/templates`) сделаны в самом проекте кодом — `scripts/make-demo.mjs`, `scripts/demo-scenes.js`, `tests/e2e/previews.spec.ts` — и распространяются под лицензией Kadro.
