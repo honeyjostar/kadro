@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { useEffect, useRef } from 'react';
-import { deleteSelection, dropOnHome, dropPaths, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection } from '../actions';
+import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection } from '../actions';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
@@ -149,9 +149,16 @@ export function App() {
       // шрифты — ставим в «Мои шрифты»
       const fonts = paths.filter((p) => /\.(ttf|otf|ttc|otc|woff2?)$/i.test(p));
       if (fonts.length) { void api.installFonts(fonts).then(reportFontInstall); paths = paths.filter((p) => !fonts.includes(p)); }
+      // субтитры .srt/.vtt — дорожкой субтитров в открытый проект
+      const subs = paths.filter((p) => /\.(srt|vtt)$/i.test(p));
+      if (subs.length) {
+        paths = paths.filter((p) => !subs.includes(p));
+        if (getState().home && !paths.length) getState().toast(tx('Субтитры встают в проект: открой или создай проект и перетащи файл ещё раз'));
+        else if (!getState().home) void importSubtitles(subs[subs.length - 1]);
+      }
       if (!paths.length) return;
-      // на главный экран — новым проектом (текущий не трогаем), в редактор — в текущий
-      if (getState().home) { void dropOnHome(paths); return; }
+      // на главный экран — новым проектом (текущий не трогаем), в редактор — в текущий; субтитры — уже в новый проект
+      if (getState().home) { void dropOnHome(paths).then(() => { if (subs.length && !getState().home) void importSubtitles(subs[subs.length - 1]); }); return; }
       void dropPaths(paths);
     };
     window.addEventListener('dragover', over);

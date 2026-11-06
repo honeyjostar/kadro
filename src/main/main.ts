@@ -23,6 +23,7 @@ import { highlights } from './highlights';
 import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
 import { normalizeAppearance, type Appearance } from '../shared/appearance';
 import type { MediaAsset, Project } from '../shared/types';
+import { decodeSubtitleBytes } from '../shared/subtitles';
 import { AI_MIRROR, ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady, type AsrModelId, type TtsVoiceId } from './ai/models';
 import { denoise } from './ai/denoise';
 import { processVoice } from './ai/voice';
@@ -761,6 +762,30 @@ function registerIpc(): void {
     Object.values(TTS_VOICES).map((v) => ({ id: v.id, label: v.label, sizeMb: v.sizeMb, ready: ttsVoiceReady(v.id) })));
   ipcMain.handle('ai:run', (_e, job: AiJob) => runAi(job));
   // модели вручную: архив, скачанный в браузере (если Kadro сам скачать не смог)
+  // готовые субтитры: выбрать .srt/.vtt, прочитать (с определением кодировки), сохранить .srt
+  ipcMain.handle('subs:pick', async () => {
+    if (process.env.KADRO_TEST_SUBS) return process.env.KADRO_TEST_SUBS; // автотесты: без системного окна
+    const r = await dialog.showOpenDialog(win!, { title: tx('Файл субтитров'), properties: ['openFile'], filters: [{ name: tx('Субтитры (.srt, .vtt)'), extensions: ['srt', 'vtt'] }, { name: tx('Все файлы'), extensions: ['*'] }] });
+    return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
+  });
+  ipcMain.handle('subs:read', async (_e, file: string) => {
+    if (typeof file !== 'string' || !/\.(srt|vtt)$/i.test(file)) return { error: tx('Нужен файл .srt или .vtt') };
+    try {
+      const st = fs.statSync(file);
+      if (st.size > 20 * 1024 * 1024) return { error: tx('Файл слишком большой для субтитров') };
+      return { text: decodeSubtitleBytes(fs.readFileSync(file)), name: path.basename(file) };
+    } catch (err) { return { error: String((err as Error).message || err) }; }
+  });
+  ipcMain.handle('subs:save', async (_e, name: string, text: string) => {
+    let target = process.env.KADRO_TEST_SUBS_SAVE ?? null; // автотесты: без системного окна
+    if (!target) {
+      const r = await dialog.showSaveDialog(win!, { title: tx('Сохранить субтитры'), defaultPath: path.join(app.getPath('documents'), `${name || 'Kadro'}.srt`), filters: [{ name: tx('Субтитры SRT'), extensions: ['srt'] }] });
+      if (r.canceled || !r.filePath) return null;
+      target = r.filePath;
+    }
+    fs.writeFileSync(target, text, 'utf8');
+    return target;
+  });
   ipcMain.handle('ai:pickArchive', async () => {
     if (process.env.KADRO_TEST_ARCHIVE) return process.env.KADRO_TEST_ARCHIVE; // автотесты: без системного окна
     const r = await dialog.showOpenDialog(win!, { title: tx('Архив модели'), properties: ['openFile'], filters: [{ name: tx('Архив модели (.tar, .tar.bz2)'), extensions: ['tar', 'bz2'] }] });

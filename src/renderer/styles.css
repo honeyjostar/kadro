@@ -625,6 +625,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .ramp-editor circle { fill: var(--panel); stroke: var(--accent); stroke-width: 2; cursor: grab; }
 .ramp-editor circle:hover { fill: var(--accent); }
 .row-btns { display: flex; gap: 8px; margin-top: 8px; }
+.col-btns { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
 .row-btns .btn { flex: 1; justify-content: center; }
 
 /* запись голоса */

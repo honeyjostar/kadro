@@ -56,6 +56,7 @@ time you use it, and to check for updates (you can turn that off).
 - **Preview a track** before putting it on the timeline.
 - Auto captions (Russian, English and 23 more languages), **offline caption translation** (Russian ⇄ English built in; to English, Russian, Ukrainian, German, Spanish,
   French, Italian, Chinese, Arabic — others via English), replacing the original or as two lines.
+- **Subtitle files**: load `.srt` and `.vtt` (encoding detected automatically, including Windows-1251) and save captions to `.srt`.
 - Background removal without a green screen, clean voice, remove pauses, stabilization, auto reframe, face retouch, text-to-speech.
 - Voice recording, voice effects, beat detection and snapping cuts to the beat.
 

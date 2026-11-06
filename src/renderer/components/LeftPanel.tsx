@@ -3,7 +3,7 @@ import { txj } from '../txj';
 import {
   Clapperboard,
   Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -26,7 +26,7 @@ import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextSty
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles,
 } from '../actions';
 import { useMenu, type MenuEntry } from './Menu';
 import { listMics, recPrefs, type MicInfo } from '../recorder';
@@ -650,6 +650,15 @@ function CaptionsPanel() {
           <button className="btn primary block" disabled={running} onClick={() => void makeCaptions(model, music)} data-testid="make-captions">
             {running ? tx('Распознаю…') : captions.length ? tx('Создать заново') : tx('Создать субтитры')}
           </button>
+        </div>
+
+        <div className="ai-card" data-testid="subs-file">
+          <h4><FileText size={15} />{tx('Готовые субтитры')}</h4>
+          <p className="hint">{tx('Файл .srt или .vtt: время и текст встанут как в файле. Можно просто перетащить файл в окно.')}</p>
+          <div className="col-btns">
+            <button className="btn block" onClick={() => void importSubtitles()} data-testid="subs-import"><FileUp size={15} />{tx('Загрузить .srt / .vtt')}</button>
+            {first && <button className="btn block" onClick={() => void exportSubtitles()} data-testid="subs-export"><Download size={15} />{tx('Сохранить .srt')}</button>}
+          </div>
         </div>
 
         {first && <TranslateCard captions={captions} />}

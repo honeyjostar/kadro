@@ -17,6 +17,7 @@ import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit'
 import { readingTime, scriptBase, scriptEdit, splitScript, type ScriptScene, type ScriptSummary } from '../shared/scriptVideo';
 import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, TextClip, VoiceEffect } from '../shared/types';
 import { retimeWords } from '../shared/captions';
+import { cuesToSrt, parseSubtitles } from '../shared/subtitles';
 import { copyAttrs } from '../shared/attrs';
 import { groupCues, langLabel, splitTranslation, type LangCode } from '../shared/translate';
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
@@ -26,6 +27,9 @@ import { addMarker, nextMarker, prevMarker, youtubeChapters } from '../shared/ma
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
+  // файл субтитров — не медиа: встаёт дорожкой субтитров
+  const subs = paths.filter((p) => /\.(srt|vtt)$/i.test(p));
+  if (subs.length) { await importSubtitles(subs[subs.length - 1]); paths = paths.filter((p) => !subs.includes(p)); }
   if (!paths.length) return [];
   const s = getState();
   const jobId = `import_${uidShort()}`;
@@ -907,6 +911,32 @@ export async function ensureModel(model: 'multi' | 'ru'): Promise<boolean> {
   if (!r.ok) { if (r.error !== tx('Отменено')) getState().toast(tx('Модель не скачалась: {0}', r.error), 'err'); return false; }
   getState().toast(tx('Модель скачана — работает без интернета'), 'ok');
   return true;
+}
+
+/** Готовые субтитры из файла .srt/.vtt (file не задан — окно выбора): встают вместо прежних, время — как в файле. */
+export async function importSubtitles(file?: string): Promise<boolean> {
+  const f = file ?? (await api.pickSubtitles());
+  if (!f) return false;
+  const r = await api.readSubtitles(f);
+  const name = f.split(/[\\/]/).pop() ?? f;
+  if ('error' in r) { getState().toast(tx('Не получилось открыть «{0}»: {1}', name, r.error), 'err'); return false; }
+  const cues = parseSubtitles(r.text);
+  if (!cues.length) { getState().toast(tx('В «{0}» нет субтитров: нужен файл .srt или .vtt со временем и текстом', name), 'err'); return false; }
+  const vertical = getState().project.settings.height > getState().project.settings.width;
+  getState().commit((p) => setCaptions(p, cues, CAPTION_STYLE, vertical ? 0.64 : 0.86));
+  getState().toast(tx('Загружено субтитров: {0}. Их можно поправить — кликни по любому.', cues.length), 'ok');
+  return true;
+}
+
+/** Все субтитры проекта — в файл .srt (для YouTube и плееров). */
+export async function exportSubtitles(): Promise<boolean> {
+  const s = getState();
+  const caps = s.project.tracks.flatMap((t) => t.clips.filter((c): c is TextClip => c.type === 'text' && c.role === 'caption'));
+  if (!caps.length) { s.toast(tx('Субтитров пока нет')); return false; }
+  const text = cuesToSrt(caps.map((c) => ({ start: c.start, end: c.start + c.duration, text: c.text })));
+  const saved = await api.saveSubtitles(s.project.name || 'Kadro', text);
+  if (saved) getState().toast(tx('Субтитры сохранены: {0}', saved.split(/[\\/]/).pop() ?? saved), 'ok');
+  return !!saved;
 }
 
 export async function makeCaptions(model: 'multi' | 'ru', includeMusic: boolean): Promise<boolean> {

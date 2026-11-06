@@ -204,6 +204,10 @@ export interface KadroApi {
   models(): Promise<ModelInfo[]>;
   /** Модели ИИ вручную: выбрать скачанный архив, ссылки для браузера, открыть ссылку, удалить модель. */
   pickModelArchive(): Promise<string | null>;
+  /** Готовые субтитры: выбрать .srt/.vtt, прочитать текст (кодировка — сама), сохранить .srt. */
+  pickSubtitles(): Promise<string | null>;
+  readSubtitles(file: string): Promise<{ text: string; name: string } | { error: string }>;
+  saveSubtitles(name: string, text: string): Promise<string | null>;
   modelUrls(what: 'asr' | 'tts', id: string): Promise<string[]>;
   openModelUrl(url: string): Promise<boolean>;
   deleteModel(what: 'asr' | 'tts', id: string): Promise<boolean>;
