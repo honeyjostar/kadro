@@ -118,6 +118,9 @@ export interface KadroApi {
   /** Язык интерфейса (известен до загрузки окна). */
   lang: 'ru' | 'en';
   setLang(l: 'ru' | 'en'): Promise<boolean>;
+  /** Первый запуск: показать приветствие с выбором языка. */
+  welcome: boolean;
+  welcomeDone(): Promise<boolean>;
   bugInfo(): Promise<import('./bugReport').BugInfo>;
   openUrl(url: string): Promise<boolean>;
   openLogs(): Promise<string>;

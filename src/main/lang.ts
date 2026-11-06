@@ -1,6 +1,7 @@
 // Язык интерфейса для главного процесса — до загрузки остального кода (некоторые подписи считаются при
 // загрузке модулей). Порядок: KADRO_LANG (автотесты) → настройки → для нового пользователя язык Windows.
 // Результат кладётся в process.env.KADRO_LANG: его читают src/shared/i18n.ts и ИИ-процесс.
+// При самом первом запуске — ещё и отметка welcome: 'pending': окно покажет выбор языка.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -19,3 +20,13 @@ function pick(): 'ru' | 'en' {
 }
 
 process.env.KADRO_LANG = pick();
+
+// первый запуск (настроек ещё нет): язык угадан по Windows — записываем его сразу (чтобы при закрытии окна
+// приветствия Kadro не решил, что человек уже пользовался им по-русски) и просим показать выбор языка
+(() => {
+  if (process.env.KADRO_SKIP_WELCOME) return; // автотесты
+  const dir = process.env.KADRO_DATA || path.join(os.homedir(), '.kadro');
+  const file = path.join(dir, 'settings.json');
+  if (fs.existsSync(file)) return;
+  try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(file, JSON.stringify({ lang: process.env.KADRO_LANG, welcome: 'pending' }, null, 2)); } catch { /* не критично */ }
+})();

@@ -1093,3 +1093,15 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .ref-strip i { display: block; min-width: 2px; flex-basis: 0; border-radius: 2px; background: var(--accent-soft); border: 1px solid var(--accent); }
 .ref-strip i.flash { background: #fff; border-color: var(--line); }
 .ref-strip i.zoom { background: var(--accent); }
+
+/* приветствие при первом запуске */
+.welcome-back { z-index: 60; }
+.welcome-modal { width: 460px; text-align: left; }
+.welcome-logo { display: flex; align-items: center; gap: 10px; font: 700 22px/1 var(--logo); letter-spacing: -0.02em; margin-bottom: 14px; }
+.welcome-logo .logo-mark { width: 34px; height: 34px; }
+.welcome-langs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0 10px; }
+.welcome-lang { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--raised); color: var(--text); cursor: pointer; text-align: left; }
+.welcome-lang:hover:not(:disabled) { border-color: var(--accent); }
+.welcome-lang.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.welcome-lang:disabled { opacity: .6; cursor: default; }
+.welcome-lang-name { font-weight: 600; font-size: 16px; }

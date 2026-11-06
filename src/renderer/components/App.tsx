@@ -1,9 +1,10 @@
 import { tx } from '../../shared/i18n';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection } from '../actions';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
+import { Welcome } from './Welcome';
 import { Model3DDialog } from './Objects3D';
 import { AutoEditDialog } from './AutoEdit';
 import { SettingsDialog } from './Settings';
@@ -36,6 +37,7 @@ export function App() {
   const tlHeight = useStore((s) => s.tlHeight);
   const exportOpen = useStore((s) => s.exportOpen);
   const home = useStore((s) => s.home);
+  const [welcome, setWelcome] = useState(() => !!api.welcome);
   const m3d = useStore((s) => s.model3dEdit);
   const autoOpen = useStore((s) => s.autoOpen);
   const settingsOpen = useStore((s) => s.settingsOpen);
@@ -202,6 +204,7 @@ export function App() {
       {chromaPaintClip && <ChromaPaintDialog key={chromaPaintClip} clipId={chromaPaintClip} />}
       {refOpen && <RefEditDialog />}
       {bugOpen && <BugDialog initial={bugOpen.what} onClose={() => getState().setBugOpen(null)} />}
+      {welcome && <Welcome onDone={() => setWelcome(false)} />}
       <UpdateCard />
       <Jobs />
       <Toasts />

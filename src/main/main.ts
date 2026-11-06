@@ -416,7 +416,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance> }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance> }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -892,6 +892,9 @@ function registerIpc(): void {
   ipcMain.on('win:title', (_e, t: string) => win?.setTitle(t));
   // язык интерфейса: окно спрашивает его до загрузки; смена — перезапуск всей программы
   ipcMain.on('lang:get', (e) => { e.returnValue = uiLang(); });
+  // приветствие при первом запуске (выбор языка): показать ли, и «больше не показывать»
+  ipcMain.on('app:welcome', (e) => { e.returnValue = readSettings().welcome === 'pending'; });
+  ipcMain.handle('app:welcomeDone', () => { writeSettings({ ...readSettings(), welcome: 'done' }); return true; });
   ipcMain.handle('lang:set', (_e, l: 'ru' | 'en') => {
     if (l !== 'ru' && l !== 'en') return false;
     writeSettings({ ...readSettings(), lang: l });
