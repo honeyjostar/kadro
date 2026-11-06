@@ -22,7 +22,7 @@ import * as m3d from './model3d';
 import { highlights } from './highlights';
 import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
 import { normalizeAppearance, type Appearance } from '../shared/appearance';
-import type { MediaAsset, Project } from '../shared/types';
+import type { AspectKey, MediaAsset, Project } from '../shared/types';
 import { decodeSubtitleBytes } from '../shared/subtitles';
 import { AI_MIRROR, ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady, type AsrModelId, type TtsVoiceId } from './ai/models';
 import { denoise } from './ai/denoise';
@@ -416,7 +416,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance> }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance> }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -895,6 +895,9 @@ function registerIpc(): void {
   // приветствие при первом запуске (выбор языка): показать ли, и «больше не показывать»
   ipcMain.on('app:welcome', (e) => { e.returnValue = readSettings().welcome === 'pending'; });
   ipcMain.handle('app:welcomeDone', () => { writeSettings({ ...readSettings(), welcome: 'done' }); return true; });
+  // основной формат роликов: новые проекты сразу в нём
+  ipcMain.on('prefs:format', (e) => { e.returnValue = readSettings().format ?? null; });
+  ipcMain.on('prefs:setFormat', (_e, a: AspectKey) => { if (['9:16', '16:9', '1:1', '4:5', '3:4', '4:3', '21:9'].includes(a)) writeSettings({ ...readSettings(), format: a }); });
   ipcMain.handle('lang:set', (_e, l: 'ru' | 'en') => {
     if (l !== 'ru' && l !== 'en') return false;
     writeSettings({ ...readSettings(), lang: l });

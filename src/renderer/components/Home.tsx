@@ -64,6 +64,7 @@ export function Home() {
   const current = hasClips ? { name: currentName } : null;
   const [showAtStart, setShowAtStart] = useState(true);
   const themePref = useStore((s) => s.themePref);
+  const defaultFormat = useStore((s) => s.defaultFormat);
   const reel = useRef<HTMLVideoElement>(null);
 
   const load = () => void api.homeInfo().then((i) => { setInfo(i); setShowAtStart(i.show); getState().setDemo(i.demo); });
@@ -100,12 +101,13 @@ export function Home() {
             <p className="home-lead">{tx('Выбери формат — откроется пустой проект нужного размера. Его можно поменять потом.')}</p>
             <div className="home-formats">
               {FORMATS.map((f) => (
-                <button key={f.aspect} className="home-format" disabled={busy} data-testid={`home-new-${f.aspect.replace(':', '-')}`}
+                <button key={f.aspect} className={`home-format ${f.aspect === defaultFormat ? 'preferred' : ''}`} disabled={busy} data-testid={`home-new-${f.aspect.replace(':', '-')}`}
                   onClick={() => void run(() => newProjectAction(f.aspect))}>
                   <span className="home-shape"><span style={shapeSize(f.aspect)} /></span>
                   <b>{f.title}</b>
                   <span className="home-ratio">{f.aspect}</span>
                   <span className="hint small">{f.where}</span>
+                  {f.aspect === defaultFormat && <span className="home-pref">{tx('твой формат')}</span>}
                 </button>
               ))}
             </div>

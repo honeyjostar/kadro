@@ -57,6 +57,9 @@ interface State {
   demo: DemoFiles | null;
   /** Выбранная тема и та, что сейчас на экране (для «как в Windows»). */
   themePref: ThemePref;
+  /** Основной формат роликов (первый запуск) — подсвечен на главном экране, по умолчанию в авто-ролике и ролике по сценарию. */
+  defaultFormat: AspectKey | null;
+  setDefaultFormat: (a: AspectKey) => void;
   theme: 'dark' | 'light';
   /** Показывать в плеере, где интерфейс TikTok / Reels / Shorts закроет видео. */
   safeZone: Platform | null;
@@ -162,7 +165,7 @@ export function takeEarlyPatches(ids: string[]): void {
 }
 
 export const useStore = create<State>((set, get) => ({
-  project: newProject(),
+  project: newProject(undefined, api.defaultFormat ?? '9:16'),
   projectPath: null,
   savedAt: null,
   dirty: false,
@@ -184,6 +187,7 @@ export const useStore = create<State>((set, get) => ({
   home: false,
   demo: null,
   themePref: api?.initialTheme?.pref ?? 'dark',
+  defaultFormat: api?.defaultFormat ?? null,
   theme: api?.initialTheme?.dark === false ? 'light' : 'dark',
   safeZone: readPref<Platform | null>('kadro.safeZone', null),
   libJump: null,
@@ -278,6 +282,7 @@ export const useStore = create<State>((set, get) => ({
   setHome: (b) => set(b ? { home: true, playing: false } : { home: false }),
   setDemo: (d) => set({ demo: d }),
   setThemePref: (t) => { api.setTheme(t); set({ themePref: t }); },
+  setDefaultFormat: (a) => { api.setDefaultFormat(a); set({ defaultFormat: a }); },
   setTheme: (t) => set({ theme: t }),
   setSafeZone: (z) => { writePref('kadro.safeZone', z); set({ safeZone: z }); },
   setLibJump: (p) => set({ libJump: p }),

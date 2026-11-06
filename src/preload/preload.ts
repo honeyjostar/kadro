@@ -39,6 +39,8 @@ const api: KadroApi = {
   setLang: (l) => ipcRenderer.invoke('lang:set', l),
   welcome: ipcRenderer.sendSync('app:welcome'),
   welcomeDone: () => ipcRenderer.invoke('app:welcomeDone'),
+  defaultFormat: ipcRenderer.sendSync('prefs:format'),
+  setDefaultFormat: (a) => ipcRenderer.send('prefs:setFormat', a),
   initialTheme: ipcRenderer.sendSync('theme:get'),
   setTheme: (pref) => ipcRenderer.send('theme:set', pref),
   onThemeChanged: (cb) => on('theme:changed', cb),

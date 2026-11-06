@@ -1,14 +1,16 @@
-// Первый запуск: окно приветствия с выбором языка (язык угадан по системе, выбранный запоминается),
-// после «Начать» — больше не показывается; у тех, кто уже пользовался Kadro, его нет.
+// Первый запуск: приветствие в три шага — язык и тема, основной формат, компьютер и модели ИИ.
+// Язык угадан по системе и запоминается сразу; выбранное сохраняется; после «Начать» окно больше не показывается;
+// у тех, кто уже пользовался Kadro, его нет.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { launch } from './kadro';
+import { launch, store } from './kadro';
 
 const settings = (data: string) => JSON.parse(fs.readFileSync(path.join(data, 'settings.json'), 'utf8'));
+const HW = JSON.stringify({ cpu: 'Intel(R) Core(TM) i5-12400F', threads: 12, ramGb: 16, gpus: [{ name: 'NVIDIA GeForce RTX 3060', vendor: 'nvidia', driver: '566.36' }], encoders: [{ id: 'nvenc', ok: true }, { id: 'mf', ok: true }] });
 
-test('первый запуск: выбор языка, «Начать» — и больше не показывается', async () => {
+test('язык: другой — запоминается и перезапуск уже на нём', async () => {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-welcome-'));
   let K = await launch({ data, env: { KADRO_SKIP_WELCOME: '', KADRO_NO_RELAUNCH: '1' } });
   const w = K.win.getByTestId('welcome');
@@ -16,7 +18,6 @@ test('первый запуск: выбор языка, «Начать» — и 
   await expect(w).toContainText('Welcome to Kadro');
   await expect(K.win.getByTestId('welcome-lang-ru')).toHaveClass(/active/);
   expect(settings(data)).toMatchObject({ lang: 'ru', welcome: 'pending' });
-  // другой язык — запоминается, Kadro перезапускается (в автотесте без перезапуска)
   await K.win.getByTestId('welcome-lang-en').click();
   await expect(K.win.getByTestId('welcome-restart')).toContainText('English');
   await expect.poll(() => settings(data).lang).toBe('en');
@@ -25,14 +26,45 @@ test('первый запуск: выбор языка, «Начать» — и 
   K = await launch({ data, env: { KADRO_SKIP_WELCOME: '', KADRO_LANG: '' } });
   await expect(K.win.getByTestId('welcome')).toBeVisible();
   await expect(K.win.getByTestId('welcome-lang-en')).toHaveClass(/active/);
-  await expect(K.win.getByTestId('welcome-go')).toHaveText('Start');
-  await K.win.getByTestId('welcome-go').click();
+  await expect(K.win.getByTestId('welcome-next')).toHaveText('Next');
+  await K.win.getByTestId('welcome-skip').click();
   await expect(K.win.getByTestId('welcome')).toHaveCount(0);
   expect(settings(data)).toMatchObject({ lang: 'en', welcome: 'done' });
   await K.app.close();
-  K = await launch({ data, env: { KADRO_SKIP_WELCOME: '', KADRO_LANG: '' } });
+});
+
+test('тема, формат, компьютер и модели ИИ — и больше не показывается', async () => {
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-welcome2-'));
+  let K = await launch({ data, env: { KADRO_SKIP_WELCOME: '', KADRO_SKIP_HOME: '', KADRO_TEST_HW: HW } });
+  const win = K.win;
+  // шаг 1: тема меняется сразу
+  await win.getByTestId('welcome-theme').locator('[data-value=light]').click();
+  await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
+  await win.getByTestId('welcome-next').click();
+  // шаг 2: формат — подсвечен на главном экране
+  await win.getByTestId('welcome-format-16-9').click();
+  await expect(win.getByTestId('welcome-format-16-9')).toHaveClass(/active/);
+  await expect(win.getByTestId('home-new-16-9')).toHaveClass(/preferred/);
+  await win.getByTestId('welcome-next').click();
+  // шаг 3: видеокарта и модели (в тестах модели уже скачаны — галочки «скачана»)
+  await expect(win.getByTestId('hw-gpu')).toContainText('RTX 3060');
+  await expect(win.getByTestId('hw-enc-nvenc')).toHaveClass(/ok/);
+  await expect(win.getByTestId('welcome-asr')).toBeVisible();
+  await win.getByTestId('welcome-back').click();
+  await expect(win.getByTestId('welcome')).toHaveAttribute('data-step', '1');
+  await win.getByTestId('welcome-next').click();
+  await win.getByTestId('welcome-go').click();
+  await expect(win.getByTestId('welcome')).toHaveCount(0);
+  expect(settings(data)).toMatchObject({ welcome: 'done', format: '16:9', theme: 'light' });
+  await K.app.close();
+  // повторный запуск: окна нет, новый проект — сразу 16:9, ролик по сценарию — 16:9
+  K = await launch({ data, env: { KADRO_SKIP_WELCOME: '' } });
   await expect(K.win.getByTestId('timeline')).toBeVisible();
   await expect(K.win.getByTestId('welcome')).toHaveCount(0);
+  const s = await K.win.evaluate(() => (window as any).__kadro.useStore.getState().project.settings);
+  expect(s.width).toBeGreaterThan(s.height);
+  await store(K.win, 'setSettingsOpen', true);
+  await expect(K.win.getByTestId('format-pref').locator('[data-value="16:9"]')).toHaveClass(/active/);
   await K.app.close();
 });
 

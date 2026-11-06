@@ -49,7 +49,7 @@ export function AutoEditDialog() {
   const [files, setFiles] = useState<string[]>(open?.files ?? []);
   const [music, setMusic] = useState<string | null>(open?.music !== undefined ? open.music : last?.music ?? null);
   const [style, setStyle] = useState<AutoStyle>(last?.style ?? 'energy');
-  const [aspect, setAspect] = useState<AspectKey>(open?.fresh ? last?.aspect ?? '9:16' : projAspect);
+  const [aspect, setAspect] = useState<AspectKey>(open?.fresh ? last?.aspect ?? getState().defaultFormat ?? '9:16' : projAspect);
   const [length, setLength] = useState<number | 'auto'>(last?.length ?? 'auto');
   const [title, setTitle] = useState('');
   const [sound, setSound] = useState<'off' | 'quiet' | 'on'>(last?.videoSound ?? 'off');

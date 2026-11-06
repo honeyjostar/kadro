@@ -121,6 +121,9 @@ export interface KadroApi {
   /** Первый запуск: показать приветствие с выбором языка. */
   welcome: boolean;
   welcomeDone(): Promise<boolean>;
+  /** Основной формат роликов (выбран при первом запуске): новые проекты сразу в нём; null — не выбран. */
+  defaultFormat: import('./types').AspectKey | null;
+  setDefaultFormat(a: import('./types').AspectKey): void;
   bugInfo(): Promise<import('./bugReport').BugInfo>;
   openUrl(url: string): Promise<boolean>;
   openLogs(): Promise<string>;

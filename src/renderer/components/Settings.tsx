@@ -19,6 +19,7 @@ import { UpdateSection } from './Update';
 export function SettingsDialog() {
   const a = useStore((s) => s.appearance);
   const themePref = useStore((s) => s.themePref);
+  const defaultFormat = useStore((s) => s.defaultFormat);
   const custom = useStore((s) => s.customStatus);
   const previewQuality = useStore((s) => s.previewQuality);
   const [note, setNote] = useState('');
@@ -60,6 +61,13 @@ export function SettingsDialog() {
           <b>{tx('Тема')}</b>
           <Seg value={themePref} onChange={(v) => getState().setThemePref(v)}
             options={[{ value: 'dark', label: tx('Тёмная') }, { value: 'light', label: tx('Светлая') }, { value: 'system', label: tx('Как в Windows') }]} />
+        </section>
+
+        <section className="settings-sec" data-testid="format-pref">
+          <b>{tx('Основной формат роликов')}</b>
+          <Seg value={defaultFormat ?? '9:16'} onChange={(v) => getState().setDefaultFormat(v)}
+            options={(['9:16', '16:9', '1:1', '4:5'] as const).map((v) => ({ value: v, label: v }))} />
+          <p className="hint">{tx('Подсвечен на главном экране и выбран сразу в авто-ролике и ролике по сценарию.')}</p>
         </section>
 
         <section className="settings-sec">
@@ -140,7 +148,7 @@ export function SettingsDialog() {
 }
 
 /** Компьютер: процессор, память, видеокарты и чем кодируется видео (с причиной, если видеокарта не кодирует). */
-function HardwareSection() {
+export function HardwareSection() {
   const [hw, setHw] = useState<HwInfo | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { void api.hardware().then(setHw); }, []);

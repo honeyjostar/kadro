@@ -1096,12 +1096,35 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 
 /* приветствие при первом запуске */
 .welcome-back { z-index: 60; }
-.welcome-modal { width: 460px; text-align: left; }
-.welcome-logo { display: flex; align-items: center; gap: 10px; font: 700 22px/1 var(--logo); letter-spacing: -0.02em; margin-bottom: 14px; }
+.welcome-modal { width: 560px; text-align: left; }
+.welcome-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.welcome-logo { display: flex; align-items: center; gap: 10px; font: 700 22px/1 var(--logo); letter-spacing: -0.02em; }
 .welcome-logo .logo-mark { width: 34px; height: 34px; }
+.welcome-steps { display: flex; gap: 6px; }
+.welcome-steps span { width: 22px; height: 4px; border-radius: 2px; background: var(--line); }
+.welcome-steps span.done { background: var(--accent-soft); }
+.welcome-steps span.on { background: var(--accent); }
+.welcome-modal h3 { margin-bottom: 6px; }
 .welcome-langs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0 10px; }
-.welcome-lang { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--raised); color: var(--text); cursor: pointer; text-align: left; }
-.welcome-lang:hover:not(:disabled) { border-color: var(--accent); }
-.welcome-lang.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
-.welcome-lang:disabled { opacity: .6; cursor: default; }
-.welcome-lang-name { font-weight: 600; font-size: 16px; }
+.welcome-formats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 4px; }
+.welcome-formats .welcome-card { flex-direction: row; align-items: center; gap: 14px; }
+.welcome-formats .welcome-card > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.welcome-card { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; padding: 14px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--raised); color: var(--text); cursor: pointer; text-align: left; min-width: 0; }
+.welcome-card:hover:not(:disabled) { border-color: var(--accent); }
+.welcome-card.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.welcome-card:disabled { opacity: .6; cursor: default; }
+.welcome-card-name { font-weight: 600; font-size: 15px; }
+.welcome-card-name em { font-style: normal; color: var(--muted); font-weight: 500; margin-left: 4px; }
+.welcome-shape { width: 44px; height: 44px; flex: none; display: flex; align-items: center; justify-content: center; }
+.welcome-shape span { display: block; border: 2px solid var(--muted); border-radius: 5px; }
+.welcome-card.active .welcome-shape span { border-color: var(--accent); }
+.welcome-hw .settings-sec { margin: 0; padding: 0; border: 0; }
+.welcome-models { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.welcome-check { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); cursor: pointer; }
+.welcome-check.ready { opacity: .75; cursor: default; }
+.welcome-check em { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; font-style: normal; color: var(--muted); font-size: 12px; }
+.welcome-actions { align-items: center; }
+.welcome-later { flex: 1; text-align: center; }
+.home-format.preferred { border-color: var(--accent); }
+.home-format { position: relative; }
+.home-pref { position: absolute; top: 10px; right: 10px; font-size: 11px; font-weight: 600; color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 2px 8px; }

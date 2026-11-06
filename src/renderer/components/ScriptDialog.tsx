@@ -34,7 +34,7 @@ export function ScriptDialog() {
   const [speed, setSpeed] = useState(1);
   const [files, setFiles] = useState<string[]>([]);
   const [music, setMusic] = useState<string | null>(null);
-  const [aspect, setAspect] = useState<AspectKey>('9:16');
+  const [aspect, setAspect] = useState<AspectKey>(getState().defaultFormat ?? '9:16');
   const [title, setTitle] = useState('');
   const [captions, setCaptions] = useState(true);
   const [stage, setStage] = useState<AutoStage | null>(null);
