@@ -1,0 +1,87 @@
+# Сборка sherpa-onnx (Node-аддон) с DirectML — распознавание речи на видеокарте в Kadro.
+# Запуск вручную (Actions → sherpa-onnx DirectML → Run workflow). Итог — zip и manifest.json в релизе native-deps,
+# откуда его берёт scripts/pack-win.mjs. Версия sherpa-onnx — та же, что у sherpa-onnx-node в package.json.
+# Изменения в sherpa-onnx — scripts/sherpa-dml/patch_session.py (выбор видеокарты, своя DirectML.dll).
+name: sherpa-onnx DirectML
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: 'Выложить в релиз native-deps'
+        type: boolean
+        default: false
+permissions:
+  contents: write
+env:
+  ORT: '1.22.0'
+  DML: '1.15.4'
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Исходники sherpa-onnx
+        shell: bash
+        run: |
+          V=$(node -p "require('./package.json').dependencies['sherpa-onnx-node'].replace(/[^0-9.]/g, '')")
+          echo "SHERPA=$V" >> $GITHUB_ENV
+          git clone -q --depth 1 --branch v$V https://github.com/k2-fsa/sherpa-onnx ../sherpa
+          python scripts/sherpa-dml/patch_session.py ../sherpa/sherpa-onnx/csrc/session.cc
+          cd ../sherpa
+          f=cmake/onnxruntime-win-x64-directml.cmake
+          sed -i "s/1\.14\.1/$ORT/g" $f
+          sed -i '/URL_HASH *\${onnxruntime_HASH}/d' $f
+          d=$(grep -rl "Microsoft.AI.DirectML/1.15.0" cmake || true)
+          if [ -n "$d" ]; then sed -i "s#Microsoft.AI.DirectML/1.15.0#Microsoft.AI.DirectML/$DML#; s#microsoft.ai.directml.1.15.0#microsoft.ai.directml.$DML#" $d; sed -i '/URL_HASH/d' $d; fi
+      - name: Сборка
+        shell: bash
+        run: |
+          cd ../sherpa && mkdir build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./install -DBUILD_SHARED_LIBS=ON -DSHERPA_ONNX_ENABLE_DIRECTML=ON \
+            -DSHERPA_ONNX_ENABLE_WEBSOCKET=OFF -DSHERPA_ONNX_ENABLE_PORTAUDIO=OFF -DSHERPA_ONNX_ENABLE_BINARY=OFF -DSHERPA_ONNX_BUILD_C_API_EXAMPLES=OFF .. | tail -20
+          cmake --build . --config Release --target install -- -m:4 | tail -10
+          export SHERPA_ONNX_INSTALL_DIR=$(cd install && pwd)
+          cd ../scripts/node-addon-api && npm i --silent && ./node_modules/.bin/cmake-js compile | tail -5
+      - name: Пакет
+        shell: bash
+        run: |
+          mkdir -p pkg pub
+          cp ../sherpa/scripts/node-addon-api/build/Release/sherpa-onnx.node pkg/
+          cp ../sherpa/build/install/lib/*.dll pkg/
+          rm -f pkg/DirectML.Debug.dll
+          # onnxruntime с DirectML собран с общей библиотекой C++ — кладём её рядом (на компьютере её может не быть)
+          CRT=$(ls -d "/c/Program Files/Microsoft Visual Studio/2022/"*/VC/Redist/MSVC/*/x64/Microsoft.VC143.CRT | sort | tail -1)
+          for f in msvcp140.dll msvcp140_1.dll vcruntime140.dll vcruntime140_1.dll; do cp "$CRT/$f" pkg/; done
+          ls -la pkg
+          cd pkg && 7z a -tzip -mx=9 ../pub/sherpa-dml-win-x64-$SHERPA.zip * > /dev/null && cd ..
+          python - <<PY
+          import hashlib, json
+          f = 'sherpa-dml-win-x64-$SHERPA.zip'
+          b = open('pub/' + f, 'rb').read()
+          json.dump([{'file': f, 'size': len(b), 'sha256': hashlib.sha256(b).hexdigest(), 'sherpa': '$SHERPA', 'onnxruntime': '$ORT', 'directml': '$DML'}], open('pub/manifest.json', 'w'), indent=1)
+          PY
+          cat pub/manifest.json
+      - name: Проверка (процессор и DirectML)
+        shell: bash
+        run: |
+          W=$(cygpath -u "$GITHUB_WORKSPACE")
+          mkdir -p ../t && cd ../t && npm init -y > /dev/null && npm i --silent sherpa-onnx-node@$SHERPA
+          cp $W/scripts/sherpa-dml/bench.js . && cp $W/pkg/* node_modules/sherpa-onnx-win-x64/
+          curl -sSL -o g.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-transducer-giga-am-v2-russian-2025-04-19.tar.bz2 && tar xjf g.tar.bz2
+          G=$PWD/sherpa-onnx-nemo-transducer-giga-am-v2-russian-2025-04-19
+          node bench.js $G $G/test_wavs/example.wav cpu giga
+          # на серверах GitHub видеокарты нет — DirectML уходит на процессор, главное — что сборка грузится и распознаёт
+          node bench.js $G $G/test_wavs/example.wav directml giga
+      - uses: actions/upload-artifact@v4
+        with: { name: sherpa-dml, path: pub/ }
+      - name: Релиз native-deps
+        if: ${{ inputs.publish }}
+        shell: bash
+        env: { GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+        run: |
+          gh release view native-deps >/dev/null 2>&1 || gh release create native-deps --title "Native dependencies" --prerelease \
+            --notes "Нативные библиотеки для сборки Kadro (не для установки вручную). / Native libraries used by the Kadro build."
+          gh release upload native-deps pub/* --clobber

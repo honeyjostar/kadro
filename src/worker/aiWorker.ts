@@ -6,9 +6,21 @@
 import { tx } from '../shared/i18n';
 import fs from 'node:fs';
 import type { AsrModelId, TtsVoiceId } from '../main/ai/models';
+import { GPU_MIN_GAIN } from '../shared/asrDevice';
+import { useDmlSherpa } from './sherpaBuild';
+
+// процесс речи со сборкой sherpa-onnx с DirectML — распознавание может идти на видеокарте
+let engine: 'dml' | 'cpu' = 'cpu';
+if (process.env.KADRO_ASR_ENGINE === 'dml') {
+  const dir = process.env.KADRO_SHERPA_DML;
+  const err = dir ? useDmlSherpa(dir) : null;
+  if (err) console.error('sherpa-onnx DirectML:', err);
+  // в автотестах сборки с DirectML нет — обычная сборка тоже понимает 'directml' и уходит на процессор
+  engine = !err ? 'dml' : 'cpu';
+}
 
 type Msg =
-  | { id: string; kind: 'transcribe'; wav: string; model: AsrModelId }
+  | { id: string; kind: 'transcribe'; wav: string; model: AsrModelId; device?: 'gpu' | 'cpu' | 'bench' }
   | { id: string; kind: 'silence'; path: string; in: number; out: number }
   | { id: string; kind: 'removeBg'; path: string; in: number; out: number; width: number; height: number; fps: number; outPath: string }
   | { id: string; kind: 'download'; model: AsrModelId }
@@ -44,8 +56,18 @@ port.on('message', async (e) => {
       progress(0.02, tx('Читаю звук'));
       const pcm = await readPcm16k(m.wav, undefined, undefined, ac.signal);
       progress(0.05, tx('Распознаю речь'));
-      const r = transcribe(pcm, m.model, (p) => progress(0.05 + p * 0.95, tx('Распознаю речь')), undefined, () => ac.signal.aborted);
-      result = { cues: r.cues, text: r.text };
+      const dev = m.device ?? 'cpu';
+      if (dev !== 'cpu' && process.env.KADRO_TEST_ASR_CRASH) process.exit(3); // автотест: видеокарта уронила процесс
+      if (dev !== 'cpu' && process.env.KADRO_TEST_ASR_HANG) for (;;) { /* автотест: видеокарта зависла */ }
+      if (dev === 'bench') progress(0.05, tx('Сравниваю видеокарту и процессор'));
+      const r = transcribe(pcm, m.model, (p) => progress(0.05 + p * 0.95, tx('Распознаю речь')), undefined, () => ac.signal.aborted, {
+        provider: dev === 'gpu' ? 'directml' : 'cpu',
+        bench: dev === 'bench',
+        minGain: GPU_MIN_GAIN,
+        onBench: (b) => send({ id: m.id, type: 'asrBench', bench: b }),
+        onGpuError: (message) => send({ id: m.id, type: 'asrGpuError', message }),
+      });
+      result = { cues: r.cues, text: r.text, device: r.provider === 'directml' ? 'gpu' : 'cpu', speechSec: r.speechSec, decodeSec: r.decodeSec };
     } else if (m.kind === 'silence') {
       const { findSpeechRanges } = await import('../main/ai/audioFx');
       progress(0.1, tx('Ищу паузы'));
@@ -109,4 +131,4 @@ port.on('message', async (e) => {
   }
 });
 
-send({ type: 'ready' });
+send({ type: 'ready', engine });

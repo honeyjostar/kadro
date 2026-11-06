@@ -64,6 +64,29 @@ cp(path.join(ort, 'bin/napi-v6/win32/x64'), path.join(ortOut, 'bin/napi-v6/win32
 cp(path.join(ROOT, 'node_modules/onnxruntime-common'), path.join(nm, 'onnxruntime-common'));
 fs.rmSync(tmp, { recursive: true, force: true });
 
+// распознавание речи на видеокарте: sherpa-onnx той же версии, собранный с DirectML (у Kadro — в релизе native-deps).
+// Процесс речи подключает его вместо обычной сборки, если распознавать на видеокарте (src/worker/sherpaBuild.ts).
+if (!process.argv.includes('--no-dml')) {
+  step('sherpa-onnx с DirectML (распознавание на видеокарте)');
+  const base = 'https://github.com/honeyjostar/kadro/releases/download/native-deps';
+  const manifest = await (await fetch(`${base}/manifest.json`)).json();
+  const e = manifest.find((x) => x.file === `sherpa-dml-win-x64-${sherpaVer}.zip`);
+  if (!e) throw new Error(`нет sherpa-dml-win-x64-${sherpaVer}.zip в native-deps`);
+  const r = await fetch(`${base}/${e.file}`);
+  if (!r.ok) throw new Error(`${e.file}: HTTP ${r.status}`);
+  const buf = Buffer.from(await r.arrayBuffer());
+  const sha = (await import('node:crypto')).createHash('sha256').update(buf).digest('hex');
+  if (sha !== e.sha256) throw new Error(`${e.file}: SHA-256 не совпал`);
+  const zip = path.join(os.tmpdir(), e.file);
+  fs.writeFileSync(zip, buf);
+  const dml = path.join(RES, 'sherpa-dml');
+  fs.mkdirSync(dml, { recursive: true });
+  run('unzip', ['-q', '-o', zip, '-d', dml]);
+  fs.rmSync(zip, { force: true });
+  for (const f of ['sherpa-onnx.node', 'onnxruntime.dll', 'DirectML.dll']) if (!fs.existsSync(path.join(dml, f))) throw new Error(`sherpa-dml: нет ${f}`);
+  console.log(`  ${fs.readdirSync(dml).join(', ')} (${(buf.length / 1e6).toFixed(1)} МБ)`);
+}
+
 step('FFmpeg');
 const ffTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-ff-'));
 run('unzip', ['-q', FFMPEG_ZIP, '-d', ffTmp]);
@@ -114,7 +137,7 @@ fs.writeFileSync(path.join(APP_DIR, 'NOTICE.txt'), [
   '- Electron (MIT) — LICENSE, LICENSES.chromium.html',
   '- FFmpeg (GPL) — resources/bin/FFMPEG-LICENSE.txt, сборка BtbN/FFmpeg-Builds',
   '- ONNX Runtime (MIT), DirectML (MIT)',
-  '- sherpa-onnx (Apache-2.0)',
+  '- sherpa-onnx (Apache-2.0); resources/sherpa-dml — та же версия, собранная с ONNX Runtime 1.22 и DirectML 1.15.4 (распознавание речи на видеокарте), с библиотеками Microsoft Visual C++ (msvcp140, vcruntime140 — распространяемые файлы Visual Studio)',
   '- Silero VAD (MIT)',
   '- RobustVideoMatting (GPL-3.0)',
   '- RNNoise / arnndn-models (BSD-3-Clause)',

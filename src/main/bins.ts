@@ -77,3 +77,9 @@ export function ffmpegMajor(): number {
   }
   return majorCache;
 }
+
+/** Сборка sherpa-onnx с DirectML (распознавание речи на видеокарте); null — её нет (не Windows или старая сборка Kadro). */
+export function sherpaDmlDir(): string | null {
+  const f = bundledFile('sherpa-dml', 'sherpa-onnx.node');
+  return fs.existsSync(f) ? path.dirname(f) : null;
+}

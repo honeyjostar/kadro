@@ -1,8 +1,8 @@
 // Окно «Настройки»: тема, цвет акцента, значок программы (окно и ярлыки Windows), размер интерфейса,
 // своё оформление (custom.css и theme.json в папке данных — подхватываются на лету), качество превью и кэш.
-import { LANGS_UI, tx, uiLang } from '../../shared/i18n';
+import { LANGS_UI, pluralForm, tx, uiLang, uiLocale } from '../../shared/i18n';
 import { txj } from '../txj';
-import { BookOpen, Brain, Bug, CheckCircle2, Cpu, Download, Globe, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, RefreshCw, Settings as Gear, Trash2, TriangleAlert, X, XCircle } from 'lucide-react';
+import { AudioLines, BookOpen, Brain, Bug, CheckCircle2, Cpu, Download, Globe, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, RefreshCw, Settings as Gear, Trash2, TriangleAlert, X, XCircle } from 'lucide-react';
 import { encoderLabel, encoderName, reasonText, type GpuVendor, type HwInfo } from '../../shared/hw';
 import { glPluginErrors, glPlugins, useGlCatalog } from '../glRegistry';
 import { useEffect, useState } from 'react';
@@ -14,6 +14,7 @@ import { LogoMark } from './Home';
 import { reportInstall } from './PluginCatalog';
 import { ensureModel, ensureVoice, importModelFile, modelInBrowser } from '../actions';
 import type { ModelInfo, VoiceInfo } from '../../shared/ipc';
+import { gpuSpeedup, gpuWins, type AsrDeviceInfo, type AsrDevicePref } from '../../shared/asrDevice';
 import { UpdateSection } from './Update';
 
 export function SettingsDialog() {
@@ -121,6 +122,8 @@ export function SettingsDialog() {
 
         <HardwareSection />
 
+        <AsrDeviceSection />
+
         <section className="settings-sec">
           <b>{tx('Качество превью')}</b>
           <Seg value={previewQuality} onChange={(v) => getState().setPreviewQuality(v)}
@@ -191,6 +194,63 @@ export function HardwareSection() {
           </div>
           {fixVendor && <p className="hint">{tx('После обновления драйвера нажми «Проверить снова» — перезапускать Kadro не нужно.')}</p>}
         </>
+      )}
+    </section>
+  );
+}
+
+/** «В 3,2 раза», «в 2 раза», «в 5 раз» (по-английски — «3.2 times»). */
+function timesText(x: number): string {
+  const n = x.toLocaleString(uiLocale(), { maximumFractionDigits: 1 });
+  const word = Number.isInteger(x) ? pluralForm(x, tx('раз'), tx('раза'), tx('раз')) : tx('раза');
+  return `${n} ${word}`;
+}
+const ASR_SHORT: Record<string, string> = { ru: 'GigaAM', multi: 'Parakeet' };
+
+/** Распознавание речи (автосубтитры): на видеокарте через DirectML или на процессоре; «Авто» сравнивает и выбирает быстрое. */
+function AsrDeviceSection() {
+  const [info, setInfo] = useState<AsrDeviceInfo | null>(null);
+  useEffect(() => { void api.asrDeviceInfo().then(setInfo); }, []);
+  if (!info) return null;
+  const set = (d: AsrDevicePref) => void api.setAsrDevice(d).then(setInfo);
+  const benches = Object.entries(info.bench);
+  const status = (): string => {
+    if (!info.available) {
+      if (info.why === 'gpu') return tx('Видеокарта не определилась — распознаю на процессоре.');
+      if (info.why === 'build') return tx('В этой установке нет распознавания на видеокарте — распознаю на процессоре. Поможет переустановка Kadro.');
+      return tx('Распознавание на видеокарте работает в Windows 10 и 11 — здесь распознаю на процессоре.');
+    }
+    if (info.pref === 'cpu') return tx('Распознаю на процессоре.');
+    if (info.failed) return info.pref === 'gpu'
+      ? tx('В прошлый раз видеокарта не включилась. Попробую снова, а не выйдет — распознаю на процессоре.')
+      : tx('Видеокарта не подошла для распознавания — распознаю на процессоре.');
+    if (info.pref === 'gpu') return tx('Распознаю на видеокарте.');
+    if (!benches.length) return tx('При первом распознавании Kadro сравнит видеокарту и процессор на твоей записи и дальше будет распознавать на том, что быстрее.');
+    return '';
+  };
+  const st = status();
+  return (
+    <section className="settings-sec" data-testid="asr-device-sec">
+      <b><AudioLines size={14} />{tx('Распознавание речи')}</b>
+      <Seg testId="asr-device" value={info.pref} onChange={set}
+        options={[{ value: 'auto', label: tx('Авто') }, { value: 'gpu', label: tx('Видеокарта') }, { value: 'cpu', label: tx('Процессор') }]} />
+      {st && <p className="hint" data-testid="asr-device-status" title={info.failed}>{st}</p>}
+      {info.available && info.pref === 'auto' && !info.failed && benches.map(([m, b]) => (
+        <p className="hint" key={m} data-testid={`asr-bench-${m}`}>
+          {gpuWins(b)
+            ? tx('{0}: на видеокарте в {1} быстрее — распознаю на ней.', ASR_SHORT[m] ?? m, timesText(gpuSpeedup(b)))
+            : tx('{0}: на видеокарте не заметно быстрее — распознаю на процессоре.', ASR_SHORT[m] ?? m)}
+        </p>
+      ))}
+      {info.last && (
+        <p className="hint small" data-testid="asr-last">
+          {tx('Последний раз: {0} с речи за {1} с — на {2}.', Math.round(info.last.speechSec), info.last.decodeSec.toLocaleString(uiLocale(), { maximumFractionDigits: 1 }), info.last.device === 'gpu' ? tx('видеокарте') : tx('процессоре'))}
+        </p>
+      )}
+      {info.available && (benches.length > 0 || info.failed) && (
+        <div className="custom-row">
+          <button className="btn small" onClick={() => void api.resetAsrBench().then(setInfo)} data-testid="asr-rebench"><RefreshCw size={13} />{tx('Сравнить заново')}</button>
+        </div>
       )}
     </section>
   );

@@ -1,18 +1,16 @@
-## Kadro 0.9.2
+## Kadro 0.9.3
 
 ### ⬇ Скачать / Download
 
-- **[Kadro-Setup-0.9.2.exe](https://github.com/honeyjostar/kadro/releases/download/v0.9.2/Kadro-Setup-0.9.2.exe)** — установщик, около 315 МБ. Рекомендуется. / Installer, recommended.
-- [Kadro-0.9.2-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.9.2/Kadro-0.9.2-portable.zip) — без установки, около 513 МБ. / Portable.
+- **[Kadro-Setup-0.9.3.exe](https://github.com/honeyjostar/kadro/releases/download/v0.9.3/Kadro-Setup-0.9.3.exe)** — установщик, около 315 МБ. Рекомендуется. / Installer, recommended.
+- [Kadro-0.9.3-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.9.3/Kadro-0.9.3-portable.zip) — без установки, около 513 МБ. / Portable.
 
-Kadro 0.6.0 и новее обновится сам: «Вышел Kadro 0.9.2» → «Обновить». Со старых версий — поставь установщик поверх, проекты и настройки сохранятся.
+Kadro 0.6.0 и новее обновится сам: «Вышел Kadro 0.9.3» → «Обновить». Со старых версий — поставь установщик поверх, проекты и настройки сохранятся.
 
 ### Новое
-- **Первый запуск — «Добро пожаловать».** Три шага: язык (русский или English, угадывается по Windows) и тема; основной формат роликов — он подсвечен на главном экране и выбран сразу в авто-ролике и ролике по сценарию; компьютер (кодирует ли видеокарта, кнопка драйвера) и модели ИИ — скачать автосубтитры и голос заранее, чтобы потом всё работало без интернета. У тех, кто уже пользуется Kadro, окна нет; основной формат — в «Настройки».
-- **Готовые субтитры .srt и .vtt** (с 0.9.1): «Субтитры» → «Готовые субтитры» или просто перетащи файл в окно; кодировка определяется сама (в том числе Windows-1251). **Сохранить в .srt** — для YouTube и плееров.
+- **Автосубтитры на видеокарте.** «Настройки» → «Распознавание речи»: «Авто», «Видеокарта», «Процессор». Видеокарта работает через DirectML — NVIDIA, AMD и Intel (и встроенная) в Windows 10 и 11; на ноутбуке берётся самая мощная. В «Авто» Kadro при первом распознавании сравнивает видеокарту и процессор на самой записи и дальше распознаёт на том, что быстрее у тебя, — сравнение и время видны там же. Видеокарта не включилась или сбоит — субтитры всё равно получатся, на процессоре. Спасибо Fedosyk за идею!
 
 ### New
-- **First-run welcome**: language (Russian or English, detected from Windows) and theme; your main video format (highlighted on the home screen and preselected in Auto Video and Video from Script); your computer (whether the GPU encodes, driver button) and AI models to download in advance for offline captions and voice-over. Existing users don't see it; the main format is in Settings.
-- **Subtitle files (.srt, .vtt)** since 0.9.1: load or drop them into the window; save captions to .srt.
+- **Auto captions on the graphics card.** Settings → Speech recognition: Auto, Graphics card, Processor. The graphics card runs through DirectML — NVIDIA, AMD and Intel (including integrated) on Windows 10 and 11; laptops use the most powerful one. Auto compares the graphics card and the processor on your recording the first time and keeps using whichever is faster on your computer. If the graphics card fails, captions are still made on the processor.
 
-В 0.9.0 — видеокарты NVIDIA, AMD и Intel кодируют видео, надёжное скачивание моделей ИИ, авто-ролик лучше, 3D мышкой; в 0.8.0 — «Повторить монтаж по ролику», свои шрифты. Полный список — в [README](https://github.com/honeyjostar/kadro#readme).
+В 0.9.2 — первый запуск с выбором языка, темы и формата; в 0.9.1 — готовые субтитры .srt и .vtt; в 0.9.0 — видеокарты NVIDIA, AMD и Intel кодируют видео, надёжное скачивание моделей ИИ, авто-ролик лучше, 3D мышкой; в 0.8.0 — «Повторить монтаж по ролику», свои шрифты. Полный список — в [README](https://github.com/honeyjostar/kadro#readme).

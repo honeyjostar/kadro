@@ -34,7 +34,8 @@ import { runFfmpeg } from './ffrun';
 import { importLutFile, listLutFiles } from './luts';
 import { BUILTIN_TEMPLATES, DEMO_SCENES, isTemplate, type Template } from '../shared/templates';
 import { projectDuration } from '../shared/timeline';
-import { bundledFile, cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir } from './bins';
+import { bundledFile, cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir, sherpaDmlDir } from './bins';
+import { asrBenchKey, decideAsrDevice, DML_FALLBACK, gpuKey, type AsrBench, type AsrDevice, type AsrDeviceInfo, type AsrDevicePref } from '../shared/asrDevice';
 import { exportProject, exportSpeechAudio, glFrames } from './exporter';
 import { DRIVER_PAGES, hardwareInfo } from './hardware';
 import { MEDIA_EXT, analyze, coverIfReady, makeCover, makePeaks, makeProxy, makeThumbs } from './media';
@@ -170,10 +171,13 @@ const pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Err
 function aiWorker(lane: Lane): UtilityProcess {
   const existing = workers.get(lane);
   if (existing) return existing;
+  const engine = lane === 'speech' ? speechEngineNext : 'cpu';
   const w = utilityProcess.fork(path.join(__dirname, '..', 'worker', 'aiWorker.js'), [], {
     serviceName: lane === 'speech' ? 'Kadro Speech' : 'Kadro Vision',
     env: {
       ...process.env,
+      KADRO_ASR_ENGINE: engine,
+      KADRO_SHERPA_DML: sherpaDmlDir() ?? '',
       KADRO_RESOURCES: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..', '..', 'resources'),
       KADRO_DATA: dataDir(),
       KADRO_MODELS: modelsDir(),
@@ -183,11 +187,20 @@ function aiWorker(lane: Lane): UtilityProcess {
     stdio: 'pipe',
   });
   workers.set(lane, w);
+  if (lane === 'speech') speechEngine.set(w, engine);
   w.stdout?.on('data', (d) => log(`ai ${lane}:`, d.toString().trim()));
-  w.stderr?.on('data', (d) => log(`ai ${lane} err:`, d.toString().trim()));
-  w.on('message', (m: { id?: string; type: string; p?: number; stage?: string; result?: unknown; message?: string }) => {
+  w.stderr?.on('data', (d) => {
+    const t = d.toString();
+    log(`ai ${lane} err:`, t.trim());
+    const at = lane === 'speech' ? t.search(DML_FALLBACK) : -1;
+    if (at >= 0) asrGpuFellBack(t.slice(at, at + 300).replace(/\s+/g, ' ')); // с причиной — для «Сообщить об ошибке»
+  });
+  w.on('message', (m: { id?: string; type: string; p?: number; stage?: string; result?: unknown; message?: string; bench?: Omit<AsrBench, 'at'>; engine?: 'dml' | 'cpu' }) => {
+    if (m.type === 'ready' && lane === 'speech' && m.engine) { speechEngine.set(w, m.engine); log('ai speech engine', m.engine); }
     if (!m.id) return;
-    if (m.type === 'progress') win?.webContents.send('ai:progress', m.id, m.p, m.stage);
+    if (m.type === 'asrBench' && m.bench) asrBenchDone(m.id, m.bench);
+    else if (m.type === 'asrGpuError') asrGpuFellBack(m.message ?? 'DirectML');
+    else if (m.type === 'progress') { lastProgress.set(m.id, Date.now()); win?.webContents.send('ai:progress', m.id, m.p, m.stage); }
     else if (m.type === 'done') { pending.get(m.id)?.resolve(m.result); pending.delete(m.id); }
     else if (m.type === 'error') { pending.get(m.id)?.reject(new Error(m.message)); pending.delete(m.id); }
   });
@@ -196,7 +209,7 @@ function aiWorker(lane: Lane): UtilityProcess {
     if (workers.get(lane) === w) workers.delete(lane);
     for (const [id, p] of pending) {
       if (p.lane !== lane) continue;
-      p.reject(new Error(tx('ИИ-процесс неожиданно завершился. Попробуй ещё раз.')));
+      p.reject(Object.assign(new Error(tx('ИИ-процесс неожиданно завершился. Попробуй ещё раз.')), { crashed: true, code }));
       pending.delete(id);
     }
   });
@@ -214,6 +227,129 @@ function workerCall<T>(id: string, msg: Record<string, unknown>): Promise<T> {
 
 const aiAborts = new Map<string, AbortController>();
 
+// ---------- распознавание речи: видеокарта или процессор ----------
+// Процесс речи запускается с обычной сборкой sherpa-onnx или со сборкой с DirectML (у них разные onnxruntime.dll,
+// в одном процессе — только одна). Сборка меняется перезапуском процесса, когда он свободен.
+const speechEngine = new WeakMap<UtilityProcess, 'dml' | 'cpu'>();
+let speechEngineNext: 'dml' | 'cpu' = 'cpu';
+/** Идущее распознавание на видеокарте (или сравнение): куда записать, если DirectML не включился. */
+let asrGpuJob: { id: string; model: AsrModelId; gpus: string; fell?: string; until?: number } | null = null;
+let asrLast: AsrDeviceInfo['last'];
+/** Когда задача последний раз сообщала о ходе работы — видеокарта, зависшая без ответа, видна по тишине. */
+const lastProgress = new Map<string, number>();
+const GPU_HANG_MS = Number(process.env.KADRO_TEST_GPU_HANG_MS) || 120_000;
+const asrTestDml = () => !!process.env.KADRO_TEST_ASR_DML;
+
+/** Можно ли на видеокарте: Windows, сборка с DirectML на месте, видеокарта определилась. */
+async function asrGpuAvailable(): Promise<{ ok: boolean; why?: AsrDeviceInfo['why']; gpus: { name: string; driver?: string }[] }> {
+  const hw = await hardwareInfo().catch(() => null);
+  const gpus = hw?.gpus ?? [];
+  if (!asrTestDml()) {
+    if (process.platform !== 'win32') return { ok: false, why: 'os', gpus };
+    if (!sherpaDmlDir()) return { ok: false, why: 'build', gpus };
+  }
+  if (!gpus.length) return { ok: false, why: 'gpu', gpus };
+  return { ok: true, gpus };
+}
+
+function asrBenchDone(id: string, b: Omit<AsrBench, 'at'>): void {
+  if (!asrGpuJob || asrGpuJob.id !== id) return;
+  const s = readSettings();
+  const key = `${asrGpuJob.model}|${asrGpuJob.gpus}`;
+  writeSettings({ ...s, asrBench: { ...s.asrBench, [key]: { ...b, at: Date.now() } } });
+  log('asr bench', key, JSON.stringify(b));
+}
+
+/** DirectML не включился (sherpa-onnx ушёл на процессор) или видеокарта уронила процесс: «Авто» больше её не берёт. */
+function asrGpuFellBack(why: string): void {
+  const j = asrGpuJob;
+  if (!j || (j.until && Date.now() > j.until)) return;
+  j.fell = why;
+  const s = readSettings();
+  writeSettings({ ...s, asrGpuFailed: { ...s.asrGpuFailed, [j.gpus]: why.slice(0, 300) } });
+  log('asr gpu failed', why);
+}
+
+async function asrDeviceInfo(): Promise<AsrDeviceInfo> {
+  const s = readSettings();
+  const av = await asrGpuAvailable();
+  const gk = gpuKey(av.gpus);
+  const bench: AsrDeviceInfo['bench'] = {};
+  for (const m of Object.keys(ASR_MODELS) as AsrModelId[]) { const b = s.asrBench?.[`${m}|${gk}`]; if (b) bench[m] = b; }
+  return { pref: s.asrDevice ?? 'auto', available: av.ok, why: av.why, gpu: av.gpus.map((g) => g.name).join(', ') || undefined, bench, failed: s.asrGpuFailed?.[gk], last: asrLast };
+}
+
+/** Модель на видеокарте занимает её память: процесс речи, простоявший без дела 3 минуты, закрывается (следующая задача запустит новый). */
+let gpuIdleTimer: ReturnType<typeof setTimeout> | null = null;
+function releaseGpuLater(): void {
+  if (gpuIdleTimer) clearTimeout(gpuIdleTimer);
+  gpuIdleTimer = setTimeout(() => {
+    gpuIdleTimer = null;
+    const w = workers.get('speech');
+    if (!w || speechEngine.get(w) !== 'dml') return;
+    if ([...pending.values()].some((p) => p.lane === 'speech')) { releaseGpuLater(); return; }
+    workers.delete('speech');
+    w.kill();
+    log('ai speech: idle on GPU — stopped to free video memory');
+  }, 180_000);
+}
+
+/** Распознать речь: решить, где (видеокарта, процессор или сначала сравнить), подготовить процесс речи. */
+async function transcribeOn(id: string, wav: string, model: AsrModelId): Promise<{ cues: { start: number; end: number; text: string }[]; text: string; device: AsrDevice }> {
+  type R = { cues: { start: number; end: number; text: string }[]; text: string; device: AsrDevice; speechSec: number; decodeSec: number };
+  const s = readSettings();
+  const av = await asrGpuAvailable();
+  const gk = gpuKey(av.gpus);
+  let device = decideAsrDevice(s.asrDevice ?? 'auto', { available: av.ok, failed: !!s.asrGpuFailed?.[gk], bench: s.asrBench?.[asrBenchKey(model, av.gpus)] });
+  const want = device === 'cpu' ? 'cpu' : 'dml';
+  const cur = workers.get('speech');
+  const busy = [...pending.values()].some((p) => p.lane === 'speech');
+  if (cur && speechEngine.get(cur) !== want) {
+    // свободен — перезапустить с нужной сборкой; занят (озвучка, скачивание) — на этот раз на процессоре
+    if (!busy) { workers.delete('speech'); cur.kill(); } else device = 'cpu';
+  }
+  speechEngineNext = want;
+  let hung = false;
+  const run = async (dev: AsrDevice | 'bench'): Promise<R> => {
+    asrGpuJob = dev === 'cpu' ? null : { id, model, gpus: gk };
+    lastProgress.set(id, Date.now());
+    // видеокарта зависла (драйвер не отвечает) — остановить процесс речи; дальше — как при падении
+    const watch = dev === 'cpu' ? null : setInterval(() => {
+      if (Date.now() - (lastProgress.get(id) ?? Date.now()) < GPU_HANG_MS) return;
+      hung = true;
+      log('asr gpu hang — restarting speech worker');
+      const w = workers.get('speech');
+      if (w) w.kill();
+    }, 5000);
+    try {
+      const r = await workerCall<R>(id, { kind: 'transcribe', wav, model, device: dev });
+      if (asrGpuJob?.fell) r.device = 'cpu';
+      return r;
+    } finally {
+      if (watch) clearInterval(watch);
+      lastProgress.delete(id);
+      // сообщение sherpa-onnx в журнале может прийти чуть позже ответа
+      if (asrGpuJob?.id === id) asrGpuJob.until = Date.now() + 3000;
+    }
+  };
+  let r: R;
+  try {
+    r = await run(device);
+  } catch (e) {
+    if (device === 'cpu' || !(e as { crashed?: boolean }).crashed) throw e;
+    // видеокарта уронила процесс речи — запомнить и распознать на процессоре
+    asrGpuJob = { id, model, gpus: gk };
+    asrGpuFellBack(hung ? 'hang' : `crash ${(e as { code?: number }).code ?? ''}`.trim());
+    asrGpuJob = null;
+    speechEngineNext = 'cpu';
+    r = await run('cpu');
+  }
+  asrLast = { device: r.device, model, speechSec: r.speechSec, decodeSec: r.decodeSec };
+  if (r.device === 'gpu') releaseGpuLater();
+  log('asr', model, r.device, `${r.speechSec.toFixed(1)}s speech in ${r.decodeSec.toFixed(2)}s`);
+  return r;
+}
+
 async function runAi(job: AiJob): Promise<AiResponse> {
   const id = job.jobId;
   const send = (p: number, stage?: string) => win?.webContents.send('ai:progress', id, p, stage);
@@ -230,8 +366,8 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       const wav = path.join(cacheDir('tmp'), `speech_${Date.now()}.wav`);
       await exportSpeechAudio({ project: job.project, includeMusic: job.includeMusic }, wav, ac.signal);
       try {
-        const r = await workerCall<{ cues: { start: number; end: number; text: string }[]; text: string }>(id, { kind: 'transcribe', wav, model: job.model });
-        return { ok: true, output: { kind: 'captions', cues: r.cues, text: r.text } };
+        const r = await transcribeOn(id, wav, job.model);
+        return { ok: true, output: { kind: 'captions', cues: r.cues, text: r.text, device: r.device } };
       } finally {
         fs.rmSync(wav, { force: true });
       }
@@ -416,7 +552,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance> }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance> }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -897,6 +1033,20 @@ function registerIpc(): void {
   ipcMain.handle('app:welcomeDone', () => { writeSettings({ ...readSettings(), welcome: 'done' }); return true; });
   // основной формат роликов: новые проекты сразу в нём
   ipcMain.on('prefs:format', (e) => { e.returnValue = readSettings().format ?? null; });
+  ipcMain.handle('asr:deviceInfo', () => asrDeviceInfo());
+  ipcMain.handle('asr:setDevice', (_e, d: AsrDevicePref) => {
+    if (['auto', 'gpu', 'cpu'].includes(d)) writeSettings({ ...readSettings(), asrDevice: d });
+    return asrDeviceInfo();
+  });
+  /** «Сравнить заново»: забыть замеры и сбой видеокарты — «Авто» сравнит при следующем распознавании. */
+  ipcMain.handle('asr:reset', async () => {
+    const s = readSettings();
+    const gk = gpuKey((await asrGpuAvailable()).gpus);
+    const asrBench = Object.fromEntries(Object.entries(s.asrBench ?? {}).filter(([k]) => !k.endsWith(`|${gk}`)));
+    const asrGpuFailed = Object.fromEntries(Object.entries(s.asrGpuFailed ?? {}).filter(([k]) => k !== gk));
+    writeSettings({ ...s, asrBench, asrGpuFailed });
+    return asrDeviceInfo();
+  });
   ipcMain.on('prefs:setFormat', (_e, a: AspectKey) => { if (['9:16', '16:9', '1:1', '4:5', '3:4', '4:3', '21:9'].includes(a)) writeSettings({ ...readSettings(), format: a }); });
   ipcMain.handle('lang:set', (_e, l: 'ru' | 'en') => {
     if (l !== 'ru' && l !== 'en') return false;

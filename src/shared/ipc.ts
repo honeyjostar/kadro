@@ -60,7 +60,7 @@ export type AiJob =
   | { kind: 'translate'; jobId: string; texts: string[]; from: import('./translate').LangCode; to: import('./translate').LangCode };
 
 export type AiOutput =
-  | { kind: 'captions'; cues: Cue[]; text: string }
+  | { kind: 'captions'; cues: Cue[]; text: string; device?: 'gpu' | 'cpu' }
   | { kind: 'silence'; ranges: [number, number][] }
   | { kind: 'denoise'; path: string; range: [number, number] }
   | { kind: 'removeBg'; path: string; range: [number, number] }
@@ -122,6 +122,10 @@ export interface KadroApi {
   welcome: boolean;
   welcomeDone(): Promise<boolean>;
   /** Основной формат роликов (выбран при первом запуске): новые проекты сразу в нём; null — не выбран. */
+  /** распознавание речи: на видеокарте или на процессоре */
+  asrDeviceInfo(): Promise<import('./asrDevice').AsrDeviceInfo>;
+  setAsrDevice(d: import('./asrDevice').AsrDevicePref): Promise<import('./asrDevice').AsrDeviceInfo>;
+  resetAsrBench(): Promise<import('./asrDevice').AsrDeviceInfo>;
   defaultFormat: import('./types').AspectKey | null;
   setDefaultFormat(a: import('./types').AspectKey): void;
   bugInfo(): Promise<import('./bugReport').BugInfo>;

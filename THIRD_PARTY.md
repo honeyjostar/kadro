@@ -8,6 +8,7 @@ Kadro распространяется под GNU GPL v3 или новее. В �
 | [FFmpeg](https://ffmpeg.org/), сборка [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds) | GPL (с libx264, libvpx, libopus, vid.stab, rubberband и др.) | экспорт и обработка; отдельные программы `ffmpeg.exe`/`ffprobe.exe`, текст лицензии — `resources/bin/FFMPEG-LICENSE.txt`, исходники — на сайте FFmpeg и в репозитории сборки |
 | [ONNX Runtime](https://onnxruntime.ai/) | MIT | запуск нейросетей |
 | [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) | Apache-2.0 | распознавание речи, озвучка, детектор речи |
+| sherpa-onnx, собранный с ONNX Runtime 1.22 и [DirectML](https://github.com/microsoft/DirectML) 1.15.4; библиотеки Microsoft Visual C++ (`msvcp140`, `vcruntime140` — распространяемые файлы Visual Studio) | Apache-2.0, MIT; DirectML и Visual C++ — по лицензиям Microsoft на распространяемые файлы | распознавание речи на видеокарте, `resources/sherpa-dml`; сборка — в релизе [native-deps](https://github.com/honeyjostar/kadro/releases/tag/native-deps) |
 | [Robust Video Matting](https://github.com/PeterL1n/RobustVideoMatting) | GPL-3.0 | удаление фона, слежение за человеком |
 | [Silero VAD](https://github.com/snakers4/silero-vad) | MIT | поиск речи и пауз |
 | [RNNoise](https://github.com/xiph/rnnoise) / [arnndn-models](https://github.com/GregorR/rnnoise-models) | BSD-3-Clause | чистка голоса |
