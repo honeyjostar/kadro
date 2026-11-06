@@ -16,7 +16,7 @@ import { LogoMark } from './Home';
 import { HardwareSection } from './Settings';
 
 /** Подписи первого шага — на обоих языках сразу: понятны до выбора. */
-const BOTH = { title: 'Добро пожаловать в Kadro · Welcome to Kadro', pick: 'Выбери язык · Choose your language' };
+const BOTH = { title: 'Добро пожаловать в Kadro · Welcome to Kadro', pick: 'Выбери язык · Choose your language' }; // i18n-data: на обоих языках сразу
 const FORMATS: { aspect: AspectKey; title: string; where: string }[] = [
   { aspect: '9:16', title: tx('Вертикальное'), where: 'TikTok, Reels, Shorts' },
   { aspect: '16:9', title: tx('Горизонтальное'), where: tx('YouTube, ВК Видео') },
@@ -75,11 +75,11 @@ export function Welcome({ onDone }: { onDone: () => void }) {
               {LANGS_UI.map((l) => (
                 <button key={l.id} className={`welcome-card ${l.id === cur ? 'active' : ''}`} onClick={() => choose(l.id)} disabled={!!switching} data-testid={`welcome-lang-${l.id}`}>
                   <span className="welcome-card-name">{l.label}</span>
-                  <span className="hint small">{l.id === 'ru' ? 'Интерфейс на русском' : 'Interface in English'}</span>
+                  <span className="hint small">{l.id === 'ru' ? 'Интерфейс на русском' : 'Interface in English'}</span>{/* i18n-data: каждый — на своём языке */}
                 </button>
               ))}
             </div>
-            {switching && <p className="hint" data-testid="welcome-restart">{switching === 'en' ? 'Kadro restarts in English…' : 'Kadro перезапускается на русском…'}</p>}
+            {switching && <p className="hint" data-testid="welcome-restart">{switching === 'en' ? 'Kadro restarts in English…' : 'Kadro перезапускается на русском…'}</p>}{/* i18n-data: на выбранном языке */}
             <div className="section-title">{tx('Тема')}</div>
             <div data-testid="welcome-theme">
               <Seg value={themePref} onChange={(v) => getState().setThemePref(v)}
