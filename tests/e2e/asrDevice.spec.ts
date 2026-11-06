@@ -44,6 +44,10 @@ test('«Авто»: сравнивает видеокарту и процесс�
   await openSettings(K.win);
   await expect(K.win.getByTestId('asr-device-status')).toContainText('сравнит видеокарту и процессор');
   await store(K.win, 'setSettingsOpen', false);
+  // процесс речи уже работает с обычной сборкой (как после скачивания модели) — для сравнения он перезапускается,
+  // и закрытие старого не должно задеть задачу нового
+  const warm = await K.win.evaluate((f) => (window as any).kadro.runAi({ kind: 'silence', jobId: 'warm', path: f, in: 0, out: 3 }), talkVideo());
+  expect(warm.ok, JSON.stringify(warm)).toBe(true);
   const text = await captions(K.win);
   for (const w of ['привет', 'субтитры']) expect(text, text).toContain(w);
   const b = settings(data).asrBench?.[KEY];

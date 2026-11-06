@@ -80,8 +80,8 @@ function recognizer(id: AsrModelId, provider: AsrProvider = 'cpu'): any {
       modelConfig: {
         transducer: { encoder: asrModelPath(m, m.encoder), decoder: asrModelPath(m, m.decoder), joiner: asrModelPath(m, m.joiner) },
         tokens: asrModelPath(m, m.tokens),
-        // видеокарте потоки процессора почти не нужны — оставляем их интерфейсу и монтажу
-        numThreads: provider === 'cpu' ? threads() : 2,
+        // и на видеокарте — все потоки: то, что DirectML не умеет, считает процессор
+        numThreads: threads(),
         // автотест «видеокарта есть»: без сборки с DirectML считаем на процессоре молча
         provider: provider === 'directml' && process.env.KADRO_TEST_ASR_DML === 'quiet' ? 'cpu' : provider,
         modelType: 'nemo_transducer',

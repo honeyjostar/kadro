@@ -165,7 +165,8 @@ function createWindow(): void {
 // ---------- ИИ-процесс ----------
 type Lane = 'speech' | 'vision';
 const workers = new Map<Lane, UtilityProcess>();
-const pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; lane: Lane }>();
+/** Задачи в работе; w — процесс, которому отдана задача (процесс речи может смениться, пока старый ещё закрывается). */
+const pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; lane: Lane; w: UtilityProcess }>();
 
 /** ИИ-процесс: «speech» — речь и паузы (sherpa-onnx), «vision» — удаление фона (onnxruntime). */
 function aiWorker(lane: Lane): UtilityProcess {
@@ -208,7 +209,7 @@ function aiWorker(lane: Lane): UtilityProcess {
     log(`ai ${lane} exit`, code);
     if (workers.get(lane) === w) workers.delete(lane);
     for (const [id, p] of pending) {
-      if (p.lane !== lane) continue;
+      if (p.w !== w) continue; // задачи нового процесса этой же полосы не трогаем
       p.reject(Object.assign(new Error(tx('ИИ-процесс неожиданно завершился. Попробуй ещё раз.')), { crashed: true, code }));
       pending.delete(id);
     }
@@ -220,8 +221,9 @@ function workerCall<T>(id: string, msg: Record<string, unknown>): Promise<T> {
   // onnxruntime-node (фон, слежение, перевод) — в процессе «vision», sherpa-onnx — в «speech»
   const lane: Lane = msg.kind === 'removeBg' || msg.kind === 'reframe' || msg.kind === 'translate' || msg.kind === 'mtDownload' ? 'vision' : 'speech';
   return new Promise<T>((resolve, reject) => {
-    pending.set(id, { resolve: resolve as (v: unknown) => void, reject, lane });
-    aiWorker(lane).postMessage({ id, ...msg });
+    const w = aiWorker(lane);
+    pending.set(id, { resolve: resolve as (v: unknown) => void, reject, lane, w });
+    w.postMessage({ id, ...msg });
   });
 }
 
@@ -270,13 +272,19 @@ function asrGpuFellBack(why: string): void {
   log('asr gpu failed', why);
 }
 
+/** Сбой видеокарты для этих видеокарт. «crash 0» — не сбой: так 0.9.3 по ошибке записывал закрытие старого процесса речи. */
+function gpuFailure(s: Settings, gk: string): string | undefined {
+  const f = s.asrGpuFailed?.[gk];
+  return f && f !== 'crash 0' ? f : undefined;
+}
+
 async function asrDeviceInfo(): Promise<AsrDeviceInfo> {
   const s = readSettings();
   const av = await asrGpuAvailable();
   const gk = gpuKey(av.gpus);
   const bench: AsrDeviceInfo['bench'] = {};
   for (const m of Object.keys(ASR_MODELS) as AsrModelId[]) { const b = s.asrBench?.[`${m}|${gk}`]; if (b) bench[m] = b; }
-  return { pref: s.asrDevice ?? 'auto', available: av.ok, why: av.why, gpu: av.gpus.map((g) => g.name).join(', ') || undefined, bench, failed: s.asrGpuFailed?.[gk], last: asrLast };
+  return { pref: s.asrDevice ?? 'auto', available: av.ok, why: av.why, gpu: av.gpus.map((g) => g.name).join(', ') || undefined, bench, failed: gpuFailure(s, gk), last: asrLast };
 }
 
 /** Модель на видеокарте занимает её память: процесс речи, простоявший без дела 3 минуты, закрывается (следующая задача запустит новый). */
@@ -300,7 +308,7 @@ async function transcribeOn(id: string, wav: string, model: AsrModelId): Promise
   const s = readSettings();
   const av = await asrGpuAvailable();
   const gk = gpuKey(av.gpus);
-  let device = decideAsrDevice(s.asrDevice ?? 'auto', { available: av.ok, failed: !!s.asrGpuFailed?.[gk], bench: s.asrBench?.[asrBenchKey(model, av.gpus)] });
+  let device = decideAsrDevice(s.asrDevice ?? 'auto', { available: av.ok, failed: !!gpuFailure(s, gk), bench: s.asrBench?.[asrBenchKey(model, av.gpus)] });
   const want = device === 'cpu' ? 'cpu' : 'dml';
   const cur = workers.get('speech');
   const busy = [...pending.values()].some((p) => p.lane === 'speech');
