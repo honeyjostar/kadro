@@ -9,6 +9,7 @@ import { pluginDef } from '../../shared/gl/glsl';
 import type { CatalogItem, InstallResult } from '../../shared/pluginCatalog';
 import { glPlugins, useGlCatalog } from '../glRegistry';
 import { drawPreview } from '../pluginPreview';
+import { useSamplesReady } from '../sampleFrames';
 import { api, getState } from '../store';
 import { Seg } from './controls';
 
@@ -111,10 +112,11 @@ function Card({ it, busy, onInstall, onRemove }: { it: CatalogItem; busy: boolea
   const [broken, setBroken] = useState(false);
   const def = useMemo(() => pluginDef(it.kind, `catalog-${it.file.split('/')[1]}`, it.src).def, [it]);
   const hover = useRef(false);
+  const ready = useSamplesReady();
   useEffect(() => {
     if (!def || !ref.current) return;
     setBroken(!drawPreview(def, ref.current, 0.5, 0.6));
-  }, [def]);
+  }, [def, ready]);
   const play = () => {
     if (!def || !ref.current) return;
     hover.current = true;
