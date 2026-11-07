@@ -7,6 +7,7 @@
   <a href="https://github.com/honeyjostar/kadro/releases"><img src="https://img.shields.io/github/downloads/honeyjostar/kadro/total?label=downloads&color=15131a" alt="Downloads"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-15131a" alt="Windows 10 and 11">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-15131a" alt="GPL-3.0 license"></a>
+  <a href="https://t.me/kadroOffical"><img src="https://img.shields.io/badge/Telegram-Kadro_channel-26a5e4?logo=telegram&logoColor=white" alt="Kadro channel on Telegram"></a>
 </p>
 
 <h1 align="center">Kadro</h1>
@@ -17,7 +18,7 @@ animated text, 3D objects, perspective, auto captions and offline caption transl
 Export up to 4K with no watermark, no subscription and no sign-up.</p>
 
 <p align="center"><b><a href="https://github.com/honeyjostar/kadro/releases/latest">⬇ Download Kadro for Windows</a></b> — the installer is <code>Kadro-Setup-X.Y.Z.exe</code> under <b>Assets</b>.<br>
-<a href="README.md">Русский</a> · <a href="docs/BUILD.md">Building from source</a> (in Russian)</p>
+<a href="README.md">Русский</a> · <a href="https://t.me/kadroOffical">Telegram channel</a> · <a href="docs/BUILD.md">Building from source</a> (in Russian)</p>
 
 > [!IMPORTANT]
 > The app is the installer on the Releases page. The green **Code → Download ZIP** button gets the source code for developers —
@@ -110,6 +111,8 @@ The portable version is the `Kadro-X.Y.Z-portable.zip` file: unpack it anywhere 
 Found a bug or have an idea — **Settings → Help → Report a bug** in Kadro, or open an [issue](https://github.com/honeyjostar/kadro/issues).
 Made a transition or effect? Send it to the [plugin catalog](community-plugins). Translations of the interface live in
 [`src/shared/i18n/en.json`](src/shared/i18n/en.json) — improvements are welcome.
+
+News and updates: [t.me/kadroOffical](https://t.me/kadroOffical).
 
 ## License
 

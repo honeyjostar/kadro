@@ -7,6 +7,7 @@
   <a href="https://github.com/honeyjostar/kadro/releases"><img src="https://img.shields.io/github/downloads/honeyjostar/kadro/total?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B8%D0%B2%D0%B0%D0%BD%D0%B8%D0%B9&color=15131a" alt="Скачиваний"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-15131a" alt="Windows 10 и 11">
   <a href="LICENSE"><img src="https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-GPL--3.0-15131a" alt="Лицензия GPL-3.0"></a>
+  <a href="https://t.me/kadroOffical"><img src="https://img.shields.io/badge/Telegram-%D0%BA%D0%B0%D0%BD%D0%B0%D0%BB_Kadro-26a5e4?logo=telegram&logoColor=white" alt="Канал Kadro в Telegram"></a>
 </p>
 
 <h1 align="center">Kadro</h1>
@@ -16,12 +17,12 @@
 текст с анимацией, 3D-объекты, перспектива, автосубтитры, удаление фона, чистый голос, 19 шаблонов. Экспорт до 4K без водяных знаков, без подписок и регистрации.</p>
 
 <p align="center">
-  <a href="https://github.com/honeyjostar/kadro/releases/download/v0.9.4/Kadro-Setup-0.9.4.exe"><img src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C_%D0%B4%D0%BB%D1%8F_Windows-%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D1%89%D0%B8%D0%BA_328_%D0%9C%D0%91-ff3d7f?style=for-the-badge&logo=windows&logoColor=white" alt="Скачать для Windows — установщик, 328 МБ"></a>
-  <a href="https://github.com/honeyjostar/kadro/releases/download/v0.9.4/Kadro-0.9.4-portable.zip"><img src="https://img.shields.io/badge/%D0%91%D0%B5%D0%B7_%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B8-zip_531_%D0%9C%D0%91-2e2938?style=for-the-badge" alt="Без установки — zip, 531 МБ"></a>
+  <a href="https://github.com/honeyjostar/kadro/releases/download/v0.9.5/Kadro-Setup-0.9.5.exe"><img src="https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C_%D0%B4%D0%BB%D1%8F_Windows-%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D1%89%D0%B8%D0%BA_328_%D0%9C%D0%91-ff3d7f?style=for-the-badge&logo=windows&logoColor=white" alt="Скачать для Windows — установщик, 328 МБ"></a>
+  <a href="https://github.com/honeyjostar/kadro/releases/download/v0.9.5/Kadro-0.9.5-portable.zip"><img src="https://img.shields.io/badge/%D0%91%D0%B5%D0%B7_%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B8-zip_531_%D0%9C%D0%91-2e2938?style=for-the-badge" alt="Без установки — zip, 531 МБ"></a>
 </p>
 
-<p align="center">Kadro 0.9.4 для Windows 10 и 11 · после установки занимает около 1 ГБ ·
-  <a href="docs/GUIDE.md">Руководство</a> · <a href="docs/BUILD.md">Сборка из исходников</a> · <a href="README.en.md">English</a></p>
+<p align="center">Kadro 0.9.5 для Windows 10 и 11 · после установки занимает около 1 ГБ ·
+  <a href="docs/GUIDE.md">Руководство</a> · <a href="https://t.me/kadroOffical">Канал в Telegram</a> · <a href="docs/BUILD.md">Сборка из исходников</a> · <a href="README.en.md">English</a></p>
 
 > [!IMPORTANT]
 > Программа — это файлы по кнопкам выше. Зелёная кнопка **Code → Download ZIP** скачивает исходный код для программистов:
@@ -141,12 +142,12 @@ Kadro — обычная программа, а не сайт. Видео не �
 
 ## Установка
 
-1. Скачай [**Kadro-Setup-0.9.4.exe**](https://github.com/honeyjostar/kadro/releases/download/v0.9.4/Kadro-Setup-0.9.4.exe) (328 МБ). Все версии — на странице [Releases](https://github.com/honeyjostar/kadro/releases/latest), в разделе **Assets**.
+1. Скачай [**Kadro-Setup-0.9.5.exe**](https://github.com/honeyjostar/kadro/releases/download/v0.9.5/Kadro-Setup-0.9.5.exe) (328 МБ). Все версии — на странице [Releases](https://github.com/honeyjostar/kadro/releases/latest), в разделе **Assets**.
    Браузер может спросить, точно ли сохранить редко скачиваемый файл, — выбери «Сохранить».
 2. Запусти. Windows может показать «Система Windows защитила ваш компьютер» — это потому, что у установщика нет платной цифровой подписи. Нажми **Подробнее → Выполнить в любом случае**.
 3. Установщик ставит программу в `%LOCALAPPDATA%\Programs\Kadro` (около 1 ГБ, права администратора не нужны) и создаёт ярлык **Kadro** на рабочем столе и в меню «Пуск» — по нему программа и запускается.
 
-**Без установки:** скачай [Kadro-0.9.4-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.9.4/Kadro-0.9.4-portable.zip) (531 МБ), распакуй в любую папку (хоть на флешку) и запусти `Kadro.exe` внутри.
+**Без установки:** скачай [Kadro-0.9.5-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.9.5/Kadro-0.9.5-portable.zip) (531 МБ), распакуй в любую папку (хоть на флешку) и запусти `Kadro.exe` внутри.
 
 **Обновление** — начиная с 0.6.0 Kadro обновляется сам («Вышел Kadro X» → «Обновить»); можно и просто поставить новую версию поверх, проекты и настройки сохранятся.
 **Удаление** — «Параметры → Приложения → Kadro → Удалить». Модели и черновики лежат в `%USERPROFILE%\.kadro`, эту папку можно удалить вручную.
@@ -188,6 +189,8 @@ Electron + React + TypeScript, экспорт через FFmpeg, ИИ — ONNX R
 формулам и проверяются автотестами кадр в кадр. Как запустить, протестировать и собрать установщик — в [docs/BUILD.md](docs/BUILD.md).
 
 Нашёл ошибку или есть идея — «Настройки» → «Помощь» → «Сообщить об ошибке» в самом Kadro или [Issue](https://github.com/honeyjostar/kadro/issues). Свой переход или эффект можно прислать в [каталог плагинов](community-plugins).
+
+Новости, обновления и ответы на вопросы — в канале [t.me/kadroOffical](https://t.me/kadroOffical).
 
 ## Лицензия
 

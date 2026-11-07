@@ -2,7 +2,8 @@
 // мои проекты (как в CapCut), шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { Clapperboard, FileText, FolderOpen, Keyboard, Play, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
+import { Clapperboard, FileText, FolderOpen, Keyboard, Play, Send, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
+import { TELEGRAM_CHANNEL } from '../../shared/links';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
 import { APP_ICONS, type IconId } from '../../shared/appearance';
@@ -85,6 +86,7 @@ export function Home() {
       <header className="home-top">
         <div className="logo"><LogoMark />Kadro</div>
         <div className="spacer" />
+        <button className="btn ghost home-settings" onClick={() => void api.openUrl(TELEGRAM_CHANNEL)} title={tx('Канал Kadro в Telegram — новости и обновления')} data-testid="home-tg"><Send size={15} />Telegram</button>
         <button className="btn ghost home-settings" onClick={() => getState().setKeysOpen(true)} title={tx('Горячие клавиши (F1)')} data-testid="home-keys"><Keyboard size={15} />{tx('Клавиши')}</button>
         <button className="btn ghost home-settings" onClick={() => getState().setSettingsOpen(true)} data-testid="home-settings"><Settings size={15} />{tx('Настройки')}</button>
         {current && (

@@ -24,6 +24,7 @@ import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, i
 import { normalizeAppearance, type Appearance } from '../shared/appearance';
 import type { AspectKey, MediaAsset, Project } from '../shared/types';
 import { decodeSubtitleBytes } from '../shared/subtitles';
+import { isKadroUrl } from '../shared/links';
 import { AI_MIRROR, ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady, type AsrModelId, type TtsVoiceId } from './ai/models';
 import { denoise } from './ai/denoise';
 import { processVoice } from './ai/voice';
@@ -1090,9 +1091,9 @@ function registerIpc(): void {
       log: scrubLog(tail, os.homedir()),
     };
   });
-  // внешние ссылки — только на страницы Kadro на GitHub
+  // внешние ссылки — только на страницы Kadro на GitHub и канал Kadro в Telegram
   ipcMain.handle('app:openUrl', async (_e, url: string) => {
-    if (typeof url !== 'string' || !/^https:\/\/github\.com\/honeyjostar\/kadro(\/|$)/.test(url)) return false;
+    if (!isKadroUrl(url)) return false;
     log('open url', url.slice(0, 120));
     if (!process.env.KADRO_NO_OPEN) await shell.openExternal(url);
     return true;

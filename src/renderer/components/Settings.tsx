@@ -2,7 +2,7 @@
 // своё оформление (custom.css и theme.json в папке данных — подхватываются на лету), качество превью и кэш.
 import { LANGS_UI, pluralForm, tx, uiLang, uiLocale } from '../../shared/i18n';
 import { txj } from '../txj';
-import { AudioLines, BookOpen, Brain, Bug, CheckCircle2, Cpu, Download, Globe, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, RefreshCw, Settings as Gear, Trash2, TriangleAlert, X, XCircle } from 'lucide-react';
+import { AudioLines, BookOpen, Brain, Bug, Send, CheckCircle2, Cpu, Download, Globe, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, RefreshCw, Settings as Gear, Trash2, TriangleAlert, X, XCircle } from 'lucide-react';
 import { encoderLabel, encoderName, reasonText, type GpuVendor, type HwInfo } from '../../shared/hw';
 import { glPluginErrors, glPlugins, useGlCatalog } from '../glRegistry';
 import { useEffect, useState } from 'react';
@@ -15,6 +15,7 @@ import { reportInstall } from './PluginCatalog';
 import { ensureModel, ensureVoice, importModelFile, modelInBrowser } from '../actions';
 import type { ModelInfo, VoiceInfo } from '../../shared/ipc';
 import { gpuSpeedup, gpuWins, type AsrDeviceInfo, type AsrDevicePref } from '../../shared/asrDevice';
+import { TELEGRAM_CHANNEL } from '../../shared/links';
 import { UpdateSection } from './Update';
 
 export function SettingsDialog() {
@@ -142,8 +143,10 @@ export function SettingsDialog() {
           <div className="custom-row">
             <button className="btn small" onClick={() => { close(); getState().setBugOpen({ what: '' }); }} data-testid="bug-open-settings"><Bug size={13} />{tx('Сообщить об ошибке')}</button>
             <button className="btn ghost small" onClick={() => api.openDocs('guide')}><BookOpen size={13} />{tx('Инструкция')}</button>
+            <button className="btn ghost small" onClick={() => void api.openUrl(TELEGRAM_CHANNEL)} data-testid="help-tg"><Send size={13} />{tx('Канал в Telegram')}</button>
           </div>
           <p className="hint">{tx('Что-то не работает или есть идея — напиши: откроется готовый отчёт на GitHub с версией Kadro и журналом.')}</p>
+          <p className="hint">{tx('Новости и обновления Kadro — в канале {0}.', 't.me/kadroOffical')}</p>
         </section>
       </div>
     </div>
