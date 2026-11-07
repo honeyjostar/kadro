@@ -627,7 +627,9 @@ function demoFiles(): DemoFiles {
   for (const s of DEMO_SCENES) { const f = has('demo', `${s}.mp4`); if (f) scenes[s] = f; }
   const previews: Record<string, string> = {};
   for (const t of BUILTIN_TEMPLATES) { const f = has('templates', `${t.id}.mp4`); if (f) previews[t.id] = f; }
-  return { scenes, beat: has('demo', 'beat.m4a'), reel: has('demo', 'reel.mp4'), previews };
+  // ролик главного экрана — с надписями на языке интерфейса (нет такого — русский): вертикальный и горизонтальный
+  const reel = (name: string) => (uiLang() !== 'ru' && has('demo', `${name}.${uiLang()}.mp4`)) || has('demo', `${name}.mp4`);
+  return { scenes, beat: has('demo', 'beat.m4a'), reel: reel('reel'), reelWide: reel('reel-wide'), previews };
 }
 async function readProjectFile(file: string): Promise<Project> {
   const p = JSON.parse(fs.readFileSync(file, 'utf8')) as Project;

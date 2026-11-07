@@ -35,6 +35,22 @@ test('при запуске открыт главный экран, демо-р�
   await expect(win.getByTestId('home-close')).toHaveCount(0);
 });
 
+test('телефон доиграл — поворачивается в широкий экран с горизонтальным роликом и обратно', async () => {
+  const dev = win.getByTestId('home-device');
+  await expect(dev).toHaveAttribute('data-mode', 'phone');
+  const seekEnd = (id: string) => win.evaluate((t) => { const v = document.querySelector(`[data-testid=${t}]`) as HTMLVideoElement; v.currentTime = Math.max(0, v.duration - 0.2); }, id);
+  const time = (id: string) => win.evaluate((t) => (document.querySelector(`[data-testid=${t}]`) as HTMLVideoElement).currentTime, id);
+  await seekEnd('home-reel');
+  await expect(dev).toHaveAttribute('data-mode', 'screen', { timeout: 5000 });
+  await expect.poll(() => time('home-reel-wide'), { timeout: 10_000 }).toBeGreaterThan(0.3);
+  // корпус повёрнут, горизонтальный ролик стоит ровно и шире, чем выше
+  const box = await win.getByTestId('home-reel-wide').boundingBox();
+  expect(box!.width).toBeGreaterThan(box!.height * 1.5);
+  await seekEnd('home-reel-wide');
+  await expect(dev).toHaveAttribute('data-mode', 'phone', { timeout: 5000 });
+  await expect.poll(() => time('home-reel'), { timeout: 10_000 }).toBeGreaterThan(0.3);
+});
+
 test('новый проект нужного формата', async () => {
   await win.getByTestId('home-new-16-9').click();
   await expect(home()).toHaveCount(0);
@@ -52,11 +68,13 @@ test('демо-проект: все демо-ролики под бит, муз�
   await openHome();
   await win.getByTestId('home-demo').click();
   await expect(home()).toHaveCount(0);
-  await waitMain(7);
+  // 8 окошек на 7 демо-роликах (как ролик на главном экране)
+  await waitMain(8);
   const p = await project(win);
   expect(p.name).toBe('Демо Kadro');
   expect(p.settings.aspect).toBe('9:16');
-  expect(p.tracks[0].clips).toHaveLength(7);
+  expect(p.tracks[0].clips).toHaveLength(8);
+  expect(new Set(p.tracks[0].clips.map((c: any) => c.assetId)).size).toBe(7);
   expect(p.tracks.filter((t) => t.kind === 'audio').flatMap((t) => t.clips)).toHaveLength(1);
   expect(p.tracks.filter((t) => t.kind === 'text').flatMap((t) => t.clips).length).toBeGreaterThanOrEqual(8);
   // готовый пример не разбирается по Ctrl+Z
@@ -133,7 +151,7 @@ test('несохранённый проект не пропадает: он в �
   await expect(home()).toHaveCount(0);
   const p = await project(win);
   expect(p.name).toBe('Демо Kadro');
-  expect(p.tracks[0].clips).toHaveLength(7);
+  expect(p.tracks[0].clips).toHaveLength(8);
 });
 
 test('шаблон на демо-видео: с главного экрана и из вкладки «Шаблоны»', async () => {

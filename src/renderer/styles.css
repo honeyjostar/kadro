@@ -759,10 +759,32 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .home-format:hover:not(:disabled) .home-shape span { border-color: var(--accent); background: var(--accent-soft); }
 .home-format:hover:not(:disabled) .home-ratio { color: var(--accent); }
 .home-more { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
-.home-reel { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 18px; width: clamp(200px, calc((100vh - 250px) * 0.5625), 300px); }
-.home-phone { position: relative; width: 100%; aspect-ratio: 9 / 16; border-radius: 26px; overflow: hidden; background: #000; box-shadow: 0 0 0 7px var(--raised), 0 0 0 8px var(--line), 0 28px 60px -24px rgba(0, 0, 0, 0.8); }
-.home-phone video { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* ролик главного экрана: телефон (9:16) поворачивается и становится широким экраном (16:9) — см. HomeReel.tsx.
+   --ph — высота телефона; колонка квадратная (--ph × --ph), чтобы повёрнутый телефон в неё помещался */
+.home-reel { --ph: clamp(320px, calc(100vh - 330px), 440px); margin: 0; display: flex; flex-direction: column; align-items: center; gap: 14px; width: var(--ph); }
+.home-device { --pw: calc(var(--ph) * 0.5625); --turn: 0.9s cubic-bezier(0.65, 0, 0.25, 1); position: relative; width: var(--ph); height: var(--ph); display: grid; place-items: center; }
+.home-device-body { position: relative; width: var(--pw); height: var(--ph); border-radius: 26px; overflow: hidden; background: #000;
+  box-shadow: 0 0 0 7px var(--raised), 0 0 0 8px var(--line), 0 28px 60px -24px rgba(0, 0, 0, 0.8);
+  transition: transform var(--turn), border-radius var(--turn), box-shadow var(--turn); }
+.home-device-body video { display: block; object-fit: cover; transition: opacity 0.35s ease; }
+.home-reel-v { width: 100%; height: 100%; }
+/* горизонтальный ролик живёт в повёрнутом корпусе — сам повёрнут обратно, чтобы стоять ровно */
+.home-reel-h { position: absolute; left: 50%; top: 50%; width: var(--ph); height: var(--pw); transform: translate(-50%, -50%) rotate(90deg); opacity: 0; }
+.home-device.screen .home-device-body { transform: rotate(-90deg); border-radius: 12px;
+  box-shadow: 0 0 0 9px #0d0c11, 0 0 0 10px var(--line), 0 30px 60px -22px rgba(0, 0, 0, 0.85); }
+.home-device.screen .home-reel-v { opacity: 0; transition-delay: 0.45s; }
+.home-device.screen .home-reel-h { opacity: 1; transition-delay: 0.55s; }
+/* подставка: телефон стал экраном */
+.home-device-stand { position: absolute; left: 50%; top: calc(50% + var(--pw) / 2 + 10px); width: 34%; height: 26px; transform: translateX(-50%) scaleY(0); transform-origin: top;
+  opacity: 0; transition: transform 0.4s ease, opacity 0.3s ease; pointer-events: none;
+  background: linear-gradient(var(--line), var(--line)) center top / 14% 16px no-repeat, linear-gradient(var(--raised), var(--line)) center bottom / 100% 9px no-repeat; border-radius: 0 0 6px 6px; }
+.home-device.screen .home-device-stand { opacity: 1; transform: translateX(-50%) scaleY(1); transition-delay: 0.7s; }
+.home-device .home-sound { right: calc((var(--ph) - var(--pw)) / 2 + 10px); bottom: 10px; transition: right var(--turn), bottom var(--turn); }
+.home-device.screen .home-sound { right: 10px; bottom: calc((var(--ph) - var(--pw)) / 2 + 10px); }
 .home-phone-empty { width: 100%; height: 100%; background: linear-gradient(160deg, #f7b267, #f4845f 45%, #5b6c8f); }
+@media (prefers-reduced-motion: reduce) {
+  .home-device-body, .home-device-body video, .home-device-stand, .home-device .home-sound { transition: none !important; }
+}
 .home-sound { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 6px; align-items: center; padding: 6px 10px; border-radius: 999px; border: 0; background: rgba(0, 0, 0, 0.55); color: #fff; font-size: 12px; backdrop-filter: blur(6px); }
 .home-reel figcaption { text-align: center; color: var(--muted); display: flex; flex-direction: column; gap: 12px; align-items: center; font-size: 12.5px; line-height: 1.45; }
 .home-section { max-width: 1160px; margin: 44px auto 0; }

@@ -1117,9 +1117,19 @@ async function buildExample(t: Template, name: string): Promise<boolean> {
   const demo = await loadDemoFiles();
   const files = [...new Set((t.demo ?? DEMO_SCENES).map((x) => demo.scenes[x]).filter(Boolean))];
   if (!files.length) { getState().toast(tx('Демо-ролики не найдены — переустанови Kadro'), 'err'); return false; }
+  return buildWith(t, name, files, demo.beat);
+}
+
+/** Ролик для главного экрана (сборка, не для пользователя): монтаж демо-проекта на своих файлах, вертикальный или горизонтальный. */
+export async function buildDemoWith(files: string[], aspect: Template['aspect'] = '9:16'): Promise<boolean> {
+  const demo = await loadDemoFiles();
+  return buildWith({ ...DEMO_TEMPLATE, aspect }, tx('Демо Kadro'), files, demo.beat);
+}
+
+async function buildWith(t: Template, name: string, files: string[], beatFile: string | null): Promise<boolean> {
   getState().setPlaying(false);
   await replaceProject(newProject(name, t.aspect));
-  const ids = await importPaths(demo.beat ? [...files, demo.beat] : files);
+  const ids = await importPaths(beatFile ? [...files, beatFile] : files);
   const assets = ids.map((id) => getState().project.assets.find((a) => a.id === id)).filter((a): a is MediaAsset => !!a);
   const media = files.map((f) => assets.find((a) => a.path === f && a.kind !== 'audio')).filter((a): a is MediaAsset => !!a);
   if (!media.length) return false;

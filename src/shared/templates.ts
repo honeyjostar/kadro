@@ -319,26 +319,29 @@ const BEAT = 60 / DEMO_BPM;
 const onBeat = (n: number, t?: Transition): Pick<TemplateSlot, 'duration' | 'transitionOut'> => ({ duration: n * BEAT + (t?.duration ?? 0), transitionOut: t });
 const bar = (k: number) => k * 4 * BEAT + 0.25;
 export const DEMO_TEMPLATE: Template = {
-  id: 'demo', name: tx('Демо Kadro'), hint: tx('что умеет Kadro, за 16 секунд'), aspect: '9:16',
-  demo: ['sunset', 'city', 'synth', 'ocean', 'space', 'mountains', 'liquid'],
+  id: 'demo', name: tx('Демо Kadro'), hint: tx('что умеет Kadro, за 18 секунд'), aspect: '9:16',
+  demo: ['city', 'ocean', 'synth', 'sunset', 'space', 'mountains', 'liquid'],
+  // тот же монтаж — ролик на главном экране (на настоящих кадрах), вертикальный и горизонтальный
   slots: [
-    { ...onBeat(4, tr('circleopen', 0.4)), zoom: [1.15, 1], color: { preset: 'golden', presetAmount: 0.8 }, effects: [{ type: 'flash', amount: 0.6 }] },
-    { ...onBeat(4, tr('pixelize', 0.35)), zoom: [1, 1.1], color: { preset: 'nightcity', presetAmount: 0.9 }, effects: [{ type: 'glow', amount: 0.6 }] },
-    { ...onBeat(4, tr('hlslice', 0.4)), color: { preset: 'electric', presetAmount: 0.8 }, effects: [{ type: 'glitch', amount: 0.5 }, { type: 'heartbeat', amount: 0.6 }] },
-    { ...onBeat(4, tr('smoothup', 0.4)), zoom: [1.1, 1], color: { preset: 'ocean', presetAmount: 0.9 }, effects: [{ type: 'sparkles', amount: 0.5 }] },
-    { ...onBeat(4, tr('fadewhite', 0.4)), color: { preset: 'cinema', presetAmount: 0.8 }, effects: [{ type: 'zoomin', amount: 0.8 }] },
-    { ...onBeat(4, tr('radial', 0.5)), zoom: [1, 1.1], color: { preset: 'winter', presetAmount: 0.9 }, effects: [{ type: 'snow', amount: 0.8 }] },
-    { ...onBeat(6), zoom: [1.1, 1], color: { preset: 'candy', presetAmount: 0.8 }, effects: [{ type: 'confetti', amount: 0.7 }] },
+    { ...onBeat(4, tr('circleopen', 0.4)), zoom: [1.15, 1], color: { preset: 'nightcity', presetAmount: 0.5 }, effects: [{ type: 'flash', amount: 0.6 }] },
+    { ...onBeat(4, tr('pixelize', 0.35)), zoom: [1, 1.1], color: { preset: 'ocean', presetAmount: 0.5 } },
+    { ...onBeat(4, tr('hlslice', 0.4)), color: { preset: 'electric', presetAmount: 0.4 }, effects: [{ type: 'glitch', amount: 0.5 }, { type: 'heartbeat', amount: 0.6 }] },
+    { ...onBeat(4, tr('smoothup', 0.4)), zoom: [1.1, 1], color: { preset: 'golden', presetAmount: 0.6 } },
+    { ...onBeat(4, tr('fadewhite', 0.4)), effects: [{ type: 'zoomin', amount: 0.8 }] },
+    { ...onBeat(4, tr('radial', 0.5)), zoom: [1, 1.1], color: { preset: 'cinema', presetAmount: 0.6 }, effects: [{ type: 'sparkles', amount: 0.4 }] },
+    { ...onBeat(4, tr('zoomin', 0.4)), color: { preset: 'electric', presetAmount: 0.3 }, effects: [{ type: 'glow', amount: 0.6 }] },
+    { ...onBeat(6), zoom: [1.1, 1], color: { preset: 'candy', presetAmount: 0.4 }, effects: [{ type: 'confetti', amount: 0.7 }] },
   ],
   texts: [
     { start: 0.2, duration: 1.9, text: 'KADRO', preset: 'classic', style: { size: 136, font: 'Unbounded', bold: true }, anim: { in: { type: 'pop', dur: 0.45 }, out: { type: 'zoom', dur: 0.3 } }, y: 0.42 },
     { start: 0.6, duration: 1.5, text: tx('бесплатный видеоредактор'), preset: 'classic', style: { size: 44, font: 'Montserrat', bold: true }, anim: { in: { type: 'slideUp', dur: 0.4 } }, y: 0.55 },
-    { start: bar(1), duration: 1.8, text: tx('58 переходов'), preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
-    { start: bar(2), duration: 1.8, text: tx('48 эффектов'), preset: 'box', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
+    { start: bar(1), duration: 1.8, text: tx('181 переход'), preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
+    { start: bar(2), duration: 1.8, text: tx('54 эффекта'), preset: 'box', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
     { start: bar(3), duration: 1.8, text: tx('47 фильтров'), preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
     { start: bar(4), duration: 1.8, text: tx('122 шрифта'), preset: 'box', style: { size: 60, font: 'Press Start 2P' }, anim: { in: { type: 'typewriter', dur: 0.5 } }, y: 0.66 },
     { start: bar(5), duration: 1.8, text: tx('ИИ без интернета'), preset: 'boxwhite', style: { size: 66, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
-    { start: bar(6), duration: 2.9, text: tx('Сделай свой ролик'), preset: 'yellow', style: { size: 64, font: 'Russo One' }, anim: { in: { type: 'zoom', dur: 0.4 } }, y: 0.5 },
+    { start: bar(6), duration: 1.8, text: tx('Без водяных знаков'), preset: 'box', style: { size: 62, font: 'Rubik', bold: true }, anim: { in: { type: 'pop', dur: 0.3 } }, y: 0.66 },
+    { start: bar(7), duration: 2.9, text: tx('Сделай свой ролик'), preset: 'yellow', style: { size: 64, font: 'Russo One' }, anim: { in: { type: 'zoom', dur: 0.4 } }, y: 0.5 },
   ],
 };
 

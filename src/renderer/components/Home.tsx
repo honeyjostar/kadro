@@ -2,7 +2,7 @@
 // мои проекты (как в CapCut), шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { Clapperboard, FileText, FolderOpen, Keyboard, Play, Send, Settings, Volume2, VolumeX, WandSparkles, X } from 'lucide-react';
+import { Clapperboard, FileText, FolderOpen, Keyboard, Play, Send, Settings, WandSparkles, X } from 'lucide-react';
 import { TELEGRAM_CHANNEL } from '../../shared/links';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
@@ -15,6 +15,7 @@ import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
 import { Seg, Toggle } from './controls';
 import { ProjectsSection } from './Projects';
+import { HomeReel } from './HomeReel';
 
 const FORMATS: { aspect: AspectKey; title: string; where: string }[] = [
   { aspect: '9:16', title: tx('Вертикальное'), where: 'TikTok, Reels, Shorts' },
@@ -58,7 +59,6 @@ export function TemplatePreview({ t, active }: { t: Template; active: boolean })
 export function Home() {
   const [info, setInfo] = useState<HomeInfo | null>(null);
   const [busy, setBusy] = useState(false);
-  const [sound, setSound] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
   const hasClips = useStore((s) => s.project.tracks.some((t) => t.clips.length > 0));
   const currentName = useStore((s) => s.project.name);
@@ -66,7 +66,6 @@ export function Home() {
   const [showAtStart, setShowAtStart] = useState(true);
   const themePref = useStore((s) => s.themePref);
   const defaultFormat = useStore((s) => s.defaultFormat);
-  const reel = useRef<HTMLVideoElement>(null);
 
   const load = () => void api.homeInfo().then((i) => { setInfo(i); setShowAtStart(i.show); getState().setDemo(i.demo); });
   useEffect(load, []);
@@ -143,18 +142,9 @@ export function Home() {
           </div>
 
           <figure className="home-reel">
-            <div className="home-phone">
-              {reelSrc
-                ? <video ref={reel} src={api.mediaUrl(reelSrc)} autoPlay muted={!sound} loop playsInline data-testid="home-reel" />
-                : <div className="home-phone-empty" />}
-              {reelSrc && info?.demo.reel && (
-                <button className="home-sound" onClick={() => setSound(!sound)} title={sound ? tx('Выключить звук') : tx('Включить звук')}>
-                  {sound ? <Volume2 size={15} /> : <VolumeX size={15} />}{sound ? tx('Звук включён') : tx('Со звуком')}
-                </button>
-              )}
-            </div>
+            <HomeReel vertical={reelSrc} wide={info?.demo.reel ? info.demo.reelWide ?? null : null} withSound={!!info?.demo.reel} />
             <figcaption>
-              <span>{tx('Этот ролик собран в Kadro из демо-видео. Открой его и посмотри, как он устроен.')}</span>
+              <span>{tx('Ролик смонтирован в Kadro — вертикальный и горизонтальный из одного проекта. Демо-проект — тот же монтаж на встроенных роликах: открой и посмотри, как он устроен.')}</span>
               <button className="btn primary" disabled={busy || !info || !Object.keys(info.demo.scenes).length} onClick={() => void run(openDemo)} data-testid="home-demo">
                 <Play size={14} fill="currentColor" />{tx('Открыть демо-проект')}</button>
             </figcaption>

@@ -11,10 +11,14 @@ test.skip(!process.env.KADRO_MAKE_PREVIEWS, 'только по запросу: K
 test.setTimeout(1_800_000);
 
 let K: Kadro;
-test.beforeAll(async () => { K = await launch(); fs.mkdirSync(MEDIA, { recursive: true }); });
+// ролик главного экрана с надписями на другом языке: KADRO_REEL_LANG=en (файлы reel.en.mp4, reel-wide.en.mp4)
+const LANG = process.env.KADRO_REEL_LANG || 'ru';
+test.beforeAll(async () => { K = await launch({ env: { KADRO_LANG: LANG } }); fs.mkdirSync(MEDIA, { recursive: true }); });
 test.afterAll(async () => { await K?.app.close(); });
 
 const TPL_DIR = path.join(ROOT, 'resources', 'templates');
+/** Кадры ролика главного экрана по порядку окошек демо-проекта (номера видео на mixkit.co). */
+const REEL_FOOTAGE = ['20064', '48525', '99872', '52427', '50989', '16610', '99864', '4155'];
 const DEMO_DIR = path.join(ROOT, 'resources', 'demo');
 
 function ffmpeg(args: string[]): void {
@@ -35,9 +39,17 @@ test('превью шаблонов и демо-ролик', async () => {
   const only = (process.env.KADRO_MAKE_PREVIEWS ?? '').split(',').filter((x) => x && x !== '1');
   fs.mkdirSync(TPL_DIR, { recursive: true });
   if (!only.length || only.includes('reel')) {
-    const raw = await render(() => act(K.win, 'openDemo'), 540);
-    ffmpeg(['-i', raw, '-c:v', 'libx264', '-preset', 'slow', '-crf', '27', '-pix_fmt', 'yuv420p', '-g', '60', '-c:a', 'aac', '-b:a', '112k', '-movflags', '+faststart', path.join(DEMO_DIR, 'reel.mp4')]);
-    console.log('reel', Math.round(fs.statSync(path.join(DEMO_DIR, 'reel.mp4')).size / 1024), 'КБ');
+    // монтаж демо-проекта на настоящих кадрах (KADRO_REEL_DIR — видео Mixkit, сами файлы в Kadro не входят),
+    // вертикальный — в телефоне, горизонтальный — когда телефон поворачивается в широкий экран
+    const dir = process.env.KADRO_REEL_DIR;
+    const files = dir ? REEL_FOOTAGE.map((f) => path.join(dir, `${f}.mp4`)) : null;
+    const suffix = LANG === 'ru' ? '' : `.${LANG}`;
+    for (const [aspect, name] of [['9:16', 'reel'], ['16:9', 'reel-wide']] as const) {
+      const raw = await render(() => (files ? act(K.win, 'buildDemoWith', files, aspect) : aspect === '9:16' ? act(K.win, 'openDemo') : act(K.win, 'buildDemoWith', [], aspect)), 540);
+      const out = path.join(DEMO_DIR, `${name}${suffix}.mp4`);
+      ffmpeg(['-i', raw, '-c:v', 'libx264', '-preset', 'slow', '-crf', '28', '-pix_fmt', 'yuv420p', '-g', '60', '-c:a', 'aac', '-b:a', '112k', '-movflags', '+faststart', out]);
+      console.log(path.basename(out), Math.round(fs.statSync(out).size / 1024), 'КБ');
+    }
   }
   for (const t of BUILTIN_TEMPLATES as Template[]) {
     if (only.length && !only.includes(t.id)) continue;

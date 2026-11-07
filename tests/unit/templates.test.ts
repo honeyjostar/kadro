@@ -68,7 +68,7 @@ describe('шаблоны', () => {
     const p = applyTemplate(newProject('x'), DEMO_TEMPLATE, [asset('long', 'video', 60)]);
     const beat = 60 / DEMO_BPM;
     for (const c of mainTrack(p).clips) { const k = c.start / (4 * beat); expect(Math.abs(k - Math.round(k))).toBeLessThan(0.002); }
-    expect(templateDuration(DEMO_TEMPLATE)).toBeCloseTo(30 * beat, 2);
+    expect(templateDuration(DEMO_TEMPLATE)).toBeCloseTo(34 * beat, 2);
   });
   it('длина шаблона учитывает переходы', () => {
     const t = BUILTIN_TEMPLATES.find((x) => x.id === 'vlog')!;
