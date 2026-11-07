@@ -69,6 +69,8 @@ export interface TextState {
   wipe: number;        // 0..1 — видимая доля ширины слева
   blur: number;        // размытие в «пикселях 1080»
   active: number;      // индекс произносимого слова (-1 — нет)
+  emoji: number;       // слово, чьё эмодзи сейчас над текстом (-1 — нет)
+  emojiK: number;      // 0..1 — эмодзи «выскакивает»
 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -106,14 +108,24 @@ export function activeWordAt(words: Word[] | undefined, local: number): number {
 /** Есть ли у текста что-то, меняющееся во времени (тогда экспорт рисует его по кадрам). */
 export function isTextAnimated(c: TextClip): boolean {
   const hl = c.style.highlight && c.style.highlight.mode !== 'none' && (c.words?.length ?? 0) > 0;
-  return hasAnim(c.keyframes) || !!c.anim?.in || !!c.anim?.out || !!hl;
+  return hasAnim(c.keyframes) || !!c.anim?.in || !!c.anim?.out || !!hl || !!c.words?.some((w) => w.emoji);
+}
+
+/** Какое эмодзи над текстом в момент local: последнее начавшееся; без local — первое. */
+function emojiAt(words: Word[] | undefined, local: number | undefined): { i: number; k: number } {
+  if (!words?.some((w) => w.emoji)) return { i: -1, k: 0 };
+  if (local === undefined) return { i: words.findIndex((w) => w.emoji), k: 1 };
+  let i = -1;
+  for (let j = 0; j < words.length; j++) if (words[j].emoji && words[j].start <= local + 1e-6) i = j;
+  return { i, k: i < 0 ? 0 : clamp01((local - words[i].start) / 0.22) };
 }
 
 /** Состояние текста в момент local (сек от начала клипа). Без local — «спокойное» состояние. */
 export function textStateAt(c: TextClip, local?: number): TextState {
   const t = local ?? Math.min(c.duration / 2, 0.5);
   const p = textPropsAt(c, t);
-  const st: TextState = { ...p, reveal: Infinity, wipe: 1, blur: 0, active: -1 };
+  const em = emojiAt(c.words, local);
+  const st: TextState = { ...p, reveal: Infinity, wipe: 1, blur: 0, active: -1, emoji: em.i, emojiK: em.k };
   if (local === undefined) return st;
   const chars = c.text.replace(/\s+/g, '').length;
   const ain = c.anim?.in;
@@ -127,7 +139,7 @@ export function textStateAt(c: TextClip, local?: number): TextState {
 /** Ключ состояния — одинаковые кадры экспорта не рисуются заново. */
 export function textStateKey(s: TextState): string {
   const r = (v: number) => Math.round(v * 1e4) / 1e4;
-  return [r(s.x), r(s.y), r(s.scale), r(s.rotation), r(s.opacity), s.reveal === Infinity ? 'all' : s.reveal, r(s.wipe), r(s.blur), s.active].join('|');
+  return [r(s.x), r(s.y), r(s.scale), r(s.rotation), r(s.opacity), s.reveal === Infinity ? 'all' : s.reveal, r(s.wipe), r(s.blur), s.active, s.emoji, r(s.emojiK)].join('|');
 }
 
 /** Прямоугольник текста до поворота (центр, размеры) — для рамки в плеере. */
@@ -228,7 +240,8 @@ function drawFlat(ctx: Ctx, clip: TextClip, W: number, H: number, local: number 
 
   const hl = s.highlight && s.highlight.mode !== 'none' && clip.words?.length ? s.highlight : undefined;
   const ps = pieces(ctx, L, xOf);
-  const mapped = hl && ps.length === clip.words!.length; // подсветка возможна, если слова совпадают с текстом
+  const wordsMatch = !!clip.words?.length && ps.length === clip.words.length; // слова совпадают с текстом
+  const mapped = hl && wordsMatch; // тогда возможна подсветка
   // печатная машинка: сколько букв каждого слова видно
   let budget = st.reveal;
   const visibleText = (p: Piece) => {
@@ -269,12 +282,13 @@ function drawFlat(ctx: Ctx, clip: TextClip, W: number, H: number, local: number 
     ctx.shadowOffsetY = 4 * k;
   };
   const noShadow = () => { ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; };
+  const base = (p: Piece) => (wordsMatch && s.keyColor && clip.words![p.word].key ? s.keyColor : s.color);
   const colorOf = (p: Piece) => {
-    if (!mapped) return s.color;
+    if (!mapped) return base(p);
     if (hl!.mode === 'color' && p.word === st.active) return hl!.color;
     if (hl!.mode === 'karaoke' && p.word <= st.active) return hl!.color;
     if (hl!.mode === 'pop' && p.word === st.active) return hl!.color;
-    return s.color;
+    return base(p);
   };
   const drawPiece = (p: Piece & { vis: string }, stroke: boolean) => {
     const pop = mapped && hl!.mode === 'pop' && p.word === st.active;
@@ -304,5 +318,24 @@ function drawFlat(ctx: Ctx, clip: TextClip, W: number, H: number, local: number 
     shadow();
   }
   for (const p of order) drawPiece(p, false);
+  // эмодзи по смыслу — над текстом, «выскакивает», когда звучит его слово
+  const emo = st.emoji >= 0 && wordsMatch ? clip.words![st.emoji].emoji : undefined;
+  if (emo && st.emojiK > 0) {
+    noShadow();
+    const k2 = st.emojiK;
+    const pop = k2 >= 1 ? 1 : 1 + 2.2 * Math.pow(k2 - 1, 3) + 1.2 * Math.pow(k2 - 1, 2); // с перелётом
+    const size = L.px * 1.15;
+    const ex = L.cx;
+    const ey = top - L.padY - size * 0.62;
+    ctx.save();
+    ctx.translate(ex, ey);
+    ctx.scale(Math.max(0.01, pop), Math.max(0.01, pop));
+    ctx.font = `${size}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(emo, 0, 0);
+    ctx.restore();
+  }
   ctx.restore();
 }

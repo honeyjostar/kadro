@@ -13,6 +13,7 @@ import { GL_TRANSITION_CATS } from '../../shared/gl/glsl';
 import { applyGlEffects, drawAnyTransition } from '../engine/glDraw';
 import { glEffects, glTransitions, useGlCatalog } from '../glRegistry';
 import { retimeWords } from '../../shared/captions';
+import { applyBlogStyle, BLOG_STYLES, CAP_GROUPS, captionLook, restyleCaptions, type BlogStyle } from '../../shared/blogCaptions';
 import { togglePreview, usePreview } from '../audioPreview';
 import { LANGS, guessLang, langLabel, routeFor, targetsFrom, type LangCode } from '../../shared/translate';
 import type { ModelInfo } from '../../shared/ipc';
@@ -29,6 +30,7 @@ import {
   loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles,
 } from '../actions';
 import { useMenu, type MenuEntry } from './Menu';
+import { sampleCanvas, useSamplesReady } from '../sampleFrames';
 import { listMics, recPrefs, type MicInfo } from '../recorder';
 import { BUILTIN_TEMPLATES, TEMPLATE_CATS, templateDuration, type Template, type TemplateCat } from '../../shared/templates';
 import { TemplatePreview } from './Home';
@@ -500,6 +502,29 @@ function MiniWave({ peaks }: { peaks?: number[] }) {
 }
 
 // ---------- Текст ----------
+/** Образец стиля «как у блогеров»: произносимое слово подсвечено, ключевое — своим цветом, эмодзи над ними. */
+function BlogSample({ b }: { b: BlogStyle }) {
+  const st = { ...b.style };
+  const words = b.group === '1' ? [tx('Огонь')] : b.group === '2' ? [tx('Это'), tx('огонь')] : [tx('Это'), tx('просто'), tx('огонь')];
+  const hl = st.highlight?.mode && st.highlight.mode !== 'none' ? st.highlight : undefined;
+  const last = words.length - 1;
+  const wordStyle = (i: number): React.CSSProperties => {
+    if (!hl) return i === last && b.keywords && st.keyColor ? { color: st.keyColor } : {};
+    if (hl.mode === 'box') return i === last ? { background: hl.color, borderRadius: 4, padding: '0 3px' } : {};
+    if (hl.mode === 'karaoke') return i < last ? { color: hl.color } : {};
+    if (i === last) return { color: hl.color, display: 'inline-block', transform: hl.mode === 'pop' ? 'scale(1.15)' : undefined };
+    return i === 0 && b.keywords && st.keyColor ? { color: st.keyColor } : {};
+  };
+  return (
+    <div className="text-sample blog-sample">
+      {b.emoji && <span className="blog-emoji">🔥</span>}
+      <span style={{ ...textPreviewStyle(st), textTransform: st.uppercase ? 'uppercase' : undefined, fontSize: b.group === '1' ? 17 : 13 }}>
+        {words.map((w, i) => <span key={i} style={wordStyle(i)}>{w}{i < last ? ' ' : ''}</span>)}
+      </span>
+    </div>
+  );
+}
+
 export function textPreviewStyle(s: Partial<TextStyle>): React.CSSProperties {
   const st = { ...s };
   return {
@@ -628,6 +653,8 @@ function CaptionsPanel() {
   useEffect(() => { void api.models().then(setModels); }, [running]);
   const first = captions[0];
   const vertical = useStore((s) => s.project.settings.height > s.project.settings.width);
+  const project = useStore((s) => s.project);
+  const look = useMemo(() => (captions.length ? captionLook(project) : null), [project, captions.length]);
   return (
     <>
       <div className="panel-head">{tx('Субтитры')}</div>
@@ -665,6 +692,32 @@ function CaptionsPanel() {
 
         {first && (
           <>
+            <div className="section-title">{tx('Как у блогеров')}</div>
+            <div className="tile-grid blog-grid" data-testid="blog-styles">
+              {BLOG_STYLES.map((b) => (
+                <button key={b.id} className="tile text-tile blog-tile" onClick={() => commit((p) => applyBlogStyle(p, b, vertical), 'blogstyle')} data-testid={`blog-${b.id}`}>
+                  <BlogSample b={b} />
+                  <span className="label">{b.label}</span>
+                </button>
+              ))}
+            </div>
+            {look && (
+              <>
+                <div className="field">
+                  <div className="field-row"><label>{tx('Слов в субтитре')}</label></div>
+                  <Seg testId="cap-group" value={look.group} onChange={(g) => commit((p) => restyleCaptions(p, { group: g }))} options={CAP_GROUPS} />
+                </div>
+                <Toggle label={tx('Ключевые слова цветом')} hint={tx('Числа, имена и главные слова — другим цветом')} on={look.keywords} testId="cap-keywords"
+                  onChange={(v) => commit((p) => restyleCaptions(p, { keywords: v, style: v && !first.style.keyColor ? { keyColor: '#ffd400' } : undefined }))} />
+                {look.keywords && (
+                  <ColorField label={tx('Цвет ключевых слов')} value={first.style.keyColor ?? '#ffd400'}
+                    onChange={(v) => commit((p) => styleAllCaptions(p, { keyColor: v }), 'keyc')} />
+                )}
+                <Toggle label={tx('Эмодзи по смыслу')} hint={tx('Над субтитром, когда звучит слово: деньги 💰, огонь 🔥, идея 💡')} on={look.emoji} testId="cap-emoji"
+                  onChange={(v) => commit((p) => restyleCaptions(p, { emoji: v }))} />
+              </>
+            )}
+
             <div className="section-title">{tx('Стиль всех субтитров')}</div>
             <div className="tile-grid">
               {TEXT_PRESETS.map((t) => (
@@ -729,28 +782,14 @@ function CaptionsPanel() {
 }
 
 // ---------- Эффекты ----------
-/** Образец для живых превью эффектов: небо, солнце, холмы, фигурка. */
-let fxScene: HTMLCanvasElement | null = null;
-function effectScene(): HTMLCanvasElement {
-  if (fxScene) return fxScene;
-  const cv = document.createElement('canvas');
-  cv.width = THUMB_W; cv.height = THUMB_H;
-  const g = cv.getContext('2d')!;
-  const sky = g.createLinearGradient(0, 0, 0, THUMB_H);
-  sky.addColorStop(0, '#3a7bd5'); sky.addColorStop(0.6, '#f2a65a'); sky.addColorStop(1, '#ff6b6b');
-  g.fillStyle = sky; g.fillRect(0, 0, THUMB_W, THUMB_H);
-  g.fillStyle = '#ffe9a8'; g.beginPath(); g.arc(88, 30, 12, 0, Math.PI * 2); g.fill();
-  g.fillStyle = '#2f6b3a'; g.beginPath(); g.moveTo(0, 56); g.quadraticCurveTo(36, 36, 70, 54); g.quadraticCurveTo(100, 44, 128, 52); g.lineTo(128, 72); g.lineTo(0, 72); g.fill();
-  g.fillStyle = '#1d3f25'; g.beginPath(); g.moveTo(0, 64); g.quadraticCurveTo(50, 52, 128, 66); g.lineTo(128, 72); g.lineTo(0, 72); g.fill();
-  g.fillStyle = '#15131a'; g.beginPath(); g.arc(40, 40, 4, 0, Math.PI * 2); g.fill(); g.fillRect(38, 44, 4, 12);
-  fxScene = cv;
-  return cv;
-}
+/** Образец для живых превью эффектов — настоящий кадр (мотоциклист в неоне). */
+function effectScene(): HTMLCanvasElement { return sampleCanvas('neon', THUMB_W, THUMB_H); }
 
 /** Миниатюра эффекта: в покое — один кадр, при наведении — эффект в движении. */
 function EffectThumb({ type }: { type: EffectType }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [hover, setHover] = useState(false);
+  const ready = useSamplesReady();
   useEffect(() => {
     const cv = ref.current;
     if (!cv) return;
@@ -784,7 +823,7 @@ function EffectThumb({ type }: { type: EffectType }) {
     const loop = () => { draw(((performance.now() - t0) / 1000) % 3); raf = requestAnimationFrame(loop); };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [type, hover]);
+  }, [type, hover, ready]);
   return <canvas ref={ref} width={THUMB_W} height={THUMB_H} className="swatch tr-thumb" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} />;
 }
 
@@ -834,31 +873,18 @@ function EffectsPanel() {
 }
 
 // ---------- Переходы ----------
-/** Два образца для живых превью переходов: «А» — тёплый, «Б» — холодный. */
-let samplePair: [HTMLCanvasElement, HTMLCanvasElement] | null = null;
-const THUMB_W = 128;
-const THUMB_H = 72;
+/** Два настоящих кадра для живых превью переходов: дорога на закате → мотоциклист в неоне. */
+const THUMB_W = 192;
+const THUMB_H = 108;
 function sampleFrames(): [HTMLCanvasElement, HTMLCanvasElement] {
-  if (samplePair) return samplePair;
-  const make = (c1: string, c2: string, letter: string, ink: string) => {
-    const cv = document.createElement('canvas');
-    cv.width = THUMB_W; cv.height = THUMB_H;
-    const g = cv.getContext('2d')!;
-    const gr = g.createLinearGradient(0, 0, THUMB_W, THUMB_H);
-    gr.addColorStop(0, c1); gr.addColorStop(1, c2);
-    g.fillStyle = gr; g.fillRect(0, 0, THUMB_W, THUMB_H);
-    g.fillStyle = ink; g.font = "700 38px 'Unbounded'"; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(letter, THUMB_W / 2, THUMB_H / 2 + 2);
-    return cv;
-  };
-  samplePair = [make('#ff8a3d', '#ff3d7f', 'A', 'rgba(255,255,255,0.9)'), make('#2d7dd2', '#47e6c1', 'B', 'rgba(10,20,40,0.85)')];
-  return samplePair;
+  return [sampleCanvas('road', THUMB_W, THUMB_H), sampleCanvas('neon', THUMB_W, THUMB_H)];
 }
 
 /** Миниатюра перехода: в покое — середина перехода, при наведении — перехода целиком по кругу. */
 function TransitionThumb({ type }: { type: TransitionType | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [hover, setHover] = useState(false);
+  const ready = useSamplesReady();
   useEffect(() => {
     const cv = ref.current;
     if (!cv) return;
@@ -880,7 +906,7 @@ function TransitionThumb({ type }: { type: TransitionType | null }) {
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [type, hover]);
+  }, [type, hover, ready]);
   return <canvas ref={ref} width={THUMB_W} height={THUMB_H} className="swatch tr-thumb" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} />;
 }
 
@@ -968,6 +994,7 @@ function TransitionsPanel() {
 /** Миниатюра фильтра: кадр клипа (или образец) через тот же расчёт цвета, что у плеера и экспорта. */
 function FilterThumb({ id, src }: { id: string; src?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const ready = useSamplesReady();
   useEffect(() => {
     const cv = ref.current;
     if (!cv) return;
@@ -996,10 +1023,10 @@ function FilterThumb({ id, src }: { id: string; src?: string }) {
       img.onload = () => paint(img, img.naturalWidth, img.naturalHeight);
       img.src = api.mediaUrl(src);
     } else {
-      paint(effectScene(), THUMB_W, THUMB_H);
+      paint(sampleCanvas('valley', THUMB_W, THUMB_H), THUMB_W, THUMB_H); // долина: небо, зелень, снег — фильтр виден сразу
     }
     return () => { alive = false; };
-  }, [id, src]);
+  }, [id, src, ready]);
   return <canvas ref={ref} width={THUMB_W} height={THUMB_H} className="swatch tr-thumb" />;
 }
 

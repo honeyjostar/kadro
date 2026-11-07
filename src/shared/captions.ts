@@ -144,7 +144,7 @@ export function retimeWords(text: string, old: Word[] | undefined): Word[] | und
   if (!old?.length) return old;
   const toks = text.split(/\s+/).filter(Boolean);
   if (!toks.length) return [];
-  if (toks.length === old.length) return old.map((w, i) => ({ ...w, text: toks[i] }));
+  if (toks.length === old.length) return old.map((w, i) => ({ ...w, text: toks[i] })); // ключевые слова и эмодзи остаются
   const a = old[0].start;
   const b = old[old.length - 1].end;
   const total = toks.reduce((n, t) => n + t.length + 1, 0);

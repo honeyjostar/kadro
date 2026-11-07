@@ -610,7 +610,7 @@ export function keepSourceRanges(p: Project, clipId: string, ranges: [number, nu
   });
 }
 
-export interface Cue { start: number; end: number; text: string; words?: { text: string; start: number; end: number }[] }
+export interface Cue { start: number; end: number; text: string; words?: import('./types').Word[] }
 
 /** Создать (или заменить) дорожку субтитров. */
 export function setCaptions(p: Project, cues: Cue[], style: TextStyle, y = 0.64): Project {
@@ -621,7 +621,7 @@ export function setCaptions(p: Project, cues: Cue[], style: TextStyle, y = 0.64)
     for (const q of cues) {
       const c = newTextClip(round(q.start), q.text, style, 'caption');
       c.duration = round(Math.max(MIN_CLIP, q.end - q.start));
-      if (q.words?.length) c.words = q.words.map((w) => ({ text: w.text, start: round(Math.max(0, w.start - c.start)), end: round(Math.max(0, w.end - c.start)) }));
+      if (q.words?.length) c.words = q.words.map((w) => ({ text: w.text, start: round(Math.max(0, w.start - c.start)), end: round(Math.max(0, w.end - c.start)), ...(w.key ? { key: true } : {}), ...(w.emoji ? { emoji: w.emoji } : {}) }));
       c.y = y;
       t.clips.push(c);
     }

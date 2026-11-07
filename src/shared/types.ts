@@ -270,6 +270,7 @@ export interface TextStyle {
   bgOpacity: number;     // 0..1, 0 = без плашки
   maxWidth: number;      // доля ширины холста для переноса строк
   highlight?: WordHighlight; // подсветка произносимого слова (субтитры)
+  keyColor?: string;         // цвет ключевых слов (Word.key)
 }
 
 export interface WordHighlight {
@@ -279,7 +280,8 @@ export interface WordHighlight {
 
 export type TextAnimType = 'fade' | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight' | 'pop' | 'zoom' | 'typewriter' | 'blur' | 'wipe' | 'bounce' | 'elastic' | 'spin';
 export interface TextAnim { type: TextAnimType; dur: number }
-export interface Word { text: string; start: number; end: number }
+/** key — ключевое слово (цвет keyColor), emoji — эмодзи над субтитром с этого слова (субтитры «как у блогеров»). */
+export interface Word { text: string; start: number; end: number; key?: boolean; emoji?: string }
 
 export interface TextClip {
   id: Id;
