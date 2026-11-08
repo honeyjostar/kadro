@@ -7,6 +7,7 @@
   <a href="https://github.com/honeyjostar/kadro/releases"><img src="https://img.shields.io/github/downloads/honeyjostar/kadro/total?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B8%D0%B2%D0%B0%D0%BD%D0%B8%D0%B9&color=15131a" alt="Скачиваний"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-15131a" alt="Windows 10 и 11">
   <a href="LICENSE"><img src="https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-GPL--3.0-15131a" alt="Лицензия GPL-3.0"></a>
+  <a href="https://alternativeto.net/software/kadro-video-editor/about/"><img src="https://img.shields.io/badge/AlternativeTo-Kadro-0f8de6" alt="Kadro на AlternativeTo"></a>
   <a href="https://t.me/kadroOffical"><img src="https://img.shields.io/badge/Telegram-%D0%BA%D0%B0%D0%BD%D0%B0%D0%BB_Kadro-26a5e4?logo=telegram&logoColor=white" alt="Канал Kadro в Telegram"></a>
 </p>
 
