@@ -22,9 +22,11 @@ import * as m3d from './model3d';
 import { highlights } from './highlights';
 import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
 import { normalizeAppearance, type Appearance } from '../shared/appearance';
-import type { AspectKey, MediaAsset, Project } from '../shared/types';
+import type { AspectKey, ExportFormat, MediaAsset, Project } from '../shared/types';
 import { decodeSubtitleBytes } from '../shared/subtitles';
 import { isKadroUrl } from '../shared/links';
+import { afterExport, type StarAnswer } from '../shared/star';
+import { LOGO_EXTS } from '../shared/logo';
 import { AI_MIRROR, ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady, type AsrModelId, type TtsVoiceId } from './ai/models';
 import { denoise } from './ai/denoise';
 import { processVoice } from './ai/voice';
@@ -561,7 +563,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance> }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -881,11 +883,14 @@ function registerIpc(): void {
     try { fs.writeFileSync(autosaveFile(), JSON.stringify({ project, path: file })); } catch (err) { log('autosave failed', err); }
     e.returnValue = true;
   });
-  ipcMain.handle('dialog:exportPath', async (_e, name: string) => {
-    if (process.env.KADRO_TEST_EXPORT) return process.env.KADRO_TEST_EXPORT; // автотесты: без системного окна
+  ipcMain.handle('dialog:exportPath', async (_e, name: string, format?: ExportFormat) => {
+    const ext = format === 'gif' || format === 'mp3' ? format : 'mp4';
+    // автотесты: без системного окна (расширение — по формату)
+    if (process.env.KADRO_TEST_EXPORT) return process.env.KADRO_TEST_EXPORT.replace(/\.\w+$/, `.${ext}`);
     const r = await dialog.showSaveDialog(win!, {
-      title: tx('Куда сохранить видео'), defaultPath: path.join(app.getPath('videos'), `${name || 'Kadro'}.mp4`),
-      filters: [{ name: tx('Видео MP4'), extensions: ['mp4'] }],
+      title: ext === 'mp3' ? tx('Куда сохранить звук') : ext === 'gif' ? tx('Куда сохранить GIF') : tx('Куда сохранить видео'),
+      defaultPath: path.join(app.getPath(ext === 'mp3' ? 'music' : 'videos'), `${name || 'Kadro'}.${ext}`),
+      filters: [{ name: ext === 'mp3' ? tx('Звук MP3') : ext === 'gif' ? tx('Анимация GIF') : tx('Видео MP4'), extensions: [ext] }],
     });
     return r.canceled ? null : r.filePath ?? null;
   });
@@ -896,6 +901,13 @@ function registerIpc(): void {
     const r = await exportProject(req, (p) => win?.webContents.send('export:progress', p), exportAbort.signal);
     log('export result', r);
     exportAbort = null;
+    // просьба о звезде на GitHub — после удачного экспорта (первого и ещё раз после 10-го)
+    if (r.ok && !req.opts.alpha) {
+      const st = readSettings();
+      const { state, ask } = afterExport({ exports: st.exportsDone, star: st.star });
+      writeSettings({ ...readSettings(), exportsDone: state.exports, star: state.star });
+      if (ask) return { ...r, askStar: true };
+    }
     return r;
   });
   ipcMain.on('export:cancel', () => exportAbort?.abort());
@@ -988,6 +1000,32 @@ function registerIpc(): void {
       filters: [{ name: tx('3D-модели'), extensions: ['glb', 'gltf', 'obj', 'stl', 'fbx'] }, { name: tx('Все файлы'), extensions: ['*'] }],
     });
     return r.canceled ? null : r.filePaths[0] ?? null;
+  });
+  ipcMain.handle('dialog:logo', async () => {
+    if (process.env.KADRO_TEST_LOGO) return process.env.KADRO_TEST_LOGO; // автотесты: без системного окна
+    const r = await dialog.showOpenDialog(win!, {
+      title: tx('Логотип на видео'),
+      properties: ['openFile'],
+      filters: [{ name: tx('Картинка PNG, JPG или WebP'), extensions: [...LOGO_EXTS] }],
+    });
+    return r.canceled ? null : r.filePaths[0] ?? null;
+  });
+  // кадр из плеера — в PNG (картинку рисует окно, сюда приходят готовые байты)
+  ipcMain.handle('frame:save', async (_e, name: string, png: Uint8Array) => {
+    const safe = String(name || 'Kadro').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Kadro';
+    let file: string | null = null;
+    if (process.env.KADRO_TEST_FRAME) file = path.join(process.env.KADRO_TEST_FRAME, `${safe}.png`); // автотесты: без системного окна
+    else {
+      const r = await dialog.showSaveDialog(win!, {
+        title: tx('Сохранить кадр'), defaultPath: path.join(app.getPath('pictures'), `${safe}.png`),
+        filters: [{ name: tx('Картинка PNG'), extensions: ['png'] }],
+      });
+      file = r.canceled ? null : r.filePath ?? null;
+    }
+    if (!file) return null;
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, Buffer.from(png));
+    return file;
   });
   ipcMain.handle('dialog:music', async () => {
     if (process.env.KADRO_TEST_MUSIC) return process.env.KADRO_TEST_MUSIC; // автотесты: без системного окна
@@ -1094,6 +1132,7 @@ function registerIpc(): void {
     };
   });
   // внешние ссылки — только на страницы Kadro на GitHub и канал Kadro в Telegram
+  ipcMain.on('app:starDone', () => writeSettings({ ...readSettings(), star: 'done' }));
   ipcMain.handle('app:openUrl', async (_e, url: string) => {
     if (!isKadroUrl(url)) return false;
     log('open url', url.slice(0, 120));

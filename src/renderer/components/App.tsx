@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { useEffect, useRef, useState } from 'react';
-import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection } from '../actions';
+import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection, saveFrame, shuttle } from '../actions';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
@@ -107,6 +107,13 @@ export function App() {
       const fps = s.project.settings.fps;
       const k = e.key.toLowerCase();
       if (e.code === 'Space') { e.preventDefault(); s.setPlaying(!s.playing); return; }
+      // J / K / L — назад, пауза, вперёд (повторное нажатие — быстрее); по коду клавиши — в любой раскладке
+      if (!ctrl && !e.altKey && !e.shiftKey && (e.code === 'KeyJ' || e.code === 'KeyK' || e.code === 'KeyL')) {
+        e.preventDefault();
+        shuttle(e.code === 'KeyL' ? 1 : e.code === 'KeyJ' ? -1 : 0);
+        return;
+      }
+      if (!ctrl && e.shiftKey && e.code === 'KeyE') { e.preventDefault(); void saveFrame(); return; }
       if (ctrl && (k === 'z' || k === 'я') && !e.shiftKey) { e.preventDefault(); s.undo(); return; }
       if (ctrl && ((k === 'z' || k === 'я') && e.shiftKey || k === 'y' || k === 'н')) { e.preventDefault(); s.redo(); return; }
       if (ctrl && (k === 's' || k === 'ы')) { e.preventDefault(); void saveProject(e.shiftKey); return; }

@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { AudioLines, Box, Eraser, X, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2, ClipboardCopy, ClipboardPaste } from 'lucide-react';
+import { AudioLines, Box, Eraser, X, ImagePlus, RefreshCw, Trash2, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2, ClipboardCopy, ClipboardPaste } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
 import { alignToBeats, extractAudio, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection, userCurve, userSpeed, copyClipAttrs, openPasteAttrs } from '../actions';
 import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
@@ -14,6 +14,7 @@ import { ASPECTS, FPS_LIST, RESOLUTIONS, shortSideOf, sizeFor, DEFAULT_CHROMA, D
 import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, styleAllCaptions, updateClip } from '../../shared/timeline';
 import type { BlendMode, ChromaKey, ClipAnim, Mask, RampPoint, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
 import { retimeWords } from '../../shared/captions';
+import { LOGO_EXTS, LOGO_SIZE, newLogo, type LogoCorner, type ProjectLogo } from '../../shared/logo';
 import { hasKeyHere, isAnimated, keyTimesOnTimeline, propValue, toggleKey, writeProps } from '../animEdit';
 import { isGlType } from '../../shared/gl/glsl';
 import { glDef } from '../glRegistry';
@@ -86,6 +87,7 @@ function ProjectInspector({ multi }: { multi: number }) {
         <Field label={tx('Кадров в секунду')}>
           <Seg value={settings.fps} onChange={(v) => set({ fps: v })} options={FPS_LIST.map((f) => ({ value: f as number, label: String(f) }))} />
         </Field>
+        <LogoSection />
         <div className="stats">
           <div><span>{tx('Длительность')}</span><b>{fmtDur(projectDuration(project))}</b></div>
           <div><span>{tx('Клипов')}</span><b>{clips}</b></div>
@@ -107,6 +109,58 @@ function ProjectInspector({ multi }: { multi: number }) {
         </dl>
         <button className="btn ghost small" onClick={() => getState().setKeysOpen(true)} data-testid="all-keys">{tx('Все клавиши — F1')}</button>
       </div>
+    </>
+  );
+}
+
+/** Свой логотип в углу на всё видео (настройка проекта): картинка, угол, размер, прозрачность. */
+function LogoSection() {
+  const logo = useStore((s) => s.project.settings.logo);
+  const commit = useStore((s) => s.commit);
+  // ползунки — одной правкой в истории, пока тянешь
+  const set = (l: ProjectLogo | undefined, key?: string) => commit((p) => setSettings(p, { logo: l }), key);
+  const pick = async () => {
+    const file = await api.pickLogo();
+    if (!file) return;
+    const ext = file.split('.').pop()?.toLowerCase() ?? '';
+    if (!(LOGO_EXTS as readonly string[]).includes(ext)) { getState().toast(tx('Нужна картинка PNG, JPG или WebP'), 'err'); return; }
+    const ar = await new Promise<number>((done) => {
+      const img = new Image();
+      img.onload = () => done(img.naturalWidth / Math.max(1, img.naturalHeight));
+      img.onerror = () => done(0);
+      img.src = api.mediaUrl(file);
+    });
+    if (!ar) { getState().toast(tx('Картинка не открылась'), 'err'); return; }
+    const name = file.split(/[\\/]/).pop() ?? file;
+    const cur = getState().project.settings.logo;
+    set(cur ? { ...cur, path: file, name, ar } : newLogo(file, name, ar));
+  };
+  return (
+    <>
+      <div className="section-title">{tx('Логотип на всё видео')}</div>
+      {!logo ? (
+        <>
+          <p className="hint small">{tx('Свой значок в углу кадра на весь ролик — и в плеере, и в готовом видео. Лучше всего PNG с прозрачным фоном.')}</p>
+          <button className="btn small" onClick={() => void pick()} data-testid="logo-pick"><ImagePlus size={14} />{tx('Выбрать картинку…')}</button>
+        </>
+      ) : (
+        <div data-testid="logo-settings">
+          <div className="logo-row">
+            <img className="logo-thumb" src={api.mediaUrl(logo.path)} alt="" />
+            <span className="logo-name" title={logo.path}>{logo.name}</span>
+            <button className="icon-btn" title={tx('Другая картинка')} onClick={() => void pick()} data-testid="logo-change"><RefreshCw size={14} /></button>
+            <button className="icon-btn" title={tx('Убрать логотип')} onClick={() => set(undefined)} data-testid="logo-remove"><Trash2 size={14} /></button>
+          </div>
+          <Field label={tx('Угол')}>
+            <Seg value={logo.corner} onChange={(v) => set({ ...logo, corner: v })} testId="logo-corner"
+              options={([['tl', '↖'], ['tr', '↗'], ['bl', '↙'], ['br', '↘']] as [LogoCorner, string][]).map(([value, label]) => ({ value, label }))} />
+          </Field>
+          <Slider label={tx('Размер')} value={logo.size} min={LOGO_SIZE.min} max={LOGO_SIZE.max} step={0.01} format={pct}
+            onChange={(v) => set({ ...logo, size: v }, 'logo-size')} testId="logo-size" />
+          <Slider label={tx('Непрозрачность')} value={logo.opacity} min={0.1} max={1} step={0.05} format={pct}
+            onChange={(v) => set({ ...logo, opacity: v }, 'logo-opacity')} testId="logo-opacity" />
+        </div>
+      )}
     </>
   );
 }

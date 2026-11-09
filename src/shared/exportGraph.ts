@@ -11,6 +11,7 @@ import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geome
 import { clipDuration, mainTrack, projectDuration } from './timeline';
 import type { BlendMode, MediaAsset, MediaClip, Project } from './types';
 import { maskBytes } from './mask';
+import { logoBox } from './logo';
 import {
   LEAK_PERIOD, SPLIT_EFFECTS, blurSigma, flashDuration, fxGeometryExpr, fxMatrixAt, fxMaxScale, fxMoves, glowOpacity, glowSigma, hueMatrix, leakBytes,
   leakOpacity, letterboxBar, lookKey, lookTable, pixelBlock, rainbowAngle, rgbShiftAt, scanlines, sortedEffects, splitLayout, vignetteBytes,
@@ -664,6 +665,18 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       chains.push(`[${v}][${gl}]overlay=x=0:y=0:eof_action=pass${ovf}:enable='between(t\\,${fmt(g.start)}\\,${fmt(end - 1 / (2 * F))})'[${nv}]`);
       v = nv;
     }
+    // ---------- свой логотип — поверх всего, на всё видео ----------
+    const logo = p.settings.logo;
+    if (logo?.path && !clear) {
+      const b = logoBox(W, H, logo);
+      const idx = addInput(['-loop', '1', '-framerate', String(F), '-i', logo.path]);
+      const lg = L('lg');
+      const op = Math.min(1, Math.max(0, logo.opacity));
+      chains.push(`[${idx}:v]scale=${b.w}:${b.h}:flags=lanczos,format=rgba${op < 1 ? `,colorchannelmixer=aa=${fmt(op)}` : ''},setpts=PTS-STARTPTS[${lg}]`);
+      const nv = L('v');
+      chains.push(`[${v}][${lg}]overlay=x=${b.x}:y=${b.y}:shortest=1[${nv}]`);
+      v = nv;
+    }
     chains.push(`[${v}]format=${clear ? 'yuva420p' : 'yuv420p'},trim=duration=${fmt(total)},setpts=PTS-STARTPTS[vout]`);
 
   }
@@ -789,6 +802,26 @@ export function encoderArgs(enc: Exclude<EncoderEngine, 'vp9alpha'>, quality: Qu
  * Полный список аргументов ffmpeg. filterArg — как передать граф: файл (для новых и старых версий FFmpeg).
  * metaFile — файл метаданных FFmpeg с главами (из маркеров): последним входом, главы и название — из него.
  */
+/** Хвост графа для GIF: своя палитра на весь ролик (ровные цвета без «шума»), метка выхода [gif]. */
+export function gifFilter(g: BuiltGraph): string {
+  // звук в GIF не нужен, но выход графа должен быть подключён — уводим его в «никуда»
+  return `${g.filter};\n${g.vOut}split[gs1][gs2];[gs1]palettegen=max_colors=256:stats_mode=diff[gpal];[gs2][gpal]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle[gif];\n${g.aOut}anullsink`;
+}
+
+/** Аргументы FFmpeg для GIF (граф — из gifFilter): по кругу, без звука. */
+export function gifArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number, out: string): string[] {
+  const filterOpt = ffmpegMajor >= 7 ? ['-/filter_complex', filterFile] : ['-filter_complex_script', filterFile];
+  return ['-hide_banner', '-y', '-nostdin', ...g.inputs.flat(), ...filterOpt, '-map', '[gif]', '-an', '-loop', '0', '-t', fmt(g.duration),
+    '-progress', 'pipe:1', '-nostats', out];
+}
+
+/** Аргументы FFmpeg для MP3 (граф — только звук, buildGraph с audioOnly). */
+export function mp3Args(g: BuiltGraph, filterFile: string, ffmpegMajor: number, kbps: number, title: string, out: string): string[] {
+  const filterOpt = ffmpegMajor >= 7 ? ['-/filter_complex', filterFile] : ['-filter_complex_script', filterFile];
+  return ['-hide_banner', '-y', '-nostdin', ...g.inputs.flat(), ...filterOpt, '-map', g.aOut, '-vn', '-c:a', 'libmp3lame', '-b:a', `${kbps}k`,
+    '-ar', '44100', '-id3v2_version', '3', '-metadata', `title=${title}`, '-t', fmt(g.duration), '-progress', 'pipe:1', '-nostats', out];
+}
+
 export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number, enc: EncoderEngine, quality: Quality, fps: number, out: string, metaFile?: string, size?: { w: number; h: number }): string[] {
   const filterOpt = ffmpegMajor >= 7 ? ['-/filter_complex', filterFile] : ['-filter_complex_script', filterFile];
   const flat = g.inputs.flat();

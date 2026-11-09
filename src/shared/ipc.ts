@@ -35,7 +35,7 @@ export interface ExportReq {
   glSegments?: { start: number; frames: number }[];
 }
 
-export interface ExportResult { ok: boolean; path?: string; error?: string; encoder?: string; seconds?: number }
+export interface ExportResult { ok: boolean; path?: string; error?: string; encoder?: string; seconds?: number; /** попросить звезду на GitHub */ askStar?: boolean }
 
 export interface ModelInfo { id: 'multi' | 'ru'; label: string; note: string; sizeMb: number; ready: boolean }
 
@@ -130,6 +130,12 @@ export interface KadroApi {
   setDefaultFormat(a: import('./types').AspectKey): void;
   bugInfo(): Promise<import('./bugReport').BugInfo>;
   openUrl(url: string): Promise<boolean>;
+  /** нажали «Поставить звезду» — больше не просить */
+  starDone(): void;
+  /** сохранить кадр из плеера (PNG); путь или null, если отменили */
+  saveFrame(defaultName: string, png: Uint8Array): Promise<string | null>;
+  /** выбрать картинку-логотип */
+  pickLogo(): Promise<string | null>;
   openLogs(): Promise<string>;
   glFramesBegin(): Promise<string>;
   glFrame(token: string, seg: number, k: number, png: Uint8Array): Promise<boolean>;
@@ -207,7 +213,7 @@ export interface KadroApi {
   autosave(project: Project, path: string | null): void;
   /** То же, но дожидается записи — при закрытии окна. */
   autosaveNow(project: Project, path: string | null): void;
-  pickExportPath(defaultName: string): Promise<string | null>;
+  pickExportPath(defaultName: string, format?: import('./types').ExportFormat): Promise<string | null>;
   startExport(req: ExportReq): Promise<ExportResult>;
   cancelExport(): void;
   onExportProgress(cb: (p: number) => void): () => void;

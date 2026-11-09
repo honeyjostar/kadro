@@ -15,6 +15,10 @@ export function shortcutSections(): Section[] {
       { keys: ['←', '→'], what: tx('на кадр назад / вперёд') },
       { keys: ['Shift+←', 'Shift+→'], what: tx('на секунду назад / вперёд') },
       { keys: ['Home', 'End'], what: tx('в начало / в конец ролика') },
+      { keys: ['L'], what: tx('вперёд; ещё раз — быстрее (2×, 4×, 8×)') },
+      { keys: ['J'], what: tx('назад; ещё раз — быстрее') },
+      { keys: ['K'], what: tx('пауза') },
+      { keys: ['Shift+E'], what: tx('сохранить кадр картинкой (PNG)') },
     ] },
     { title: tx('Правка'), items: [
       { keys: ['S', 'Ctrl+B'], what: tx('разрезать у курсора') },

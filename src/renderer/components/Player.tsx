@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { Maximize2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-react';
+import { Camera, Maximize2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { placeOnCanvas } from '../../shared/geometry';
 import { mediaPropsAt } from '../../shared/anim';
@@ -8,7 +8,7 @@ import { textBounds } from '../../shared/textRender';
 import { propValue, writeProps } from '../animEdit';
 import { activeClipsAt, projectDuration, updateClip } from '../../shared/timeline';
 import type { Clip, MediaClip, Project, TextClip } from '../../shared/types';
-import { pickAndImport } from '../actions';
+import { pickAndImport, saveFrame } from '../actions';
 import { PreviewEngine } from '../engine/preview';
 import { api, getState, useStore, type PreviewQuality } from '../store';
 
@@ -54,6 +54,7 @@ function inside(b: Box, x: number, y: number): boolean {
 export function Player() {
   const project = useStore((s) => s.project);
   const playing = useStore((s) => s.playing);
+  const playRate = useStore((s) => s.playRate);
   const playhead = useStore((s) => s.playhead);
   const selection = useStore((s) => s.selection);
   const recording = useStore((s) => s.recording);
@@ -80,6 +81,7 @@ export function Player() {
     eng.seek(getState().playhead);
     const unsub = useStore.subscribe((s, prev) => {
       if (s.project !== prev.project) eng.setProject(s.project);
+      if (s.playRate !== prev.playRate) eng.setRate(s.playRate);
       if (s.playing !== prev.playing) {
         if (s.playing) {
           if (projectDuration(s.project) <= 0) queueMicrotask(() => getState().setPlaying(false));
@@ -247,6 +249,9 @@ export function Player() {
   return (
     <section className="stage">
       <div className="stage-area" ref={areaRef}>
+        {playing && playRate !== 1 && (
+          <span className="play-rate" data-testid="play-rate" title={tx('J / K / L — назад, пауза, вперёд')}>{playRate < 0 ? `◀ ${-playRate}×` : `${playRate}×`}</span>
+        )}
         <div className="canvas-wrap" ref={wrapRef} style={{ width: dispW, height: dispH }} onPointerDown={onStageDown}
           onDoubleClick={() => { if (box?.kind === 'text') window.dispatchEvent(new CustomEvent('kadro:edit-text')); }}>
           <canvas ref={canvasRef} data-testid="preview" />
@@ -320,6 +325,7 @@ export function Player() {
             {PLATFORMS.map((x) => <option key={x.id} value={x.id}>{txj('Зоны {0}', x.label)}</option>)}
           </select>
           <FormatMenu />
+          <button className="icon-btn" title={tx('Сохранить кадр картинкой (Shift+E)')} onClick={() => void saveFrame()} disabled={duration <= 0} data-testid="save-frame"><Camera size={16} /></button>
           <button className="icon-btn" title={tx('Во весь экран')} onClick={() => void wrapRef.current?.requestFullscreen()}><Maximize2 size={16} /></button>
         </div>
       </div>

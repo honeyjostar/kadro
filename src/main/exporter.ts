@@ -1,8 +1,8 @@
-// Экспорт проекта в MP4: слои текста → списки concat, граф FFmpeg, кодирование с прогрессом.
+// Экспорт проекта в MP4 (а также GIF и MP3): слои текста → списки concat, граф FFmpeg, кодирование с прогрессом.
 import { tx } from '../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildGraph, fullArgs } from '../shared/exportGraph';
+import { buildGraph, fullArgs, gifArgs, gifFilter, mp3Args } from '../shared/exportGraph';
 import { ffmetadataChapters } from '../shared/markers';
 import { exportSize } from '../shared/geometry';
 import type { ExportReq, ExportResult, TextLayerReq } from '../shared/ipc';
@@ -67,15 +67,46 @@ export function writeTextLayer(dir: string, layer: TextLayerReq, blank: string, 
   return list;
 }
 
-export async function exportProject(req: ExportReq, onProgress: (p: number) => void, signal?: AbortSignal): Promise<ExportResult> {
+/** Только звук проекта в MP3 (все дорожки, с музыкой). */
+async function exportMp3(req: ExportReq, onProgress: (p: number) => void, signal?: AbortSignal): Promise<ExportResult> {
   const t0 = Date.now();
   const { project, opts } = req;
+  const g = buildGraph(project, { width: 16, height: 16, fps: 30, textLayers: [], audioOnly: true, includeMusic: true });
+  fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });
+  const tmpOut = path.join(path.dirname(opts.outPath), `.${path.basename(opts.outPath, '.mp3')}.kadro-part.mp3`);
+  const filterFile = path.join(cacheDir('export'), `mp3_${Date.now()}.txt`);
+  fs.writeFileSync(filterFile, g.filter);
+  try {
+    await runFfmpeg(mp3Args(g, filterFile, ffmpegMajor(), opts.mp3Kbps ?? 192, project.name, tmpOut), { duration: g.duration, onProgress, signal });
+    fs.rmSync(opts.outPath, { force: true });
+    fs.renameSync(tmpOut, opts.outPath);
+    onProgress(1);
+    return { ok: true, path: opts.outPath, seconds: (Date.now() - t0) / 1000 };
+  } catch (e) {
+    fs.rmSync(tmpOut, { force: true });
+    if (signal?.aborted) return { ok: false, error: tx('Экспорт отменён') };
+    return { ok: false, error: tx('Не удалось сохранить звук: {0}', e instanceof Error ? e.message : String(e)) };
+  } finally {
+    fs.rmSync(filterFile, { force: true });
+  }
+}
+
+export async function exportProject(req: ExportReq, onProgress: (p: number) => void, signal?: AbortSignal): Promise<ExportResult> {
+  const t0 = Date.now();
+  const { opts } = req;
+  let { project } = req;
   const total = projectDuration(project);
   if (total <= 0) return { ok: false, error: tx('Проект пустой — добавь видео или фото на таймлайн.') };
   const used = new Set(project.tracks.flatMap((t) => t.clips.map((c) => (c.type === 'media' ? c.assetId : ''))));
   const lost = project.assets.filter((a) => used.has(a.id) && !fs.existsSync(a.path));
   if (lost.length) return { ok: false, error: tx('Не найден файл: {0}. Верни его на место или убери клип с таймлайна.', lost.map((a) => `«${a.name}»`).join(', ')) };
+  if (opts.format === 'mp3') return exportMp3(req, onProgress, signal);
   const size = exportSize(project.settings.width, project.settings.height, opts.height);
+  const format = opts.format ?? 'mp4';
+  // логотипа нет на месте — экспорт без него (как в плеере)
+  if (project.settings.logo && !fs.existsSync(project.settings.logo.path)) {
+    project = { ...project, settings: { ...project.settings, logo: undefined } };
+  }
   const job = path.join(cacheDir('export'), `job_${Date.now()}`);
   fs.mkdirSync(job, { recursive: true });
   try {
@@ -106,8 +137,23 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     const metaFile = meta ? path.join(job, 'chapters.txt') : undefined;
     if (metaFile) fs.writeFileSync(metaFile, meta!);
     fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });
-    const ext = path.extname(opts.outPath) || '.mp4';
+    const ext = path.extname(opts.outPath) || `.${format}`;
     const tmpOut = path.join(path.dirname(opts.outPath), `.${path.basename(opts.outPath, ext)}.kadro-part${ext}`);
+    // GIF: тот же кадр, своя палитра на весь ролик, без звука
+    if (format === 'gif') {
+      fs.writeFileSync(filterFile, gifFilter(graph));
+      try {
+        await runFfmpeg(gifArgs(graph, filterFile, ffmpegMajor(), tmpOut), { duration: total, onProgress, signal });
+      } catch (e) {
+        fs.rmSync(tmpOut, { force: true });
+        if (signal?.aborted) return { ok: false, error: tx('Экспорт отменён') };
+        throw e;
+      }
+      fs.rmSync(opts.outPath, { force: true });
+      fs.renameSync(tmpOut, opts.outPath);
+      onProgress(1);
+      return { ok: true, path: opts.outPath, seconds: (Date.now() - t0) / 1000 };
+    }
     // видеокарта: то, что прошло пробное кодирование; не вышло — следующий кодировщик, в конце процессор
     const hw = opts.alpha || opts.encoder === 'x264' ? null : await hardwareInfo();
     const encoders: EncoderEngine[] = opts.alpha ? ['vp9alpha'] : encoderPlan(opts.encoder, hw?.encoders ?? null, process.platform);

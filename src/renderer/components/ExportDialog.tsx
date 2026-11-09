@@ -1,12 +1,13 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { CheckCircle2, ClipboardList, FolderOpen, ShieldCheck, TriangleAlert, X } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FolderOpen, ShieldCheck, Star, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { exportSize } from '../../shared/geometry';
 import type { ExportResult } from '../../shared/ipc';
 import { encoderLabel, reasonText, type HwInfo } from '../../shared/hw';
 import { projectDuration } from '../../shared/timeline';
-import type { ExportOptions } from '../../shared/types';
+import type { ExportFormat, ExportOptions } from '../../shared/types';
+import { GITHUB_PAGE } from '../../shared/links';
 import { copyChapters, staleAiClips } from '../actions';
 import { chaptersOf } from '../../shared/markers';
 import { renderTextLayers } from '../engine/textExport';
@@ -31,16 +32,43 @@ function estimateMb(w: number, h: number, fps: number, q: ExportOptions['quality
 
 let lastOpts: Omit<ExportOptions, 'outPath'> | null = null;
 
+const VIDEO_FPS = [24, 25, 30, 50, 60] as const;
+const GIF_FPS = [10, 15, 24] as const;
+const GIF_SIZES = [360, 480, 720] as const;
+/** GIF длиннее — тяжёлый файл, лучше MP4. */
+const GIF_LONG_SEC = 15;
+
+/** Размер и частота под формат: у GIF свои (меньше), у видео — как в проекте. */
+function fitFormat(o: Omit<ExportOptions, 'outPath'>, f: ExportFormat, projShort: number, projFps: number): Omit<ExportOptions, 'outPath'> {
+  if (f === 'gif') {
+    return { ...o, format: f,
+      height: (GIF_SIZES as readonly number[]).includes(o.height) ? o.height : 480,
+      fps: (GIF_FPS as readonly number[]).includes(o.fps) ? o.fps : 15 };
+  }
+  return { ...o, format: f,
+    height: o.height >= 720 ? o.height : (projShort as ExportOptions['height']),
+    fps: (VIDEO_FPS as readonly number[]).includes(o.fps) ? o.fps : ((VIDEO_FPS as readonly number[]).includes(projFps) ? projFps : 30) as ExportOptions['fps'] };
+}
+
 export function ExportDialog() {
   const project = useStore((s) => s.project);
   const close = () => getState().setExportOpen(false);
   const [hw, setHw] = useState<HwInfo | null>(null);
   // разрешение и частота — из настроек проекта (формат кадра под плеером), качество и кодер — как в прошлый раз
-  const [opts, setOpts] = useState<Omit<ExportOptions, 'outPath'>>(() => ({
-    quality: 'high', ...lastOpts, encoder: lastOpts?.encoder === 'nvenc' ? 'gpu' : lastOpts?.encoder ?? 'auto',
-    height: shortSideOf(project.settings) as ExportOptions['height'],
-    fps: ([24, 25, 30, 50, 60].includes(project.settings.fps) ? project.settings.fps : 30) as ExportOptions['fps'],
-  }));
+  const [opts, setOpts] = useState<Omit<ExportOptions, 'outPath'>>(() => {
+    const base: Omit<ExportOptions, 'outPath'> = {
+      quality: 'high', mp3Kbps: 192, ...lastOpts, encoder: lastOpts?.encoder === 'nvenc' ? 'gpu' : lastOpts?.encoder ?? 'auto',
+      height: shortSideOf(project.settings) as ExportOptions['height'],
+      fps: ([24, 25, 30, 50, 60].includes(project.settings.fps) ? project.settings.fps : 30) as ExportOptions['fps'],
+    };
+    // GIF помнит свой размер и частоту с прошлого раза
+    if (base.format === 'gif' && lastOpts) return fitFormat({ ...base, height: lastOpts.height, fps: lastOpts.fps }, 'gif', shortSideOf(project.settings), project.settings.fps);
+    return base;
+  });
+  const format: ExportFormat = opts.format ?? 'mp4';
+  const setFormat = (f: ExportFormat) => setOpts((o) => fitFormat(o, f, shortSideOf(project.settings), project.settings.fps));
+  const [star, setStar] = useState<'ask' | 'thanks' | 'hidden'>('ask');
+  const title = format === 'gif' ? tx('Экспорт в GIF') : format === 'mp3' ? tx('Экспорт звука') : tx('Экспорт видео');
   const [phase, setPhase] = useState<Phase>('setup');
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState('');
@@ -87,7 +115,7 @@ export function ExportDialog() {
   const hwWhy = hw && !hw.best && failed && hw.gpus.length ? tx('{0}: {1}', hw.gpus[0].name, reasonText(failed, hw.gpus)) : '';
 
   const start = async () => {
-    const outPath = await api.pickExportPath(project.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Kadro');
+    const outPath = await api.pickExportPath(project.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Kadro', format);
     if (!outPath) return;
     setPhase('running');
     setProgress(0);
@@ -96,11 +124,19 @@ export function ExportDialog() {
     cancelled.current = false;
     let gl: GlRender | null = null;
     try {
+      // только звук: кадры не нужны
+      if (format === 'mp3') {
+        setStage(tx('Сохраняю звук'));
+        const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: [], blankPng: new Uint8Array() });
+        setResult(r);
+        setPhase(r.ok ? 'done' : 'error');
+        return;
+      }
       setStage(tx('Готовлю текст'));
       const { layers, blank } = await renderTextLayers(project, size.w, size.h, opts.fps, (p) => setProgress(p * 0.05));
       // переходы и эффекты-шейдеры: эти кадры рисует сам Kadro (FFmpeg шейдеры не умеет)
       gl = await renderGlSegments(project, size.w, size.h, opts.fps, (f, d, n) => { setStage(tx('Рисую шейдеры: кадр {0} из {1}', d, n)); setProgress(f); }, () => cancelled.current);
-      setStage(tx('Сохраняю видео'));
+      setStage(format === 'gif' ? tx('Сохраняю GIF') : tx('Сохраняю видео'));
       setProgress(0);
       const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: layers, blankPng: blank, glToken: gl?.token, glSegments: gl?.segments });
       setResult(r);
@@ -115,15 +151,38 @@ export function ExportDialog() {
 
   return (
     <div className="modal-back" onPointerDown={(e) => { if (e.target === e.currentTarget && phase !== 'running') close(); }}>
-      <div className="modal" role="dialog" aria-label={tx('Экспорт видео')} data-testid="export-dialog">
+      <div className="modal" role="dialog" aria-label={title} data-testid="export-dialog">
         <div className="modal-head">
-          <h3>{tx('Экспорт видео')}</h3>
+          <h3>{title}</h3>
           {phase !== 'running' && <button className="icon-btn" onClick={close} title={tx('Закрыть')}><X size={17} /></button>}
         </div>
 
         {phase === 'setup' && (
           <>
-            <p className="hint">{txj('{0} · {1} · MP4 (H.264 + AAC), без водяного знака', project.name, fmtDur(duration))}</p>
+            <p className="hint">{`${project.name} · ${fmtDur(duration)} · ${format === 'gif' ? tx('GIF без звука, по кругу') : format === 'mp3' ? tx('MP3 — только звук') : tx('MP4 (H.264 + AAC), без водяного знака')}`}</p>
+            <Field label={tx('Формат')}>
+              <Seg value={format} onChange={setFormat} testId="export-format"
+                options={[{ value: 'mp4', label: tx('Видео MP4') }, { value: 'gif', label: 'GIF' }, { value: 'mp3', label: tx('Звук MP3') }]} />
+            </Field>
+            {format === 'gif' && (
+              <>
+                <Field label={tx('Размер')} right={<span className="value">{size.w}×{size.h}</span>}>
+                  <Seg value={opts.height} onChange={(v) => setOpts({ ...opts, height: v })} testId="export-gif-size"
+                    options={GIF_SIZES.map((h) => ({ value: h as ExportOptions['height'], label: `${h}p` }))} />
+                </Field>
+                <Field label={tx('Кадров в секунду')}>
+                  <Seg value={opts.fps} onChange={(v) => setOpts({ ...opts, fps: v })} options={GIF_FPS.map((f) => ({ value: f as ExportOptions['fps'], label: String(f) }))} />
+                </Field>
+                {duration > GIF_LONG_SEC && <p className="hint small" data-testid="export-gif-long">{tx('GIF длиннее {0} секунд получится тяжёлым — для длинных роликов лучше MP4.', GIF_LONG_SEC)}</p>}
+              </>
+            )}
+            {format === 'mp3' && (
+              <Field label={tx('Качество')}>
+                <Seg value={opts.mp3Kbps ?? 192} onChange={(v) => setOpts({ ...opts, mp3Kbps: v })} testId="export-mp3-kbps"
+                  options={[128, 192, 320].map((k) => ({ value: k as 128 | 192 | 320, label: tx('{0} кбит/с', k) }))} />
+              </Field>
+            )}
+            {format === 'mp4' && (<>
             <Field label={tx('Разрешение')} right={<span className="value">{size.w}×{size.h}</span>}>
               <Seg value={opts.height} onChange={(v) => setOpts({ ...opts, height: v })}
                 options={[{ value: 720, label: '720p' }, { value: 1080, label: '1080p' }, { value: 1440, label: '2K' }, { value: 2160, label: '4K' }]} />
@@ -164,7 +223,9 @@ export function ExportDialog() {
                 )}
             </div>
             <p className="hint small">{txj('Примерный размер файла: {0} МБ{1}', Math.max(1, Math.round(estimateMb(size.w, size.h, opts.fps, opts.quality, duration))), chapters ? tx(' · главы из маркеров: {0}', chapters) : '')}</p>
-            {stale.length > 0 && (
+            </>)}
+            {format === 'mp3' && <p className="hint small">{txj('Примерный размер файла: {0} МБ', Math.max(0.1, Math.round(((opts.mp3Kbps ?? 192) * duration) / 8 / 100) / 10))}</p>}
+            {format !== 'mp3' && stale.length > 0 && (
               <div className="warn"><TriangleAlert size={15} />
                 <span>{txj('{0} ИИ-обработка не совпадает с обрезкой — они выйдут без неё. Обработай заново во вкладке «ИИ».', stale.length === 1 ? tx('У одного клипа') : tx('У {0} клипов', stale.length))}</span>
               </div>
@@ -188,8 +249,28 @@ export function ExportDialog() {
 
         {phase === 'done' && result?.path && (
           <>
-            <div className="done-line"><CheckCircle2 size={20} /><span>{txj('Видео готово{0}{1}', result.seconds ? tx(' за {0}', fmtDur(result.seconds)) : '', result.encoder ? ` (${encoderLabel(result.encoder)})` : '')}</span></div>
+            <div className="done-line"><CheckCircle2 size={20} /><span>{`${format === 'gif' ? tx('GIF готов') : format === 'mp3' ? tx('Звук готов') : tx('Видео готово')}${result.seconds ? tx(' за {0}', fmtDur(result.seconds)) : ''}${result.encoder ? ` (${encoderLabel(result.encoder)})` : ''}`}</span></div>
             <p className="hint path-line" title={result.path}>{result.path}</p>
+            {result.askStar && star === 'ask' && (
+              <div className="star-ask" data-testid="star-ask">
+                <Star size={22} fill="currentColor" className="star-ico" />
+                <b>{tx('Нравится Kadro?')}</b>
+                <p>{tx('Поставь звезду на GitHub — так Kadro заметят больше людей.')}</p>
+                <div className="star-btns">
+                  <button className="btn small primary" data-testid="star-yes" onClick={() => { void api.openUrl(GITHUB_PAGE); api.starDone(); setStar('thanks'); }}>
+                    <Star size={13} />{tx('Поставить звезду')}
+                  </button>
+                  <button className="btn small ghost" data-testid="star-later" onClick={() => setStar('hidden')}>{tx('Не сейчас')}</button>
+                </div>
+              </div>
+            )}
+            {result.askStar && star === 'thanks' && (
+              <div className="star-ask thanks" data-testid="star-thanks">
+                <Star size={22} fill="currentColor" className="star-ico" />
+                <b>{tx('Спасибо!')}</b>
+                <p>{tx('Страница Kadro открылась в браузере — звезда в правом верхнем углу.')}</p>
+              </div>
+            )}
             {chapters > 0 && (
               <div className="chapters-line" data-testid="export-chapters">
                 <span className="hint small">{txj('Главы из маркеров ({0}) уже в файле — их видно в плеере. Для YouTube вставь их в описание.', chapters)}</span>

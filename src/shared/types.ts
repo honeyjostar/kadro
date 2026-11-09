@@ -11,6 +11,8 @@ export interface ProjectSettings {
   height: number;
   fps: number;
   background: 'black' | 'blur' | 'white';
+  /** свой логотип в углу на всё видео */
+  logo?: import('./logo').ProjectLogo;
 }
 
 export type MediaKind = 'video' | 'audio' | 'image';
@@ -329,10 +331,16 @@ export interface Project {
 }
 
 export interface ExportOptions {
-  height: 720 | 1080 | 1440 | 2160; // по короткой стороне
-  fps: 24 | 25 | 30 | 50 | 60;
+  height: 360 | 480 | 720 | 1080 | 1440 | 2160; // по короткой стороне (360 и 480 — для GIF)
+  fps: 10 | 15 | 24 | 25 | 30 | 50 | 60; // 10 и 15 — для GIF
   quality: 'normal' | 'high' | 'max';
   encoder: 'auto' | 'gpu' | 'nvenc' | 'x264'; // nvenc — из старых настроек, значит «видеокарта»
   outPath: string;
   alpha?: boolean;   // прозрачный фон, WebM VP9 (рендер группы из наложений)
+  /** что сохранить: видео MP4 (по умолчанию), анимацию GIF или только звук MP3 */
+  format?: ExportFormat;
+  /** MP3: битрейт, кбит/с */
+  mp3Kbps?: 128 | 192 | 320;
 }
+
+export type ExportFormat = 'mp4' | 'gif' | 'mp3';

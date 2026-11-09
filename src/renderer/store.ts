@@ -43,6 +43,8 @@ interface State {
   junction: string | null; // клип основной дорожки, после которого выбран стык (для переходов)
   playhead: number;
   playing: boolean;
+  /** скорость J/K/L: 1 — обычная, 2/4/8 — быстрее вперёд, −1/−2/−4/−8 — назад */
+  playRate: number;
   pxPerSec: number;
   leftTab: LeftTab;
   jobs: Record<string, Job>;
@@ -107,6 +109,7 @@ interface State {
   select: (ids: string[], junction?: string | null) => void;
   setPlayhead: (t: number) => void;
   setPlaying: (b: boolean) => void;
+  setPlayRate: (r: number) => void;
   setZoom: (pps: number) => void;
   setLeftTab: (t: LeftTab) => void;
   toast: (text: string, kind?: Toast['kind']) => void;
@@ -177,6 +180,7 @@ export const useStore = create<State>((set, get) => ({
   junction: null,
   playhead: 0,
   playing: false,
+  playRate: 1,
   pxPerSec: 60,
   leftTab: 'media',
   jobs: {},
@@ -261,7 +265,8 @@ export const useStore = create<State>((set, get) => ({
   },
   select: (ids, junction = null) => set({ selection: ids, junction }),
   setPlayhead: (t) => set({ playhead: Math.max(0, t) }),
-  setPlaying: (b) => set({ playing: b }),
+  setPlaying: (b) => set(b ? { playing: true } : { playing: false, playRate: 1 }),
+  setPlayRate: (r) => set({ playRate: r }),
   setZoom: (pps) => set({ pxPerSec: Math.min(800, Math.max(4, pps)) }),
   setLeftTab: (t) => set({ leftTab: t }),
   toast: (text, kind = 'info') => {

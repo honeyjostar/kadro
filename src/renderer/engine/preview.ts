@@ -15,6 +15,7 @@ import { gradeActive } from '../../shared/grade';
 import { GradeProcessor, lutFor, setLutListener } from './grade';
 import { BLUR_SIGMA_1080, placeOnCanvas, unitScale } from '../../shared/geometry';
 import { drawText } from '../../shared/textRender';
+import { logoBox } from '../../shared/logo';
 import { clipDuration, clipEnd, projectDuration } from '../../shared/timeline';
 import { applyGlEffects, drawAnyTransition, glEffectsOf } from './glDraw';
 import type { BlendMode, Mask, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
@@ -52,6 +53,8 @@ export class PreviewEngine {
   private raf = 0;
   private playing = false;
   private wallStart = 0;
+  /** скорость J/K/L (меньше нуля — назад: видео не играет, а перематывается) */
+  private rate = 1;
   private tStart = 0;
   private t = 0;
   private dirty = true;
@@ -141,6 +144,7 @@ export class PreviewEngine {
 
   setProject(p: Project): void {
     this.project = p;
+    this.ensureLogo(p);
     this.syncFilters();
     this.syncElements();
     this.dirty = true;
@@ -166,13 +170,23 @@ export class PreviewEngine {
     if (from !== undefined) this.seek(from);
     this.syncElements();
     const dur = projectDuration(this.project);
-    if (this.t >= dur - 0.02) this.seek(0);
+    if (this.t >= dur - 0.02 && this.rate > 0) this.seek(0);
     this.ensureAudio();
     if (this.ac?.state === 'suspended') await this.ac.resume().catch(() => undefined);
     this.playing = true;
     this.tStart = this.t;
     this.wallStart = performance.now();
     this.dirty = true;
+  }
+
+  /** Скорость воспроизведения: J/K/L. */
+  setRate(r: number): void {
+    if (!Number.isFinite(r) || r === 0 || r === this.rate) return;
+    this.tStart = this.t;
+    this.wallStart = performance.now();
+    this.rate = r;
+    this.dirty = true;
+    if (this.project) this.syncElements();
   }
 
   pause(): void {
@@ -193,6 +207,7 @@ export class PreviewEngine {
   /** Всё загружено, перемотано и нарисовано (для автотестов и снимков кадра). */
   settled(): boolean {
     if (this.dirty || this.playing || this.paintsPending()) return false;
+    if (this.logoImg && !this.logoImg.complete) return false;
     for (const e of this.media.values()) {
       if (!e.ready) return false;
       if (e.kind === 'video') {
@@ -211,6 +226,43 @@ export class PreviewEngine {
 
   /** Текущий кадр как картинка (для тестов и стоп-кадра). */
   snapshot(): string { return this.canvas.toDataURL('image/png'); }
+
+  /**
+   * Кадр в полном размере W×H (PNG): холст ненадолго перерисовывается в нужном размере и возвращается обратно.
+   * Ждёт, пока кадр видео загрузится (не дольше timeoutMs).
+   */
+  async capture(w: number, h: number, timeoutMs = 8000): Promise<Blob | null> {
+    if (this.playing) this.pause();
+    const prev = { w: this.W, h: this.H };
+    this.setSize(w, h);
+    this.seek(this.t);
+    const t0 = performance.now();
+    await new Promise<void>((done) => {
+      const tick = () => (this.settled() || performance.now() - t0 > timeoutMs ? done() : requestAnimationFrame(tick));
+      requestAnimationFrame(tick);
+    });
+    const blob = await new Promise<Blob | null>((r) => this.canvas.toBlob(r, 'image/png'));
+    this.setSize(prev.w, prev.h);
+    return blob;
+  }
+
+  // ---------- свой логотип ----------
+  private logoImg: HTMLImageElement | null = null;
+  private logoSrc = '';
+  private ensureLogo(p: Project): void {
+    const l = p.settings.logo;
+    const src = l?.path ? this.mediaUrl(l.path) : '';
+    if (src === this.logoSrc) return;
+    this.logoSrc = src;
+    this.logoImg = null;
+    if (!src) { this.dirty = true; return; }
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // иначе холст «испорчен» и кадр не сохранить
+    img.onload = () => { this.dirty = true; };
+    img.onerror = () => { if (this.logoImg === img) this.logoImg = null; this.dirty = true; }; // файла нет — без логотипа, как в экспорте
+    img.src = src;
+    this.logoImg = img;
+  }
 
   // ---------- элементы ----------
   private ensureAudio(): void {
@@ -414,8 +466,13 @@ export class PreviewEngine {
     if (!p) return;
     if (this.playing) {
       const dur = projectDuration(p);
-      this.t = this.tStart + (performance.now() - this.wallStart) / 1000;
-      if (this.t >= dur) {
+      this.t = this.tStart + (this.rate * (performance.now() - this.wallStart)) / 1000;
+      if (this.rate < 0 && this.t <= 0) {
+        this.t = 0;
+        this.pause();
+        this.onTime?.(this.t);
+        this.onEnded?.();
+      } else if (this.t >= dur) {
         this.t = dur;
         this.pause();
         this.onTime?.(this.t);
@@ -451,6 +508,7 @@ export class PreviewEngine {
 
   private syncPlayback(t: number): void {
     const p = this.project!;
+    const forward = this.playing && this.rate > 0;
     for (const track of p.tracks) {
       track.clips.forEach((c, i) => {
         if (c.type !== 'media') return;
@@ -471,11 +529,12 @@ export class PreviewEngine {
           if (loopDur && !m.loop) m.loop = true;
           const separateAudio = e === ve && !!ae;
           if (e.gain && this.ac) e.gain.gain.setTargetAtTime(this.gainFor(c, track, prevTr, t, separateAudio), this.ac.currentTime, 0.01);
-          if (this.playing && active) {
-            if (Math.abs(m.playbackRate - c.speed) > 0.001 && m.paused) m.playbackRate = c.speed;
+          if (forward && active) {
+            const rate = c.speed * this.rate;
+            if (Math.abs(m.playbackRate - rate) > 0.001 && m.paused) m.playbackRate = rate;
             if (m.paused) {
               if (Math.abs(m.currentTime - desired) > 0.04) m.currentTime = Math.max(0, desired);
-              m.playbackRate = c.speed;
+              m.playbackRate = rate;
               void m.play().catch(() => undefined);
             } else {
               let drift = m.currentTime - desired;
@@ -485,16 +544,18 @@ export class PreviewEngine {
               } else {
                 // мягкая подстройка скорости вместо рывков
                 const k = Math.max(-0.08, Math.min(0.08, drift * 0.6));
-                m.playbackRate = c.speed * (1 - k);
+                m.playbackRate = rate * (1 - k);
               }
             }
-          } else if (this.playing && t < start && start - t < 1.5) {
+          } else if (forward && t < start && start - t < 1.5 * this.rate) {
             if (!m.paused) m.pause();
             const pre = wrap(c.in - e.offset);
             if (Math.abs(m.currentTime - pre) > 0.04) m.currentTime = Math.max(0, pre);
           } else {
             if (!m.paused) m.pause();
-            if (!this.playing && active && e === ve && Math.abs(m.currentTime - desired) > 1 / 90) m.currentTime = Math.max(0, desired);
+            // назад (J): кадр за кадром перемоткой; пока прошлая перемотка не закончилась — новую не начинаем
+            const back = this.playing && this.rate < 0;
+            if ((!this.playing || back) && active && e === ve && !(back && m.seeking) && Math.abs(m.currentTime - desired) > 1 / 90) m.currentTime = Math.max(0, desired);
           }
         }
       });
@@ -735,6 +796,14 @@ export class PreviewEngine {
         const pe = particleEffects(c.effects);
         if (pe.length) drawParticles(ctx, pe, t - c.start, W, H);
       }
+    }
+    // свой логотип — поверх всего
+    const lg = p.settings.logo;
+    if (lg && this.logoImg?.complete && this.logoImg.naturalWidth) {
+      const b = logoBox(W, H, lg);
+      ctx.globalAlpha = Math.min(1, Math.max(0, lg.opacity));
+      ctx.drawImage(this.logoImg, b.x, b.y, b.w, b.h);
+      ctx.globalAlpha = 1;
     }
     ctx.restore();
     return true;

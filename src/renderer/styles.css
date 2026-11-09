@@ -285,6 +285,8 @@ button { cursor: pointer; }
 .canvas-wrap:fullscreen .sel-box, .canvas-wrap:fullscreen .guide { display: none; }
 .transport { height: 46px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; padding: 0 14px; border-top: 1px solid var(--line-soft); }
 .transport-center { display: flex; align-items: center; gap: 8px; }
+/* скорость J/K/L — над кадром, по центру */
+.play-rate { position: absolute; top: 24px; left: 50%; transform: translateX(-50%); z-index: 3; padding: 3px 9px; border-radius: 7px; background: rgba(0, 0, 0, 0.62); color: #fff; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none; }
 .transport-right { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; }
 .transport-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .transport-left .timecode { min-width: 0; white-space: nowrap; }
@@ -559,6 +561,17 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .warn { display: flex; gap: 8px; align-items: flex-start; padding: 9px 11px; border-radius: var(--radius-s); background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-text); font-size: 12.5px; margin-top: 10px; }
 .warn svg { flex-shrink: 0; margin-top: 1px; }
 .done-line { display: flex; align-items: center; gap: 8px; color: var(--ok); font-weight: 600; margin: 8px 0 4px; }
+/* просьба о звезде после экспорта */
+.star-ask { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; margin: 14px 0 4px; padding: 12px 14px; border-radius: 10px; background: var(--raised); border: 1px solid var(--line); }
+.star-ask .star-ico { color: #f5c542; grid-row: span 2; }
+.star-ask b { color: var(--strong); font-size: 13.5px; }
+.star-ask p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.star-ask .star-btns { grid-column: 2; display: flex; gap: 8px; margin-top: 8px; }
+.star-ask.thanks { grid-template-columns: auto 1fr; }
+/* логотип на видео — в настройках проекта */
+.logo-row { display: flex; align-items: center; gap: 10px; margin: 6px 0 8px; }
+.logo-thumb { width: 44px; height: 44px; object-fit: contain; border-radius: 8px; background: repeating-conic-gradient(var(--raised-2) 0 25%, var(--raised) 0 50%) 0 0 / 10px 10px; border: 1px solid var(--line); }
+.logo-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
 .path-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; user-select: text; }
 .modal .progress { height: 6px; margin: 10px 0 4px; }
 .modal .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }

@@ -1476,3 +1476,31 @@ export async function autoVariant(): Promise<AutoSummary | null> {
   if (!last) return null;
   return buildAutoEdit({ ...last, aspect: getState().project.settings.aspect }, { fresh: false });
 }
+
+// ---------- кадр из плеера в PNG ----------
+/** Сохранить кадр под курсором картинкой в полном размере проекта (как в экспорте: текст, эффекты, логотип). */
+export async function saveFrame(): Promise<string | null> {
+  const s = getState();
+  const eng = (window as unknown as { __kadroEngine?: import('./engine/preview').PreviewEngine }).__kadroEngine;
+  if (!eng || projectDuration(s.project) <= 0) { s.toast(tx('Нечего сохранять — на таймлайне пусто'), 'err'); return null; }
+  s.setPlaying(false);
+  const { width, height } = s.project.settings;
+  const blob = await eng.capture(width, height);
+  if (!blob) { s.toast(tx('Кадр не сохранился'), 'err'); return null; }
+  const t = Math.max(0, getState().playhead);
+  const stamp = `${String(Math.floor(t / 60)).padStart(2, '0')}-${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  const file = await api.saveFrame(`${s.project.name} ${stamp}`, new Uint8Array(await blob.arrayBuffer()));
+  if (file) getState().toast(tx('Кадр сохранён: {0}', file.split(/[\\/]/).pop() ?? file), 'ok');
+  return file;
+}
+
+// ---------- J / K / L ----------
+/** L — вперёд: пуск, каждое нажатие быстрее (1×, 2×, 4×, 8×); J — так же назад; K — пауза. */
+export function shuttle(dir: 1 | -1 | 0): void {
+  const s = getState();
+  if (dir === 0) { s.setPlaying(false); return; }
+  const same = s.playing && Math.sign(s.playRate) === dir;
+  const rate = same ? Math.max(-8, Math.min(8, s.playRate * 2)) : dir;
+  s.setPlayRate(rate);
+  if (!s.playing) s.setPlaying(true);
+}
