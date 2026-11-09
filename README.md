@@ -7,6 +7,7 @@
   <a href="https://github.com/honeyjostar/kadro/releases"><img src="https://img.shields.io/github/downloads/honeyjostar/kadro/total?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B8%D0%B2%D0%B0%D0%BD%D0%B8%D0%B9&color=15131a" alt="Скачиваний"></a>
   <img src="https://img.shields.io/badge/Windows-10%20%7C%2011-15131a" alt="Windows 10 и 11">
   <a href="LICENSE"><img src="https://img.shields.io/badge/%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8F-GPL--3.0-15131a" alt="Лицензия GPL-3.0"></a>
+  <a href="https://alternativeto.net/software/kadro-video-editor/about/"><img src="https://img.shields.io/badge/AlternativeTo-Kadro-0f8de6" alt="Kadro на AlternativeTo"></a>
   <a href="https://t.me/kadroOffical"><img src="https://img.shields.io/badge/Telegram-%D0%BA%D0%B0%D0%BD%D0%B0%D0%BB_Kadro-26a5e4?logo=telegram&logoColor=white" alt="Канал Kadro в Telegram"></a>
 </p>
 
@@ -29,7 +30,7 @@
 > программы там нет, а файлы `.ts` в нём — код на TypeScript, а не видео.
 
 <p align="center"><img src="docs/demo.gif" alt="Авто-ролик: выбрал видео, музыку и стиль — Kadro смонтировал ролик в ритм" width="100%"></p>
-<p align="center"><sub>Авто-ролик: выбираешь видео, музыку и стиль — Kadro сам берёт лучшие куски и монтирует их в ритм. «Ещё вариант» — другой монтаж из тех же файлов.</sub></p>
+<p align="center"><sub>Авто-ролик: выбираешь видео, музыку и стиль — Kadro сам берёт лучшие куски и монтирует их в ритм. «Ещё вариант» — другой монтаж из тех же файлов. Переходы оживают под курсором.</sub></p>
 
 ---
 
@@ -144,7 +145,7 @@ Kadro — обычная программа, а не сайт. Видео не �
 
 1. Скачай [**Kadro-Setup-0.9.7.exe**](https://github.com/honeyjostar/kadro/releases/download/v0.9.7/Kadro-Setup-0.9.7.exe) (337 МБ). Все версии — на странице [Releases](https://github.com/honeyjostar/kadro/releases/latest), в разделе **Assets**.
    Браузер может спросить, точно ли сохранить редко скачиваемый файл, — выбери «Сохранить».
-2. Запусти. Windows может показать «Система Windows защитила ваш компьютер» — это потому, что у установщика нет платной цифровой подписи. Нажми **Подробнее → Выполнить в любом случае**.
+2. Запусти. Windows может показать «Система Windows защитила ваш компьютер» — это потому, что у установщика нет платной цифровой подписи. Нажми **Подробнее → Выполнить в любом случае**. Мы подали заявку на бесплатную подпись кода через SignPath Foundation ([политика подписи](CODE_SIGNING.md)) — после неё предупреждение пропадёт.
 3. Установщик ставит программу в `%LOCALAPPDATA%\Programs\Kadro` (около 1 ГБ, права администратора не нужны) и создаёт ярлык **Kadro** на рабочем столе и в меню «Пуск» — по нему программа и запускается.
 
 **Без установки:** скачай [Kadro-0.9.7-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v0.9.7/Kadro-0.9.7-portable.zip) (540 МБ), распакуй в любую папку (хоть на флешку) и запусти `Kadro.exe` внутри.

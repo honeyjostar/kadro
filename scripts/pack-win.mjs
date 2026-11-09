@@ -12,7 +12,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const arg = (n) => { const i = process.argv.indexOf(`--${n}`); return i > 0 ? process.argv[i + 1] : undefined; };
 const ELECTRON_ZIP = arg('electron');
 const FFMPEG_ZIP = arg('ffmpeg');
-if (!ELECTRON_ZIP || !FFMPEG_ZIP) { console.error('нужны --electron и --ffmpeg'); process.exit(1); }
+// подпись кода (SignPath, см. CODE_SIGNING.md) идёт между шагами: --app-only — собрать только папку программы
+// (Kadro.exe уходит на подпись), --from-app — взять готовую (уже с подписанным Kadro.exe) и собрать установщик и zip
+const APP_ONLY = process.argv.includes('--app-only');
+const FROM_APP = process.argv.includes('--from-app');
+if (!FROM_APP && (!ELECTRON_ZIP || !FFMPEG_ZIP)) { console.error('нужны --electron и --ffmpeg'); process.exit(1); }
 
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 const OUT = path.join(ROOT, 'release');
@@ -30,149 +34,163 @@ const regOpenWith = OPEN_WITH.map((e) => [
 ].join('\n')).join('\n');
 const unregOpenWith = OPEN_WITH.map((e) => `  DeleteRegValue HKCU "Software\\Classes\\.${e}\\OpenWithProgids" "Kadro.Media"`).join('\n');
 
-fs.rmSync(APP_DIR, { recursive: true, force: true });
-fs.mkdirSync(APP_DIR, { recursive: true });
+/** Папка программы: Electron, код, нативные модули, FFmpeg, модели, лицензии, значок и сведения в Kadro.exe. */
+async function buildApp() {
+  fs.rmSync(APP_DIR, { recursive: true, force: true });
+  fs.mkdirSync(APP_DIR, { recursive: true });
 
-step('Electron');
-run('unzip', ['-q', ELECTRON_ZIP, '-d', APP_DIR]);
-fs.renameSync(path.join(APP_DIR, 'electron.exe'), path.join(APP_DIR, 'Kadro.exe'));
-fs.rmSync(path.join(RES, 'default_app.asar'), { force: true });
+  step('Electron');
+  run('unzip', ['-q', ELECTRON_ZIP, '-d', APP_DIR]);
+  fs.renameSync(path.join(APP_DIR, 'electron.exe'), path.join(APP_DIR, 'Kadro.exe'));
+  fs.rmSync(path.join(RES, 'default_app.asar'), { force: true });
 
-step('Код приложения');
-const app = path.join(RES, 'app');
-fs.mkdirSync(app, { recursive: true });
-fs.writeFileSync(path.join(app, 'package.json'), JSON.stringify({
-  name: pkg.name, productName: pkg.productName, version: pkg.version, description: pkg.description,
-  license: pkg.license, author: pkg.author, main: pkg.main,
-}, null, 2));
-for (const d of ['main', 'preload', 'worker', 'renderer']) cp(path.join(ROOT, 'dist', d), path.join(app, 'dist', d));
-for (const f of fs.readdirSync(path.join(app, 'dist'), { recursive: true })) if (String(f).endsWith('.map')) fs.rmSync(path.join(app, 'dist', String(f)));
+  step('Код приложения');
+  const app = path.join(RES, 'app');
+  fs.mkdirSync(app, { recursive: true });
+  fs.writeFileSync(path.join(app, 'package.json'), JSON.stringify({
+    name: pkg.name, productName: pkg.productName, version: pkg.version, description: pkg.description,
+    license: pkg.license, author: pkg.author, main: pkg.main,
+  }, null, 2));
+  for (const d of ['main', 'preload', 'worker', 'renderer']) cp(path.join(ROOT, 'dist', d), path.join(app, 'dist', d));
+  for (const f of fs.readdirSync(path.join(app, 'dist'), { recursive: true })) if (String(f).endsWith('.map')) fs.rmSync(path.join(app, 'dist', String(f)));
 
-step('Нативные модули для Windows');
-const nm = path.join(app, 'node_modules');
-cp(path.join(ROOT, 'node_modules/sherpa-onnx-node'), path.join(nm, 'sherpa-onnx-node'));
-const sherpaVer = JSON.parse(fs.readFileSync(path.join(ROOT, 'node_modules/sherpa-onnx-node/package.json'), 'utf8')).version;
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-pack-'));
-run('npm', ['pack', `sherpa-onnx-win-x64@${sherpaVer}`, '--silent'], { cwd: tmp });
-const tgz = fs.readdirSync(tmp).find((f) => f.endsWith('.tgz'));
-run('tar', ['xzf', tgz], { cwd: tmp });
-cp(path.join(tmp, 'package'), path.join(nm, 'sherpa-onnx-win-x64'));
-const ort = path.join(ROOT, 'node_modules/onnxruntime-node');
-const ortOut = path.join(nm, 'onnxruntime-node');
-for (const f of ['package.json', 'LICENSE', 'README.md', 'dist']) if (fs.existsSync(path.join(ort, f))) cp(path.join(ort, f), path.join(ortOut, f));
-cp(path.join(ort, 'bin/napi-v6/win32/x64'), path.join(ortOut, 'bin/napi-v6/win32/x64'));
-cp(path.join(ROOT, 'node_modules/onnxruntime-common'), path.join(nm, 'onnxruntime-common'));
-fs.rmSync(tmp, { recursive: true, force: true });
+  step('Нативные модули для Windows');
+  const nm = path.join(app, 'node_modules');
+  cp(path.join(ROOT, 'node_modules/sherpa-onnx-node'), path.join(nm, 'sherpa-onnx-node'));
+  const sherpaVer = JSON.parse(fs.readFileSync(path.join(ROOT, 'node_modules/sherpa-onnx-node/package.json'), 'utf8')).version;
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-pack-'));
+  run('npm', ['pack', `sherpa-onnx-win-x64@${sherpaVer}`, '--silent'], { cwd: tmp });
+  const tgz = fs.readdirSync(tmp).find((f) => f.endsWith('.tgz'));
+  run('tar', ['xzf', tgz], { cwd: tmp });
+  cp(path.join(tmp, 'package'), path.join(nm, 'sherpa-onnx-win-x64'));
+  const ort = path.join(ROOT, 'node_modules/onnxruntime-node');
+  const ortOut = path.join(nm, 'onnxruntime-node');
+  for (const f of ['package.json', 'LICENSE', 'README.md', 'dist']) if (fs.existsSync(path.join(ort, f))) cp(path.join(ort, f), path.join(ortOut, f));
+  cp(path.join(ort, 'bin/napi-v6/win32/x64'), path.join(ortOut, 'bin/napi-v6/win32/x64'));
+  cp(path.join(ROOT, 'node_modules/onnxruntime-common'), path.join(nm, 'onnxruntime-common'));
+  fs.rmSync(tmp, { recursive: true, force: true });
 
-// распознавание речи на видеокарте: sherpa-onnx той же версии, собранный с DirectML (у Kadro — в релизе native-deps).
-// Процесс речи подключает его вместо обычной сборки, если распознавать на видеокарте (src/worker/sherpaBuild.ts).
-if (!process.argv.includes('--no-dml')) {
-  step('sherpa-onnx с DirectML (распознавание на видеокарте)');
-  const base = 'https://github.com/honeyjostar/kadro/releases/download/native-deps';
-  const manifest = await (await fetch(`${base}/manifest.json`)).json();
-  const e = manifest.find((x) => x.file === `sherpa-dml-win-x64-${sherpaVer}.zip`);
-  if (!e) throw new Error(`нет sherpa-dml-win-x64-${sherpaVer}.zip в native-deps`);
-  const r = await fetch(`${base}/${e.file}`);
-  if (!r.ok) throw new Error(`${e.file}: HTTP ${r.status}`);
-  const buf = Buffer.from(await r.arrayBuffer());
-  const sha = (await import('node:crypto')).createHash('sha256').update(buf).digest('hex');
-  if (sha !== e.sha256) throw new Error(`${e.file}: SHA-256 не совпал`);
-  const zip = path.join(os.tmpdir(), e.file);
-  fs.writeFileSync(zip, buf);
-  const dml = path.join(RES, 'sherpa-dml');
-  fs.mkdirSync(dml, { recursive: true });
-  run('unzip', ['-q', '-o', zip, '-d', dml]);
-  fs.rmSync(zip, { force: true });
-  for (const f of ['sherpa-onnx.node', 'onnxruntime.dll', 'DirectML.dll']) if (!fs.existsSync(path.join(dml, f))) throw new Error(`sherpa-dml: нет ${f}`);
-  console.log(`  ${fs.readdirSync(dml).join(', ')} (${(buf.length / 1e6).toFixed(1)} МБ)`);
-}
+  // распознавание речи на видеокарте: sherpa-onnx той же версии, собранный с DirectML (у Kadro — в релизе native-deps).
+  // Процесс речи подключает его вместо обычной сборки, если распознавать на видеокарте (src/worker/sherpaBuild.ts).
+  if (!process.argv.includes('--no-dml')) {
+    step('sherpa-onnx с DirectML (распознавание на видеокарте)');
+    const base = 'https://github.com/honeyjostar/kadro/releases/download/native-deps';
+    const manifest = await (await fetch(`${base}/manifest.json`)).json();
+    const e = manifest.find((x) => x.file === `sherpa-dml-win-x64-${sherpaVer}.zip`);
+    if (!e) throw new Error(`нет sherpa-dml-win-x64-${sherpaVer}.zip в native-deps`);
+    const r = await fetch(`${base}/${e.file}`);
+    if (!r.ok) throw new Error(`${e.file}: HTTP ${r.status}`);
+    const buf = Buffer.from(await r.arrayBuffer());
+    const sha = (await import('node:crypto')).createHash('sha256').update(buf).digest('hex');
+    if (sha !== e.sha256) throw new Error(`${e.file}: SHA-256 не совпал`);
+    const zip = path.join(os.tmpdir(), e.file);
+    fs.writeFileSync(zip, buf);
+    const dml = path.join(RES, 'sherpa-dml');
+    fs.mkdirSync(dml, { recursive: true });
+    run('unzip', ['-q', '-o', zip, '-d', dml]);
+    fs.rmSync(zip, { force: true });
+    for (const f of ['sherpa-onnx.node', 'onnxruntime.dll', 'DirectML.dll']) if (!fs.existsSync(path.join(dml, f))) throw new Error(`sherpa-dml: нет ${f}`);
+    console.log(`  ${fs.readdirSync(dml).join(', ')} (${(buf.length / 1e6).toFixed(1)} МБ)`);
+  }
 
-step('FFmpeg');
-const ffTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-ff-'));
-run('unzip', ['-q', FFMPEG_ZIP, '-d', ffTmp]);
-const ffRoot = path.join(ffTmp, fs.readdirSync(ffTmp)[0]);
-fs.mkdirSync(path.join(RES, 'bin'), { recursive: true });
-for (const f of fs.readdirSync(path.join(ffRoot, 'bin'))) {
-  if (f === 'ffplay.exe') continue;
-  fs.copyFileSync(path.join(ffRoot, 'bin', f), path.join(RES, 'bin', f));
-}
-fs.copyFileSync(path.join(ffRoot, 'LICENSE.txt'), path.join(RES, 'bin', 'FFMPEG-LICENSE.txt'));
-fs.rmSync(ffTmp, { recursive: true, force: true });
+  step('FFmpeg');
+  const ffTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-ff-'));
+  run('unzip', ['-q', FFMPEG_ZIP, '-d', ffTmp]);
+  const ffRoot = path.join(ffTmp, fs.readdirSync(ffTmp)[0]);
+  fs.mkdirSync(path.join(RES, 'bin'), { recursive: true });
+  for (const f of fs.readdirSync(path.join(ffRoot, 'bin'))) {
+    if (f === 'ffplay.exe') continue;
+    fs.copyFileSync(path.join(ffRoot, 'bin', f), path.join(RES, 'bin', f));
+  }
+  fs.copyFileSync(path.join(ffRoot, 'LICENSE.txt'), path.join(RES, 'bin', 'FFMPEG-LICENSE.txt'));
+  fs.rmSync(ffTmp, { recursive: true, force: true });
 
-step('Модели');
-cp(path.join(ROOT, 'resources/models'), path.join(RES, 'models'));
-cp(path.join(ROOT, 'resources/demo'), path.join(RES, 'demo'));
-if (fs.existsSync(path.join(ROOT, 'resources/templates'))) cp(path.join(ROOT, 'resources/templates'), path.join(RES, 'templates'));
-fs.copyFileSync(path.join(ROOT, 'resources/icon.png'), path.join(RES, 'icon.png'));
-cp(path.join(ROOT, 'resources/icons'), path.join(RES, 'icons')); // значки разных цветов (Настройки → Значок)
+  step('Модели');
+  cp(path.join(ROOT, 'resources/models'), path.join(RES, 'models'));
+  cp(path.join(ROOT, 'resources/demo'), path.join(RES, 'demo'));
+  if (fs.existsSync(path.join(ROOT, 'resources/templates'))) cp(path.join(ROOT, 'resources/templates'), path.join(RES, 'templates'));
+  fs.copyFileSync(path.join(ROOT, 'resources/icon.png'), path.join(RES, 'icon.png'));
+  cp(path.join(ROOT, 'resources/icons'), path.join(RES, 'icons')); // значки разных цветов (Настройки → Значок)
 
-// перевод субтитров русский ⇄ английский — сразу в программе (остальные языки качаются при первом переводе)
-if (!process.argv.includes('--no-mt')) {
-  step('Модели перевода (русский ⇄ английский)');
-  const base = 'https://github.com/honeyjostar/kadro/releases/download/translate-models';
-  const manifest = await (await fetch(`${base}/manifest.json`)).json();
-  for (const pair of ['ru-en', 'en-ru']) {
-    const dir = path.join(RES, 'models', 'mt', pair);
-    fs.mkdirSync(dir, { recursive: true });
-    for (const f of ['encoder.onnx', 'decoder.onnx', 'decoder_with_past.onnx', 'tokenizer.json', 'config.json']) {
-      const e = manifest.find((x) => x.file === `${pair}.${f}`);
-      if (!e) throw new Error(`нет ${pair}.${f} в translate-models`);
-      const r = await fetch(`${base}/${e.file}`);
-      if (!r.ok) throw new Error(`${e.file}: HTTP ${r.status}`);
-      const buf = Buffer.from(await r.arrayBuffer());
-      const sha = (await import('node:crypto')).createHash('sha256').update(buf).digest('hex');
-      if (sha !== e.sha256) throw new Error(`${e.file}: SHA-256 не совпал`);
-      fs.writeFileSync(path.join(dir, f), buf);
-      console.log(`  ${pair}/${f} ${(buf.length / 1e6).toFixed(1)} МБ`);
+  // перевод субтитров русский ⇄ английский — сразу в программе (остальные языки качаются при первом переводе)
+  if (!process.argv.includes('--no-mt')) {
+    step('Модели перевода (русский ⇄ английский)');
+    const base = 'https://github.com/honeyjostar/kadro/releases/download/translate-models';
+    const manifest = await (await fetch(`${base}/manifest.json`)).json();
+    for (const pair of ['ru-en', 'en-ru']) {
+      const dir = path.join(RES, 'models', 'mt', pair);
+      fs.mkdirSync(dir, { recursive: true });
+      for (const f of ['encoder.onnx', 'decoder.onnx', 'decoder_with_past.onnx', 'tokenizer.json', 'config.json']) {
+        const e = manifest.find((x) => x.file === `${pair}.${f}`);
+        if (!e) throw new Error(`нет ${pair}.${f} в translate-models`);
+        const r = await fetch(`${base}/${e.file}`);
+        if (!r.ok) throw new Error(`${e.file}: HTTP ${r.status}`);
+        const buf = Buffer.from(await r.arrayBuffer());
+        const sha = (await import('node:crypto')).createHash('sha256').update(buf).digest('hex');
+        if (sha !== e.sha256) throw new Error(`${e.file}: SHA-256 не совпал`);
+        fs.writeFileSync(path.join(dir, f), buf);
+        console.log(`  ${pair}/${f} ${(buf.length / 1e6).toFixed(1)} МБ`);
+      }
     }
   }
+
+  step('Лицензии');
+  cp(path.join(ROOT, 'docs/licenses'), path.join(APP_DIR, 'licenses')); // авторы и лицензии переходов gl-transitions
+  fs.writeFileSync(path.join(APP_DIR, 'NOTICE.txt'), [
+    `Kadro ${pkg.version} — свободный видеоредактор. Лицензия: GNU GPL v3 или новее.`,
+    '',
+    'В составе программы:',
+    '- Electron (MIT) — LICENSE, LICENSES.chromium.html',
+    '- FFmpeg (GPL) — resources/bin/FFMPEG-LICENSE.txt, сборка BtbN/FFmpeg-Builds',
+    '- ONNX Runtime (MIT), DirectML (MIT)',
+    '- sherpa-onnx (Apache-2.0); resources/sherpa-dml — та же версия, собранная с ONNX Runtime 1.22 и DirectML 1.15.4 (распознавание речи на видеокарте), с библиотеками Microsoft Visual C++ (msvcp140, vcruntime140 — распространяемые файлы Visual Studio)',
+    '- Silero VAD (MIT)',
+    '- RobustVideoMatting (GPL-3.0)',
+    '- RNNoise / arnndn-models (BSD-3-Clause)',
+    '- gl-transitions — 123 перехода-шейдера (MIT; InvertedPageCurl — BSD-3-Clause, Hewlett-Packard; StereoViewer — BSD-2-Clause, Theodore K Schundler); авторы и тексты лицензий — licenses/gl-transitions.md',
+    '- Модели распознавания речи скачиваются при первом использовании: NVIDIA Parakeet TDT v3 (CC-BY-4.0), GigaAM v2 (MIT)',
+    '- Модели перевода OPUS-MT ru-en и en-ru (Helsinki-NLP, Tiedemann & Thottingal 2020; CC-BY-4.0), ONNX — Xenova; resources/models/mt',
+    '- Шрифты Fontsource: Onest, Unbounded, Montserrat, Rubik, Russo One, Oswald, Comfortaa, Lobster, Caveat, PT Serif, Press Start 2P (SIL OFL 1.1)',
+    '',
+  ].join('\r\n'));
+  if (fs.existsSync(path.join(ROOT, 'LICENSE'))) fs.copyFileSync(path.join(ROOT, 'LICENSE'), path.join(APP_DIR, 'KADRO-LICENSE.txt'));
+
+  step('Значок и сведения о программе в Kadro.exe');
+  {
+    const exePath = path.join(APP_DIR, 'Kadro.exe');
+    const exe = ResEdit.NtExecutable.from(fs.readFileSync(exePath), { ignoreCert: true });
+    const res = ResEdit.NtExecutableResource.from(exe);
+    const ico = ResEdit.Data.IconFile.from(fs.readFileSync(path.join(ROOT, 'build/icon.ico')));
+    const groups = ResEdit.Resource.IconGroupEntry.fromEntries(res.entries);
+    const id = groups.length ? groups[0].id : 1;
+    const lang = groups.length ? groups[0].lang : 1033;
+    ResEdit.Resource.IconGroupEntry.replaceIconsForResource(res.entries, id, lang, ico.icons.map((i) => i.data));
+    const vi = ResEdit.Resource.VersionInfo.fromEntries(res.entries)[0];
+    const [a, b, c] = pkg.version.split('.').map(Number);
+    vi.setFileVersion(a, b, c, 0, 1033);
+    vi.setProductVersion(a, b, c, 0, 1033);
+    const langs = vi.getAllLanguagesForStringValues();
+    for (const l of langs) {
+      vi.setStringValues(l, {
+        CompanyName: 'yaposspall', FileDescription: 'Kadro', ProductName: 'Kadro', InternalName: 'Kadro',
+        OriginalFilename: 'Kadro.exe', LegalCopyright: 'GPL-3.0-or-later', FileVersion: pkg.version, ProductVersion: pkg.version,
+      });
+    }
+    vi.outputToResourceEntries(res.entries);
+    res.outputResource(exe);
+    fs.writeFileSync(exePath, Buffer.from(exe.generate()));
+  }
 }
 
-step('Лицензии');
-cp(path.join(ROOT, 'docs/licenses'), path.join(APP_DIR, 'licenses')); // авторы и лицензии переходов gl-transitions
-fs.writeFileSync(path.join(APP_DIR, 'NOTICE.txt'), [
-  `Kadro ${pkg.version} — свободный видеоредактор. Лицензия: GNU GPL v3 или новее.`,
-  '',
-  'В составе программы:',
-  '- Electron (MIT) — LICENSE, LICENSES.chromium.html',
-  '- FFmpeg (GPL) — resources/bin/FFMPEG-LICENSE.txt, сборка BtbN/FFmpeg-Builds',
-  '- ONNX Runtime (MIT), DirectML (MIT)',
-  '- sherpa-onnx (Apache-2.0); resources/sherpa-dml — та же версия, собранная с ONNX Runtime 1.22 и DirectML 1.15.4 (распознавание речи на видеокарте), с библиотеками Microsoft Visual C++ (msvcp140, vcruntime140 — распространяемые файлы Visual Studio)',
-  '- Silero VAD (MIT)',
-  '- RobustVideoMatting (GPL-3.0)',
-  '- RNNoise / arnndn-models (BSD-3-Clause)',
-  '- gl-transitions — 123 перехода-шейдера (MIT; InvertedPageCurl — BSD-3-Clause, Hewlett-Packard; StereoViewer — BSD-2-Clause, Theodore K Schundler); авторы и тексты лицензий — licenses/gl-transitions.md',
-  '- Модели распознавания речи скачиваются при первом использовании: NVIDIA Parakeet TDT v3 (CC-BY-4.0), GigaAM v2 (MIT)',
-  '- Модели перевода OPUS-MT ru-en и en-ru (Helsinki-NLP, Tiedemann & Thottingal 2020; CC-BY-4.0), ONNX — Xenova; resources/models/mt',
-  '- Шрифты Fontsource: Onest, Unbounded, Montserrat, Rubik, Russo One, Oswald, Comfortaa, Lobster, Caveat, PT Serif, Press Start 2P (SIL OFL 1.1)',
-  '',
-].join('\r\n'));
-if (fs.existsSync(path.join(ROOT, 'LICENSE'))) fs.copyFileSync(path.join(ROOT, 'LICENSE'), path.join(APP_DIR, 'KADRO-LICENSE.txt'));
-
-step('Значок и сведения о программе в Kadro.exe');
-{
-  const exePath = path.join(APP_DIR, 'Kadro.exe');
-  const exe = ResEdit.NtExecutable.from(fs.readFileSync(exePath), { ignoreCert: true });
-  const res = ResEdit.NtExecutableResource.from(exe);
-  const ico = ResEdit.Data.IconFile.from(fs.readFileSync(path.join(ROOT, 'build/icon.ico')));
-  const groups = ResEdit.Resource.IconGroupEntry.fromEntries(res.entries);
-  const id = groups.length ? groups[0].id : 1;
-  const lang = groups.length ? groups[0].lang : 1033;
-  ResEdit.Resource.IconGroupEntry.replaceIconsForResource(res.entries, id, lang, ico.icons.map((i) => i.data));
-  const vi = ResEdit.Resource.VersionInfo.fromEntries(res.entries)[0];
-  const [a, b, c] = pkg.version.split('.').map(Number);
-  vi.setFileVersion(a, b, c, 0, 1033);
-  vi.setProductVersion(a, b, c, 0, 1033);
-  const langs = vi.getAllLanguagesForStringValues();
-  for (const l of langs) {
-    vi.setStringValues(l, {
-      CompanyName: 'yaposspall', FileDescription: 'Kadro', ProductName: 'Kadro', InternalName: 'Kadro',
-      OriginalFilename: 'Kadro.exe', LegalCopyright: 'GPL-3.0-or-later', FileVersion: pkg.version, ProductVersion: pkg.version,
-    });
-  }
-  vi.outputToResourceEntries(res.entries);
-  res.outputResource(exe);
-  fs.writeFileSync(exePath, Buffer.from(exe.generate()));
+if (FROM_APP) {
+  if (!fs.existsSync(path.join(APP_DIR, 'Kadro.exe'))) { console.error(`нет ${APP_DIR}\\Kadro.exe — сначала --app-only`); process.exit(1); }
+  step('Папка программы — готовая (Kadro.exe мог быть подписан)');
+} else {
+  await buildApp();
+}
+if (APP_ONLY) {
+  console.log(`\nГотово: папка программы ${APP_DIR}`);
+  process.exit(0);
 }
 
 step('Установщик NSIS');
