@@ -1,10 +1,12 @@
 // Картинки для страницы на GitHub (не тест): KADRO_README=папка npx playwright test readme
 // tour/ — кадры демо-ролика (CDP screencast) + список для ffmpeg; *.png — снимки интерфейса.
+// KADRO_README_CLIPS=папка — свои видео вместо нарисованных демо-сцен (в порядке PICK_ORDER, если имена совпадают).
+// Чужие видео в репозиторий не кладутся — только в кадрах интерфейса.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { launch, ROOT, store, type Kadro } from './kadro';
+import { launch, ROOT, store, waitAssetsReady, type Kadro } from './kadro';
 
 const OUT = process.env.KADRO_README;
 test.skip(!OUT, 'только по запросу: KADRO_README=папка');
@@ -12,7 +14,18 @@ test.describe.configure({ mode: 'serial' });
 test.setTimeout(600_000);
 
 const DEMO = path.join(ROOT, 'resources', 'demo');
-const SCENES = ['sunset', 'city', 'ocean', 'synth', 'space', 'mountains'].map((s) => path.join(DEMO, `${s}.mp4`));
+const DRAWN = ['sunset', 'city', 'ocean', 'synth', 'space', 'mountains'].map((s) => path.join(DEMO, `${s}.mp4`));
+const CLIPS_DIR = process.env.KADRO_README_CLIPS;
+const PICK_ORDER = ['Горы', 'Океан', 'Ночной город', 'Трасса', 'Небоскрёбы', 'Туннель', 'Мотоцикл'];
+const CLIPS = CLIPS_DIR
+  ? fs.readdirSync(CLIPS_DIR).filter((f) => /\.(mp4|mov|webm)$/i.test(f))
+    .sort((a, b) => ((PICK_ORDER.indexOf(a.replace(/\.\w+$/, '')) + 1) || 99) - ((PICK_ORDER.indexOf(b.replace(/\.\w+$/, '')) + 1) || 99))
+    .map((f) => path.join(CLIPS_DIR, f))
+  : null;
+const SCENES = CLIPS ?? DRAWN;
+const FOLDER = CLIPS_DIR ?? DEMO;
+/** Видео по имени (своё) или нарисованная сцена по номеру. */
+const clip = (name: string, i: number): string => CLIPS?.find((f) => path.basename(f).startsWith(name)) ?? DRAWN[i];
 
 /** Нарисованный курсор: в записи экрана настоящего курсора не видно. */
 async function fakeCursor(win: Page): Promise<void> {
@@ -97,6 +110,16 @@ test('демо-ролик для README: авто-ролик за 20 секун�
   await win.waitForTimeout(500);
   await clickOn(win, win.getByTestId('play'), 0);
   await win.waitForTimeout(4000);
+  await clickOn(win, win.getByTestId('play'), 200);
+  // переходы: миниатюры на настоящих кадрах оживают под курсором
+  await clickOn(win, win.getByTestId('tab-transitions'), 900);
+  const thumbs = win.locator('.tr-thumb');
+  for (const i of [0, 1, 2, 4]) {
+    const b = await thumbs.nth(i).boundingBox();
+    if (!b) continue;
+    await win.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 14 });
+    await win.waitForTimeout(1300);
+  }
   await cdp.send('Page.stopScreencast');
   const end = (Date.now() - t0) / 1000;
   // список кадров с длительностями для ffmpeg (concat)
@@ -115,7 +138,7 @@ test('демо-ролик для README: авто-ролик за 20 секун�
 
 test('снимки интерфейса для README', async () => {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-readme-'));
-  const K: Kadro = await launch({ data, env: { KADRO_SKIP_HOME: '', KADRO_TEST_PICK: SCENES.join('|'), KADRO_TEST_FOLDER: DEMO } });
+  const K: Kadro = await launch({ data, env: { KADRO_SKIP_HOME: '', KADRO_TEST_PICK: SCENES.join('|'), KADRO_TEST_FOLDER: FOLDER } });
   const win = K.win;
   const shot = (n: string) => win.screenshot({ path: path.join(OUT!, `${n}.png`) });
   await noToasts(win);
@@ -133,6 +156,7 @@ test('снимки интерфейса для README', async () => {
   await shot('auto');
   await win.getByTestId('auto-build').click();
   await expect(win.getByTestId('auto-dialog')).toHaveCount(0, { timeout: 60_000 });
+  await waitAssetsReady(win); // миниатюры на дорожке
   await win.waitForTimeout(1200);
   await store(win, 'setPlayhead', 0.9);
   await win.mouse.move(1470, 900);
@@ -151,8 +175,8 @@ test('снимки интерфейса для README', async () => {
   await win.evaluate(async (scenes) => {
     const k = (window as any).__kadro;
     await k.actions.newProjectAction('16:9');
-    const ids: string[] = await k.actions.importPaths([scenes[4]], { mode: 'main', at: 0 });
-    const ov: string[] = await k.actions.importPaths([scenes[0]], { mode: 'overlay', at: 0 });
+    const ids: string[] = await k.actions.importPaths([scenes[0]], { mode: 'main', at: 0 });
+    const ov: string[] = await k.actions.importPaths([scenes[1]], { mode: 'overlay', at: 0 });
     const s = k.useStore.getState();
     const clip = s.project.tracks.flatMap((t: any) => t.clips).find((c: any) => c.assetId === ov[0]);
     s.commit((p: any) => k.timeline.updateClip(p, clip.id, { pin: [0.68, 0.05, 0.95, 0.11, 0.68, 0.43, 0.94, 0.38] }));
@@ -160,7 +184,7 @@ test('снимки интерфейса для README', async () => {
     k.useStore.getState().commit(() => k.timeline.updateClip(r.project, r.clipId, { tilt: { x: 62, y: 0 }, x: 0.5, y: 0.7, duration: 5 }));
     k.useStore.getState().select([clip.id]);
     void ids;
-  }, SCENES);
+  }, [clip('Небоскрёбы', 4), clip('Мотоцикл', 0)]);
   await win.getByTestId('itab-basic').click().catch(() => undefined);
   await win.getByText('Углы — натянуть на 4 точки').scrollIntoViewIfNeeded();
   await store(win, 'setPlayhead', 2);
@@ -169,7 +193,15 @@ test('снимки интерфейса для README', async () => {
 
   // светлая тема
   await store(win, 'setThemePref', 'light');
-  await win.evaluate(async () => { await (window as any).__kadro.actions.openDemo(); });
+  if (CLIPS) {
+    await win.evaluate(async (files) => {
+      const k = (window as any).__kadro;
+      await k.actions.newProjectAction('16:9');
+      await k.actions.importPaths(files, { mode: 'main', at: 0 });
+    }, CLIPS.slice(0, 4));
+  } else {
+    await win.evaluate(async () => { await (window as any).__kadro.actions.openDemo(); });
+  }
   await win.waitForTimeout(800);
   await store(win, 'setPlayhead', 5.2);
   const at = await win.evaluate(() => { const p = (window as any).__kadro.useStore.getState().project; return p.tracks[0].clips.find((c: any) => c.start <= 5.2 && c.start + (c.out - c.in) / c.speed > 5.2)?.id; });
@@ -187,7 +219,7 @@ test('3D-объект (программная видеокарта)', async () =
   await win.evaluate(async (scene) => {
     const k = (window as any).__kadro;
     await k.actions.importPaths([scene], { mode: 'main', at: 0 });
-  }, SCENES[3]);
+  }, clip('Ночной город', 3));
   await store(win, 'setPlayhead', 1.5);
   await win.getByTestId('tab-3d').click();
   await win.waitForTimeout(3000);
