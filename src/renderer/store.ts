@@ -74,6 +74,8 @@ interface State {
   /** Открыто окно «Ролик по сценарию». */
   scriptOpen: boolean;
   shortsOpen: boolean;
+  /** «Где пролистнут»: найденные места (null — не проверяли) */
+  retention: import('../shared/retention').RetIssue[] | null;
   /** Окно «Сообщить об ошибке» (текст — заготовка, например сообщение с экрана сбоя). */
   bugOpen: { what: string } | null;
   pluginCatalogOpen: boolean;
@@ -129,6 +131,7 @@ interface State {
   setAutoOpen: (o: AutoOpen | null) => void;
   setScriptOpen: (b: boolean) => void;
   setShortsOpen: (b: boolean) => void;
+  setRetention: (r: import('../shared/retention').RetIssue[] | null) => void;
   setBugOpen: (b: { what: string } | null) => void;
   setPluginCatalogOpen: (b: boolean) => void;
   setCopiedAttrs: (a: import('../shared/attrs').ClipAttrs | null) => void;
@@ -201,6 +204,7 @@ export const useStore = create<State>((set, get) => ({
   autoOpen: null,
   scriptOpen: false,
   shortsOpen: false,
+  retention: null,
   bugOpen: null,
   pluginCatalogOpen: false,
   copiedAttrs: null,
@@ -240,7 +244,7 @@ export const useStore = create<State>((set, get) => ({
     });
   },
   replace: (p, path = null) => {
-    set({ project: p, projectPath: path, past: [], future: [], dirty: false, selection: [], playhead: 0, playing: false, junction: null });
+    set({ project: p, projectPath: path, past: [], future: [], dirty: false, selection: [], playhead: 0, playing: false, junction: null, retention: null });
     takeEarlyPatches(p.assets.map((a) => a.id));
   },
   patchAsset: (id, patch) => set((s) => {
@@ -298,6 +302,7 @@ export const useStore = create<State>((set, get) => ({
   setAutoOpen: (o) => set({ autoOpen: o }),
   setScriptOpen: (b) => set({ scriptOpen: b }),
   setShortsOpen: (b) => set({ shortsOpen: b }),
+  setRetention: (r) => set({ retention: r }),
   setBugOpen: (b) => set({ bugOpen: b }),
   setPluginCatalogOpen: (b) => set({ pluginCatalogOpen: b }),
   setCopiedAttrs: (a) => set({ copiedAttrs: a }),

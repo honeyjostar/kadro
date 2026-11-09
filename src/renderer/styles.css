@@ -1181,3 +1181,19 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .shorts-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .shorts-body b { color: var(--strong); font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 800px) { .shorts-opts { grid-template-columns: 1fr; } }
+
+/* ---------- «Где пролистнут» ---------- */
+.ret-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); background: color-mix(in srgb, var(--danger) 9%, var(--panel)); font-size: 12.5px; min-width: 0; }
+.ret-bar > svg { color: var(--danger); flex: none; }
+.ret-bar.ok { background: color-mix(in srgb, var(--ok) 8%, var(--panel)); }
+.ret-bar.ok > svg { color: var(--ok); }
+.ret-bar .ret-count { color: var(--strong); font-weight: 600; white-space: nowrap; }
+.ret-bar .ret-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.ret-bar .btn svg, .ret-list .btn svg { margin-right: 4px; vertical-align: -2px; }
+.ret-time { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ret-mark { position: absolute; bottom: 0; height: 5px; border-radius: 2px; background: var(--danger); opacity: 0.85; cursor: pointer; z-index: 6; }
+.ret-mark:hover { height: 9px; opacity: 1; }
+.preflight-ret { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.preflight-ret .btn svg { margin-right: 4px; vertical-align: -2px; }
+.ret-list li { grid-template-columns: auto auto minmax(0, 1fr) auto auto; color: var(--danger); }
+.ret-list li .ret-text { white-space: normal; }

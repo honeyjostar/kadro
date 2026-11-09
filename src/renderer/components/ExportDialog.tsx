@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { CheckCircle2, ClipboardList, FolderOpen, ShieldCheck, Star, TriangleAlert, X } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FolderOpen, ScanEye, ShieldCheck, Star, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { exportSize } from '../../shared/geometry';
 import type { ExportResult } from '../../shared/ipc';
@@ -8,7 +8,8 @@ import { encoderLabel, reasonText, type HwInfo } from '../../shared/hw';
 import { projectDuration } from '../../shared/timeline';
 import type { ExportFormat, ExportOptions } from '../../shared/types';
 import { GITHUB_PAGE } from '../../shared/links';
-import { copyChapters, staleAiClips } from '../actions';
+import { checkRetention, copyChapters, staleAiClips } from '../actions';
+import { RetentionItem } from './Retention';
 import { chaptersOf } from '../../shared/markers';
 import { renderTextLayers } from '../engine/textExport';
 import { renderGlSegments, type GlRender } from '../engine/glExport';
@@ -68,6 +69,8 @@ export function ExportDialog() {
   const format: ExportFormat = opts.format ?? 'mp4';
   const setFormat = (f: ExportFormat) => setOpts((o) => fitFormat(o, f, shortSideOf(project.settings), project.settings.fps));
   const [star, setStar] = useState<'ask' | 'thanks' | 'hidden'>('ask');
+  const retention = useStore((s) => s.retention);
+  const [retBusy, setRetBusy] = useState(false);
   const title = format === 'gif' ? tx('Экспорт в GIF') : format === 'mp3' ? tx('Экспорт звука') : tx('Экспорт видео');
   const [phase, setPhase] = useState<Phase>('setup');
   const [progress, setProgress] = useState(0);
@@ -221,6 +224,19 @@ export function ExportDialog() {
                     ))}
                   </ul>
                 )}
+              <div className="preflight-ret">
+                <button className="btn small" disabled={retBusy || duration <= 0} data-testid="export-retention"
+                  onClick={() => { setRetBusy(true); void checkRetention().finally(() => setRetBusy(false)); }}>
+                  <ScanEye size={13} />{retBusy ? tx('Смотрю ролик…') : tx('Где пролистнут?')}
+                </button>
+                {!retention && !retBusy && <span className="hint small">{tx('Kadro посмотрит ролик глазами TikTok и покажет, где зритель может смахнуть дальше.')}</span>}
+                {retention && !retention.length && <span className="hint small" data-testid="export-retention-ok">{tx('Слабых мест не нашёл: начало цепляет, планы меняются, звук в порядке.')}</span>}
+              </div>
+              {!!retention?.length && (
+                <ul className="preflight-list ret-list" data-testid="export-retention-list">
+                  {retention.map((i) => <li key={i.id}><ScanEye size={14} /><RetentionItem i={i} onShow={close} /></li>)}
+                </ul>
+              )}
             </div>
             <p className="hint small">{txj('Примерный размер файла: {0} МБ{1}', Math.max(1, Math.round(estimateMb(size.w, size.h, opts.fps, opts.quality, duration))), chapters ? tx(' · главы из маркеров: {0}', chapters) : '')}</p>
             </>)}

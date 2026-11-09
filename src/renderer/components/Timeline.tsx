@@ -2,6 +2,7 @@ import { tx } from '../../shared/i18n';
 import {
   Activity, AudioLines, Blend, Bookmark, Copy, Eye, EyeOff, Film, Group, Layers, Maximize2, Mic, Plus, Ungroup, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
+  ScanEye,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
@@ -10,13 +11,14 @@ import {
   setTrackFlag, trimClip,
 } from '../../shared/timeline';
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
-import { addMarkerAtPlayhead, alignToBeats, extractAudio, placeLibraryFiles, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording } from '../actions';
+import { addMarkerAtPlayhead, alignToBeats, extractAudio, placeLibraryFiles, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording, checkRetention } from '../actions';
 import { useSelected } from '../hooks';
 import { recPrefs } from '../recorder';
 import { keyTimesOnTimeline } from '../animEdit';
 import { api, getState, useStore } from '../store';
 import { fmtDur, peakLevel } from '../util';
 import { MarkerLayer, rulerMenuItems } from './Markers';
+import { RetentionBar, RetentionMarks } from './Retention';
 import { useMenu } from './Menu';
 
 const PAD = 16;
@@ -121,6 +123,7 @@ function Ruler({ pps, view, width, onScrub, timeAt }: { pps: number; view: View;
     <div className="ruler" style={{ width }} onPointerDown={onScrub} data-testid="ruler"
       onContextMenu={(e) => menu.open(e, rulerMenuItems(timeAt(e.clientX)))}>
       <canvas ref={ref} style={{ position: 'absolute', left: view.left, top: 0, width: view.width, height: RULER_H }} />
+      <RetentionMarks pps={pps} />
       <MarkerLayer pps={pps} timeAt={timeAt} />
       {menu.node}
     </div>
@@ -720,6 +723,7 @@ export function Timeline() {
   const canPauses = !!selClip && !!sel?.asset?.hasAudio;
   const zoomVal = Math.log(pps / MIN_PPS) / Math.log(MAX_PPS / MIN_PPS);
   const noClips = project.tracks.every((t) => t.clips.length === 0);
+  const [retBusy, setRetBusy] = useState(false);
   const dragClip = drag ? findClip(project, drag.id) : undefined;
   const snapLine = drag?.snap ?? trimSnap;
 
@@ -749,6 +753,8 @@ export function Timeline() {
           onClick={() => selClip && void removePauses(selClip.id)} />
         <Tool icon={<Activity size={17} />} label={tx('Под бит')} title={tx('Подогнать склейки основной дорожки под доли такта музыки (сначала найди ритм во вкладке «Аудио»)')} disabled={!hasBeats}
           onClick={() => alignToBeats()} testId="tl-beats" />
+        <Tool icon={<ScanEye size={17} />} label={tx('Где пролистнут')} title={tx('Посмотреть ролик глазами TikTok: где зритель скорее всего смахнёт дальше — и как это исправить')}
+          disabled={noClips || retBusy} onClick={() => { setRetBusy(true); void checkRetention().finally(() => setRetBusy(false)); }} testId="tl-retention" />
         <Tool icon={<Blend size={17} />} label={tx('Переход')} title={tx('Выбрать переход для стыка двух клипов')} disabled={!junction && !(selClip && sel?.track.kind === 'main')}
           onClick={() => getState().setLeftTab('transitions')} />
         <div className="grow" />
@@ -758,6 +764,7 @@ export function Timeline() {
         <Tool icon={<ZoomIn size={17} />} label={tx('Крупнее')} title={tx('Увеличить масштаб таймлайна (+)')} onClick={() => zoomTo(pps * 1.4)} />
         <Tool icon={<Maximize2 size={16} />} label={tx('Весь ролик')} title={tx('Показать весь ролик целиком')} onClick={fit} />
       </div>
+      <RetentionBar />
       <div className="tl-body">
         <div className="tl-heads">
           <div className="tl-corner" style={{ height: RULER_H }} />

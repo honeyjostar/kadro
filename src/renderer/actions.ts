@@ -7,7 +7,7 @@ import { CAPTION_STYLE, newProject, shortSideOf, sizeFor } from '../shared/defau
 import { exportSize } from '../shared/geometry';
 import type { AiJob, AiOutput, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
 import {
-  addAsset, addFree, addToMain, alignMainToBeats, mainTrack, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
+  addAsset, addFree, addToMain, alignMainToBeats, mainTrack, moveClipsBy, trimClip, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
   splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip, setSettings, type SourceRange,
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
@@ -26,6 +26,7 @@ import { VoiceRecorder } from './recorder';
 import { addMarker, nextMarker, prevMarker, youtubeChapters } from '../shared/markers';
 import { SHORT_LENS, findMoments, loudnessFrom, shortProject, type ShortLen, type ShortMoment } from '../shared/shorts';
 import type { BlogStyle } from '../shared/blogCaptions';
+import { retentionIssues, zoomKeys, type RetIssue } from '../shared/retention';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -1562,4 +1563,100 @@ export async function createShorts(asset: MediaAsset, moments: ShortMoment[], st
     getState().toast(tx('Не получилось сохранить шортсы: {0}', e instanceof Error ? e.message : String(e)), 'err');
     return null;
   }
+}
+
+// ---------- «Где пролистнут» ----------
+/** Движение видео на отрезке исходника — по разбору «Смотрю видео» (тот же, что у авто-ролика). */
+function motionFrom(hl: Highlights | null | undefined, s0: number, s1: number): number | undefined {
+  if (!hl?.act?.length || hl.step <= 0) return undefined;
+  const a = Math.max(0, Math.floor(s0 / hl.step));
+  const b = Math.min(hl.act.length, Math.max(a + 1, Math.ceil(s1 / hl.step)));
+  if (a >= hl.act.length) return hl.act[hl.act.length - 1];
+  let s = 0;
+  for (let i = a; i < b; i++) s += hl.act[i];
+  return s / (b - a);
+}
+
+/** Посмотреть ролик «глазами TikTok»: разобрать видео (один раз), найти слабые места, отметить их на таймлайне. */
+export async function checkRetention(): Promise<RetIssue[] | null> {
+  const p = getState().project;
+  if (projectDuration(p) <= 0) { getState().toast(tx('Сначала добавь видео на таймлайн')); return null; }
+  const used = new Set(p.tracks.flatMap((t) => t.clips.map((c) => (c.type === 'media' ? c.assetId : ''))));
+  const videos = [...new Map(p.assets.filter((a) => used.has(a.id) && a.kind === 'video' && !a.missing && !hlMemo.has(a.path)).map((a) => [a.path, a])).values()];
+  for (const [n, a] of videos.entries()) {
+    const src = a.proxy === 'ready' && a.previewPath ? a.previewPath : a.path;
+    const r = await runJob(videos.length > 1 ? tx('Смотрю видео {0} из {1}', n + 1, videos.length) : tx('Смотрю видео'), { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration });
+    if (!r.ok && r.error === tx('Отменено')) return null;
+    hlMemo.set(a.path, r.ok && r.output?.kind === 'highlights' ? r.output.hl : null);
+  }
+  const issues = retentionIssues(getState().project, { motion: (a, s0, s1) => motionFrom(hlMemo.get(a.path), s0, s1) });
+  getState().setRetention(issues);
+  return issues;
+}
+
+/** Исправить одной кнопкой (и проверить заново). */
+export async function fixRetention(i: RetIssue): Promise<void> {
+  const s = getState();
+  const p = s.project;
+  const clip = i.clipId ? findClip(p, i.clipId)?.clip : undefined;
+  const media = clip?.type === 'media' ? clip : undefined;
+  switch (i.fix) {
+    case 'hookZoom':
+    case 'staticZoom': {
+      if (!media) return;
+      const keys = i.fix === 'hookZoom' ? zoomKeys(media, 0, Math.min(clipEnd(media), 2.5), 1.15) : zoomKeys(media, i.t0, i.t1, 1.12);
+      s.commit((q) => updateClip(q, media.id, { keyframes: { ...media.keyframes, scale: keys } }));
+      s.toast(i.fix === 'hookZoom' ? tx('Добавил наезд камеры в начале') : tx('Добавил медленный зум'), 'ok');
+      break;
+    }
+    case 'louder': {
+      s.commit((q) => q.tracks.reduce((acc, t) => t.clips.reduce((a2, c) => {
+        if (c.type !== 'media' || c.muted) return a2;
+        const as = a2.assets.find((x) => x.id === c.assetId);
+        return as?.hasAudio ? updateClip(a2, c.id, { volume: Math.min(2, Math.round(c.volume * 2 * 100) / 100) }) : a2;
+      }, acc), q));
+      s.toast(tx('Сделал звук громче'), 'ok');
+      break;
+    }
+    case 'trimStart': {
+      if (!media) return;
+      const first = captionsStart(p);
+      if (first === undefined) return;
+      const cut = Math.max(0, Math.round((first - 0.3) * 1000) / 1000);
+      s.commit((q) => {
+        let r = trimClip(q, media.id, 'start', cut);
+        // остальное (субтитры, надписи, музыка) — сдвигаем вместе с началом
+        const rest = r.tracks.filter((t) => t.kind !== 'main').flatMap((t) => t.clips);
+        r = deleteClips(r, rest.filter((c) => clipEnd(c) <= cut + 1e-3).map((c) => c.id));
+        for (const c of rest.filter((x) => clipEnd(x) > cut + 1e-3 && x.start < cut)) r = trimClip(r, c.id, 'start', cut);
+        return moveClipsBy(r, rest.filter((c) => clipEnd(c) > cut + 1e-3).map((c) => c.id), -cut);
+      });
+      s.toast(tx('Начало обрезано — ролик начинается сразу с речи'), 'ok');
+      break;
+    }
+    case 'music':
+      s.setLeftTab('audio');
+      s.toast(tx('Добавь музыку во вкладке «Аудио» — например, демо-бит'));
+      return;
+    case 'pauses':
+      if (media) await removePauses(media.id);
+      break;
+    default:
+      return;
+  }
+  await checkRetention();
+}
+
+const captionsStart = (p: Project): number | undefined => {
+  const caps = p.tracks.flatMap((t) => t.clips).filter((c): c is TextClip => c.type === 'text' && c.role === 'caption').sort((a, b) => a.start - b.start);
+  const c = caps[0];
+  return c ? c.start + (c.words?.[0]?.start ?? 0) : undefined;
+};
+
+/** Показать место: курсор туда, клип — выделить. */
+export function showRetention(i: RetIssue): void {
+  const s = getState();
+  s.setPlaying(false);
+  s.setPlayhead(Math.min(projectDuration(s.project), i.t0 + 0.05));
+  if (i.clipId && findClip(s.project, i.clipId)) s.select([i.clipId]);
 }
