@@ -8,7 +8,7 @@ import { applyH, focal, hasPerspective, hasTilt, homography, pinQuad, quadSize, 
 import { effectiveColor, ffmpegColorFilter } from './color';
 import { GRADE_N, gradeActive, gradeTable, haldImage, type CubeLut } from './grade';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geometry';
-import { clipDuration, mainTrack, projectDuration } from './timeline';
+import { beatTimes, clipDuration, mainTrack, projectDuration } from './timeline';
 import type { BlendMode, MediaAsset, MediaClip, Project } from './types';
 import { maskBytes } from './mask';
 import { logoBox } from './logo';
@@ -49,6 +49,12 @@ export interface BuiltGraph {
   aOut: string;
   duration: number;
 }
+
+const hexRgb = (hex: string): [number, number, number] => {
+  const h = hex.replace('#', '');
+  const v = h.length === 3 ? h.split('').map((x) => x + x).join('') : h.padEnd(6, '0').slice(0, 6);
+  return [parseInt(v.slice(0, 2), 16) || 0, parseInt(v.slice(2, 4), 16) || 0, parseInt(v.slice(4, 6), 16) || 0];
+};
 
 export const fmt = (n: number): string => {
   const s = (Math.round(n * 1e6) / 1e6).toFixed(6);
@@ -637,8 +643,41 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
           chains.push(`[${idx}:v]setpts=(PTS-STARTPTS)/${fmt(c.speed)},fps=${F},tpad=stop_mode=clone:stop_duration=2,trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${src}]`);
         }
         const fg = visualChain(src, c, asset, true);
-        const shifted = L('sh');
+        let shifted = L('sh');
         chains.push(`[${fg.label}]setpts=PTS-STARTPTS+${fmt(c.start)}/TB[${shifted}]`);
+        // неоновый контур под вырезанным человеком: силуэт цвета неона, размытый; под бит — вспышки сильнее
+        const neon = c.person?.layer ? c.person.neon : undefined;
+        if (neon) {
+          const [r, g, b] = hexRgb(neon.color);
+          const px = Math.max(1, neon.width * k);
+          const P = Math.ceil(px * 3);
+          const base = L('ns');
+          const glowSrc = L('ng');
+          chains.push(`[${shifted}]split[${base}][${glowSrc}]`);
+          shifted = base;
+          const glowOf = (src: string, sigma: number, boost: number): string => {
+            const out = L('nl');
+            chains.push(`[${src}]lutrgb=r=${r}:g=${g}:b=${b},pad=iw+${2 * P}:ih+${2 * P}:${P}:${P}:color=black@0,gblur=sigma=${fmt(sigma)}:planes=15,colorchannelmixer=aa=${fmt(boost)}[${out}]`);
+            return out;
+          };
+          const win = `between(t\\,${fmt(c.start)}\\,${fmt(c.start + D)})`;
+          const onto = (glow: string, enable: string) => {
+            const nv = L('v');
+            chains.push(`[${v}][${glow}]overlay=x=(${fg.x})-${P}:y=(${fg.y})-${P}:eof_action=pass${ovf}:enable='${enable}'[${nv}]`);
+            v = nv;
+          };
+          if (neon.pulse) {
+            const [g1, g2] = [L('ngs'), L('ngs')];
+            chains.push(`[${glowSrc}]split[${g1}][${g2}]`);
+            onto(glowOf(g1, px * 0.9, 1.4), win);
+            // вспышка на долях такта (ритм не найден — 2 раза в секунду)
+            const beats = beatTimes(p).filter((x) => x >= c.start - 0.2 && x <= c.start + D).slice(0, 600);
+            const flash = beats.length ? beats.map((x) => `between(t\\,${fmt(x)}\\,${fmt(x + 0.16)})`).join('+') : 'lt(mod(t\\,0.5)\\,0.16)';
+            onto(glowOf(g2, px * 1.8, 1.9), `${win}*(${flash})`);
+          } else {
+            onto(glowOf(glowSrc, px * 1.2, 1.6), win);
+          }
+        }
         if (c.blend && c.blend !== 'normal') {
           v = blendOnto(v, shifted, fg.x, fg.y, c.blend, c.start, c.start + D);
           continue;

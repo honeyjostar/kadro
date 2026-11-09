@@ -24,11 +24,11 @@ import {
 import { EFFECT_CATS, EFFECTS, fxGeometry, particleEffects, type EffectCat } from '../../shared/effects';
 import { drawParticles } from '../../shared/particles';
 import { applyPixelEffects } from '../engine/effectsPreview';
-import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
+import type { EffectType, MediaAsset, MediaClip, PersonFx, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx,
 } from '../actions';
 import { useMenu, type MenuEntry } from './Menu';
 import { sampleCanvas, useSamplesReady } from '../sampleFrames';
@@ -41,7 +41,8 @@ import { useClipJob, useJobRunning, useSelected } from '../hooks';
 import { api, getState, useStore, type LeftTab } from '../store';
 import { fmtDur, fmtTime, peakLevel } from '../util';
 import { ColorField, FontPicker, Progress, Seg, Slider, Toggle } from './controls';
-import { aiCovers } from '../../shared/ai';
+import { aiCovers, aiSource } from '../../shared/ai';
+import { NEON_DEFAULT, personWanted } from '../../shared/person';
 
 const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'media', label: tx('Медиа'), icon: <Film size={19} /> },
@@ -641,6 +642,37 @@ function TranslateCard({ captions }: { captions: TextClip[] }) {
   );
 }
 
+/** Человек отдельным слоем (на удалении фона): портрет, неоновый контур, текст за человеком. */
+function PersonCard({ clip, busy }: { clip: MediaClip | null; busy: boolean }) {
+  const f = clip?.person ?? {};
+  const ready = !!clip && !!aiSource(clip, 'removeBg');
+  const set = (patch: Partial<PersonFx>) => { if (clip) void setPersonFx(clip.id, patch); };
+  return (
+    <div className={`ai-card person-card ${!clip ? 'off' : ''}`} data-testid="person-card">
+      <h4><Sparkles size={15} />{tx('Человек отдельным слоем')}</h4>
+      <p className="hint">{tx('Kadro вырежет человека и положит его поверх фона: фон можно размыть, вокруг человека — неон, надписи — за человеком.')}</p>
+      {!clip ? <div className="hint small">{tx('Нужен видеоклип')}</div> : <>
+        <Toggle label={tx('Портрет — фон размыт')} hint={tx('Как портретный режим на iPhone')} on={!!f.blur} testId="person-blur"
+          onChange={(v) => set({ blur: v ? 0.6 : undefined })} />
+        {!!f.blur && <Slider label={tx('Размытие фона')} min={0.1} max={1} step={0.05} value={f.blur} format={(v) => `${Math.round(v * 100)}%`}
+          onChange={(v) => set({ blur: v })} testId="person-blur-amount" />}
+        <Toggle label={tx('Неоновый контур')} hint={tx('Светящийся контур вокруг человека, вспыхивает под бит музыки')} on={!!f.neon} testId="person-neon"
+          onChange={(v) => set({ neon: v ? { ...NEON_DEFAULT } : undefined })} />
+        {f.neon && <>
+          <ColorField label={tx('Цвет неона')} value={f.neon.color} onChange={(color) => set({ neon: { ...f.neon!, color } })} />
+          <Slider label={tx('Толщина')} min={4} max={40} step={1} value={f.neon.width} format={(v) => `${Math.round(v)}`}
+            onChange={(width) => set({ neon: { ...f.neon!, width } })} testId="person-neon-width" />
+          <Toggle label={tx('Вспыхивает под бит')} hint={tx('Нужен найденный ритм у музыки (вкладка «Аудио»), иначе — 2 раза в секунду')} on={f.neon.pulse}
+            onChange={(pulse) => set({ neon: { ...f.neon!, pulse } })} testId="person-neon-pulse" />
+        </>}
+        <Toggle label={tx('Текст за человеком')} hint={tx('Надписи — за спиной человека, субтитры — всё равно сверху')} on={!!f.front} testId="person-front"
+          onChange={(v) => set({ front: v || undefined })} />
+        {personWanted(clip.person) && !ready && <p className="hint small">{busy ? tx('Вырезаю человека…') : tx('Нужно удалить фон — запустится само.')}</p>}
+      </>}
+    </div>
+  );
+}
+
 const DUB_VOICES: Record<'ru' | 'en', TtsVoiceId[]> = { en: ['amy', 'ryan'], ru: ['irina', 'dmitri', 'denis', 'ruslan'] };
 
 /** Дубляж: речь ролика → перевод → озвучка другим голосом по тем же таймингам. */
@@ -1177,7 +1209,9 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
       {asset?.kind !== 'audio' && <div className={`ai-card ${!clip || !isVideo ? 'off' : ''}`}>
         <h4><ImageIcon size={15} />{tx('Удалить фон')}</h4>
         <p className="hint">{tx('Вырезает человека из видео. Под ним — фон проекта или нижняя дорожка.')}</p>
-        {clip && isVideo ? (
+        {clip && isVideo && personWanted(clip.person) ? (
+          <p className="hint small" data-testid="removebg-person">{tx('Фон остаётся: вырезанный человек нужен для портрета, неона или текста за человеком (ниже).')}</p>
+        ) : clip && isVideo ? (
           clip.removeBg.enabled ? (
             <>
               <AiStatus clip={clip} kind="removeBg" />
@@ -1189,6 +1223,8 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
           ) : <button className="btn block" disabled={busy} onClick={() => void removeBackground(clip.id)} data-testid="ai-removebg">{tx('Удалить фон')}</button>
         ) : <div className="hint small">{tx('Нужен видеоклип')}</div>}
       </div>}
+
+      {asset?.kind !== 'audio' && <PersonCard clip={clip && isVideo ? clip : null} busy={busy} />}
 
       <div className={`ai-card ${!clip || !hasAudio ? 'off' : ''}`}>
         <h4><AudioLines size={15} />{tx('Чистый голос')}</h4>

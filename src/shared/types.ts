@@ -140,6 +140,18 @@ export type EffectType =
   | 'snow' | 'rain' | 'confetti' | 'hearts' | 'sparkles' | 'bubbles'
   // шейдеры: gl:<имя> — встроенные, plug:e/<файл> — плагины пользователя
   | `gl:${string}` | `plug:${string}`;
+/** Человек отдельным слоем: фон остаётся, вырезанный человек — поверх. */
+export interface PersonFx {
+  /** портретный режим: фон за человеком размыт, 0…1 (0 — выкл) */
+  blur?: number;
+  /** неоновый контур вокруг человека; pulse — вспыхивает под бит музыки */
+  neon?: { color: string; width: number; pulse: boolean };
+  /** текст за человеком: человек поверх надписей (субтитры — всё равно сверху) */
+  front?: boolean;
+  /** служебное (только при показе и экспорте): это слой с вырезанным человеком */
+  layer?: boolean;
+}
+
 export interface Effect { type: EffectType; amount: number; params?: Record<string, number | boolean | number[]> } // amount 0..1
 
 export type VoiceEffect = 'none' | 'chipmunk' | 'deep' | 'robot' | 'echo' | 'hall' | 'radio' | 'phone' | 'megaphone';
@@ -186,6 +198,8 @@ export interface MediaClip {
   grade?: Grade;                // кривые, HSL, свой LUT
   group?: GroupData;            // составной клип: что внутри (для разгруппировки и пересборки)
   anim?: { in?: ClipAnim; out?: ClipAnim }; // появление и исчезновение
+  /** человек отдельным слоем поверх фона (нужно удаление фона): портрет, неоновый контур, текст за человеком */
+  person?: PersonFx;
   tilt?: { x: number; y: number };   // 3D-наклон, градусы (x — вперёд-назад, y — влево-вправо)
   /** «Углы»: картинка натянута на 4 точки (доли кадра: верх-лево, верх-право, низ-лево, низ-право). */
   pin?: [number, number, number, number, number, number, number, number];

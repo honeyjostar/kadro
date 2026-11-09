@@ -15,7 +15,7 @@ import { renderGlSegments } from './engine/glExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
 import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit';
 import { readingTime, scriptBase, scriptEdit, splitScript, type ScriptScene, type ScriptSummary } from '../shared/scriptVideo';
-import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, TextClip, VoiceEffect, Word } from '../shared/types';
+import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, PersonFx, Project, RampPoint, Retime, TextClip, VoiceEffect, Word } from '../shared/types';
 import { retimeWords } from '../shared/captions';
 import { cuesToSrt, parseSubtitles } from '../shared/subtitles';
 import { copyAttrs } from '../shared/attrs';
@@ -28,6 +28,7 @@ import { SHORT_LENS, findMoments, loudnessFrom, shortProject, type ShortLen, typ
 import type { BlogStyle } from '../shared/blogCaptions';
 import { retentionIssues, zoomKeys, type RetIssue } from '../shared/retention';
 import { captionCues, dubPhrases, fitSpeed, placeDub, quietOriginal, slotOf } from '../shared/dub';
+import { personWanted } from '../shared/person';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -273,7 +274,7 @@ function gifBlocked(p: Project, c: MediaClip, what: string): boolean {
   return true;
 }
 
-export async function removeBackground(clipId: string): Promise<void> {
+export async function removeBackground(clipId: string, forPerson = false): Promise<void> {
   const m = mediaClip(clipId);
   if (!m || gifBlocked(m.p, m.clip, tx('Удаление фона'))) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
@@ -284,7 +285,7 @@ export async function removeBackground(clipId: string): Promise<void> {
   if (!r.ok || r.output?.kind !== 'removeBg') { if (r.error !== tx('Отменено')) getState().toast(tx('Фон убрать не удалось: {0}', r.error), 'err'); return; }
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { removeBg: { enabled: true, status: 'ready', path: out.path, range: out.range } }));
-  getState().toast(tx('Фон удалён'), 'ok');
+  getState().toast(forPerson ? tx('Человек вырезан — фон остаётся') : tx('Фон удалён'), 'ok');
 }
 
 export function disableRemoveBg(clipId: string): void {
@@ -1726,4 +1727,26 @@ export async function dubProject(o: DubOptions, onStage?: (label: string, k: num
   takeEarlyPatches(imp.assets.map((a) => a.id));
   getState().toast(tx('Дубляж готов: {0} на отдельной дорожке. Отменить — Ctrl+Z', `${files.length} ${plural(files.length, tx('фраза'), tx('фразы'), tx('фраз'))}`), 'ok');
   return true;
+}
+
+// ---------- человек отдельным слоем: портрет, неон, текст за человеком ----------
+/** Включить или поменять фишки. Нужен вырезанный человек — если фон ещё не удалён, удаляем (фон при этом остаётся). */
+export async function setPersonFx(clipId: string, patch: Partial<PersonFx>): Promise<void> {
+  const f = findClip(getState().project, clipId);
+  if (!f || f.clip.type !== 'media') return;
+  const cur = f.clip.person ?? {};
+  const next: PersonFx = { ...cur, ...patch };
+  for (const k of Object.keys(next) as (keyof PersonFx)[]) if (next[k] === undefined || next[k] === false || next[k] === 0) delete next[k];
+  getState().commit((p) => updateClip(p, clipId, { person: personWanted(next) ? next : undefined }), `person-${Object.keys(patch).join('-')}`);
+  if (!personWanted(next)) return;
+  const c = findClip(getState().project, clipId)?.clip;
+  if (c?.type !== 'media') return;
+  const r = c.removeBg;
+  if (aiCovers(r, c.in, c.out)) return;
+  // уже обработан, но выключен «Вернуть фон» — просто включаем
+  if (r.status === 'ready' && r.path && r.range && c.in >= r.range[0] - 1e-3 && c.out <= r.range[1] + 1e-3) {
+    getState().commit((p) => updateClip(p, clipId, { removeBg: { ...r, enabled: true } }));
+    return;
+  }
+  await removeBackground(clipId, true);
 }

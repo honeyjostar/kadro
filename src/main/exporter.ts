@@ -13,6 +13,7 @@ import { grayPng, rgbPng } from './png';
 import { encoderPlan, type EncoderEngine } from '../shared/hw';
 import { hardwareInfo } from './hardware';
 import { loadLuts } from './luts';
+import { expandPerson } from '../shared/person';
 
 
 /** Папки с кадрами шейдеров (окно рисует, экспорт накладывает). Токен — чтобы окно не писало куда попало. */
@@ -107,6 +108,8 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
   if (project.settings.logo && !fs.existsSync(project.settings.logo.path)) {
     project = { ...project, settings: { ...project.settings, logo: undefined } };
   }
+  // человек отдельным слоем (портрет, неон, текст за человеком) — фон и вырезанный человек, как в плеере
+  project = expandPerson(project);
   const job = path.join(cacheDir('export'), `job_${Date.now()}`);
   fs.mkdirSync(job, { recursive: true });
   try {

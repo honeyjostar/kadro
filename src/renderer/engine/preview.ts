@@ -16,6 +16,7 @@ import { GradeProcessor, lutFor, setLutListener } from './grade';
 import { BLUR_SIGMA_1080, placeOnCanvas, unitScale } from '../../shared/geometry';
 import { drawText } from '../../shared/textRender';
 import { logoBox } from '../../shared/logo';
+import { expandPerson, neonPulse, projectBeats } from '../../shared/person';
 import { clipDuration, clipEnd, projectDuration } from '../../shared/timeline';
 import { applyGlEffects, drawAnyTransition, glEffectsOf } from './glDraw';
 import type { BlendMode, Mask, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
@@ -143,7 +144,9 @@ export class PreviewEngine {
   }
 
   setProject(p: Project): void {
-    this.project = p;
+    // человек отдельным слоем (портрет, неон, текст за человеком) — клип раскладывается на фон и вырезанного человека
+    this.project = expandPerson(p);
+    this.beats = projectBeats(p);
     this.ensureLogo(p);
     this.syncFilters();
     this.syncElements();
@@ -245,6 +248,8 @@ export class PreviewEngine {
     this.setSize(prev.w, prev.h);
     return blob;
   }
+
+  private beats: number[] = [];
 
   // ---------- свой логотип ----------
   private logoImg: HTMLImageElement | null = null;
@@ -395,7 +400,7 @@ export class PreviewEngine {
         }
         const vs = videoSource(c);
         want.set(`${c.id}:v`, { kind: 'video', path: vs ? vs.path : a.previewPath || a.path, offset: vs ? vs.offset : 0 });
-        if (this.offline) continue;
+        if (this.offline || c.person?.layer) continue; // вырезанный человек — без звука (звук у самого клипа)
         const as = audioSource(c);
         if (as) want.set(`${c.id}:a`, { kind: 'audio', path: as.path, offset: as.offset });
         else if (vs && a.hasAudio) want.set(`${c.id}:a`, { kind: 'audio', path: a.previewPath || a.path, offset: 0 });
@@ -653,14 +658,42 @@ export class PreviewEngine {
         const out = warper().warp(layer, quad, W, H);
         if (out) c2d.drawImage(out, 0, 0);
       } else {
+        this.neonUnder(c2d, c, t, layer, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
         c2d.drawImage(layer, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
       }
     } else {
+      this.neonUnder(c2d, c, t, img, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
       c2d.filter = colorFilter;
       c2d.drawImage(img, -pl.w / 2, -pl.h / 2, pl.w, pl.h);
     }
     c2d.restore();
     if (isMain) drawMainBars(c2d, c, W, H);
+  }
+
+  /** Неоновый контур под вырезанным человеком: его силуэт цвета неона, размытый (сильнее на долю такта). */
+  private neonUnder(c2d: CanvasRenderingContext2D, c: MediaClip, t: number, img: CanvasImageSource, x: number, y: number, w: number, h: number): void {
+    const n = c.person?.layer ? c.person.neon : undefined;
+    if (!n) return;
+    const k = neonPulse(t, this.beats, n.pulse);
+    const px = Math.max(1, n.width * unitScale(this.W, this.H));
+    const sil = this.canvasFor(`${c.id}:neon`, Math.max(1, Math.round(w)), Math.max(1, Math.round(h)));
+    const sc = sil.getContext('2d')!;
+    sc.save();
+    sc.globalCompositeOperation = 'copy';
+    sc.drawImage(img, 0, 0, sil.width, sil.height);
+    sc.globalCompositeOperation = 'source-in';
+    sc.fillStyle = n.color;
+    sc.fillRect(0, 0, sil.width, sil.height);
+    sc.restore();
+    c2d.save();
+    c2d.filter = 'none';
+    c2d.globalAlpha = Math.min(1, c2d.globalAlpha * Math.min(1, 0.55 + 0.45 * k));
+    c2d.shadowColor = n.color;
+    for (const r of [px * 0.6 * k, px * 1.6 * k]) {
+      c2d.shadowBlur = r;
+      c2d.drawImage(sil, x, y, w, h);
+    }
+    c2d.restore();
   }
 
   private graderInst: GradeProcessor | null = null;
