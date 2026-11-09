@@ -5,6 +5,10 @@
 #     если релиз уже есть — у него только обновляется описание из docs/RELEASE_NOTES.md;
 #   • опубликовали релиз в интерфейсе GitHub или отправили тег vX.Y.Z — файлы прикладываются к нему;
 #   • вручную: Actions → Release → Run workflow (файлы — в артефактах сборки).
+# Подпись кода (SignPath, см. docs/SIGNING-SETUP.md): включается сама, когда в настройках репозитория есть
+# секрет SIGNPATH_API_TOKEN и переменная SIGNPATH_ORGANIZATION_ID. Подписываются Kadro.exe (до упаковки в установщик)
+# и сам установщик; на каждый выпуск SignPath присылает две заявки на подтверждение. Не подписалось
+# (не подтвердили вовремя, отклонили, сбой) — выпуск выходит без подписи, как раньше, с предупреждением в сборке.
 name: Release
 
 on:
@@ -14,9 +18,16 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      sign:
+        description: 'Подписать через SignPath (если настроено) — придут заявки на подтверждение'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  # SignPath скачивает файлы на подпись из артефактов сборки
+  actions: read
 
 env:
   # CUDA-версия ONNX Runtime не нужна (программа работает на процессоре и DirectML) — не качаем лишние сотни мегабайт
@@ -30,7 +41,8 @@ concurrency:
 jobs:
   windows-installer:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # с подписью сборка ждёт, пока заявки подтвердят (до двух часов каждую)
+    timeout-minutes: ${{ vars.SIGNPATH_ORGANIZATION_ID && 330 || 60 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -89,9 +101,88 @@ jobs:
           curl -fsSL -o electron-win.zip "https://github.com/electron/electron/releases/download/v${EV}/electron-v${EV}-win32-x64.zip"
           curl -fsSL -o ffmpeg-win.zip "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-win64-gpl-shared-8.1.zip"
 
+      - name: Папка программы
+        if: steps.ver.outputs.skip != 'true'
+        run: node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip --app-only
+
+      - name: Подписывать ли
+        id: sign
+        if: steps.ver.outputs.skip != 'true'
+        env:
+          TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          ORG: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+        run: |
+          ON=false
+          if [ -n "$TOKEN" ] && [ -n "$ORG" ]; then
+            if [ "${{ github.event_name }}" != "workflow_dispatch" ] || [ "${{ inputs.sign }}" = "true" ]; then ON=true; fi
+          fi
+          echo "on=$ON" >> "$GITHUB_OUTPUT"
+          echo "Подпись: $ON"
+          if [ "$ON" = true ]; then sudo apt-get install -y osslsigncode; fi
+
+      - name: Kadro.exe на подпись
+        id: up-app
+        if: steps.sign.outputs.on == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-kadro-exe
+          path: release/win-unpacked/Kadro.exe
+          retention-days: 1
+
+      - name: Подпись Kadro.exe (SignPath)
+        id: sign-app
+        if: steps.sign.outputs.on == 'true'
+        continue-on-error: true
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'Kadro' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY || 'release-signing' }}
+          github-artifact-id: ${{ steps.up-app.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 7200
+          output-artifact-directory: release/signed-app
+
+      - name: Подписанный Kadro.exe — в папку программы
+        id: app-signed
+        if: steps.sign.outputs.on == 'true'
+        run: bash scripts/use-signed.sh release/signed-app/Kadro.exe release/win-unpacked/Kadro.exe
+
       - name: Установщик и переносная версия
         if: steps.ver.outputs.skip != 'true'
-        run: node scripts/pack-win.mjs --electron electron-win.zip --ffmpeg ffmpeg-win.zip --portable
+        run: node scripts/pack-win.mjs --from-app --portable
+
+      - name: Установщик на подпись
+        id: up-setup
+        if: steps.sign.outputs.on == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-kadro-setup
+          path: release/Kadro-Setup-*.exe
+          retention-days: 1
+
+      - name: Подпись установщика (SignPath)
+        id: sign-setup
+        if: steps.sign.outputs.on == 'true'
+        continue-on-error: true
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG || 'Kadro' }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY || 'release-signing' }}
+          github-artifact-id: ${{ steps.up-setup.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 7200
+          output-artifact-directory: release/signed-setup
+
+      - name: Подписанный установщик — на место
+        if: steps.sign.outputs.on == 'true'
+        run: |
+          V=${{ steps.ver.outputs.version }}
+          bash scripts/use-signed.sh release/signed-setup/Kadro-Setup-$V.exe release/Kadro-Setup-$V.exe
+          rm -rf release/signed-app release/signed-setup
 
       # контрольные суммы: Kadro сверяет по ним скачанное обновление
       - name: SHA256SUMS.txt

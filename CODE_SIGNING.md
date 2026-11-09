@@ -20,6 +20,15 @@ Nothing built on a personal computer is signed.
 
 Every release signing request is approved manually by the approver.
 
+## How / Как
+
+`release.yml` builds the app folder, sends `Kadro.exe` to SignPath, builds the installer from the signed app
+and sends the installer. Artifact configuration: [`.signpath/artifact-configuration.xml`](.signpath/artifact-configuration.xml).
+Setup and release steps: [docs/SIGNING-SETUP.md](docs/SIGNING-SETUP.md).
+
+`release.yml` собирает папку программы, отправляет `Kadro.exe` в SignPath, собирает установщик из подписанной
+программы и отправляет установщик. Настройка и шаги на выпуск — [docs/SIGNING-SETUP.md](docs/SIGNING-SETUP.md).
+
 ## Privacy / Конфиденциальность
 
 Kadro does not transfer any information to other networked systems unless specifically requested by the user.
