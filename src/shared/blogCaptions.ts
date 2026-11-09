@@ -56,7 +56,7 @@ export function keywordScore(raw: string, first = false): number {
   const w = norm(raw);
   if (!w || STOP.has(w)) return 0;
   let s = 0;
-  if (/\d/.test(w)) s += 3;
+  if (/\d/.test(w)) s += 4; // числа — главное в фразе («100 000 за месяц»)
   if (emojiFor(raw)) s += 2;
   if (w.length >= 7) s += 1 + w.length / 12;
   else if (w.length >= 5) s += 0.6;
