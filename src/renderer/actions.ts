@@ -7,7 +7,7 @@ import { CAPTION_STYLE, newProject, shortSideOf, sizeFor } from '../shared/defau
 import { exportSize } from '../shared/geometry';
 import type { AiJob, AiOutput, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
 import {
-  addAsset, addFree, addToMain, alignMainToBeats, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
+  addAsset, addFree, addToMain, alignMainToBeats, mainTrack, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
   splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip, setSettings, type SourceRange,
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
@@ -15,7 +15,7 @@ import { renderGlSegments } from './engine/glExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
 import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit';
 import { readingTime, scriptBase, scriptEdit, splitScript, type ScriptScene, type ScriptSummary } from '../shared/scriptVideo';
-import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, TextClip, VoiceEffect } from '../shared/types';
+import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, Project, RampPoint, Retime, TextClip, VoiceEffect, Word } from '../shared/types';
 import { retimeWords } from '../shared/captions';
 import { cuesToSrt, parseSubtitles } from '../shared/subtitles';
 import { copyAttrs } from '../shared/attrs';
@@ -24,6 +24,8 @@ import { api, getState, takeEarlyPatches, type AutoParams } from './store';
 import { fmtDur, fmtTime, plural, uidShort } from './util';
 import { VoiceRecorder } from './recorder';
 import { addMarker, nextMarker, prevMarker, youtubeChapters } from '../shared/markers';
+import { SHORT_LENS, findMoments, loudnessFrom, shortProject, type ShortLen, type ShortMoment } from '../shared/shorts';
+import type { BlogStyle } from '../shared/blogCaptions';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -1503,4 +1505,61 @@ export function shuttle(dir: 1 | -1 | 0): void {
   const rate = same ? Math.max(-8, Math.min(8, s.playRate * 2)) : dir;
   s.setPlayRate(rate);
   if (!s.playing) s.setPlaying(true);
+}
+
+// ---------- нарезка длинного видео в шортсы ----------
+export interface ShortsStage { label: string; jobId?: string; step: number; steps: number }
+
+/** Видео для нарезки: из проекта (если уже есть) или открыть файл. */
+export async function shortsAsset(path: string): Promise<MediaAsset | null> {
+  const have = getState().project.assets.find((a) => a.path === path && !a.derived);
+  if (have) return have;
+  const r = await api.importMedia([path]);
+  for (const e of r.errors) getState().toast(tx('Не получилось открыть «{0}»: {1}', e.path.split(/[\\/]/).pop(), e.message), 'err');
+  return r.assets[0] ?? null;
+}
+
+/** Распознать речь всего видео и найти лучшие моменты. null — отменили или не вышло (сообщение уже показано). */
+export async function findShortMoments(asset: MediaAsset, o: { len: ShortLen; count: number; model: 'multi' | 'ru' }, onStage: (s: ShortsStage) => void): Promise<ShortMoment[] | null> {
+  if (asset.kind !== 'video' || !asset.hasAudio) { getState().toast(tx('Нужно видео со звуком — шортсы ищутся по речи'), 'err'); return null; }
+  onStage({ label: tx('Готовлю распознавание'), step: 1, steps: 2 });
+  if (!(await ensureModel(o.model))) return null;
+  let tmp = addAsset(newProject(asset.name), asset);
+  tmp = addToMain(tmp, asset.id, 0).project;
+  const jobId = `shorts_${uidShort()}`;
+  onStage({ label: tx('Распознаю речь — для длинного видео это несколько минут'), jobId, step: 2, steps: 2 });
+  const r = await runJob(tx('Ищу моменты для шортсов'), { kind: 'captions', jobId, project: tmp, model: o.model, includeMusic: false });
+  if (!r.ok || r.output?.kind !== 'captions') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return null; }
+  const words: Word[] = r.output.cues.flatMap((c) => c.words?.length ? c.words : [{ text: c.text, start: c.start, end: c.end }]);
+  if (!words.length) { getState().toast(tx('Речь не найдена. Проверь, что у видео есть звук.')); return null; }
+  const len = SHORT_LENS[o.len];
+  const ms = findMoments(words, { min: len.min, max: len.max, count: o.count, loud: loudnessFrom(asset.peaks, asset.duration) });
+  if (!ms.length) getState().toast(tx('Подходящих моментов нет: видео короче, чем нужно для шортса, или в нём мало речи.'));
+  return ms;
+}
+
+/** Собрать проекты шортсов и сохранить их в «Мои проекты». reframe — кадр следует за человеком (дольше). */
+export async function createShorts(asset: MediaAsset, moments: ShortMoment[], style: BlogStyle, reframe: boolean, onStage: (s: ShortsStage) => void): Promise<string[] | null> {
+  const projects: Project[] = [];
+  for (let i = 0; i < moments.length; i++) {
+    let p = shortProject(asset, moments[i], i + 1, style);
+    if (reframe) {
+      const jobId = `shrf_${uidShort()}`;
+      onStage({ label: tx('Шортс {0} из {1}: ищу человека в кадре', i + 1, moments.length), jobId, step: i + 1, steps: moments.length });
+      const clip = mainTrack(p).clips[0] as MediaClip;
+      const r = await runJob(tx('Автокадрирование'), { kind: 'reframe', jobId, path: asset.path, in: clip.in, out: clip.out, width: asset.width, height: asset.height });
+      if (!r.ok && r.error === tx('Отменено')) return null;
+      if (r.ok && r.output?.kind === 'reframe' && r.output.points.some((q) => q.found)) {
+        const k = reframeKeyframes(r.output.points, asset.width, asset.height, p.settings.width, p.settings.height, 1);
+        p = updateClip(p, clip.id, { keyframes: { ...clip.keyframes, x: k.x.length ? k.x : undefined, y: k.y.length ? k.y : undefined } });
+      }
+    } else onStage({ label: tx('Собираю шортс {0} из {1}', i + 1, moments.length), step: i + 1, steps: moments.length });
+    projects.push(p);
+  }
+  try {
+    return await api.saveShorts(projects, asset.name.replace(/\.[^.]+$/, ''));
+  } catch (e) {
+    getState().toast(tx('Не получилось сохранить шортсы: {0}', e instanceof Error ? e.message : String(e)), 'err');
+    return null;
+  }
 }

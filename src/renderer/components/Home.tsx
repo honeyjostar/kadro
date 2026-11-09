@@ -2,7 +2,7 @@
 // мои проекты (как в CapCut), шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { Clapperboard, FileText, FolderOpen, Keyboard, Play, Send, Settings, WandSparkles, X } from 'lucide-react';
+import { Clapperboard, FileText, FolderOpen, Keyboard, Play, Scissors, Send, Settings, WandSparkles, X } from 'lucide-react';
 import { TELEGRAM_CHANNEL } from '../../shared/links';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
@@ -135,6 +135,14 @@ export function Home() {
                 <span className="hint">{tx('Вставь текст — Kadro озвучит его, подберёт кадры из твоих видео и поставит субтитры.')}</span>
               </span>
               <button className="btn" disabled={busy} onClick={() => getState().setScriptOpen(true)} data-testid="home-script">{tx('Написать')}</button>
+            </div>
+            <div className="home-auto">
+              <span className="home-auto-icon"><Scissors size={20} /></span>
+              <span className="home-auto-text">
+                <b>{tx('Нарезать в шортсы')}</b>
+                <span className="hint">{tx('Стрим, подкаст или влог — Kadro найдёт лучшие моменты и сделает из них вертикальные ролики с субтитрами.')}</span>
+              </span>
+              <button className="btn" disabled={busy} onClick={() => getState().setShortsOpen(true)} data-testid="home-shorts">{tx('Нарезать')}</button>
             </div>
             <div className="home-more">
               <button className="btn" disabled={busy} onClick={() => void run(openProject)} data-testid="home-open"><FolderOpen size={15} />{tx('Открыть проект или видео…')}</button>

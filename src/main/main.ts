@@ -775,6 +775,22 @@ function registerIpc(): void {
     }
   });
   // перед заменой несохранённого проекта (новый, демо, шаблон) — копия в «Черновики», чтобы ничего не потерять
+  // шортсы из длинного видео: каждый — свой проект в «Документы\Kadro\Шортсы\<видео>», все — в «Моих проектах»
+  ipcMain.handle('project:saveShorts', async (_e, projects: Project[], folder: string) => {
+    const safe = (v: string, d: string) => (v || d).replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || d;
+    const root = process.env.KADRO_TEST_SHORTS ?? path.join(app.getPath('documents'), 'Kadro', tx('Шортсы'));
+    const dir = path.join(root, safe(folder, tx('Видео')));
+    fs.mkdirSync(dir, { recursive: true });
+    const files = projects.map((p, i) => {
+      let file = path.join(dir, `${safe(p.name, tx('Шортс {0}', i + 1))}.kadro`);
+      for (let k = 2; fs.existsSync(file); k++) file = path.join(dir, `${safe(p.name, tx('Шортс {0}', i + 1))} (${k}).kadro`);
+      writeProject(file, p);
+      return file;
+    });
+    // первый шортс — первым в списке
+    for (const f of [...files].reverse()) rememberProject(f);
+    return files;
+  });
   ipcMain.handle('project:stash', async (_e, project: Project) => {
     const dir = path.join(dataDir(), 'drafts');
     fs.mkdirSync(dir, { recursive: true });

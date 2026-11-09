@@ -1163,3 +1163,21 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .home-format.preferred { border-color: var(--accent); }
 .home-format { position: relative; }
 .home-pref { position: absolute; top: 10px; right: 10px; font-size: 11px; font-weight: 600; color: var(--on-accent); background: var(--accent); border-radius: 999px; padding: 2px 8px; }
+
+/* ---------- нарезка в шортсы ---------- */
+.shorts-modal { width: 760px; }
+.shorts-src { display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); min-height: 42px; }
+.shorts-src svg { color: var(--accent); flex: none; }
+.shorts-modal .chips button svg { margin-right: 4px; vertical-align: -2px; }
+.shorts-src .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--strong); font-weight: 600; }
+.shorts-opts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; margin-top: 6px; }
+.shorts-opts .toggle { margin-top: 12px; }
+.shorts-list { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow-y: auto; margin: 8px 0 10px; padding-right: 2px; }
+.shorts-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--bg); cursor: pointer; }
+.shorts-item.on { border-color: var(--line); background: var(--raised); }
+.shorts-item input { accent-color: var(--accent); }
+.shorts-item > svg { color: var(--accent); flex: none; }
+.shorts-rank { flex: none; width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--accent-soft); color: var(--accent); }
+.shorts-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.shorts-body b { color: var(--strong); font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 800px) { .shorts-opts { grid-template-columns: 1fr; } }

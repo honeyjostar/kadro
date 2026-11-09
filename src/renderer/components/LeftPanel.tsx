@@ -1110,6 +1110,13 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
           <button className="btn block" onClick={() => setTab('captions')}>{tx('Открыть субтитры')}</button>
         </div>
       )}
+      {!compact && (
+        <div className="ai-card">
+          <h4><Scissors size={15} />{tx('Нарезать в шортсы')}</h4>
+          <p className="hint">{tx('Длинное видео → лучшие моменты → вертикальные ролики с субтитрами и крючком.')}</p>
+          <button className="btn block" onClick={() => getState().setShortsOpen(true)} data-testid="ai-shorts">{tx('Найти моменты')}</button>
+        </div>
+      )}
       {!clip && !compact && <p className="hint" style={{ margin: '14px 0 4px' }}>{tx('Для остальных инструментов выдели клип на таймлайне.')}</p>}
       {job && <div className="ai-card"><div className="hint">{job.label}{job.stage ? ` · ${job.stage}` : ''}</div><Progress value={job.progress} /></div>}
 

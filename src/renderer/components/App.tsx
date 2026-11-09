@@ -10,6 +10,7 @@ import { AutoEditDialog } from './AutoEdit';
 import { SettingsDialog } from './Settings';
 import { SourceView } from './SourceView';
 import { ScriptDialog } from './ScriptDialog';
+import { ShortsDialog } from './ShortsDialog';
 import { BugDialog } from './BugDialog';
 import { PluginCatalog, reportInstall } from './PluginCatalog';
 import { UpdateCard, useUpdateFeed } from './Update';
@@ -43,6 +44,7 @@ export function App() {
   const settingsOpen = useStore((s) => s.settingsOpen);
   const sourceView = useStore((s) => s.sourceView);
   const scriptOpen = useStore((s) => s.scriptOpen);
+  const shortsOpen = useStore((s) => s.shortsOpen);
   const bugOpen = useStore((s) => s.bugOpen);
   const catalogOpen = useStore((s) => s.pluginCatalogOpen);
   useUpdateFeed();
@@ -205,6 +207,7 @@ export function App() {
       {settingsOpen && <SettingsDialog />}
       {sourceView && <SourceView />}
       {scriptOpen && <ScriptDialog />}
+      {shortsOpen && <ShortsDialog />}
       {catalogOpen && <PluginCatalog />}
       {pasteOpen && copiedAttrs && <PasteAttrsDialog attrs={copiedAttrs} />}
       {keysOpen && <ShortcutsDialog />}

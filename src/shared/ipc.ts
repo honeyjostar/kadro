@@ -132,6 +132,8 @@ export interface KadroApi {
   openUrl(url: string): Promise<boolean>;
   /** нажали «Поставить звезду» — больше не просить */
   starDone(): void;
+  /** сохранить проекты шортсов (папка — по имени исходного видео); пути файлов */
+  saveShorts(projects: Project[], folder: string): Promise<string[]>;
   /** сохранить кадр из плеера (PNG); путь или null, если отменили */
   saveFrame(defaultName: string, png: Uint8Array): Promise<string | null>;
   /** выбрать картинку-логотип */

@@ -23,6 +23,7 @@ const api: KadroApi = {
   bugInfo: () => ipcRenderer.invoke('bug:info'),
   openUrl: (url) => ipcRenderer.invoke('app:openUrl', url),
   starDone: () => ipcRenderer.send('app:starDone'),
+  saveShorts: (projects, folder) => ipcRenderer.invoke('project:saveShorts', projects, folder),
   saveFrame: (name, png) => ipcRenderer.invoke('frame:save', name, png),
   pickLogo: () => ipcRenderer.invoke('dialog:logo'),
   openLogs: () => ipcRenderer.invoke('app:openLogs'),

@@ -73,6 +73,7 @@ interface State {
   autoOpen: AutoOpen | null;
   /** Открыто окно «Ролик по сценарию». */
   scriptOpen: boolean;
+  shortsOpen: boolean;
   /** Окно «Сообщить об ошибке» (текст — заготовка, например сообщение с экрана сбоя). */
   bugOpen: { what: string } | null;
   pluginCatalogOpen: boolean;
@@ -127,6 +128,7 @@ interface State {
   setModel3dEdit: (e: { init: Model3D; clipId?: string } | null) => void;
   setAutoOpen: (o: AutoOpen | null) => void;
   setScriptOpen: (b: boolean) => void;
+  setShortsOpen: (b: boolean) => void;
   setBugOpen: (b: { what: string } | null) => void;
   setPluginCatalogOpen: (b: boolean) => void;
   setCopiedAttrs: (a: import('../shared/attrs').ClipAttrs | null) => void;
@@ -198,6 +200,7 @@ export const useStore = create<State>((set, get) => ({
   model3dEdit: null,
   autoOpen: null,
   scriptOpen: false,
+  shortsOpen: false,
   bugOpen: null,
   pluginCatalogOpen: false,
   copiedAttrs: null,
@@ -294,6 +297,7 @@ export const useStore = create<State>((set, get) => ({
   setModel3dEdit: (e) => set({ model3dEdit: e }),
   setAutoOpen: (o) => set({ autoOpen: o }),
   setScriptOpen: (b) => set({ scriptOpen: b }),
+  setShortsOpen: (b) => set({ shortsOpen: b }),
   setBugOpen: (b) => set({ bugOpen: b }),
   setPluginCatalogOpen: (b) => set({ pluginCatalogOpen: b }),
   setCopiedAttrs: (a) => set({ copiedAttrs: a }),
