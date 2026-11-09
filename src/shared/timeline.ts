@@ -82,7 +82,8 @@ export function layoutMain(p: Project): void {
   });
 }
 
-function edit(p: Project, fn: (d: Project) => void): Project {
+/** Изменить копию проекта (основная дорожка выравнивается заново). */
+export function edit(p: Project, fn: (d: Project) => void): Project {
   const d: Project = structuredClone(p);
   fn(d);
   layoutMain(d);

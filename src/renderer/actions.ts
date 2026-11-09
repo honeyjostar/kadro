@@ -27,6 +27,7 @@ import { addMarker, nextMarker, prevMarker, youtubeChapters } from '../shared/ma
 import { SHORT_LENS, findMoments, loudnessFrom, shortProject, type ShortLen, type ShortMoment } from '../shared/shorts';
 import type { BlogStyle } from '../shared/blogCaptions';
 import { retentionIssues, zoomKeys, type RetIssue } from '../shared/retention';
+import { captionCues, dubPhrases, fitSpeed, placeDub, quietOriginal, slotOf } from '../shared/dub';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -1659,4 +1660,70 @@ export function showRetention(i: RetIssue): void {
   s.setPlaying(false);
   s.setPlayhead(Math.min(projectDuration(s.project), i.t0 + 0.05));
   if (i.clipId && findClip(s.project, i.clipId)) s.select([i.clipId]);
+}
+
+// ---------- дубляж ----------
+export interface DubOptions { from: LangCode; to: LangCode; voice: TtsVoiceId; original: 'duck' | 'mute'; subs: boolean }
+
+/**
+ * Перевести речь ролика и озвучить другим голосом по тем же таймингам. Субтитров нет — сначала распознаёт речь.
+ * Всё одной правкой: Ctrl+Z возвращает как было.
+ */
+export async function dubProject(o: DubOptions, onStage?: (label: string, k: number, n: number) => void): Promise<boolean> {
+  const s = getState();
+  if (projectDuration(s.project) <= 0) { s.toast(tx('Сначала добавь видео со звуком на таймлайн')); return false; }
+  if (!captionCues(getState().project).length) {
+    onStage?.(tx('Распознаю речь'), 0, 1);
+    if (!(await makeCaptions(o.from === 'ru' ? 'ru' : 'multi', false))) return false;
+  }
+  const base = getState().project;
+  const cues = captionCues(base);
+  const ph = dubPhrases(cues);
+  if (!ph.length) return false;
+  onStage?.(tx('Перевожу'), 0, ph.length);
+  const tr = await runJob(tx('Перевожу речь: {0}', langLabel(o.to).toLowerCase()), { kind: 'translate', jobId: `dubmt_${uidShort()}`, texts: ph.map((x) => x.text), from: o.from, to: o.to });
+  if (!tr.ok || tr.output?.kind !== 'translate') { if (tr.error !== tx('Отменено')) getState().toast(tx('Перевод не получился: {0}', tr.error), 'err'); return false; }
+  const texts = tr.output.texts;
+  if (!(await ensureVoice(o.voice))) return false;
+  const total = projectDuration(base);
+  const files: { path: string; start: number; text: string }[] = [];
+  for (let i = 0; i < ph.length; i++) {
+    const text = (texts[i] ?? '').trim();
+    if (!text) continue;
+    onStage?.(tx('Озвучиваю фразу {0} из {1}', i + 1, ph.length), i, ph.length);
+    const say = (speed: number) => runJob(tx('Озвучиваю фразу {0} из {1}', i + 1, ph.length), { kind: 'tts', jobId: `dub_${uidShort()}`, text, voice: o.voice, speed });
+    let r = await say(1);
+    if (!r.ok || r.output?.kind !== 'tts') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось озвучить: {0}', r.error), 'err'); return false; }
+    // не влезает до следующей фразы — озвучить быстрее
+    const sp = fitSpeed(r.output.duration, slotOf(ph, i, total));
+    if (sp > 1) {
+      const r2 = await say(sp);
+      if (r2.ok && r2.output?.kind === 'tts') r = r2;
+    }
+    if (r.output?.kind === 'tts') files.push({ path: r.output.path, start: ph[i].start, text });
+  }
+  if (!files.length) { getState().toast(tx('Нечего озвучивать — перевод пустой')); return false; }
+  const imp = await api.importMedia(files.map((f) => f.path));
+  if (imp.assets.length !== files.length) { getState().toast(tx('Не получилось добавить озвучку'), 'err'); return false; }
+  imp.assets.forEach((a, k) => { a.name = tx('Дубляж: {0}{1}', files[k].text.slice(0, 24), files[k].text.length > 24 ? '…' : ''); });
+  getState().commit((p) => {
+    let q = imp.assets.reduce((acc, a) => addAsset(acc, a), p);
+    q = placeDub(q, imp.assets.map((a, k) => ({ assetId: a.id, start: files[k].start })), tx('Дубляж ({0})', langLabel(o.to).toLowerCase()));
+    q = quietOriginal(q, o.original, q.tracks[q.tracks.length - 1].id);
+    if (o.subs) {
+      // субтитры — на языке дубляжа: перевод раскладывается по тем же субтитрам
+      for (const [k, g] of ph.entries()) {
+        const parts = splitTranslation(texts[k] ?? '', g.cues.map((i) => cues[i].text.length));
+        g.cues.forEach((i, j) => {
+          const t = parts[j] || parts.filter(Boolean).pop() || cues[i].text;
+          const c = findClip(q, cues[i].id)?.clip;
+          q = updateClip(q, cues[i].id, { text: t, words: retimeWords(t, c?.type === 'text' ? c.words : undefined) });
+        });
+      }
+    }
+    return q;
+  });
+  takeEarlyPatches(imp.assets.map((a) => a.id));
+  getState().toast(tx('Дубляж готов: {0} на отдельной дорожке. Отменить — Ctrl+Z', `${files.length} ${plural(files.length, tx('фраза'), tx('фразы'), tx('фраз'))}`), 'ok');
+  return true;
 }

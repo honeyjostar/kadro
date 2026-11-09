@@ -16,7 +16,8 @@ import { retimeWords } from '../../shared/captions';
 import { applyBlogStyle, BLOG_STYLES, CAP_GROUPS, captionLook, restyleCaptions, type BlogStyle } from '../../shared/blogCaptions';
 import { togglePreview, usePreview } from '../audioPreview';
 import { LANGS, guessLang, langLabel, routeFor, targetsFrom, type LangCode } from '../../shared/translate';
-import type { ModelInfo } from '../../shared/ipc';
+import type { ModelInfo, TtsVoiceId, VoiceInfo } from '../../shared/ipc';
+import { DUB_PAIRS } from '../../shared/dub';
 import {
   addText, animAllCaptions, clipEnd, findClip, mainTrack, projectDuration, removeAsset, setTransition, styleAllCaptions, updateClip,
 } from '../../shared/timeline';
@@ -27,7 +28,7 @@ import type { EffectType, MediaAsset, MediaClip, TextAnimType, TextClip, TextSty
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject,
 } from '../actions';
 import { useMenu, type MenuEntry } from './Menu';
 import { sampleCanvas, useSamplesReady } from '../sampleFrames';
@@ -640,6 +641,51 @@ function TranslateCard({ captions }: { captions: TextClip[] }) {
   );
 }
 
+const DUB_VOICES: Record<'ru' | 'en', TtsVoiceId[]> = { en: ['amy', 'ryan'], ru: ['irina', 'dmitri', 'denis', 'ruslan'] };
+
+/** Дубляж: речь ролика → перевод → озвучка другим голосом по тем же таймингам. */
+function DubCard({ captions }: { captions: TextClip[] }) {
+  const guessed = useMemo(() => (captions.length ? guessLang(captions.slice(0, 30).map((c) => c.text.split('\n')[0]).join(' ')) : null), [captions]);
+  const [pair, setPair] = useState<number | null>(null);
+  const pi = pair ?? (guessed === 'en' ? 1 : 0);
+  const { from, to } = DUB_PAIRS[pi];
+  const [voices, setVoices] = useState<VoiceInfo[]>([]);
+  const [voice, setVoice] = useState<TtsVoiceId | null>(null);
+  const [original, setOriginal] = useState<'duck' | 'mute'>('duck');
+  const [subs, setSubs] = useState(true);
+  const [stage, setStage] = useState<string | null>(null);
+  useEffect(() => { void api.ttsVoices().then(setVoices).catch(() => undefined); }, [stage]);
+  const list = DUB_VOICES[to as 'ru' | 'en'];
+  const v = voice && list.includes(voice) ? voice : list[0];
+  const info = voices.find((x) => x.id === v);
+  const run = async () => {
+    setStage(tx('Готовлю'));
+    try { await dubProject({ from, to, voice: v, original, subs }, (label) => setStage(label)); } finally { setStage(null); }
+  };
+  return (
+    <div className="ai-card" data-testid="dub-card">
+      <h4><AudioLines size={15} />{tx('Дубляж')}</h4>
+      <p className="hint">{tx('Переведу речь и озвучу другим голосом по тем же таймингам — прямо на компьютере. Как в HeyGen, только бесплатно.')}</p>
+      <Seg value={pi} onChange={setPair} testId="dub-pair" options={DUB_PAIRS.map((d, i) => ({ value: i, label: d.label }))} />
+      <div className="chips dub-voices">
+        {list.map((id) => {
+          const x = voices.find((y) => y.id === id);
+          return <button key={id} className={v === id ? 'active' : ''} disabled={!!stage} onClick={() => setVoice(id)} title={x?.label} data-testid={`dub-voice-${id}`}>{x?.label.split(' ')[0] ?? id}</button>;
+        })}
+      </div>
+      <div className="field">
+        <div className="field-row"><label>{tx('Оригинальная речь')}</label></div>
+        <Seg value={original} onChange={setOriginal} testId="dub-original" options={[{ value: 'duck', label: tx('Тихо под голосом') }, { value: 'mute', label: tx('Выключить') }]} />
+      </div>
+      <Toggle label={tx('Субтитры — на языке дубляжа')} on={subs} onChange={setSubs} testId="dub-subs" />
+      <p className="hint small">{!captions.length ? tx('Субтитров ещё нет — сначала распознаю речь. ') : ''}{info && !info.ready ? tx('Голос скачается один раз, ~{0} МБ.', info.sizeMb) : ''}</p>
+      <button className="btn primary block" disabled={!!stage} onClick={() => void run()} data-testid="dub-run">
+        {stage ? `${stage}…` : tx('Сделать дубляж на {0}', langLabel(to).toLowerCase())}
+      </button>
+    </div>
+  );
+}
+
 function CaptionsPanel() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [model, setModel] = useState<'multi' | 'ru'>('multi');
@@ -689,6 +735,7 @@ function CaptionsPanel() {
         </div>
 
         {first && <TranslateCard captions={captions} />}
+        <DubCard captions={captions} />
 
         {first && (
           <>
@@ -1115,6 +1162,13 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
           <h4><Scissors size={15} />{tx('Нарезать в шортсы')}</h4>
           <p className="hint">{tx('Длинное видео → лучшие моменты → вертикальные ролики с субтитрами и крючком.')}</p>
           <button className="btn block" onClick={() => getState().setShortsOpen(true)} data-testid="ai-shorts">{tx('Найти моменты')}</button>
+        </div>
+      )}
+      {!compact && (
+        <div className="ai-card">
+          <h4><AudioLines size={15} />{tx('Дубляж')}</h4>
+          <p className="hint">{tx('Перевод речи и озвучка другим голосом по тем же таймингам: русский ⇄ английский.')}</p>
+          <button className="btn block" onClick={() => setTab('captions')} data-testid="ai-dub">{tx('Открыть дубляж')}</button>
         </div>
       )}
       {!clip && !compact && <p className="hint" style={{ margin: '14px 0 4px' }}>{tx('Для остальных инструментов выдели клип на таймлайне.')}</p>}
