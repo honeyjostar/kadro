@@ -1,76 +1,32 @@
-## Kadro 1.0 — субтитры как у блогеров, шортсы, дубляж и мемы
+## Kadro 1.0.1 — экскурсия по окну и растяжение картинки
 
 ### ⬇ Скачать / Download
 
-- **[Kadro-Setup-1.0.0.exe](https://github.com/honeyjostar/kadro/releases/download/v1.0.0/Kadro-Setup-1.0.0.exe)** — установщик. Рекомендуется. / Installer, recommended.
-- [Kadro-1.0.0-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v1.0.0/Kadro-1.0.0-portable.zip) — без установки. / Portable.
+- **[Kadro-Setup-1.0.1.exe](https://github.com/honeyjostar/kadro/releases/download/v1.0.1/Kadro-Setup-1.0.1.exe)** — установщик. Рекомендуется. / Installer, recommended.
+- [Kadro-1.0.1-portable.zip](https://github.com/honeyjostar/kadro/releases/download/v1.0.1/Kadro-1.0.1-portable.zip) — без установки. / Portable.
 
-Kadro 0.6.0 и новее обновится сам: «Вышел Kadro 1.0.0» → «Обновить». Со старых версий — поставь установщик поверх, проекты и настройки сохранятся. Всё по-прежнему бесплатно, без водяного знака и работает без интернета.
+Kadro 0.6.0 и новее обновится сам. Со старых версий — поставь установщик поверх, проекты и настройки сохранятся.
 
-### Главное
-- **Субтитры как у блогеров.** Стили «Хормози», «MrBeast», «По слову», «Плашка», «Неон», «Караоке». В субтитре 1, 2, 3 слова или целая строка; ключевые слова и числа — цветом, эмодзи по смыслу, слова «выскакивают».
-- **Нарезка длинного видео в шортсы.** Стрим, подкаст или влог → Kadro слушает речь и находит самые цепляющие моменты: крючок в начале, цельные фразы, эмоции, громкость. Каждый — отдельный вертикальный ролик: кадр следует за человеком, субтитры как у блогеров, заголовок-крючок. Главный экран → «Нарезать в шортсы» или вкладка «ИИ».
-- **Дубляж с переводом.** Русский ⇄ английский: Kadro распознаёт речь, переводит и озвучивает другим голосом по тем же таймингам — прямо на компьютере, без интернета (голос скачивается один раз) и бесплатно. Оригинальную речь можно оставить тихо под голосом или выключить, субтитры — перевести тоже. Вкладка «Субтитры» → «Дубляж».
-- **«Где пролистнут».** Перед экспортом Kadro смотрит ролик глазами TikTok и отмечает на таймлайне места, где зритель уйдёт: начало без движения и речи, один план без движения дольше 3,5 секунды, долгая пауза, тихий звук. Почти у каждого — исправление в одну кнопку: наезд камеры, медленный зум, громче, убрать паузы. Кнопка на таймлайне и в окне экспорта.
+### Новое
+- **Экскурсия по Kadro** — окно затемняется и по очереди подсвечивает разделы, плеер, таймлайн, настройки клипа, экспорт и настройки программы, с подсказкой у каждой части. «Далее», «Назад», Esc — закончить.
+- **«Первый ролик за 3 шага» показывает, куда нажать** — нужная кнопка пульсирует рамкой с подписью. Обучение теперь предлагается всем, кто его ещё не проходил, а не только при первом запуске. Вернуть — «Настройки» → «Помощь».
+- **Растянуть по ширине и высоте** — клип → «Кадр» → «Растянуть» или боковые ручки рамки в плеере. Картинка масштабируется заново из исходника, в экспорте — более чётким способом (lanczos), без «мыла» и «лесенки».
+- **3D-объект растягивается по осям** — по ширине, высоте и глубине.
 
-### Человек в кадре
-- **Текст за человеком** — надпись стоит за спиной, человек перед ней (субтитры всё равно сверху).
-- **Неоновый контур** вокруг человека, вспыхивает под бит музыки.
-- **Портретный режим** — фон за человеком размыт, как на iPhone.
-- **Клон себя** — ты дважды в кадре: камера стоит на месте, Kadro берёт тебя из другого момента того же видео (или из второго дубля) и кладёт поверх, убрав фон.
+### Исправлено
+- Кнопки «Подписаться» в разделе «Текст» вылезали за карточку на некоторых шрифтах.
 
-Всё это — вкладка «ИИ», на выделенном клипе.
+Всё, что вошло в 1.0 (субтитры как у блогеров, шортсы, дубляж, мем-кнопки, клон себя, стикеры Telegram и другое), — в [выпуске 1.0.0](https://github.com/honeyjostar/kadro/releases/tag/v1.0.0).
 
-### Мемы — одной кнопкой
-Раздел «Эффекты» → «Мемы». Мем начинается у курсора и сам кладёт свой звук; не понравилось — Ctrl+Z.
-- **Драматический зум** — три рывка камеры и «дун-дун-дууун».
-- **«Продолжение следует…»** — стоп-кадр в сепии, плашка-стрелка и своя музыка.
-- **Басс-буст** — звук уходит в басы, кадр трясётся, басовый «дроп».
-- **Замедление с «бум»** — момент замедляется, камера наезжает.
+## Kadro 1.0.1 — window tour and stretching
 
-Все звуки и рисунки — свои, сочинены для Kadro, без чужих мелодий и логотипов.
+### New
+- **Kadro tour**: the window dims and highlights the sections, player, timeline, clip settings, export and app settings one by one, with a tip for each.
+- **“Your first video in 3 steps” shows where to click**: the right button pulses. The tutorial is now offered to everyone who hasn't taken it, not only on first launch.
+- **Stretch width and height**: clip → Frame → Stretch, or the side handles in the player. Rescaled from the original; sharper (lanczos) scaling in export.
+- **3D objects stretch along their axes**: width, height, depth.
 
-### Звук
-- **Студийный голос** — одна кнопка: без шипения и гула, тёплый и разборчивый, громкость ровная (вкладка «ИИ»).
-- **Музыка тише под голос — во всех проектах.** Где говорят в видео, записи с микрофона, озвучке или дубляже, музыка сама становится тише и плавно возвращается. Насколько тише — в настройках.
-- **Звуки на стыках** — свуш, щелчок или «бум» на переход, одной кнопкой на все стыки.
+### Fixed
+- The Subscribe buttons in the Text section overflowed their card with some fonts.
 
-### Для роликов
-- **Стикеры** — эмодзи крупно и всё время в движении: прыгает, пульсирует, качается, крутится, плавает (раздел «Текст»).
-- **Бумеранг** — кусок видео вперёд-назад, как в Instagram (клип → «Скорость»).
-- **Цвет как у другого клипа** — снял на два телефона, а цвет разный: одна кнопка, и клип подстраивается под образец (клип → «Цвет»).
-- **Кнопка «Подписаться»** — анимированная: курсор нажимает, кнопка становится «Вы подписаны», звенит колокольчик. Четыре цвета, вкладка «Текст».
-- **Полоска прогресса** внизу или вверху ролика — на шортсах видно, сколько осталось.
-- **Свой логотип** в углу на весь ролик.
-- **Видеостикеры для Telegram** — формат «Стикер ТГ» в окне экспорта: 512 px, до 3 секунд, до 256 КБ, с прозрачным фоном (вырезанный человек, надписи, эмодзи) — сразу для бота @Stickers.
-- **Экспорт в GIF и MP3**, **кадр в PNG** (Shift+E), перемотка **J / K / L**, как в больших монтажках.
-
-### И ещё
-- **Заставка при запуске** — значок Kadro раскрывается в окно, пока программа грузится (запуск не медленнее; выключается в настройках).
-- **Первый ролик за 3 шага** — для новичков: Kadro подсказывает, что нажать, от пустого проекта до готового ролика.
-- **«Скоро в Kadro»** на главном экране — что готовится в следующем обновлении.
-- **Без номеров версий.** В настройках — «Kadro от» и дата, обновления называются по теме и дате.
-- Много мелочей по интерфейсу и английскому переводу.
-
-## Kadro 1.0 — blogger captions, shorts, dubbing and memes
-
-### Highlights
-- **Blogger-style captions**: Hormozi, MrBeast, One word, Label, Neon, Karaoke. 1–3 words or a full line per caption; key words and numbers in color, emoji by meaning, pop-in words.
-- **Cut a long video into shorts.** A stream, podcast or vlog → Kadro listens to the speech and finds the most gripping moments. Each becomes a vertical video: the frame follows the person, creator-style captions, a hook title.
-- **Dubbing with translation**, Russian ⇄ English: speech recognition, translation and a new voice on the same timing — on your computer, offline (the voice downloads once) and free.
-- **Swipe check**: before export Kadro watches the video like TikTok does and marks the weak spots on the timeline, most with a one-click fix.
-
-### The person in the frame
-- **Text behind the person**, a **neon outline** that flashes to the beat, **portrait mode** with a blurred background and **clone yourself** — you, twice in the frame. AI tab.
-
-### Memes in one click
-- Effects → Memes: **dramatic zoom**, **to be continued…**, **bass boost**, **slow-mo with a boom** — each with its own original sound; Ctrl+Z removes it.
-
-### Sound
-- **Studio voice** in one click, and **music quieter under voice in all projects** (Settings).
-
-### For your videos
-- **Telegram video stickers** (512 px, up to 3 s, transparent background), **stickers** (moving emoji), **boomerang**, **color like another clip**, **sounds on cuts** (whoosh, click, boom), an animated **Subscribe button**, a **progress bar**, **your own logo**, **GIF and MP3 export**, **save a frame as PNG** (Shift+E), **J / K / L** shuttle.
-
-### Also
-- A **launch animation**, **your first video in 3 steps** for beginners, **Coming soon in Kadro** on the home screen. **No version numbers**: Settings show “Kadro from” and a date, updates are named by topic and date.
+Everything in 1.0 — see the [1.0.0 release](https://github.com/honeyjostar/kadro/releases/tag/v1.0.0).
