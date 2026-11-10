@@ -576,7 +576,7 @@ function TextPanel() {
           <div className="subscribe-row">
             {SUBSCRIBE_COLORS.map((c) => (
               <button key={c.id} className="subscribe-swatch" style={{ background: c.color }} title={tx('Добавить: {0}', c.label)} onClick={() => addSubscribe(c.color)} data-testid={`add-subscribe-${c.id}`}>
-                <BellRing size={13} />{tx('Подписаться')}
+                <BellRing size={13} /><span>{tx('Подписаться')}</span>
               </button>
             ))}
           </div>

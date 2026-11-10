@@ -1201,9 +1201,11 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .ret-list li .ret-text { white-space: normal; }
 
 /* ---------- кнопка «Подписаться» ---------- */
-.subscribe-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
-.subscribe-swatch { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); color: #fff; font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.02em; cursor: pointer; }
+.subscribe-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.subscribe-swatch { display: flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; padding: 8px 6px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.12); color: #fff; font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.02em; cursor: pointer; }
 .subscribe-swatch:hover { filter: brightness(1.12); }
+.subscribe-swatch svg { flex: none; }
+.subscribe-swatch span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ---------- «Скоро в Kadro» ---------- */
 .home-side { display: flex; flex-direction: column; align-items: center; gap: 18px; }
