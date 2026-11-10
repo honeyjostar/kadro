@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
-import { act, colorsVideo, ff, importAt, launch, media, near, previewPixel, probe, rawFrame, seekAndSettle, solidVideo, state, store, waitAssetsReady } from './kadro';
+import { act, colorsVideo, ff, importAt, launch, media, near, patternImage, previewPixel, probe, rawFrame, seekAndSettle, solidVideo, state, store, waitAssetsReady } from './kadro';
 
 test.setTimeout(180_000);
 const tmp = (p: string) => fs.mkdtempSync(path.join(os.tmpdir(), `kadro-${p}-`));
@@ -256,6 +256,38 @@ test('кнопка «Подписаться»: выскакивает, нажи�
   const at = (t: number) => { const f = rawFrame(['-ss', String(t), '-i', out], 108, 192); const x = 54; const y = Math.round(pt[1] * 191); return [...f.subarray((y * 108 + x) * 3, (y * 108 + x) * 3 + 3)]; };
   expect(near(at(0.8), [255, 33, 66], 70)).toBe(true);
   expect(near(at(2.2), [59, 55, 66], 70)).toBe(true);
+  expect(K.errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
+  await K.app.close();
+});
+
+test('звук на стыке: свуш на один стык и на все — слышен в экспорте ровно на стыках', async () => {
+  const out = path.join(tmp('sfx'), 'sfx.mp4');
+  const K = await launch({ env: { KADRO_TEST_EXPORT: out } });
+  const win = K.win;
+  await act(win, 'newProjectAction', '16:9');
+  // три картинки по 2 с — своего звука нет, слышно только стыки
+  await importAt(win, [patternImage(), logoPng(), patternImage()], 'main', 0);
+  await waitAssetsReady(win);
+  const ids = (await state<string[]>(win, "(s) => s.project.tracks[0].clips.map((c) => c.id)"));
+  await win.evaluate((cs) => { const k = (window as any).__kadro; k.useStore.getState().commit((p: any) => cs.reduce((a: any, id: string) => k.timeline.updateClip(a, id, { out: 2 }), p)); }, ids);
+  await store(win, 'select', [ids[0]]);
+  await win.getByTestId('tab-transitions').click();
+  await win.getByTestId('sfx-boom').click();
+  expect(await state(win, '(s) => s.project.tracks[0].clips.map((c) => c.cutSound ?? null)')).toEqual(['boom', null, null]);
+  await win.getByTestId('sfx-all').click();
+  expect(await state(win, '(s) => s.project.tracks[0].clips.map((c) => c.cutSound ?? null)')).toEqual(['boom', 'boom', null]); // у последнего клипа стыка нет
+  // в плеере — звук рядом со стыком загружен
+  await seekAndSettle(win, 1.8);
+  expect(await win.evaluate((id) => (window as any).__kadroEngine.media.has(`sfx~${id}:a`), ids[0])).toBe(true);
+  await exportNow(win, 'mp3');
+  const mp3 = out.replace(/\.mp4$/, '.mp3');
+  const level = (t0: number, d: number) => {
+    const r = require('node:child_process').spawnSync('ffmpeg', ['-hide_banner', '-ss', String(t0), '-t', String(d), '-i', mp3, '-af', 'volumedetect', '-f', 'null', '-'], { encoding: 'utf8' });
+    return Number(/max_volume: (-?[\d.]+) dB/.exec(r.stderr)?.[1] ?? -99);
+  };
+  expect(level(2.0, 0.4)).toBeGreaterThan(-12);  // «бум» на первом стыке
+  expect(level(4.0, 0.4)).toBeGreaterThan(-12);  // и на втором
+  expect(level(0.3, 1.2)).toBeLessThan(-40);     // в начале — тишина
   expect(K.errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
   await K.app.close();
 });

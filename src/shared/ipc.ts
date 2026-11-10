@@ -96,7 +96,7 @@ export interface LibMeta { thumb?: string; duration?: number; width?: number; he
 export type ThemePref = 'dark' | 'light' | 'system';
 export interface RecentProject { path: string; name: string; mtime: number; clips: number; duration: number; aspect: string; thumb?: string; size?: number; draft?: boolean }
 /** Демо-файлы из комплекта программы: ролики-сцены, бит, демо-ролик и превью шаблонов. Только те, что есть на диске. */
-export interface DemoFiles { scenes: Record<string, string>; beat: string | null; reel: string | null; reelWide?: string | null; previews: Record<string, string> }
+export interface DemoFiles { scenes: Record<string, string>; beat: string | null; reel: string | null; reelWide?: string | null; previews: Record<string, string>; /** звуки на стыках */ sfx?: Record<string, string> }
 /** show — настройка «показывать при запуске», autoOpen — открыть ли сейчас (в автотестах выключено). */
 export interface HomeInfo { show: boolean; autoOpen: boolean; demo: DemoFiles; recent: RecentProject[] }
 

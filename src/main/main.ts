@@ -27,6 +27,7 @@ import { decodeSubtitleBytes } from '../shared/subtitles';
 import { isKadroUrl } from '../shared/links';
 import { afterExport, type StarAnswer } from '../shared/star';
 import { LOGO_EXTS } from '../shared/logo';
+import { SFX_IDS, setSfxFiles } from '../shared/sfx';
 import { AI_MIRROR, ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady, type AsrModelId, type TtsVoiceId } from './ai/models';
 import { denoise } from './ai/denoise';
 import { processVoice } from './ai/voice';
@@ -631,7 +632,10 @@ function demoFiles(): DemoFiles {
   for (const t of BUILTIN_TEMPLATES) { const f = has('templates', `${t.id}.mp4`); if (f) previews[t.id] = f; }
   // ролик главного экрана — с надписями на языке интерфейса (нет такого — русский): вертикальный и горизонтальный
   const reel = (name: string) => (uiLang() !== 'ru' && has('demo', `${name}.${uiLang()}.mp4`)) || has('demo', `${name}.mp4`);
-  return { scenes, beat: has('demo', 'beat.m4a'), reel: reel('reel'), reelWide: reel('reel-wide'), previews };
+  const sfx: Record<string, string> = {};
+  for (const id of SFX_IDS) { const f = has('demo', `sfx-${id}.m4a`); if (f) sfx[id] = f; }
+  setSfxFiles(sfx);
+  return { scenes, beat: has('demo', 'beat.m4a'), reel: reel('reel'), reelWide: reel('reel-wide'), previews, sfx };
 }
 async function readProjectFile(file: string): Promise<Project> {
   const p = JSON.parse(fs.readFileSync(file, 'utf8')) as Project;
@@ -899,6 +903,7 @@ function registerIpc(): void {
     try { fs.writeFileSync(autosaveFile(), JSON.stringify({ project, path: file })); } catch (err) { log('autosave failed', err); }
     e.returnValue = true;
   });
+  setSfxFiles(demoFiles().sfx); // звуки на стыках — для экспорта, даже если главный экран не открывали
   ipcMain.handle('dialog:exportPath', async (_e, name: string, format?: ExportFormat) => {
     const ext = format === 'gif' || format === 'mp3' ? format : 'mp4';
     // автотесты: без системного окна (расширение — по формату)

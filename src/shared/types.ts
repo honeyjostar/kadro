@@ -185,6 +185,7 @@ export interface MediaClip {
   transform: Transform;
   color: ColorAdjust;
   transitionOut?: Transition;   // переход к следующему клипу основной дорожки
+  cutSound?: import('./sfx').SfxId; // звук на стыке после клипа (свуш, щелчок, «бум»)
   removeBg: AiResult;
   denoise: AiResult;
   opacity?: number;             // 0..1 (по умолчанию 1)

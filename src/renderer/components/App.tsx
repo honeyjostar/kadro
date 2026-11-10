@@ -11,6 +11,7 @@ import { SettingsDialog } from './Settings';
 import { SourceView } from './SourceView';
 import { ScriptDialog } from './ScriptDialog';
 import { ShortsDialog } from './ShortsDialog';
+import { setSfxFiles } from '../../shared/sfx';
 import { BugDialog } from './BugDialog';
 import { PluginCatalog, reportInstall } from './PluginCatalog';
 import { UpdateCard, useUpdateFeed } from './Update';
@@ -64,7 +65,7 @@ export function App() {
       loaded.current = true;
     }).catch(() => { loaded.current = true; });
     // главный экран при запуске (можно выключить на нём самом)
-    api.homeInfo().then((i) => { getState().setDemo(i.demo); if (i.autoOpen) getState().setHome(true); }).catch(() => undefined);
+    api.homeInfo().then((i) => { getState().setDemo(i.demo); setSfxFiles(i.demo.sfx); (window as unknown as { __kadroEngine?: { setProject(p: unknown): void } }).__kadroEngine?.setProject(getState().project); if (i.autoOpen) getState().setHome(true); }).catch(() => undefined);
     return off;
   }, []);
 

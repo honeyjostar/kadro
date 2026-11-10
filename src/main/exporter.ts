@@ -14,6 +14,7 @@ import { encoderPlan, type EncoderEngine } from '../shared/hw';
 import { hardwareInfo } from './hardware';
 import { loadLuts } from './luts';
 import { expandPerson } from '../shared/person';
+import { expandSfx } from '../shared/sfx';
 
 
 /** Папки с кадрами шейдеров (окно рисует, экспорт накладывает). Токен — чтобы окно не писало куда попало. */
@@ -72,7 +73,8 @@ export function writeTextLayer(dir: string, layer: TextLayerReq, blank: string, 
 async function exportMp3(req: ExportReq, onProgress: (p: number) => void, signal?: AbortSignal): Promise<ExportResult> {
   const t0 = Date.now();
   const { project, opts } = req;
-  const g = buildGraph(project, { width: 16, height: 16, fps: 30, textLayers: [], audioOnly: true, includeMusic: true });
+  // звуки на стыках — тоже в звуке ролика
+  const g = buildGraph(expandSfx(project), { width: 16, height: 16, fps: 30, textLayers: [], audioOnly: true, includeMusic: true });
   fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });
   const tmpOut = path.join(path.dirname(opts.outPath), `.${path.basename(opts.outPath, '.mp3')}.kadro-part.mp3`);
   const filterFile = path.join(cacheDir('export'), `mp3_${Date.now()}.txt`);
@@ -109,7 +111,7 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     project = { ...project, settings: { ...project.settings, logo: undefined } };
   }
   // человек отдельным слоем (портрет, неон, текст за человеком) — фон и вырезанный человек, как в плеере
-  project = expandPerson(project);
+  project = expandSfx(expandPerson(project)); // и звуки на стыках — своей дорожкой
   const job = path.join(cacheDir('export'), `job_${Date.now()}`);
   fs.mkdirSync(job, { recursive: true });
   try {

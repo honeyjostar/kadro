@@ -17,6 +17,7 @@ import { BLUR_SIGMA_1080, placeOnCanvas, unitScale } from '../../shared/geometry
 import { drawText } from '../../shared/textRender';
 import { logoBox, progressBox } from '../../shared/logo';
 import { expandPerson, neonPulse, projectBeats } from '../../shared/person';
+import { expandSfx } from '../../shared/sfx';
 import { clipDuration, clipEnd, projectDuration } from '../../shared/timeline';
 import { applyGlEffects, drawAnyTransition, glEffectsOf } from './glDraw';
 import type { BlendMode, Mask, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
@@ -145,7 +146,7 @@ export class PreviewEngine {
 
   setProject(p: Project): void {
     // человек отдельным слоем (портрет, неон, текст за человеком) — клип раскладывается на фон и вырезанного человека
-    this.project = expandPerson(p);
+    this.project = expandSfx(expandPerson(p)); // и звуки на стыках — своей дорожкой
     this.beats = projectBeats(p);
     this.ensureLogo(p);
     this.syncFilters();

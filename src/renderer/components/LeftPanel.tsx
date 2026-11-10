@@ -2,7 +2,7 @@ import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
 import {
   Clapperboard,
-  Zap, AudioLines, BellRing, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
+  Zap, AudioLines, BellRing, Blend, Volume2, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
   LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -44,6 +44,7 @@ import { ColorField, FontPicker, Progress, Seg, Slider, Toggle } from './control
 import { aiCovers, aiSource } from '../../shared/ai';
 import { NEON_DEFAULT, personWanted } from '../../shared/person';
 import { SUBSCRIBE_COLORS } from '../../shared/subscribe';
+import { SFX, SFX_IDS, sfxFile, type SfxId } from '../../shared/sfx';
 
 const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'media', label: tx('Медиа'), icon: <Film size={19} /> },
@@ -685,6 +686,13 @@ function PersonCard({ clip, busy }: { clip: MediaClip | null; busy: boolean }) {
   );
 }
 
+/** Послушать звук стыка. */
+function playSfx(id: SfxId): void {
+  const f = sfxFile(id);
+  if (!f) return;
+  try { const a = new Audio(api.mediaUrl(f)); a.volume = SFX[id].vol; void a.play().catch(() => undefined); } catch { /* без звука */ }
+}
+
 const DUB_VOICES: Record<'ru' | 'en', TtsVoiceId[]> = { en: ['amy', 'ryan'], ru: ['irina', 'dmitri', 'denis', 'ruslan'] };
 
 /** Дубляж: речь ролика → перевод → озвучка другим голосом по тем же таймингам. */
@@ -1041,6 +1049,16 @@ function TransitionsPanel() {
     getState().toast(tx('Переход поставлен на все стыки'), 'ok');
   };
   const joints = Math.max(0, main.clips.length - 1);
+  const setSound = (id: SfxId | null) => {
+    if (!targetId) { getState().toast(tx('Звук ставится на стык двух клипов — добавь на основную дорожку ещё одно видео или фото')); return; }
+    commit((p) => updateClip(p, targetId!, { cutSound: id ?? undefined }));
+  };
+  const soundAll = () => {
+    const id = target?.cutSound;
+    if (!id) return;
+    commit((p) => main.clips.slice(0, -1).reduce((acc, c) => updateClip(acc, c.id, { cutSound: id }), p));
+    getState().toast(tx('Звук стоит на всех стыках: {0}', joints), 'ok');
+  };
   // встроенные + 123 шейдера gl-transitions + плагины пользователя
   const shaders = glTransitions().map((d) => ({ type: d.id as TransitionType, label: d.name, cat: d.source ? 'plugins' : d.cat, hint: d.author ? tx('{0} — автор {1}', d.name, d.author) : d.name }));
   const all: { type: TransitionType; label: string; cat: string; hint?: string }[] = [...TRANSITIONS, ...shaders];
@@ -1076,6 +1094,18 @@ function TransitionsPanel() {
         <Slider label={tx('Длительность')} min={0.1} max={2} step={0.05} value={durNow} format={(v) => tx('{0} с', v.toFixed(2))}
           onChange={(v) => { setDur(v); if (cur && targetId) commit((p) => setTransition(p, targetId!, { ...cur, duration: v }), `trdur-${targetId}`); }} />
         <button className="btn block" disabled={!cur || joints < 2} onClick={applyAll}>{tx('Поставить на все стыки')}</button>
+
+        <div className="section-title">{tx('Звук на стыке')}</div>
+        <div className="chips" data-testid="sfx-chips">
+          <button className={target && !target.cutSound ? 'active' : ''} disabled={!target} onClick={() => setSound(null)} data-testid="sfx-none">{tx('Без звука')}</button>
+          {SFX_IDS.map((id) => (
+            <button key={id} className={target?.cutSound === id ? 'active' : ''} disabled={!target} onClick={() => { setSound(id); playSfx(id); }} data-testid={`sfx-${id}`}>
+              <Volume2 size={12} />{SFX[id].label}
+            </button>
+          ))}
+        </div>
+        <p className="hint small">{tx('Свуш — на быстрых переходах, щелчок — на резких склейках, «бум» — на главном моменте.')}</p>
+        <button className="btn block" disabled={!target?.cutSound || joints < 2} onClick={soundAll} data-testid="sfx-all">{tx('Звук на все стыки')}</button>
       </div>
     </>
   );
