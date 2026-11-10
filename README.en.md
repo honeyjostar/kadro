@@ -13,7 +13,7 @@
 <h1 align="center">Kadro</h1>
 
 <p align="center"><b>A free video editor for Windows with AI features that run right on your computer.</b><br>
-Editing for TikTok, Reels, Shorts and YouTube: blogger-style captions, cutting long videos into shorts, dubbing with translation, Auto Video to the beat, Script to Video, 181 transitions, 54 effects, 47 filters, shader plugins,
+Editing for TikTok, Reels, Shorts and YouTube: blogger-style captions, cutting long videos into shorts, dubbing with translation, meme buttons, clone yourself, Auto Video to the beat, Script to Video, 181 transitions, 54 effects, 47 filters, shader plugins,
 animated text, 3D objects, perspective, auto captions and offline caption translation, background removal, clean voice, 19 templates.
 Export up to 4K with no watermark, no subscription and no sign-up.</p>
 
@@ -41,7 +41,11 @@ time you use it, and to check for updates (you can turn that off).
 - **Dubbing with translation** — Russian ⇄ English: recognizes the speech, translates it and voices it with another voice on the same timing, offline.
 - **Swipe check** — Kadro watches the video like TikTok does and marks where viewers will leave (a quiet start, a long static shot, pauses, quiet sound); most come with a one-click fix.
 - **Person as a separate layer** — text behind the person, a neon outline that flashes to the beat, and portrait mode with a blurred background.
-- Sounds on cuts (whoosh, click, boom), an animated Subscribe button, a progress bar, your own logo in the corner.
+- **Clone yourself** — you, twice in the frame: Kadro takes you from another moment of the video (or a second take) and puts you on top with the background removed.
+- **Meme buttons** — dramatic zoom, to be continued…, bass boost, slow-mo with a boom; each with its own sound composed for Kadro.
+- **Studio voice** in one click and **music quieter under voice in all projects**.
+- Stickers (moving emoji), boomerang, color like another clip, sounds on cuts (whoosh, click, boom), an animated Subscribe button, a progress bar, your own logo in the corner.
+- For beginners — **your first video in 3 steps**: Kadro shows what to click, from an empty project to a finished video.
 
 **Auto Video and Script to Video**
 - Choose videos, photos and music — Kadro finds the best parts (in focus, bright, steady, with motion — no freeze frames, shake or whip pans) and cuts them on the strong beats: it finds the downbeat, phrase starts and the **drop**; clips from different files are interleaved, flashes are rare and well placed; 10 styles including **Velocity**, Beat flash, 3D zoom and Text on the beat; “Another take”.

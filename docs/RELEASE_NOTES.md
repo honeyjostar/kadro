@@ -1,4 +1,4 @@
-## Kadro 1.0 — субтитры как у блогеров, нарезка в шортсы и дубляж
+## Kadro 1.0 — субтитры как у блогеров, шортсы, дубляж и мемы
 
 ### ⬇ Скачать / Download
 
@@ -17,22 +17,41 @@ Kadro 0.6.0 и новее обновится сам: «Вышел Kadro 1.0.0» 
 - **Текст за человеком** — надпись стоит за спиной, человек перед ней (субтитры всё равно сверху).
 - **Неоновый контур** вокруг человека, вспыхивает под бит музыки.
 - **Портретный режим** — фон за человеком размыт, как на iPhone.
+- **Клон себя** — ты дважды в кадре: камера стоит на месте, Kadro берёт тебя из другого момента того же видео (или из второго дубля) и кладёт поверх, убрав фон.
 
-Все три — вкладка «ИИ» → «Человек отдельным слоем», на выделенном клипе.
+Всё это — вкладка «ИИ», на выделенном клипе.
+
+### Мемы — одной кнопкой
+Раздел «Эффекты» → «Мемы». Мем начинается у курсора и сам кладёт свой звук; не понравилось — Ctrl+Z.
+- **Драматический зум** — три рывка камеры и «дун-дун-дууун».
+- **«Продолжение следует…»** — стоп-кадр в сепии, плашка-стрелка и своя музыка.
+- **Басс-буст** — звук уходит в басы, кадр трясётся, басовый «дроп».
+- **Замедление с «бум»** — момент замедляется, камера наезжает.
+
+Все звуки и рисунки — свои, сочинены для Kadro, без чужих мелодий и логотипов.
+
+### Звук
+- **Студийный голос** — одна кнопка: без шипения и гула, тёплый и разборчивый, громкость ровная (вкладка «ИИ»).
+- **Музыка тише под голос — во всех проектах.** Где говорят в видео, записи с микрофона, озвучке или дубляже, музыка сама становится тише и плавно возвращается. Насколько тише — в настройках.
+- **Звуки на стыках** — свуш, щелчок или «бум» на переход, одной кнопкой на все стыки.
 
 ### Для роликов
-- **Звуки на стыках** — свуш, щелчок или «бум» на переход, одной кнопкой на все стыки.
+- **Стикеры** — эмодзи крупно и всё время в движении: прыгает, пульсирует, качается, крутится, плавает (раздел «Текст»).
+- **Бумеранг** — кусок видео вперёд-назад, как в Instagram (клип → «Скорость»).
+- **Цвет как у другого клипа** — снял на два телефона, а цвет разный: одна кнопка, и клип подстраивается под образец (клип → «Цвет»).
 - **Кнопка «Подписаться»** — анимированная: курсор нажимает, кнопка становится «Вы подписаны», звенит колокольчик. Четыре цвета, вкладка «Текст».
 - **Полоска прогресса** внизу или вверху ролика — на шортсах видно, сколько осталось.
 - **Свой логотип** в углу на весь ролик.
 - **Экспорт в GIF и MP3**, **кадр в PNG** (Shift+E), перемотка **J / K / L**, как в больших монтажках.
 
 ### И ещё
+- **Заставка при запуске** — значок Kadro раскрывается в окно, пока программа грузится (запуск не медленнее; выключается в настройках).
+- **Первый ролик за 3 шага** — для новичков: Kadro подсказывает, что нажать, от пустого проекта до готового ролика.
 - **«Скоро в Kadro»** на главном экране — что готовится в следующем обновлении.
 - **Без номеров версий.** В настройках — «Kadro от» и дата, обновления называются по теме и дате.
 - Много мелочей по интерфейсу и английскому переводу.
 
-## Kadro 1.0 — blogger captions, shorts and dubbing
+## Kadro 1.0 — blogger captions, shorts, dubbing and memes
 
 ### Highlights
 - **Blogger-style captions**: Hormozi, MrBeast, One word, Label, Neon, Karaoke. 1–3 words or a full line per caption; key words and numbers in color, emoji by meaning, pop-in words.
@@ -41,10 +60,16 @@ Kadro 0.6.0 и новее обновится сам: «Вышел Kadro 1.0.0» 
 - **Swipe check**: before export Kadro watches the video like TikTok does and marks the weak spots on the timeline, most with a one-click fix.
 
 ### The person in the frame
-- **Text behind the person**, a **neon outline** that flashes to the beat, and **portrait mode** with a blurred background. AI tab → Person as a separate layer.
+- **Text behind the person**, a **neon outline** that flashes to the beat, **portrait mode** with a blurred background and **clone yourself** — you, twice in the frame. AI tab.
+
+### Memes in one click
+- Effects → Memes: **dramatic zoom**, **to be continued…**, **bass boost**, **slow-mo with a boom** — each with its own original sound; Ctrl+Z removes it.
+
+### Sound
+- **Studio voice** in one click, and **music quieter under voice in all projects** (Settings).
 
 ### For your videos
-- **Sounds on cuts** (whoosh, click, boom), an animated **Subscribe button**, a **progress bar**, **your own logo**, **GIF and MP3 export**, **save a frame as PNG** (Shift+E), **J / K / L** shuttle.
+- **Stickers** (moving emoji), **boomerang**, **color like another clip**, **sounds on cuts** (whoosh, click, boom), an animated **Subscribe button**, a **progress bar**, **your own logo**, **GIF and MP3 export**, **save a frame as PNG** (Shift+E), **J / K / L** shuttle.
 
 ### Also
-- **Coming soon in Kadro** on the home screen. **No version numbers**: Settings show “Kadro from” and a date, updates are named by topic and date.
+- A **launch animation**, **your first video in 3 steps** for beginners, **Coming soon in Kadro** on the home screen. **No version numbers**: Settings show “Kadro from” and a date, updates are named by topic and date.
