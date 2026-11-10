@@ -1206,7 +1206,8 @@ function registerIpc(): void {
   setDuck(readSettings().duck);
   ipcMain.on('duck:get', (e) => { e.returnValue = duckNow(); });
   // обучение «Первый ролик за 3 шага»
-  ipcMain.on('coach:get', (e) => { e.returnValue = readSettings().coach ?? null; });
+  // KADRO_NO_COACH — автотесты: обучение не предлагается (полоса над таймлайном сдвигала бы раскладку)
+  ipcMain.on('coach:get', (e) => { e.returnValue = process.env.KADRO_NO_COACH ? 'off' : readSettings().coach ?? null; });
   ipcMain.on('coach:set', (_e, c: CoachState) => { if (['active', 'done', 'off'].includes(c)) writeSettings({ ...readSettings(), coach: c }); });
   ipcMain.handle('duck:set', (_e, patch: Partial<DuckSettings>) => {
     setDuck({ ...duckNow(), ...patch });

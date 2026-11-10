@@ -1265,3 +1265,20 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .home-coach { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--text); }
 .home-coach svg { color: var(--accent); flex: none; }
 .home-coach span { flex: 1; font-size: 13px; line-height: 1.4; }
+
+/* экскурсия по окну и «маячок» у нужной кнопки */
+.tour { position: fixed; inset: 0; z-index: 90; }
+.tour-dim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); }
+.tour-hole { position: fixed; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); outline: 2px solid var(--accent); outline-offset: 2px;
+  transition: left 0.25s ease, top 0.25s ease, width 0.25s ease, height 0.25s ease; pointer-events: none; }
+.tour-card { position: fixed; padding: 12px 14px; border-radius: 12px; background: var(--raised-2); border: 1px solid var(--line); box-shadow: 0 16px 44px var(--shadow);
+  transition: left 0.25s ease, top 0.25s ease; }
+.tour-head { display: flex; align-items: center; gap: 8px; }
+.tour-head b { flex: 1; color: var(--strong, var(--text)); font-size: 14px; }
+.tour-count { font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 999px; }
+.tour-card p { margin: 8px 0 10px; color: var(--text); font-size: 13px; line-height: 1.45; }
+.tour-acts { display: flex; justify-content: flex-end; gap: 6px; }
+.beacon { position: fixed; z-index: 58; border-radius: 10px; border: 2px solid var(--accent); pointer-events: none; animation: beacon 1.4s ease-out infinite; }
+@keyframes beacon { 0% { box-shadow: 0 0 0 0 var(--accent-soft); opacity: 1; } 70% { box-shadow: 0 0 0 12px transparent; opacity: 0.9; } 100% { box-shadow: 0 0 0 0 transparent; opacity: 1; } }
+.beacon-label { position: fixed; z-index: 58; pointer-events: none; padding: 5px 10px; border-radius: 8px; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: 0 6px 18px var(--shadow); }
+@media (prefers-reduced-motion: reduce) { .beacon { animation: none; } .tour-hole, .tour-card { transition: none; } }

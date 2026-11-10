@@ -6,6 +6,7 @@ import { COACH_STEPS, coachProgress } from '../../shared/coach';
 import { addText } from '../../shared/timeline';
 import { importPaths, loadDemoFiles, pickAndImport } from '../actions';
 import { getState, useStore } from '../store';
+import { Beacon, startTour } from './Tour';
 
 async function demoClips(): Promise<void> {
   const demo = await loadDemoFiles();
@@ -22,17 +23,42 @@ function addTitle(): void {
   if (id) { s.select([id]); setTimeout(() => window.dispatchEvent(new Event('kadro:edit-text')), 30); }
 }
 
+/** Куда показать на шаге: сначала раздел слева, когда он открыт — на саму кнопку. */
+function beaconFor(step: string, leftTab: string): { target: string; label: string } {
+  if (step === 'video') return leftTab === 'media' ? { target: '[data-testid=import-btn]', label: tx('Добавь видео или фото') } : { target: '[data-testid=tab-media]', label: tx('Открой «Медиа»') };
+  if (step === 'text') return leftTab === 'text' ? { target: '[data-testid=add-text]', label: tx('Добавь надпись') } : { target: '[data-testid=tab-text]', label: tx('Открой «Текст»') };
+  return { target: '[data-testid=export-open]', label: tx('Сохрани ролик') };
+}
+
 export function CoachPanel() {
   const coach = useStore((s) => s.coach);
   const home = useStore((s) => s.home);
   const project = useStore((s) => s.project);
   const exported = useStore((s) => s.coachExported);
-  if (coach !== 'active' || home) return null;
+  const leftTab = useStore((s) => s.leftTab);
+  const exportOpen = useStore((s) => s.exportOpen);
+  const tour = useStore((s) => s.tour);
+  if (home || tour !== null) return null;
+  // ещё не предлагали (обновились со старой версии или пропустили первый запуск) — предлагаем
+  if (coach === null) {
+    return (
+      <div className="coach" role="complementary" aria-label={tx('Обучение')} data-testid="coach-offer">
+        <GraduationCap size={16} />
+        <span className="coach-text"><b>{tx('Впервые в Kadro?')}</b> {tx('Покажу, что где, за 30 секунд — или смонтируем первый ролик вместе.')}</span>
+        <button className="btn primary small" onClick={startTour} data-testid="coach-tour">{tx('Экскурсия')}</button>
+        <button className="btn small" onClick={() => getState().setCoach('active')} data-testid="coach-start">{tx('Первый ролик за 3 шага')}</button>
+        <button className="icon-btn" onClick={() => getState().setCoach('off')} title={tx('Не надо')} data-testid="coach-close"><X size={15} /></button>
+      </div>
+    );
+  }
+  if (coach !== 'active') return null;
   const { done, current } = coachProgress(project, exported);
   const hide = () => { getState().setCoach('off'); getState().toast(tx('Обучение можно пройти снова: «Настройки» → «Помощь»')); };
   const finished = current >= COACH_STEPS.length;
   const st = COACH_STEPS[Math.min(current, COACH_STEPS.length - 1)];
-  // полоса над таймлайном (как «Где пролистнут»): шаги точками, текущий — с подсказкой и кнопкой
+  const beacon = finished || exportOpen ? null : beaconFor(st.id, leftTab);
+  // полоса над таймлайном (как «Где пролистнут»): шаги точками, текущий — с подсказкой и кнопкой;
+  // нужная кнопка в окне подсвечивается пульсирующей рамкой
   return (
     <div className={`coach ${finished ? 'ok' : ''}`} role="complementary" aria-label={tx('Первый ролик за 3 шага')} data-testid="coach">
       <GraduationCap size={16} />
@@ -57,9 +83,11 @@ export function CoachPanel() {
           </>}
           {st.id === 'text' && <button className="btn primary small" onClick={addTitle} data-testid="coach-text">{tx('Добавить надпись')}</button>}
           {st.id === 'export' && <button className="btn primary small" onClick={() => getState().setExportOpen(true)} data-testid="coach-export">{tx('Открыть экспорт')}</button>}
+          <button className="btn ghost small" onClick={startTour} title={tx('Показать, где что в окне')} data-testid="coach-tour">{tx('Где что?')}</button>
         </>
       )}
       <button className="icon-btn" onClick={hide} title={tx('Скрыть обучение')} data-testid="coach-close"><X size={15} /></button>
+      {beacon && <Beacon target={beacon.target} label={beacon.label} />}
     </div>
   );
 }

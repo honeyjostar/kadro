@@ -22,6 +22,7 @@ import { RefEditDialog } from './RefEdit';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts, IntroOffer } from './Overlays';
+import { Tour } from './Tour';
 import { Player } from './Player';
 import { Timeline } from './Timeline';
 import { TopBar } from './TopBar';
@@ -220,6 +221,7 @@ export function App() {
       <Jobs />
       <Toasts />
       <IntroOffer />
+      <Tour />
     </div>
   );
 }

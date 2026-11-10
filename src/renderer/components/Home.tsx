@@ -12,6 +12,7 @@ import { nextText, type NextInfo } from '../../shared/next';
 import { BUILTIN_TEMPLATES, templateDuration, type Template } from '../../shared/templates';
 import type { AspectKey } from '../../shared/types';
 import { newProjectAction, openDemo, openProject, templateFromFiles, tryTemplate } from '../actions';
+import { startTour } from './Tour';
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
 import { Seg, Toggle } from './controls';
@@ -121,11 +122,12 @@ export function Home() {
           <div className="home-start">
             <h1>{tx('Что смонтируем сегодня?')}</h1>
             <p className="home-lead">{tx('Выбери формат — откроется пустой проект нужного размера. Его можно поменять потом.')}</p>
-            {coach === 'active' && (
+            {(coach === 'active' || coach === null) && (
               <div className="home-coach" data-testid="home-coach">
                 <GraduationCap size={18} />
-                <span><b>{tx('Первый раз в Kadro?')}</b> {tx('Смонтируй первый ролик за 3 шага — Kadro подскажет, что нажать.')}</span>
-                <button className="btn primary small" disabled={busy} onClick={() => void run(() => newProjectAction(defaultFormat ?? '9:16'))} data-testid="home-coach-start">{tx('Начать')}</button>
+                <span><b>{tx('Первый раз в Kadro?')}</b> {tx('Смонтируй первый ролик за 3 шага — Kadro подскажет, что нажать. Или посмотри, что где, за 30 секунд.')}</span>
+                <button className="btn primary small" disabled={busy} onClick={() => { getState().setCoach('active'); void run(() => newProjectAction(defaultFormat ?? '9:16')); }} data-testid="home-coach-start">{tx('Начать')}</button>
+                <button className="btn small" disabled={busy} onClick={startTour} data-testid="home-coach-tour">{tx('Экскурсия')}</button>
               </div>
             )}
             <div className="home-formats">

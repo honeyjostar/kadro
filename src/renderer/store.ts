@@ -92,6 +92,8 @@ interface State {
   /** обучение «Первый ролик за 3 шага» и был ли удачный экспорт, пока оно идёт */
   coach: import('../shared/coach').CoachState | null;
   coachExported: boolean;
+  /** экскурсия по окну: какая остановка (null — не идёт) */
+  tour: number | null;
   /** Последний собранный авто-ролик — для «Ещё вариант». */
   autoLast: AutoParams | null;
   /** Оформление (акцент, значок, размер интерфейса, своё оформление) и окно настроек. */
@@ -145,6 +147,7 @@ interface State {
   setUpdate: (u: import('../shared/update').UpdateState | null) => void;
   setCoach: (c: import('../shared/coach').CoachState) => void;
   markExported: () => void;
+  setTour: (n: number | null) => void;
   setAutoLast: (p: AutoParams | null) => void;
   setAppearance: (a: Appearance) => void;
   setCustomStatus: (s: CustomStatus | null) => void;
@@ -220,6 +223,7 @@ export const useStore = create<State>((set, get) => ({
   update: null,
   coach: api.coach ?? null,
   coachExported: false,
+  tour: null,
   autoLast: null,
   appearance: normalizeAppearance(api?.initialAppearance),
   customStatus: null,
@@ -320,6 +324,7 @@ export const useStore = create<State>((set, get) => ({
   setUpdate: (u) => set({ update: u }),
   setCoach: (c) => { api.setCoach(c); set({ coach: c, coachExported: c === 'active' ? false : get().coachExported }); },
   markExported: () => set({ coachExported: true }),
+  setTour: (n) => set({ tour: n }),
   setAutoLast: (p) => set({ autoLast: p }),
   setAppearance: (a) => set({ appearance: a }),
   setCustomStatus: (st) => set({ customStatus: st }),
