@@ -19,6 +19,7 @@ import { api, getState, useStore } from '../store';
 import { fmtDur, peakLevel } from '../util';
 import { MarkerLayer, rulerMenuItems } from './Markers';
 import { RetentionBar, RetentionMarks } from './Retention';
+import { CoachPanel } from './Coach';
 import { useMenu } from './Menu';
 
 const PAD = 16;
@@ -764,6 +765,7 @@ export function Timeline() {
         <Tool icon={<ZoomIn size={17} />} label={tx('Крупнее')} title={tx('Увеличить масштаб таймлайна (+)')} onClick={() => zoomTo(pps * 1.4)} />
         <Tool icon={<Maximize2 size={16} />} label={tx('Весь ролик')} title={tx('Показать весь ролик целиком')} onClick={fit} />
       </div>
+      <CoachPanel />
       <RetentionBar />
       <div className="tl-body">
         <div className="tl-heads">

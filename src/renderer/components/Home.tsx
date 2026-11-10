@@ -2,7 +2,7 @@
 // мои проекты (как в CapCut), шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
 import { tx, uiLang } from '../../shared/i18n';
 import { txj } from '../txj';
-import { Clapperboard, FileText, FolderOpen, Keyboard, Play, Scissors, Send, Settings, Sparkles, WandSparkles, X } from 'lucide-react';
+import { Clapperboard, FileText, GraduationCap, FolderOpen, Keyboard, Play, Scissors, Send, Settings, Sparkles, WandSparkles, X } from 'lucide-react';
 import { TELEGRAM_CHANNEL } from '../../shared/links';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
@@ -84,6 +84,7 @@ export function Home() {
   const [showAtStart, setShowAtStart] = useState(true);
   const themePref = useStore((s) => s.themePref);
   const defaultFormat = useStore((s) => s.defaultFormat);
+  const coach = useStore((s) => s.coach);
 
   const load = () => void api.homeInfo().then((i) => { setInfo(i); setShowAtStart(i.show); getState().setDemo(i.demo); });
   useEffect(load, []);
@@ -120,6 +121,13 @@ export function Home() {
           <div className="home-start">
             <h1>{tx('Что смонтируем сегодня?')}</h1>
             <p className="home-lead">{tx('Выбери формат — откроется пустой проект нужного размера. Его можно поменять потом.')}</p>
+            {coach === 'active' && (
+              <div className="home-coach" data-testid="home-coach">
+                <GraduationCap size={18} />
+                <span><b>{tx('Первый раз в Kadro?')}</b> {tx('Смонтируй первый ролик за 3 шага — Kadro подскажет, что нажать.')}</span>
+                <button className="btn primary small" disabled={busy} onClick={() => void run(() => newProjectAction(defaultFormat ?? '9:16'))} data-testid="home-coach-start">{tx('Начать')}</button>
+              </div>
+            )}
             <div className="home-formats">
               {FORMATS.map((f) => (
                 <button key={f.aspect} className={`home-format ${f.aspect === defaultFormat ? 'preferred' : ''}`} disabled={busy} data-testid={`home-new-${f.aspect.replace(':', '-')}`}

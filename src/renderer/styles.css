@@ -1220,17 +1220,18 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 
 /* мем-кнопки (раздел «Эффекты») */
 .meme-card { margin: 4px 0 14px; }
-.meme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-.meme-btn { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; gap: 2px 8px; align-items: center; text-align: left; padding: 9px 10px; border-radius: 10px;
+.meme-grid { display: flex; flex-direction: column; gap: 5px; }
+.meme-btn { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1px 10px; align-items: center; text-align: left; padding: 8px 10px; border-radius: 10px;
   border: 1px solid var(--line); background: var(--raised); color: var(--text); cursor: pointer; }
 .meme-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
 .meme-btn:disabled { opacity: 0.6; cursor: default; }
 .meme-btn .meme-ico { grid-row: span 2; color: var(--accent); display: flex; }
 .meme-btn b { font-size: 12.5px; line-height: 1.25; }
-.meme-btn .hint { font-size: 11px; line-height: 1.3; margin: 0; }
+.meme-btn .hint { font-size: 11.5px; line-height: 1.3; margin: 0; }
 
 /* стикеры (раздел «Текст») */
 .sticker-groups { margin-top: 6px; }
+.sticker-card .field-row { margin-top: 8px; }
 .sticker-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 8px; }
 .sticker-grid button { aspect-ratio: 1; border-radius: 9px; border: 1px solid var(--line-soft); background: var(--bg); cursor: pointer; font-size: 22px; display: flex; align-items: center; justify-content: center; padding: 0; }
 .sticker-grid button:hover { border-color: var(--accent); background: var(--accent-soft); }
@@ -1246,3 +1247,19 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 @keyframes st-spin { to { transform: rotate(360deg); } }
 @keyframes st-float { 0%, 100% { transform: translateY(2px) rotate(-4deg); } 50% { transform: translateY(-3px) rotate(4deg); } }
 @media (prefers-reduced-motion: reduce) { .sticker-grid button:hover span { animation: none !important; } }
+
+/* обучение «Первый ролик за 3 шага» — полоса над таймлайном */
+.coach { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel)); font-size: 12.5px; min-width: 0; }
+.coach > svg { color: var(--accent); flex: none; }
+.coach.ok { background: color-mix(in srgb, var(--ok) 9%, var(--panel)); }
+.coach-steps { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; flex: none; }
+.coach-steps li { width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700;
+  border: 1px solid var(--line); color: var(--muted); }
+.coach-steps li.now { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.coach-steps li.done { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.coach-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+.coach-text b { color: var(--strong, var(--text)); }
+.home-coach { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--text); }
+.home-coach svg { color: var(--accent); flex: none; }
+.home-coach span { flex: 1; font-size: 13px; line-height: 1.4; }

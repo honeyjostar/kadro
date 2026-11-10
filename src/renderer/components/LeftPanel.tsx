@@ -978,6 +978,7 @@ function StickersCard() {
     <div className="ai-card sticker-card" data-testid="stickers">
       <h4><Smile size={15} />{tx('Стикеры')}</h4>
       <p className="hint">{tx('Эмодзи крупно, всё время в движении. Встаёт у курсора на 3 секунды — двигай и растягивай как текст.')}</p>
+      <div className="field-row"><label>{tx('Движение')}</label></div>
       <div className="chips" data-testid="sticker-motion">
         {STICKER_MOTIONS.map((m) => <button key={m.id} className={motion === m.id ? 'active' : ''} onClick={() => setMotion(m.id)} data-value={m.id}>{m.label}</button>)}
       </div>

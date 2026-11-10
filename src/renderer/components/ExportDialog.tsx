@@ -131,6 +131,7 @@ export function ExportDialog() {
       if (format === 'mp3') {
         setStage(tx('Сохраняю звук'));
         const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: [], blankPng: new Uint8Array() });
+        if (r.ok) getState().markExported();
         setResult(r);
         setPhase(r.ok ? 'done' : 'error');
         return;
@@ -142,6 +143,7 @@ export function ExportDialog() {
       setStage(format === 'gif' ? tx('Сохраняю GIF') : tx('Сохраняю видео'));
       setProgress(0);
       const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: layers, blankPng: blank, glToken: gl?.token, glSegments: gl?.segments });
+      if (r.ok) getState().markExported();
       setResult(r);
       setPhase(r.ok ? 'done' : 'error');
     } catch (e) {

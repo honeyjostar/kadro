@@ -33,6 +33,8 @@ const api: KadroApi = {
   introAsked: () => ipcRenderer.send('intro:asked'),
   initialDuck: ipcRenderer.sendSync('duck:get'),
   setDuck: (patch) => ipcRenderer.invoke('duck:set', patch),
+  coach: ipcRenderer.sendSync('coach:get'),
+  setCoach: (c) => ipcRenderer.send('coach:set', c),
   saveShorts: (projects, folder) => ipcRenderer.invoke('project:saveShorts', projects, folder),
   saveFrame: (name, png) => ipcRenderer.invoke('frame:save', name, png),
   pickLogo: () => ipcRenderer.invoke('dialog:logo'),

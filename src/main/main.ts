@@ -30,6 +30,7 @@ import { afterExport, type StarAnswer } from '../shared/star';
 import { introAccent, introPlan } from '../shared/intro';
 import { labStats } from '../shared/colorMatch';
 import { duckNow, setDuck, type DuckSettings } from '../shared/duck';
+import type { CoachState } from '../shared/coach';
 import { LOGO_EXTS } from '../shared/logo';
 import { SFX_IDS, setSfxFiles } from '../shared/sfx';
 import { refreshNext, savedNext } from './next';
@@ -570,7 +571,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; duck?: Partial<DuckSettings> }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; duck?: Partial<DuckSettings>; coach?: CoachState }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -1204,6 +1205,9 @@ function registerIpc(): void {
   // музыка тише под голос — во всех проектах (плеер и экспорт)
   setDuck(readSettings().duck);
   ipcMain.on('duck:get', (e) => { e.returnValue = duckNow(); });
+  // обучение «Первый ролик за 3 шага»
+  ipcMain.on('coach:get', (e) => { e.returnValue = readSettings().coach ?? null; });
+  ipcMain.on('coach:set', (_e, c: CoachState) => { if (['active', 'done', 'off'].includes(c)) writeSettings({ ...readSettings(), coach: c }); });
   ipcMain.handle('duck:set', (_e, patch: Partial<DuckSettings>) => {
     setDuck({ ...duckNow(), ...patch });
     writeSettings({ ...readSettings(), duck: duckNow() });

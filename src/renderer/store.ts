@@ -89,6 +89,9 @@ interface State {
   keysOpen: boolean;
   /** Обновления Kadro (состояние из главного процесса). */
   update: import('../shared/update').UpdateState | null;
+  /** обучение «Первый ролик за 3 шага» и был ли удачный экспорт, пока оно идёт */
+  coach: import('../shared/coach').CoachState | null;
+  coachExported: boolean;
   /** Последний собранный авто-ролик — для «Ещё вариант». */
   autoLast: AutoParams | null;
   /** Оформление (акцент, значок, размер интерфейса, своё оформление) и окно настроек. */
@@ -140,6 +143,8 @@ interface State {
   setRefOpen: (o: { fresh: boolean; ref?: string; files?: string[] } | null) => void;
   setKeysOpen: (b: boolean) => void;
   setUpdate: (u: import('../shared/update').UpdateState | null) => void;
+  setCoach: (c: import('../shared/coach').CoachState) => void;
+  markExported: () => void;
   setAutoLast: (p: AutoParams | null) => void;
   setAppearance: (a: Appearance) => void;
   setCustomStatus: (s: CustomStatus | null) => void;
@@ -213,6 +218,8 @@ export const useStore = create<State>((set, get) => ({
   refOpen: null,
   keysOpen: false,
   update: null,
+  coach: api.coach ?? null,
+  coachExported: false,
   autoLast: null,
   appearance: normalizeAppearance(api?.initialAppearance),
   customStatus: null,
@@ -311,6 +318,8 @@ export const useStore = create<State>((set, get) => ({
   setRefOpen: (o) => set({ refOpen: o }),
   setKeysOpen: (b) => set({ keysOpen: b }),
   setUpdate: (u) => set({ update: u }),
+  setCoach: (c) => { api.setCoach(c); set({ coach: c, coachExported: c === 'active' ? false : get().coachExported }); },
+  markExported: () => set({ coachExported: true }),
   setAutoLast: (p) => set({ autoLast: p }),
   setAppearance: (a) => set({ appearance: a }),
   setCustomStatus: (st) => set({ customStatus: st }),

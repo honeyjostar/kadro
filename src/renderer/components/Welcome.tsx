@@ -48,6 +48,8 @@ export function Welcome({ onDone }: { onDone: () => void }) {
   };
   const finish = (withModels: boolean) => {
     void api.welcomeDone().then(onDone);
+    // новичку — «Первый ролик за 3 шага» (скрыть можно крестиком, вернуть — в настройках)
+    if (!getState().coach) getState().setCoach('active');
     if (!withModels) return;
     // по очереди и в фоне: окно уже закрыто, прогресс — в списке задач
     void (async () => {
