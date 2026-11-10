@@ -1,7 +1,8 @@
 import { tx } from '../../shared/i18n';
-import { X } from 'lucide-react';
+import { Gauge, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { cancelJob } from '../actions';
-import { useStore } from '../store';
+import { api, useStore } from '../store';
 import { Progress } from './controls';
 
 export function Toasts() {
@@ -31,6 +32,34 @@ export function Jobs() {
           <Progress value={j.progress} />
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Слабый компьютер: после первой заставки — один раз спросить, не выключить ли её.
+ * Ответ запоминается; потом заставка включается и выключается в «Настройки» → «Заставка при запуске».
+ */
+export function IntroOffer() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    if (!api.intro?.offer || !api.intro.shown) return;
+    const open = () => setShow(true);
+    if (!document.getElementById('kadro-intro')) { open(); return; }
+    window.addEventListener('kadro-intro-done', open, { once: true });
+    return () => window.removeEventListener('kadro-intro-done', open);
+  }, []);
+  if (!show) return null;
+  const answer = (off: boolean) => { if (off) api.setIntro(false); else api.introAsked(); setShow(false); };
+  return (
+    <div className="intro-offer star-ask" role="dialog" data-testid="intro-offer">
+      <Gauge size={22} className="star-ico" />
+      <b>{tx('Компьютер не самый быстрый — выключить заставку?')}</b>
+      <p>{tx('Kadro будет открываться сразу на главном экране. Включить обратно — «Настройки» → «Заставка при запуске».')}</p>
+      <div className="star-btns">
+        <button className="btn primary small" onClick={() => answer(true)} data-testid="intro-off">{tx('Выключить')}</button>
+        <button className="btn ghost small" onClick={() => answer(false)} data-testid="intro-keep">{tx('Оставить')}</button>
+      </div>
     </div>
   );
 }

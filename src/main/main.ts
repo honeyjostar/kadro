@@ -26,6 +26,7 @@ import type { AspectKey, ExportFormat, MediaAsset, Project } from '../shared/typ
 import { decodeSubtitleBytes } from '../shared/subtitles';
 import { isKadroUrl } from '../shared/links';
 import { afterExport, type StarAnswer } from '../shared/star';
+import { introAccent, introPlan } from '../shared/intro';
 import { LOGO_EXTS } from '../shared/logo';
 import { SFX_IDS, setSfxFiles } from '../shared/sfx';
 import { refreshNext, savedNext } from './next';
@@ -566,7 +567,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -1161,6 +1162,19 @@ function registerIpc(): void {
   });
   // внешние ссылки — только на страницы Kadro на GitHub и канал Kadro в Telegram
   ipcMain.on('app:starDone', () => writeSettings({ ...readSettings(), star: 'done' }));
+  // заставка при запуске: включена ли, значок (того цвета, что выбран), цвет акцента и тема — preload рисует её сразу
+  // KADRO_WEAK_PC и KADRO_INTRO_MS — для автотестов: «слабый компьютер» и растянутая заставка
+  const pcInfo = () => (process.env.KADRO_WEAK_PC ? { cores: 2, memGb: 4 } : { cores: os.cpus().length, memGb: os.totalmem() / 2 ** 30 });
+  ipcMain.on('intro:get', (e) => {
+    const s = readSettings();
+    const plan = introPlan(s, pcInfo(), process.env.KADRO_NO_INTRO === '1' || !!process.env.KADRO_HIDDEN);
+    let icon = '';
+    if (plan.show) { try { icon = `data:image/png;base64,${fs.readFileSync(iconPng(appearance())).toString('base64')}`; } catch { /* без значка */ } }
+    const dark = nativeTheme.shouldUseDarkColors;
+    e.returnValue = { show: plan.show && !!icon, offer: plan.offer, on: s.intro !== false, icon, dark, accent: introAccent(appearance().accent, dark), ms: Number(process.env.KADRO_INTRO_MS) || undefined };
+  });
+  ipcMain.on('intro:set', (_e, on: boolean) => writeSettings({ ...readSettings(), intro: on === true, introAsked: true }));
+  ipcMain.on('intro:asked', () => writeSettings({ ...readSettings(), introAsked: true }));
   ipcMain.handle('app:openUrl', async (_e, url: string) => {
     if (!isKadroUrl(url)) return false;
     log('open url', url.slice(0, 120));

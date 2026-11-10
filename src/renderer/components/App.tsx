@@ -21,7 +21,7 @@ import { ChromaPaintDialog } from './ChromaPaint';
 import { RefEditDialog } from './RefEdit';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
-import { Jobs, Toasts } from './Overlays';
+import { Jobs, Toasts, IntroOffer } from './Overlays';
 import { Player } from './Player';
 import { Timeline } from './Timeline';
 import { TopBar } from './TopBar';
@@ -219,6 +219,7 @@ export function App() {
       <UpdateCard />
       <Jobs />
       <Toasts />
+      <IntroOffer />
     </div>
   );
 }

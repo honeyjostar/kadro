@@ -1,5 +1,10 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { KadroApi } from '../shared/ipc';
+import { runIntro } from './intro';
+
+// заставка при запуске — до загрузки самой программы
+const intro = ipcRenderer.sendSync('intro:get') as { show: boolean; offer: boolean; on: boolean; icon: string; dark: boolean; accent: string; ms?: number };
+runIntro(intro);
 
 function on<T extends unknown[]>(channel: string, cb: (...a: T) => void): () => void {
   const h = (_e: unknown, ...a: unknown[]) => cb(...(a as T));
@@ -23,6 +28,9 @@ const api: KadroApi = {
   bugInfo: () => ipcRenderer.invoke('bug:info'),
   openUrl: (url) => ipcRenderer.invoke('app:openUrl', url),
   starDone: () => ipcRenderer.send('app:starDone'),
+  intro: { on: intro.on, offer: intro.offer, shown: intro.show },
+  setIntro: (on) => ipcRenderer.send('intro:set', on),
+  introAsked: () => ipcRenderer.send('intro:asked'),
   saveShorts: (projects, folder) => ipcRenderer.invoke('project:saveShorts', projects, folder),
   saveFrame: (name, png) => ipcRenderer.invoke('frame:save', name, png),
   pickLogo: () => ipcRenderer.invoke('dialog:logo'),

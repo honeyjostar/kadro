@@ -105,6 +105,8 @@ export function SettingsDialog() {
           <p className="hint">{tx('Крупнее — удобнее на большом мониторе, мельче — больше места для таймлайна.')}</p>
         </section>
 
+        <IntroSection />
+
         <section className="settings-sec">
           <b>{tx('Своё оформление')}</b>
           <Toggle label={tx('Подключить мои стили (custom.css и theme.json)')} on={a.custom} onChange={(v) => void set({ custom: v })} testId="custom-toggle" />
@@ -378,4 +380,16 @@ function iconNote(windows?: boolean, shortcuts?: number): string {
   if (!windows) return tx('Значок окна поменялся.');
   if (!shortcuts) return tx('Значок окна поменялся. Ярлыков Kadro не нашлось или у них уже этот значок.');
   return tx('Готово: поменял значок у ярлыков ({0}). Если на рабочем столе ещё старый — нажми на нём F5.', shortcuts);
+}
+
+/** Заставка при запуске: значок раскрывается в окно, пока Kadro загружается. */
+function IntroSection() {
+  const [on, setOn] = useState(api.intro?.on !== false);
+  return (
+    <section className="settings-sec" data-testid="intro-sec">
+      <b>{tx('Заставка при запуске')}</b>
+      <Toggle label={tx('Показывать заставку')} on={on} onChange={(v) => { setOn(v); api.setIntro(v); }} testId="intro-toggle" />
+      <p className="hint">{tx('Значок Kadro раскрывается в окно — пока программа загружается, так что запуск не медленнее. Щелчок или любая клавиша — пропустить. Если в Windows выключены анимации, заставки нет.')}</p>
+    </section>
+  );
 }

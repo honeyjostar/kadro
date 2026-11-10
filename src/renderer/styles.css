@@ -568,6 +568,8 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .star-ask p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
 .star-ask .star-btns { grid-column: 2; display: flex; gap: 8px; margin-top: 8px; }
 .star-ask.thanks { grid-template-columns: auto 1fr; }
+.intro-offer { position: fixed; right: 18px; bottom: 18px; z-index: 70; width: 380px; margin: 0; box-shadow: 0 14px 40px var(--shadow); }
+.intro-offer .star-ico { color: var(--accent); }
 /* логотип на видео — в настройках проекта */
 .logo-row { display: flex; align-items: center; gap: 10px; margin: 6px 0 8px; }
 .logo-thumb { width: 44px; height: 44px; object-fit: contain; border-radius: 8px; background: repeating-conic-gradient(var(--raised-2) 0 25%, var(--raised) 0 50%) 0 0 / 10px 10px; border: 1px solid var(--line); }
