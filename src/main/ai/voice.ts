@@ -13,6 +13,11 @@ export const VOICE_FILTERS: Record<Exclude<VoiceEffect, 'none'>, string> = {
   radio: 'highpass=f=300,lowpass=f=3200,acompressor=threshold=0.1:ratio=6:attack=5:release=60,acrusher=bits=8:mix=0.15,volume=1.4',
   phone: 'highpass=f=400,lowpass=f=3400,volume=1.3',
   megaphone: 'highpass=f=600,lowpass=f=4500,acrusher=bits=6:mix=0.25,volume=1.6',
+  // «Студийный голос»: тёплый низ, без бубнения, разборчивая середина, воздух сверху, мягче «с» и «ш»,
+  // ровная громкость (компрессор + нормализация громкости как у YouTube), без перегруза. Шум и шипение —
+  // нейросеть RNNoise перед цепочкой (см. processVoice).
+  studio: 'bass=g=2:f=110:w=0.6,equalizer=f=280:t=q:w=1.2:g=-3,equalizer=f=3200:t=q:w=1:g=3,treble=g=2:f=9000,deesser=i=0.35,'
+    + 'acompressor=threshold=0.1:ratio=3:attack=6:release=120:makeup=1.5,loudnorm=I=-16:TP=-1.5:LRA=7,alimiter=limit=0.95:level=0',
 };
 
 /** Голос с эффектом (и, при желании, с чисткой шума) для фрагмента исходника [ss, ss+dur]. */
@@ -20,7 +25,7 @@ export async function processVoice(src: string, ss: number, dur: number, effect:
   onProgress?: (p: number) => void, signal?: AbortSignal): Promise<void> {
   const model = RNNOISE_MODEL();
   const chain: string[] = [];
-  if (withDenoise) chain.push('highpass=f=70', `arnndn=m=${path.basename(model)}:mix=0.95`);
+  if (withDenoise || effect === 'studio') chain.push('highpass=f=70', `arnndn=m=${path.basename(model)}:mix=${withDenoise ? 0.95 : 0.85}`);
   if (effect !== 'none') chain.push(VOICE_FILTERS[effect]);
   chain.push('aresample=48000');
   await runFfmpeg([

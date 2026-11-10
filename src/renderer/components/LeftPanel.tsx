@@ -1380,6 +1380,23 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
         </div>
       )}
 
+      <div className={`ai-card ${!clip || !hasAudio ? 'off' : ''}`} data-testid="studio-card">
+        <h4><AudioLines size={15} />{tx('Студийный голос')}</h4>
+        <p className="hint">{tx('Одна кнопка — как с хорошим микрофоном: без шипения и гула, тёплый и разборчивый, громкость ровная.')}</p>
+        {clip && hasAudio ? (clip.voice?.effect === 'studio' && clip.voice.enabled ? (
+          <>
+            {aiCovers(clip.voice, clip.in, clip.out)
+              ? <div className="status-line ok">{tx('Готово — уже в превью и экспорте')}</div>
+              : <div className="status-line err">{tx('Клип обрезали после обработки — примени заново')}</div>}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              <button className="btn grow" disabled={busy} onClick={() => void setVoiceEffect(clip.id, 'studio')} data-testid="ai-studio">{tx('Применить заново')}</button>
+              <button className="btn" disabled={busy} onClick={() => void setVoiceEffect(clip.id, 'none')} data-testid="ai-studio-off">{tx('Убрать')}</button>
+            </div>
+          </>
+        ) : <button className="btn block" disabled={busy} onClick={() => void setVoiceEffect(clip.id, 'studio')} data-testid="ai-studio">{tx('Сделать голос студийным')}</button>
+        ) : <div className="hint small">{tx('Нужен клип со звуком')}</div>}
+      </div>
+
       <div className={`ai-card ${!clip || !hasAudio ? 'off' : ''}`}>
         <h4><Mic size={15} />{tx('Изменить голос')}</h4>
         <p className="hint">{tx('Эффект для звука клипа. Чистка шума сохраняется.')}</p>

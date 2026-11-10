@@ -156,7 +156,7 @@ export interface PersonFx {
 
 export interface Effect { type: EffectType; amount: number; params?: Record<string, number | boolean | number[]> } // amount 0..1
 
-export type VoiceEffect = 'none' | 'chipmunk' | 'deep' | 'robot' | 'echo' | 'hall' | 'radio' | 'phone' | 'megaphone';
+export type VoiceEffect = 'none' | 'chipmunk' | 'deep' | 'robot' | 'echo' | 'hall' | 'radio' | 'phone' | 'megaphone' | 'studio';
 
 /** Результат ИИ-обработки фрагмента исходника [range0, range1] (сек исходника). */
 export interface AiResult {

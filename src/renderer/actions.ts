@@ -348,10 +348,11 @@ export async function setVoiceEffect(clipId: string, effect: VoiceEffect): Promi
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
   if (!a || !a.hasAudio) { getState().toast(tx('В этом клипе нет звука')); return; }
   const withDenoise = m.clip.denoise.enabled;
-  const r = await runJob(tx('Меняю голос'), { kind: 'voice', jobId: `vo_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, effect, denoise: withDenoise }, clipId);
+  const r = await runJob(effect === 'studio' ? tx('Делаю голос студийным') : tx('Меняю голос'), { kind: 'voice', jobId: `vo_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, effect, denoise: withDenoise }, clipId);
   if (!r.ok || r.output?.kind !== 'voice') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return; }
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { voice: { enabled: true, status: 'ready', path: out.path, range: out.range, effect, withDenoise } }));
+  if (effect === 'studio') getState().toast(tx('Голос как в студии — уже в превью и экспорте'), 'ok');
 }
 
 /** Эффект голоса пересчитывается, если поменялась чистка шума. */
