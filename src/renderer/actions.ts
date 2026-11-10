@@ -19,7 +19,7 @@ import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, PersonFx
 import { retimeWords } from '../shared/captions';
 import { cuesToSrt, parseSubtitles } from '../shared/subtitles';
 import { copyAttrs } from '../shared/attrs';
-import { groupCues, langLabel, splitTranslation, type LangCode } from '../shared/translate';
+import { groupCues, langInline, splitTranslation, type LangCode } from '../shared/translate';
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
 import { fmtDur, fmtTime, plural, uidShort } from './util';
 import { VoiceRecorder } from './recorder';
@@ -972,7 +972,7 @@ export async function translateCaptions(from: LangCode, to: LangCode, mode: 'rep
   if (!caps.length) { getState().toast(tx('Сначала создай субтитры')); return false; }
   const cues = caps.map((c) => ({ text: c.text.split('\n')[0].trim(), start: c.start, end: c.start + c.duration }));
   const groups = groupCues(cues);
-  const r = await runJob(tx('Перевожу субтитры: {0}', langLabel(to).toLowerCase()), { kind: 'translate', jobId: `mt_${uidShort()}`, texts: groups.map((g) => g.map((i) => cues[i].text).join(' ')), from, to });
+  const r = await runJob(tx('Перевожу субтитры: {0}', langInline(to)), { kind: 'translate', jobId: `mt_${uidShort()}`, texts: groups.map((g) => g.map((i) => cues[i].text).join(' ')), from, to });
   if (!r.ok || r.output?.kind !== 'translate') { if (r.error !== tx('Отменено')) getState().toast(tx('Перевод не получился: {0}', r.error), 'err'); return false; }
   const texts = r.output.texts;
   const next = new Map<string, string>();
@@ -991,7 +991,7 @@ export async function translateCaptions(from: LangCode, to: LangCode, mode: 'rep
     }
     return q;
   });
-  getState().toast(tx('Субтитры переведены: {0}. Отменить — Ctrl+Z.', langLabel(to).toLowerCase()), 'ok');
+  getState().toast(tx('Субтитры переведены: {0}. Отменить — Ctrl+Z.', langInline(to)), 'ok');
   return true;
 }
 
@@ -1683,7 +1683,7 @@ export async function dubProject(o: DubOptions, onStage?: (label: string, k: num
   const ph = dubPhrases(cues);
   if (!ph.length) return false;
   onStage?.(tx('Перевожу'), 0, ph.length);
-  const tr = await runJob(tx('Перевожу речь: {0}', langLabel(o.to).toLowerCase()), { kind: 'translate', jobId: `dubmt_${uidShort()}`, texts: ph.map((x) => x.text), from: o.from, to: o.to });
+  const tr = await runJob(tx('Перевожу речь: {0}', langInline(o.to)), { kind: 'translate', jobId: `dubmt_${uidShort()}`, texts: ph.map((x) => x.text), from: o.from, to: o.to });
   if (!tr.ok || tr.output?.kind !== 'translate') { if (tr.error !== tx('Отменено')) getState().toast(tx('Перевод не получился: {0}', tr.error), 'err'); return false; }
   const texts = tr.output.texts;
   if (!(await ensureVoice(o.voice))) return false;
@@ -1710,7 +1710,7 @@ export async function dubProject(o: DubOptions, onStage?: (label: string, k: num
   imp.assets.forEach((a, k) => { a.name = tx('Дубляж: {0}{1}', files[k].text.slice(0, 24), files[k].text.length > 24 ? '…' : ''); });
   getState().commit((p) => {
     let q = imp.assets.reduce((acc, a) => addAsset(acc, a), p);
-    q = placeDub(q, imp.assets.map((a, k) => ({ assetId: a.id, start: files[k].start })), tx('Дубляж ({0})', langLabel(o.to).toLowerCase()));
+    q = placeDub(q, imp.assets.map((a, k) => ({ assetId: a.id, start: files[k].start })), tx('Дубляж ({0})', langInline(o.to)));
     q = quietOriginal(q, o.original, q.tracks[q.tracks.length - 1].id);
     if (o.subs) {
       // субтитры — на языке дубляжа: перевод раскладывается по тем же субтитрам

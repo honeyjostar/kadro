@@ -983,6 +983,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .auto-style.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .auto-style:disabled { opacity: 0.6; cursor: default; }
 .chips button .faint { color: inherit; opacity: 0.6; margin-left: 2px; }
+.chips button > svg { margin-right: 4px; vertical-align: -2px; flex: none; }
 .auto-title { width: 100%; }
 .auto-fresh { margin: 12px 0 0; }
 .auto-progress { margin-top: 14px; font-size: 12.5px; color: var(--text); }
@@ -1168,7 +1169,6 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .shorts-modal { width: 760px; }
 .shorts-src { display: flex; align-items: center; gap: 8px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); min-height: 42px; }
 .shorts-src svg { color: var(--accent); flex: none; }
-.shorts-modal .chips button svg { margin-right: 4px; vertical-align: -2px; }
 .shorts-src .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--strong); font-weight: 600; }
 .shorts-opts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; margin-top: 6px; }
 .shorts-opts .toggle { margin-top: 12px; }

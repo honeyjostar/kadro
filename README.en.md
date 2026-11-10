@@ -13,7 +13,7 @@
 <h1 align="center">Kadro</h1>
 
 <p align="center"><b>A free video editor for Windows with AI features that run right on your computer.</b><br>
-Editing for TikTok, Reels, Shorts and YouTube: Auto Video to the beat, Script to Video, 181 transitions, 54 effects, 47 filters, shader plugins,
+Editing for TikTok, Reels, Shorts and YouTube: blogger-style captions, cutting long videos into shorts, dubbing with translation, Auto Video to the beat, Script to Video, 181 transitions, 54 effects, 47 filters, shader plugins,
 animated text, 3D objects, perspective, auto captions and offline caption translation, background removal, clean voice, 19 templates.
 Export up to 4K with no watermark, no subscription and no sign-up.</p>
 
@@ -34,6 +34,14 @@ CPU and graphics card. The internet is needed only once — to download a speech
 time you use it, and to check for updates (you can turn that off).
 
 ## What it can do
+
+**New: for creators**
+- **Blogger-style captions** — Hormozi, MrBeast, One word, Label, Neon, Karaoke: 1–3 words or a line, key words and numbers in color, emoji by meaning, pop-in words.
+- **Cut into shorts** — a stream, podcast or vlog: Kadro listens to the speech, finds the most gripping moments and turns each into a vertical video — the frame follows the person, creator-style captions, a hook title.
+- **Dubbing with translation** — Russian ⇄ English: recognizes the speech, translates it and voices it with another voice on the same timing, offline.
+- **Swipe check** — Kadro watches the video like TikTok does and marks where viewers will leave (a quiet start, a long static shot, pauses, quiet sound); most come with a one-click fix.
+- **Person as a separate layer** — text behind the person, a neon outline that flashes to the beat, and portrait mode with a blurred background.
+- Sounds on cuts (whoosh, click, boom), an animated Subscribe button, a progress bar, your own logo in the corner.
 
 **Auto Video and Script to Video**
 - Choose videos, photos and music — Kadro finds the best parts (in focus, bright, steady, with motion — no freeze frames, shake or whip pans) and cuts them on the strong beats: it finds the downbeat, phrase starts and the **drop**; clips from different files are interleaved, flashes are rare and well placed; 10 styles including **Velocity**, Beat flash, 3D zoom and Text on the beat; “Another take”.
@@ -64,7 +72,7 @@ time you use it, and to check for updates (you can turn that off).
 
 **Publishing**
 - Safe zones for TikTok, Reels and Shorts in the player and a pre-publish check.
-- MP4 (H.264) export with GPU encoding on NVIDIA (NVENC), AMD (AMF) and Intel (Quick Sync); Settings → Computer shows your GPU and why it doesn't encode, if it doesn't; autosaved drafts, `.kadro` projects.
+- MP4 (H.264), **GIF** and **MP3** (audio only) export, save the player frame as PNG (Shift+E); GPU encoding on NVIDIA (NVENC), AMD (AMF) and Intel (Quick Sync); Settings → Computer shows your GPU and why it doesn't encode, if it doesn't; autosaved drafts, `.kadro` projects.
 - **Auto-update** and **Report a bug** (a ready GitHub issue with version and log — you see everything before sending).
 
 ## System requirements
@@ -92,6 +100,8 @@ The portable version is the `Kadro-X.Y.Z-portable.zip` file: unpack it anywhere 
 | Key | Action |
 |---|---|
 | Space | play / pause |
+| J / K / L | back / pause / forward; press again — faster (2×, 4×, 8×) |
+| Shift+E | save the frame as an image (PNG) |
 | S or Ctrl+B | split at playhead |
 | Delete | delete selected |
 | Ctrl+D | duplicate clip |

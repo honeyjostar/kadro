@@ -110,7 +110,10 @@ export function Model3DDialog() {
   // пока крутишь — превью показывает правимое положение, через секунду снова играет анимация
   const editing = useRef<{ at: number; target: 'start' | 'end' }>({ at: 0, target: 'start' });
   const drag = useRef<{ x: number; y: number; mode: 'rotate' | 'roll' | 'move' } | null>(null);
-  live.current.m = m;
+  // live.current.m — самое свежее состояние: правки идут через apply(), а не через m из замыкания. Перерисовка
+  // по другому поводу может прийти со старым m, пока свежие правки ещё в очереди, — поэтому из m берём только начальное.
+  if (!live.current.m) live.current.m = m;
+  const apply = (next: Model3D) => { live.current.m = next; setM(next); };
   const close = () => { if (progress === null) getState().setModel3dEdit(null); else cancelled.current = true; };
 
   // живое превью
@@ -157,7 +160,7 @@ export function Model3DDialog() {
   });
 
   if (!edit || !m) return null;
-  const set = (patch: Partial<Model3D>) => setM({ ...m, ...patch });
+  const set = (patch: Partial<Model3D>) => apply({ ...(live.current.m ?? m), ...patch });
   const tgt = target === 'end' && m.end ? 'end' : 'start';
   const cur: Pose3D = tgt === 'end' ? m.end! : { tiltX: m.tiltX, turnY: m.turnY, rollZ: m.rollZ ?? 0, posX: m.posX ?? 0, posY: m.posY ?? 0, zoom: m.zoom ?? 1 };
   /** Поправить правимое положение; patch может зависеть от текущего (при быстром движении мыши кадры не успевают обновиться). */
@@ -166,9 +169,7 @@ export function Model3DDialog() {
     const mm = live.current.m ?? m;
     const base: Pose3D = tgt === 'end' && mm.end ? mm.end : { tiltX: mm.tiltX, turnY: mm.turnY, rollZ: mm.rollZ ?? 0, posX: mm.posX ?? 0, posY: mm.posY ?? 0, zoom: mm.zoom ?? 1 };
     const next = { ...base, ...(typeof patch === 'function' ? patch(base) : patch) };
-    const upd = tgt === 'end' ? { ...mm, end: next } : { ...mm, ...next };
-    live.current.m = upd;
-    setM(upd);
+    apply(tgt === 'end' ? { ...mm, end: next } : { ...mm, ...next });
   };
   // мышкой по превью: тянуть — поворот, с Shift — крен, правой кнопкой (или с Ctrl) — сдвиг, колёсико — приближение
   const onDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -188,14 +189,16 @@ export function Model3DDialog() {
   const onWheel = (e: React.WheelEvent<HTMLCanvasElement>) => setPose((p) => ({ zoom: Math.max(0.3, Math.min(3, p.zoom * Math.exp(-e.deltaY * 0.0015))) }));
   const animOn = !!m.end;
   const toggleAnim = (on: boolean) => {
-    if (on) { setM({ ...m, end: { ...cur }, ease: m.ease ?? 'smooth', motion: m.motion === 'spin' ? 'still' : m.motion }); setTarget('end'); } else { setM({ ...m, end: null }); setTarget('start'); }
+    const mm = live.current.m ?? m;
+    const pose: Pose3D = { tiltX: mm.tiltX, turnY: mm.turnY, rollZ: mm.rollZ ?? 0, posX: mm.posX ?? 0, posY: mm.posY ?? 0, zoom: mm.zoom ?? 1 };
+    if (on) { apply({ ...mm, end: pose, ease: mm.ease ?? 'smooth', motion: mm.motion === 'spin' ? 'still' : mm.motion }); setTarget('end'); } else { apply({ ...mm, end: null }); setTarget('start'); }
   };
   const go = async () => {
     setError('');
     setProgress(0);
     cancelled.current = false;
     try {
-      const ok = await place3D(m, edit.clipId, (p) => setProgress(p), () => cancelled.current);
+      const ok = await place3D(live.current.m ?? m, edit.clipId, (p) => setProgress(p), () => cancelled.current);
       if (ok) getState().setModel3dEdit(null);
     } catch (e) {
       if (!(e instanceof DOMException && e.name === 'AbortError')) setError(e instanceof Error ? e.message : String(e));

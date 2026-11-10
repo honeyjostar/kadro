@@ -62,6 +62,12 @@ test('редактор: все разделы слева и вкладки кл�
   }
   const clip = (await project(win)).tracks[0].clips[0];
   await store(win, 'select', [clip.id]);
+  // с выбранным клипом в разделах слева появляются карточки клипа: человек, звук на стыке, дубляж
+  for (const tab of ['ai', 'transitions', 'captions', 'text']) {
+    await store(win, 'setLeftTab', tab);
+    await win.waitForTimeout(250);
+    bad.push(...await russian(`left+clip:${tab}`));
+  }
   for (const t of await win.locator('[data-testid^=itab-]').all()) {
     await t.click();
     await win.waitForTimeout(150);
@@ -93,6 +99,21 @@ test('окна: настройки, экспорт, сообщить об оши
   bad.push(...await russian('auto'));
   await win.keyboard.press('Escape');
   await store(win, 'setAutoOpen', null);
+  await store(win, 'setShortsOpen', true);
+  await win.waitForTimeout(300);
+  bad.push(...await russian('shorts'));
+  await store(win, 'setShortsOpen', false);
+  await store(win, 'setKeysOpen', true);
+  await win.waitForTimeout(300);
+  bad.push(...await russian('keys'));
+  await store(win, 'setKeysOpen', false);
+  await win.getByTestId('export-open').click();
+  await win.getByTestId('export-format').locator('[data-value=gif]').click();
+  bad.push(...await russian('export-gif'));
+  await win.getByTestId('export-format').locator('[data-value=mp3]').click();
+  bad.push(...await russian('export-mp3'));
+  await win.getByTestId('export-format').locator('[data-value=mp4]').click();
+  await win.keyboard.press('Escape');
   await store(win, 'setPluginCatalogOpen', true);
   await win.waitForTimeout(1500);
   bad.push(...await russian('catalog'));

@@ -113,15 +113,25 @@ export function notesLines(md: string): { kind: 'h' | 'li' | 'p'; text: string }
 
 /**
  * Тема обновления для людей: название релиза без «Kadro» и номера версии; пусто — первый заголовок описания
- * (тоже без номера). Ничего нет — пустая строка.
+ * (тоже без номера). По-английски — первый заголовок без русских букв уровня #/## (описание двуязычное:
+ * «## Kadro 1.0 — субтитры…» и ниже «## Kadro 1.0 — blogger captions…»). Ничего нет — пустая строка.
  */
-export function releaseTheme(title: string, notes = ''): string {
-  const clean = (v: string) => v.replace(/kadro/gi, '').replace(/\bv?\d+\.\d+(\.\d+)?\b/g, '').replace(/^[\s:—–\-·.,]+|[\s:—–\-·.,]+$/g, '').replace(/\s{2,}/g, ' ').trim();
+export function releaseTheme(title: string, notes = '', lang: 'ru' | 'en' = 'ru'): string {
+  const CYR = /[А-Яа-яЁё]/;
+  const clean = (v: string) => v.replace(/kadro/gi, '').replace(/\bv?\d+\.\d+(\.\d+)?\b/g, '').replace(/^что нового( в)?/i, '').replace(/^what'?s new( in)?/i, '')
+    .replace(/^[\s:—–\-·.,]+|[\s:—–\-·.,]+$/g, '').replace(/\s{2,}/g, ' ').trim();
+  const fits = (v: string) => v.length > 2 && (lang === 'ru' || !CYR.test(v));
   const t = clean(title);
-  if (t.length > 2) return t;
-  const h = /^#{1,3}\s+(.+)$/m.exec(notes)?.[1] ?? '';
-  const ht = clean(h.replace(/^что нового( в)?/i, '').replace(/^what'?s new( in)?/i, ''));
-  return ht.length > 2 ? ht : '';
+  if (fits(t)) return t;
+  if (lang === 'ru') {
+    const ht = clean(/^#{1,3}\s+(.+)$/m.exec(notes)?.[1] ?? '');
+    return ht.length > 2 ? ht : '';
+  }
+  for (const m of notes.matchAll(/^#{1,2}\s+(.+)$/gm)) {
+    const ht = clean(m[1]);
+    if (fits(ht)) return ht;
+  }
+  return '';
 }
 
 /** Дата для людей: «22 ноября» (год — если не текущий). */

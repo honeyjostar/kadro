@@ -1,7 +1,7 @@
 // Перевод субтитров без интернета: какие языки есть, через что переводить (прямо или через английский),
 // как склеить обрывки фраз из соседних субтитров в предложения и разложить перевод обратно по субтитрам.
 // Чистые функции — проверяются без моделей.
-import { tx } from './i18n';
+import { tx, uiLang } from './i18n';
 
 export type LangCode = 'ru' | 'en' | 'uk' | 'de' | 'es' | 'fr' | 'it' | 'zh' | 'pl' | 'tr' | 'ja' | 'ko' | 'ar';
 export const LANGS: { code: LangCode; label: string }[] = [
@@ -11,6 +11,8 @@ export const LANGS: { code: LangCode; label: string }[] = [
   { code: 'zh', label: tx('Китайский') }, { code: 'ja', label: tx('Японский') }, { code: 'ko', label: tx('Корейский') }, { code: 'ar', label: tx('Арабский') },
 ];
 export const langLabel = (c: string): string => LANGS.find((l) => l.code === c)?.label ?? c;
+/** Название языка внутри фразы: по-русски со строчной («на английский»), по-английски — как есть («into English»). */
+export const langInline = (c: string): string => (uiLang() === 'ru' ? langLabel(c).toLowerCase() : langLabel(c));
 
 /** Модели переводят в одну сторону: «ru-en» — с русского на английский. */
 export type Pair = `${LangCode}-${LangCode}`;

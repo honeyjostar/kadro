@@ -1,6 +1,6 @@
 // Обновления в окне: карточка «Вышел Kadro X» (обновить, что нового, позже), полоска скачивания,
 // «Kadro обновлён» после установки, окно «Что нового» и раздел «Обновления» в настройках.
-import { tx, uiLocale } from '../../shared/i18n';
+import { tx, uiLang, uiLocale } from '../../shared/i18n';
 import { txj } from '../txj';
 import { ArrowUpCircle, ExternalLink, PartyPopper, RefreshCw, Sparkles, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -11,7 +11,7 @@ import { Progress, Toggle } from './controls';
 const mb = (n?: number) => (n ? tx('{0} МБ', Math.round(n / 1e6)) : '');
 const releasePage = (v: string) => `${RELEASES_PAGE}/tag/v${v}`;
 /** Обновление для людей — тема и дата, без номера версии. */
-const themeOf = (u: UpdateState) => releaseTheme(u.title ?? '', u.notes ?? '');
+const themeOf = (u: UpdateState) => releaseTheme(u.title ?? '', u.notes ?? '', uiLang());
 const dateOf = (iso?: string) => releaseDate(iso, uiLocale());
 /** «Kadro от 10 ноября» (дата сборки неизвестна — просто Kadro). */
 export const kadroOf = (u: UpdateState) => (u.currentDate ? tx('Kadro от {0}', dateOf(u.currentDate)) : 'Kadro');

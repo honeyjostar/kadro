@@ -8,8 +8,8 @@ import type { Project, TextClip } from './types';
 
 /** Направления, для которых в Kadro есть и перевод, и голоса. */
 export const DUB_PAIRS: { from: LangCode; to: LangCode; label: string }[] = [
-  { from: 'ru', to: 'en', label: tx('Русский → английский') },
-  { from: 'en', to: 'ru', label: tx('Английский → русский') },
+  { from: 'ru', to: 'en', label: tx('На английский') },
+  { from: 'en', to: 'ru', label: tx('На русский') },
 ];
 
 export interface DubPhrase { start: number; end: number; text: string; cues: number[] }

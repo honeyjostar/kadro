@@ -109,16 +109,17 @@ test('крутить мышкой, оси X/Y/Z, сдвиг, приближен�
   await win.mouse.down();
   await win.mouse.move(cx + 50, cy + 20, { steps: 10 });
   await win.mouse.up();
-  expect(await val('m3d-ry')).toBeCloseTo(30, 0);
-  expect(await val('m3d-rx')).toBeCloseTo(12 + 12, 0);
+  // значения обновляются со следующей перерисовкой — ждём её, а не читаем сразу после отпускания кнопки
+  await expect.poll(() => val('m3d-ry')).toBeCloseTo(30, 0);
+  await expect.poll(() => val('m3d-rx')).toBeCloseTo(12 + 12, 0);
   // с Shift — крен
   await win.keyboard.down('Shift');
   await win.mouse.move(cx, cy); await win.mouse.down(); await win.mouse.move(cx - 25, cy, { steps: 5 }); await win.mouse.up();
   await win.keyboard.up('Shift');
-  expect(await val('m3d-rz')).toBeCloseTo(-15, 0);
+  await expect.poll(() => val('m3d-rz')).toBeCloseTo(-15, 0);
   // правой кнопкой — сдвиг; колёсико — приближение
   await win.mouse.move(cx, cy); await win.mouse.down({ button: 'right' }); await win.mouse.move(cx + 85, cy, { steps: 5 }); await win.mouse.up({ button: 'right' });
-  expect(await val('m3d-px')).toBeCloseTo(0.5, 1);
+  await expect.poll(() => val('m3d-px')).toBeCloseTo(0.5, 1);
   await win.mouse.wheel(0, -300);
   await expect.poll(() => val('m3d-zoom')).toBeGreaterThan(1.3);
   // анимация: конечное положение — своё, начальное не меняется
@@ -130,7 +131,7 @@ test('крутить мышкой, оси X/Y/Z, сдвиг, приближен�
   });
   await dlg.getByTestId('m3d-ease-out').click();
   await dlg.getByTestId('m3d-target').locator('[data-value=start]').click();
-  expect(await val('m3d-ry')).toBeCloseTo(30, 0);
+  await expect.poll(() => val('m3d-ry')).toBeCloseTo(30, 0);
   await dlg.getByTestId('m3d-place').click();
   await expect(dlg).toBeHidden({ timeout: 120000 });
   const p = await project(win);

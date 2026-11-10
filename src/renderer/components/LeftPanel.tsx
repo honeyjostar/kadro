@@ -15,7 +15,7 @@ import { glEffects, glTransitions, useGlCatalog } from '../glRegistry';
 import { retimeWords } from '../../shared/captions';
 import { applyBlogStyle, BLOG_STYLES, CAP_GROUPS, captionLook, restyleCaptions, type BlogStyle } from '../../shared/blogCaptions';
 import { togglePreview, usePreview } from '../audioPreview';
-import { LANGS, guessLang, langLabel, routeFor, targetsFrom, type LangCode } from '../../shared/translate';
+import { LANGS, guessLang, langInline, langLabel, routeFor, targetsFrom, type LangCode } from '../../shared/translate';
 import type { ModelInfo, TtsVoiceId, VoiceInfo } from '../../shared/ipc';
 import { DUB_PAIRS } from '../../shared/dub';
 import {
@@ -648,7 +648,7 @@ function TranslateCard({ captions }: { captions: TextClip[] }) {
           {route.length > 1 ? tx('Через английский. ') : ''}{missing.length ? tx('Модель скачается один раз, ~{0} МБ.', mb) : tx('Модель уже скачана — работает без интернета.')}
         </p>
         <button className="btn primary block" disabled={running || !dst} onClick={() => dst && void translateCaptions(src, dst, mode)} data-testid="mt-run">
-          {running ? tx('Перевожу…') : tx('Перевести на {0}', dst ? langLabel(dst).toLowerCase() : '…')}
+          {running ? tx('Перевожу…') : tx('Перевести на {0}', dst ? langInline(dst) : '…')}
         </button>
       </>}
     </div>
@@ -719,11 +719,14 @@ function DubCard({ captions }: { captions: TextClip[] }) {
       <h4><AudioLines size={15} />{tx('Дубляж')}</h4>
       <p className="hint">{tx('Переведу речь и озвучу другим голосом по тем же таймингам — прямо на компьютере. Как в HeyGen, только бесплатно.')}</p>
       <Seg value={pi} onChange={setPair} testId="dub-pair" options={DUB_PAIRS.map((d, i) => ({ value: i, label: d.label }))} />
-      <div className="chips dub-voices">
-        {list.map((id) => {
-          const x = voices.find((y) => y.id === id);
-          return <button key={id} className={v === id ? 'active' : ''} disabled={!!stage} onClick={() => setVoice(id)} title={x?.label} data-testid={`dub-voice-${id}`}>{x?.label.split(' ')[0] ?? id}</button>;
-        })}
+      <div className="field">
+        <div className="field-row"><label>{tx('Голос')}</label></div>
+        <div className="chips dub-voices">
+          {list.map((id) => {
+            const x = voices.find((y) => y.id === id);
+            return <button key={id} className={v === id ? 'active' : ''} disabled={!!stage} onClick={() => setVoice(id)} title={x?.label} data-testid={`dub-voice-${id}`}>{x?.label.split(' ')[0] ?? id}</button>;
+          })}
+        </div>
       </div>
       <div className="field">
         <div className="field-row"><label>{tx('Оригинальная речь')}</label></div>
@@ -732,7 +735,7 @@ function DubCard({ captions }: { captions: TextClip[] }) {
       <Toggle label={tx('Субтитры — на языке дубляжа')} on={subs} onChange={setSubs} testId="dub-subs" />
       <p className="hint small">{!captions.length ? tx('Субтитров ещё нет — сначала распознаю речь. ') : ''}{info && !info.ready ? tx('Голос скачается один раз, ~{0} МБ.', info.sizeMb) : ''}</p>
       <button className="btn primary block" disabled={!!stage} onClick={() => void run()} data-testid="dub-run">
-        {stage ? `${stage}…` : tx('Сделать дубляж на {0}', langLabel(to).toLowerCase())}
+        {stage ? `${stage}…` : tx('Сделать дубляж на {0}', langInline(to))}
       </button>
     </div>
   );
@@ -1097,7 +1100,7 @@ function TransitionsPanel() {
 
         <div className="section-title">{tx('Звук на стыке')}</div>
         <div className="chips" data-testid="sfx-chips">
-          <button className={target && !target.cutSound ? 'active' : ''} disabled={!target} onClick={() => setSound(null)} data-testid="sfx-none">{tx('Без звука')}</button>
+          <button className={target && !target.cutSound ? 'active' : ''} disabled={!target} onClick={() => setSound(null)} data-testid="sfx-none">{tx('Нет')}</button>
           {SFX_IDS.map((id) => (
             <button key={id} className={target?.cutSound === id ? 'active' : ''} disabled={!target} onClick={() => { setSound(id); playSfx(id); }} data-testid={`sfx-${id}`}>
               <Volume2 size={12} />{SFX[id].label}

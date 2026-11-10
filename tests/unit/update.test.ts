@@ -48,6 +48,12 @@ describe('обновление без номеров версий', () => {
     expect(releaseTheme('Обновление 22 ноября: запись экрана')).toBe('Обновление 22 ноября: запись экрана');
     expect(releaseTheme('Kadro 0.9.7', '## Что нового в 0.9.7: миниатюры на настоящих кадрах\n- …')).toBe('миниатюры на настоящих кадрах');
     expect(releaseTheme('Kadro 0.9.7', 'просто текст')).toBe('');
+    // по-английски — английский заголовок двуязычного описания, а не «### New» и не русский
+    const md = '## Kadro 1.0 — субтитры как у блогеров\n### Новое\n- …\n## Kadro 1.0 — blogger captions and shorts\n### New\n- …';
+    expect(releaseTheme('Kadro 1.0.0', md)).toBe('субтитры как у блогеров');
+    expect(releaseTheme('Kadro 1.0.0', md, 'en')).toBe('blogger captions and shorts');
+    expect(releaseTheme('Kadro 1.0 — шортсы', md, 'en')).toBe('blogger captions and shorts');
+    expect(releaseTheme('Kadro 0.9.7', '## Kadro 0.9.7\n### Новое', 'en')).toBe('');
   });
   it('дата — «22 ноября», год — только если не текущий', async () => {
     const { releaseDate } = await import('../../src/shared/update');
