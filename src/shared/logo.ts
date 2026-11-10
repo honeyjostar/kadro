@@ -35,3 +35,19 @@ export function logoBox(W: number, H: number, l: Pick<ProjectLogo, 'ar' | 'corne
   const y = l.corner[0] === 't' ? m : H - m - h;
   return { x, y, w, h };
 }
+
+// ---------- полоска прогресса, как в шортсах ----------
+export interface ProgressBar {
+  color: string;
+  /** толщина — доля короткой стороны кадра */
+  size: number;
+  place: 'bottom' | 'top';
+}
+export const PROGRESS_DEFAULT: ProgressBar = { color: '#ff3d7f', size: 0.012, place: 'bottom' };
+
+/** Прямоугольник полоски в момент t (пиксели; ширина растёт от 0 до всей ширины кадра). */
+export function progressBox(W: number, H: number, b: Pick<ProgressBar, 'size' | 'place'>, t: number, total: number): { x: number; y: number; w: number; h: number } {
+  const h = Math.max(2, Math.round(Math.min(0.05, Math.max(0.004, b.size)) * Math.min(W, H)));
+  const w = total > 0 ? Math.max(0, Math.min(1, t / total)) * W : 0;
+  return { x: 0, y: b.place === 'top' ? 0 : H - h, w, h };
+}

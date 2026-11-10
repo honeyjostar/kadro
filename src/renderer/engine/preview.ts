@@ -15,7 +15,7 @@ import { gradeActive } from '../../shared/grade';
 import { GradeProcessor, lutFor, setLutListener } from './grade';
 import { BLUR_SIGMA_1080, placeOnCanvas, unitScale } from '../../shared/geometry';
 import { drawText } from '../../shared/textRender';
-import { logoBox } from '../../shared/logo';
+import { logoBox, progressBox } from '../../shared/logo';
 import { expandPerson, neonPulse, projectBeats } from '../../shared/person';
 import { clipDuration, clipEnd, projectDuration } from '../../shared/timeline';
 import { applyGlEffects, drawAnyTransition, glEffectsOf } from './glDraw';
@@ -829,6 +829,13 @@ export class PreviewEngine {
         const pe = particleEffects(c.effects);
         if (pe.length) drawParticles(ctx, pe, t - c.start, W, H);
       }
+    }
+    // полоска прогресса
+    const bar = p.settings.progress;
+    if (bar) {
+      const b = progressBox(W, H, bar, t, projectDuration(p));
+      ctx.fillStyle = bar.color;
+      ctx.fillRect(b.x, b.y, b.w, b.h);
     }
     // свой логотип — поверх всего
     const lg = p.settings.logo;

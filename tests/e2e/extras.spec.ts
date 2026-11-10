@@ -203,3 +203,29 @@ test('J / K / L: вперёд быстрее, назад, пауза — и в �
   expect(K.errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
   await K.app.close();
 });
+
+test('полоска прогресса — в плеере и в экспорте растёт по ходу ролика', async () => {
+  const out = path.join(tmp('bar'), 'bar.mp4');
+  const K = await launch({ env: { KADRO_TEST_EXPORT: out } });
+  const win = K.win;
+  await act(win, 'newProjectAction', '16:9');
+  await importAt(win, [solidVideo('blue3.mp4', 'blue', 3)], 'main', 0);
+  await waitAssetsReady(win);
+  await store(win, 'select', []);
+  await win.getByTestId('progress-toggle').click();
+  await expect(win.getByTestId('progress-settings')).toBeVisible();
+  const pink = [255, 61, 127];
+  await seekAndSettle(win, 1.5); // половина ролика
+  expect(near(await previewPixel(win, 0.25, 0.997), pink, 40)).toBe(true);
+  expect(near(await previewPixel(win, 0.75, 0.997), [0, 0, 255], 40)).toBe(true);
+  await win.getByTestId('progress-place').locator('[data-value=top]').click();
+  await seekAndSettle(win, 1.5);
+  expect(near(await previewPixel(win, 0.25, 0.003), pink, 40)).toBe(true);
+  await exportNow(win);
+  const f = rawFrame(['-ss', '2.25', '-i', out], 192, 108);
+  const px = (x: number, y: number) => [...f.subarray((y * 192 + x) * 3, (y * 192 + x) * 3 + 3)];
+  expect(near(px(100, 0), pink, 60)).toBe(true);   // 75% ролика — полоса дальше середины
+  expect(near(px(180, 0), [0, 0, 255], 60)).toBe(true);
+  expect(K.errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
+  await K.app.close();
+});

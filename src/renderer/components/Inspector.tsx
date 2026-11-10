@@ -14,7 +14,7 @@ import { ASPECTS, FPS_LIST, RESOLUTIONS, shortSideOf, sizeFor, DEFAULT_CHROMA, D
 import { clearKeyframes, clipDuration, clipEnd, projectDuration, setSettings, styleAllCaptions, updateClip } from '../../shared/timeline';
 import type { BlendMode, ChromaKey, ClipAnim, Mask, RampPoint, AnimProp, AspectKey, Clip, MediaAsset, MediaClip, ProjectSettings, TextAnim, TextAnimType, TextClip, TextStyle, WordHighlight } from '../../shared/types';
 import { retimeWords } from '../../shared/captions';
-import { LOGO_EXTS, LOGO_SIZE, newLogo, type LogoCorner, type ProjectLogo } from '../../shared/logo';
+import { LOGO_EXTS, LOGO_SIZE, PROGRESS_DEFAULT, newLogo, type LogoCorner, type ProgressBar, type ProjectLogo } from '../../shared/logo';
 import { hasKeyHere, isAnimated, keyTimesOnTimeline, propValue, toggleKey, writeProps } from '../animEdit';
 import { isGlType } from '../../shared/gl/glsl';
 import { glDef } from '../glRegistry';
@@ -88,6 +88,7 @@ function ProjectInspector({ multi }: { multi: number }) {
           <Seg value={settings.fps} onChange={(v) => set({ fps: v })} options={FPS_LIST.map((f) => ({ value: f as number, label: String(f) }))} />
         </Field>
         <LogoSection />
+        <ProgressSection />
         <div className="stats">
           <div><span>{tx('Длительность')}</span><b>{fmtDur(projectDuration(project))}</b></div>
           <div><span>{tx('Клипов')}</span><b>{clips}</b></div>
@@ -109,6 +110,30 @@ function ProjectInspector({ multi }: { multi: number }) {
         </dl>
         <button className="btn ghost small" onClick={() => getState().setKeysOpen(true)} data-testid="all-keys">{tx('Все клавиши — F1')}</button>
       </div>
+    </>
+  );
+}
+
+/** Полоска прогресса внизу ролика, как в шортсах: сколько осталось досмотреть. */
+function ProgressSection() {
+  const bar = useStore((s) => s.project.settings.progress);
+  const commit = useStore((s) => s.commit);
+  const set = (b: ProgressBar | undefined, key?: string) => commit((p) => setSettings(p, { progress: b }), key);
+  return (
+    <>
+      <Toggle label={tx('Полоска прогресса')} hint={tx('Тонкая полоса растёт по ходу ролика — как в шортсах: видно, сколько осталось')} on={!!bar}
+        onChange={(v) => set(v ? { ...PROGRESS_DEFAULT } : undefined)} testId="progress-toggle" />
+      {bar && (
+        <div data-testid="progress-settings">
+          <ColorField label={tx('Цвет полоски')} value={bar.color} onChange={(color) => set({ ...bar, color }, 'progress-color')} />
+          <Slider label={tx('Толщина')} value={bar.size} min={0.004} max={0.04} step={0.001} format={(v) => `${Math.round(v * 1080)} px`}
+            onChange={(size) => set({ ...bar, size }, 'progress-size')} testId="progress-size" />
+          <Field label={tx('Где')}>
+            <Seg value={bar.place} onChange={(place) => set({ ...bar, place })} testId="progress-place"
+              options={[{ value: 'bottom', label: tx('Внизу') }, { value: 'top', label: tx('Вверху') }]} />
+          </Field>
+        </div>
+      )}
     </>
   );
 }

@@ -13,6 +13,8 @@ export interface ProjectSettings {
   background: 'black' | 'blur' | 'white';
   /** свой логотип в углу на всё видео */
   logo?: import('./logo').ProjectLogo;
+  /** полоска прогресса внизу (или вверху) ролика, как в шортсах */
+  progress?: import('./logo').ProgressBar;
 }
 
 export type MediaKind = 'video' | 'audio' | 'image';

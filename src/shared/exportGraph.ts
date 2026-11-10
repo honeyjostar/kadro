@@ -11,7 +11,7 @@ import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geome
 import { beatTimes, clipDuration, mainTrack, projectDuration } from './timeline';
 import type { BlendMode, MediaAsset, MediaClip, Project } from './types';
 import { maskBytes } from './mask';
-import { logoBox } from './logo';
+import { logoBox, progressBox } from './logo';
 import {
   LEAK_PERIOD, SPLIT_EFFECTS, blurSigma, flashDuration, fxGeometryExpr, fxMatrixAt, fxMaxScale, fxMoves, glowOpacity, glowSigma, hueMatrix, leakBytes,
   leakOpacity, letterboxBar, lookKey, lookTable, pixelBlock, rainbowAngle, rgbShiftAt, scanlines, sortedEffects, splitLayout, vignetteBytes,
@@ -714,6 +714,17 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       chains.push(`[${idx}:v]scale=${b.w}:${b.h}:flags=lanczos,format=rgba${op < 1 ? `,colorchannelmixer=aa=${fmt(op)}` : ''},setpts=PTS-STARTPTS[${lg}]`);
       const nv = L('v');
       chains.push(`[${v}][${lg}]overlay=x=${b.x}:y=${b.y}:shortest=1[${nv}]`);
+      v = nv;
+    }
+    // ---------- полоска прогресса — растёт от 0 до всей ширины за ролик ----------
+    const bar = p.settings.progress;
+    if (bar && !clear) {
+      const b = progressBox(W, H, bar, 0, total);
+      // цветная полоса на всю ширину выезжает слева: к концу ролика — вся ширина
+      const pb = L('pb');
+      chains.push(`color=c=${bar.color.replace('#', '0x')}:s=${W}x${b.h}:r=${F}:d=${fmt(total)}[${pb}]`);
+      const nv = L('v');
+      chains.push(`[${v}][${pb}]overlay=x='-${W}+${W}*t/${fmt(total)}':y=${b.y}:eof_action=pass[${nv}]`);
       v = nv;
     }
     chains.push(`[${v}]format=${clear ? 'yuva420p' : 'yuv420p'},trim=duration=${fmt(total)},setpts=PTS-STARTPTS[vout]`);

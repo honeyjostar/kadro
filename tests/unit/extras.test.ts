@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { newProject } from '../../src/shared/defaults';
 import { addAsset, addToMain, setSettings } from '../../src/shared/timeline';
 import { buildGraph, gifArgs, gifFilter, mp3Args } from '../../src/shared/exportGraph';
-import { logoBox, newLogo } from '../../src/shared/logo';
+import { PROGRESS_DEFAULT, logoBox, newLogo, progressBox } from '../../src/shared/logo';
 import { STAR_AGAIN_AT, afterExport, type StarState } from '../../src/shared/star';
 import type { MediaAsset, Project } from '../../src/shared/types';
 
@@ -98,5 +98,21 @@ describe('просьба о звезде', () => {
   });
   it('у тех, кто уже экспортировал до обновления, — один раз на ближайшем экспорте', () => {
     expect(afterExport({ exports: 57 }).ask).toBe(true);
+  });
+});
+
+describe('полоска прогресса', () => {
+  it('растёт от 0 до всей ширины, толщина — доля короткой стороны', () => {
+    expect(progressBox(1080, 1920, PROGRESS_DEFAULT, 0, 10)).toEqual({ x: 0, y: 1920 - 13, w: 0, h: 13 });
+    expect(progressBox(1080, 1920, PROGRESS_DEFAULT, 5, 10).w).toBe(540);
+    expect(progressBox(1080, 1920, PROGRESS_DEFAULT, 12, 10).w).toBe(1080);
+    expect(progressBox(1920, 1080, { ...PROGRESS_DEFAULT, place: 'top' }, 1, 10).y).toBe(0);
+  });
+  it('в экспорте — цветная полоса выезжает слева за весь ролик', () => {
+    let p = project();
+    p = setSettings(p, { progress: { ...PROGRESS_DEFAULT, color: '#00ff00' } });
+    const g = buildGraph(p, { width: 1080, height: 1920, fps: 30, textLayers: [] });
+    expect(g.filter).toContain('color=c=0x00ff00:s=1080x13:r=30:d=4');
+    expect(g.filter).toContain("overlay=x='-1080+1080*t/4':y=1907");
   });
 });
