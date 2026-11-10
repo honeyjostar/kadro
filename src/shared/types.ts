@@ -156,7 +156,7 @@ export interface PersonFx {
 
 export interface Effect { type: EffectType; amount: number; params?: Record<string, number | boolean | number[]> } // amount 0..1
 
-export type VoiceEffect = 'none' | 'chipmunk' | 'deep' | 'robot' | 'echo' | 'hall' | 'radio' | 'phone' | 'megaphone' | 'studio';
+export type VoiceEffect = 'none' | 'chipmunk' | 'deep' | 'robot' | 'echo' | 'hall' | 'radio' | 'phone' | 'megaphone' | 'studio' | 'bassboost';
 
 /** Результат ИИ-обработки фрагмента исходника [range0, range1] (сек исходника). */
 export interface AiResult {
@@ -320,7 +320,7 @@ export interface TextClip {
   words?: Word[];      // слова со временем от начала клипа (для подсветки)
   tilt?: { x: number; y: number }; // наклон в перспективе, градусы
   /** готовая анимированная плашка вместо обычного текста: «Подписаться» с колокольчиком */
-  widget?: 'subscribe';
+  widget?: 'subscribe' | 'tbc';
 }
 
 export type Clip = MediaClip | TextClip;

@@ -18,6 +18,8 @@ export const VOICE_FILTERS: Record<Exclude<VoiceEffect, 'none'>, string> = {
   // нейросеть RNNoise перед цепочкой (см. processVoice).
   studio: 'bass=g=2:f=110:w=0.6,equalizer=f=280:t=q:w=1.2:g=-3,equalizer=f=3200:t=q:w=1:g=3,treble=g=2:f=9000,deesser=i=0.35,'
     + 'acompressor=threshold=0.1:ratio=3:attack=6:release=120:makeup=1.5,loudnorm=I=-16:TP=-1.5:LRA=7,alimiter=limit=0.95:level=0',
+  // мем «Басс-буст»: низ задран, звук громче и с перегрузом (мягкое ограничение)
+  bassboost: 'bass=g=16:f=70:w=0.7,volume=1.6,asoftclip=type=tanh,alimiter=limit=0.95:level=0',
 };
 
 /** Голос с эффектом (и, при желании, с чисткой шума) для фрагмента исходника [ss, ss+dur]. */

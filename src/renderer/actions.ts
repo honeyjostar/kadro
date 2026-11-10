@@ -8,7 +8,7 @@ import { exportSize } from '../shared/geometry';
 import type { AiJob, AiOutput, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
 import {
   addAsset, addFree, addText, addToMain, alignMainToBeats, mainTrack, moveClipsBy, trimClip, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
-  splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip, setSettings, type SourceRange,
+  splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip, setSettings, sourceTimeAt, type SourceRange,
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
 import { renderGlSegments } from './engine/glExport';
@@ -20,6 +20,7 @@ import { retimeWords } from '../shared/captions';
 import { cuesToSrt, parseSubtitles } from '../shared/subtitles';
 import { copyAttrs } from '../shared/attrs';
 import { addClone, type CloneSource } from '../shared/clone';
+import { bassBoost, dramaZoom, MEMES, slowMo, toBeContinued, type MemeId, type MemeSound } from '../shared/memes';
 import { groupCues, langInline, splitTranslation, type LangCode } from '../shared/translate';
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
 import { fmtDur, fmtTime, plural, uidShort } from './util';
@@ -638,6 +639,73 @@ export async function freezeFrame(dur = 2): Promise<void> {
   takeEarlyPatches([asset.id]);
   if (id) getState().select([id]);
   getState().toast(tx('Стоп-кадр добавлен'), 'ok');
+}
+
+// ---------- мем-кнопки ----------
+/** Звук мема как файл проекта: уже есть — тот же, нет — импорт (ещё не в проекте: добавляется вместе с правкой). */
+async function memeSoundAsset(sound: MemeSound): Promise<MediaAsset | null> {
+  const demo = await loadDemoFiles();
+  const file = sound === 'boom' ? demo.sfx?.boom : demo.memes?.[sound];
+  if (!file) return null;
+  const have = getState().project.assets.find((a) => a.path === file && !a.missing);
+  if (have) return have;
+  const imp = await api.importMedia([file]);
+  const a = imp.assets[0];
+  if (!a) return null;
+  a.name = MEMES.find((m) => m.sound === sound)?.label ?? a.name;
+  return a;
+}
+
+/**
+ * Мем у курсора: правка клипа и звук на дорожке звука — одним шагом (Ctrl+Z убирает всё сразу).
+ * Клип — выделенный (если курсор на нём) или клип основной дорожки под курсором.
+ */
+export async function applyMeme(id: MemeId): Promise<boolean> {
+  const meme = MEMES.find((m) => m.id === id)!;
+  const c = freezeTarget();
+  if (!c) { getState().toast(tx('Поставь розовую линию времени на видео — мем начнётся с этого места'), 'err'); return false; }
+  const t = getState().playhead;
+  const p0 = getState().project;
+  const src = p0.assets.find((a) => a.id === c.assetId)!;
+  const sound = await memeSoundAsset(meme.sound);
+  let res: { project: Project; clipId: string } | { error: string };
+  if (id === 'drama') res = dramaZoom(p0, c.id, t);
+  else if (id === 'slowmo') res = slowMo(p0, c.id, t);
+  else if (id === 'bass') {
+    res = bassBoost(p0, c.id, t);
+    // звук куска — в басы (как эффект голоса: готовый файл, одинаково в плеере и в экспорте)
+    if (!('error' in res) && src.hasAudio) {
+      const mid = findClip(res.project, res.clipId)!.clip as MediaClip;
+      const r = await runJob(tx('Басс-буст'), { kind: 'voice', jobId: `bb_${uidShort()}`, path: src.path, in: mid.in, out: mid.out, effect: 'bassboost', denoise: mid.denoise.enabled }, c.id);
+      if (r.ok && r.output?.kind === 'voice') {
+        const o = r.output;
+        res = { project: updateClip(res.project, res.clipId, { voice: { enabled: true, status: 'ready', path: o.path, range: o.range, effect: 'bassboost', withDenoise: mid.denoise.enabled } }), clipId: res.clipId };
+      }
+    }
+  } else {
+    const fps = src.fps || p0.settings.fps;
+    const s = Math.min(c.out - 0.5 / fps, Math.max(c.in, sourceTimeAt(c, t)));
+    const vs = videoSource(c);
+    const fr = await runJob(tx('Делаю стоп-кадр'), { kind: 'freeze', jobId: `fz_${uidShort()}`, path: vs?.path ?? src.path, t: s - (vs?.offset ?? 0), fps, alpha: !!vs?.alpha }, c.id, false);
+    if (!fr.ok || fr.output?.kind !== 'freeze') { getState().toast(tx('Не получилось: {0}', fr.error), 'err'); return false; }
+    const img = await importDerived(fr.output.path, tx('Стоп-кадр · {0}', src.name));
+    if (!img) return false;
+    res = toBeContinued(addAsset(p0, img), c.id, t, img.id, p0.settings.height > p0.settings.width);
+  }
+  if ('error' in res) { getState().toast(res.error, 'err'); return false; }
+  let q = res.project;
+  if (sound) {
+    if (!q.assets.some((a) => a.id === sound.id)) q = addAsset(q, sound);
+    const r = addFree(q, sound.id, t);
+    q = updateClip(r.project, r.clipId, { volume: 0.9 });
+  }
+  const done = q;
+  const target = res.clipId;
+  getState().commit(() => done);
+  if (sound) takeEarlyPatches([sound.id]);
+  getState().select([target]);
+  getState().toast(tx('Мем «{0}» добавлен — Ctrl+Z, чтобы убрать', meme.label), 'ok');
+  return true;
 }
 
 // ---------- запись голоса ----------

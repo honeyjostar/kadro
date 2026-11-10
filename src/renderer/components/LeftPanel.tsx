@@ -3,7 +3,7 @@ import { txj } from '../txj';
 import {
   Clapperboard,
   Zap, AudioLines, BellRing, Blend, Volume2, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users, ZoomIn, ArrowLeftCircle, Speaker, Timer,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -19,6 +19,7 @@ import { LANGS, guessLang, langInline, langLabel, routeFor, targetsFrom, type La
 import type { ModelInfo, TtsVoiceId, VoiceInfo } from '../../shared/ipc';
 import { DUB_PAIRS } from '../../shared/dub';
 import { CLONE_OFFSET, CLONE_OFFSETS } from '../../shared/clone';
+import { MEMES, type MemeId } from '../../shared/memes';
 import {
   addText, animAllCaptions, clipEnd, findClip, mainTrack, projectDuration, removeAsset, setTransition, styleAllCaptions, updateClip,
 } from '../../shared/timeline';
@@ -29,7 +30,7 @@ import type { EffectType, MediaAsset, MediaClip, PersonFx, TextAnimType, TextCli
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme,
 } from '../actions';
 import { useMenu, type MenuEntry } from './Menu';
 import { sampleCanvas, useSamplesReady } from '../sampleFrames';
@@ -964,6 +965,29 @@ function EffectThumb({ type }: { type: EffectType }) {
   return <canvas ref={ref} width={THUMB_W} height={THUMB_H} className="swatch tr-thumb" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} />;
 }
 
+const MEME_ICONS: Record<MemeId, ReactNode> = { drama: <ZoomIn size={18} />, tbc: <ArrowLeftCircle size={18} />, bass: <Speaker size={18} />, slowmo: <Timer size={18} /> };
+
+/** Мем-кнопки: мем начинается у розовой линии времени, со своим звуком; Ctrl+Z убирает целиком. */
+function MemeButtons() {
+  const [busy, setBusy] = useState<MemeId | null>(null);
+  const run = async (id: MemeId) => { setBusy(id); try { await applyMeme(id); } finally { setBusy(null); } };
+  return (
+    <div className="meme-card" data-testid="memes">
+      <div className="section-title">{tx('Мемы')}</div>
+      <div className="meme-grid">
+        {MEMES.map((m) => (
+          <button key={m.id} className="meme-btn" disabled={!!busy} onClick={() => void run(m.id)} title={m.hint} data-testid={`meme-${m.id}`}>
+            <span className="meme-ico">{MEME_ICONS[m.id]}</span>
+            <b>{busy === m.id ? tx('Делаю…') : m.label}</b>
+            <span className="hint small">{m.hint}</span>
+          </button>
+        ))}
+      </div>
+      <p className="hint small">{tx('Начинается у розовой линии времени, со своим звуком. Не понравилось — Ctrl+Z.')}</p>
+    </div>
+  );
+}
+
 function EffectsPanel() {
   const sel = useSelected();
   const commit = useStore((s) => s.commit);
@@ -986,6 +1010,7 @@ function EffectsPanel() {
     <>
       <div className="panel-head">{txj('Эффекты · {0}', all.length)}</div>
       <div className="panel-body">
+        <MemeButtons />
         <p className="hint">{clip ? tx('Нажми — эффект добавится, ещё раз — уберётся. Наведи мышь, чтобы посмотреть. Сила — справа, во вкладке «Эффекты».') : tx('Выдели клип на таймлайне — эффекты применяются к нему. Наведи мышь на эффект, чтобы посмотреть.')}</p>
         <div className="chips" style={{ margin: '10px 0 8px' }}>
           <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>

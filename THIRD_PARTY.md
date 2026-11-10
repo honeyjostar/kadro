@@ -28,4 +28,4 @@ Kadro распространяется под GNU GPL v3 или новее. В �
 модели перевода — из релиза [translate-models](https://github.com/honeyjostar/kadro/releases/tag/translate-models)
 (копия с Hugging Face, файлы сверяются по SHA-256).
 
-Демо-ролики, демо-бит, звуки на стыках (свуш, щелчок, «бум») и превью шаблонов (`resources/demo`, `resources/templates`) сделаны в самом проекте кодом — `scripts/make-demo.mjs`, `scripts/make-sfx.mjs`, `scripts/demo-scenes.js`, `tests/e2e/previews.spec.ts` — и распространяются под лицензией Kadro.
+Демо-ролики, демо-бит, звуки на стыках (свуш, щелчок, «бум»), звуки мем-кнопок (`meme-*.m4a`: «дун-дун-дууун», своя басовая партия, басовый «дроп») и превью шаблонов (`resources/demo`, `resources/templates`) сделаны в самом проекте кодом — `scripts/make-demo.mjs`, `scripts/make-sfx.mjs`, `scripts/make-memes.mjs`, `scripts/demo-scenes.js`, `tests/e2e/previews.spec.ts` — и распространяются под лицензией Kadro.

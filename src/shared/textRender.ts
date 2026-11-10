@@ -6,6 +6,7 @@ import { bounceOut } from './clipAnim';
 import { hasTilt, layerQuad, type Quad } from './perspective';
 import type { TextAnim, TextClip, Word } from './types';
 import { drawSubscribe, subscribeGeom } from './subscribe';
+import { drawTbc, tbcGeom } from './tbc';
 
 export interface TextLayout {
   lines: string[];
@@ -127,7 +128,7 @@ export function textStateAt(c: TextClip, local?: number): TextState {
   const t = local ?? Math.min(c.duration / 2, 0.5);
   const p = textPropsAt(c, t);
   const em = emojiAt(c.words, local);
-  const st: TextState = { ...p, reveal: Infinity, wipe: 1, blur: 0, active: -1, emoji: em.i, emojiK: em.k, widgetT: c.widget && local !== undefined ? Math.round(local * 60) / 60 : -1 };
+  const st: TextState = { ...p, reveal: Infinity, wipe: 1, blur: 0, active: -1, emoji: em.i, emojiK: em.k, widgetT: c.widget && local !== undefined ? Math.round((c.widget === 'tbc' ? Math.min(0.46, local) : local) * 60) / 60 : -1 };
   if (local === undefined) return st;
   const chars = c.text.replace(/\s+/g, '').length;
   const ain = c.anim?.in;
@@ -147,7 +148,10 @@ export function textStateKey(s: TextState): string {
 /** Прямоугольник текста до поворота (центр, размеры) — для рамки в плеере. */
 export function textBounds(ctx: Ctx, clip: TextClip, W: number, H: number, local?: number): { cx: number; cy: number; w: number; h: number; rotation: number } {
   const st = textStateAt(clip, local);
-  if (clip.widget === 'subscribe') { const g = subscribeGeom(ctx, clip, W, H, st.x, st.y); return { cx: g.cx, cy: g.cy, w: g.w * st.scale, h: g.h * st.scale, rotation: st.rotation }; }
+  if (clip.widget === 'subscribe' || clip.widget === 'tbc') {
+    const g = clip.widget === 'tbc' ? tbcGeom(ctx, clip, W, H, st.x, st.y) : subscribeGeom(ctx, clip, W, H, st.x, st.y);
+    return { cx: g.cx, cy: g.cy, w: g.w * st.scale, h: g.h * st.scale, rotation: st.rotation };
+  }
   const L = layoutText(ctx, clip, W, H, st.x, st.y);
   return { cx: L.cx, cy: L.cy, w: (L.blockW + 2 * L.padX) * st.scale, h: (L.blockH + 2 * L.padY) * st.scale, rotation: st.rotation };
 }
@@ -199,6 +203,7 @@ export function setTextWarper(w: TextWarper | null): void { textWarper = w; }
 
 export function drawText(ctx: Ctx, clip: TextClip, W: number, H: number, local?: number): void {
   if (clip.widget === 'subscribe') { drawSubscribe(ctx, clip, W, H, local, textStateAt(clip, local)); return; }
+  if (clip.widget === 'tbc') { drawTbc(ctx, clip, W, H, local, textStateAt(clip, local)); return; }
   if (hasTilt(clip.tilt) && textWarper) {
     // наклон: текст рисуется ровно по центру, без поворота, а потом весь кадр натягивается на перспективу
     const st = textStateAt(clip, local);
