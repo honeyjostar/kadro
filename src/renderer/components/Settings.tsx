@@ -10,6 +10,7 @@ import { ACCENTS, APP_ICONS, UI_SCALES, type Appearance } from '../../shared/app
 import { collectPaths, fmtBytes, type CacheInfo } from '../../shared/cache';
 import { api, getState, useStore } from '../store';
 import { Progress, Seg, Toggle } from './controls';
+import { DUCK_LEVELS, duckNow, setDuck, type DuckSettings } from '../../shared/duck';
 import { LogoMark } from './Home';
 import { reportInstall } from './PluginCatalog';
 import { ensureModel, ensureVoice, importModelFile, modelInBrowser } from '../actions';
@@ -104,6 +105,8 @@ export function SettingsDialog() {
           <Seg value={a.uiScale} onChange={(v) => void set({ uiScale: v })} options={UI_SCALES} />
           <p className="hint">{tx('Крупнее — удобнее на большом мониторе, мельче — больше места для таймлайна.')}</p>
         </section>
+
+        <DuckSection />
 
         <IntroSection />
 
@@ -390,6 +393,25 @@ function IntroSection() {
       <b>{tx('Заставка при запуске')}</b>
       <Toggle label={tx('Показывать заставку')} on={on} onChange={(v) => { setOn(v); api.setIntro(v); }} testId="intro-toggle" />
       <p className="hint">{tx('Значок Kadro раскрывается в окно — пока программа загружается, так что запуск не медленнее. Щелчок или любая клавиша — пропустить. Если в Windows выключены анимации, заставки нет.')}</p>
+    </section>
+  );
+}
+
+/** Музыка тише под голос — во всех проектах: где говорят, музыка сама приглушается. */
+function DuckSection() {
+  const [d, setD] = useState(duckNow());
+  const put = (patch: Partial<DuckSettings>) => {
+    const next = { ...d, ...patch };
+    setD(next);
+    setDuck(next);
+    void api.setDuck(patch);
+  };
+  return (
+    <section className="settings-sec" data-testid="duck-sec">
+      <b>{tx('Музыка тише под голос')}</b>
+      <Toggle label={tx('Приглушать музыку, когда говорят')} on={d.on} onChange={(on) => put({ on })} testId="duck-toggle" />
+      {d.on && <Seg value={d.level} onChange={(level) => put({ level })} options={DUCK_LEVELS} testId="duck-level" />}
+      <p className="hint">{tx('Во всех проектах: где в видео, записи с микрофона, озвучке или дубляже говорят, музыка на дорожках звука сама становится тише и плавно возвращается. И в плеере, и в готовом видео.')}</p>
     </section>
   );
 }

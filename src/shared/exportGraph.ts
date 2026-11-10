@@ -1,4 +1,5 @@
 // Построение графа FFmpeg для экспорта проекта. Чистая функция — тестируется без Electron.
+import { duckExpr, isMusic } from './duck';
 import type { EncoderEngine } from './hw';
 import { tx } from './i18n';
 import { aiSource, audioSource, videoSource } from './ai';
@@ -40,6 +41,8 @@ export interface BuildOpts {
   transparent?: boolean;
   /** Куски с шейдерами: последовательности PNG W×H (кадры start, start+1/F, …) — поверх всего готового кадра. */
   glSegments?: { start: number; frames: number; pattern: string }[];
+  /** Музыка тише под голос: где говорят (время таймлайна) и во сколько раз тише. */
+  duck?: { level: number; iv: [number, number][] };
 }
 
 export interface BuiltGraph {
@@ -733,11 +736,12 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
 
   // ---------- звук ----------
   const aLabels: string[] = [];
-  const audioChain = (idx: number, sel: string | null, c: MediaClip, D: number, start: number, fadeIn: number, fadeOut: number) => {
+  const audioChain = (idx: number, sel: string | null, c: MediaClip, D: number, start: number, fadeIn: number, fadeOut: number, duck?: string | null) => {
     const parts = ['aresample=48000', 'aformat=sample_fmts=fltp:channel_layouts=stereo', 'asetpts=PTS-STARTPTS'];
     if (sel) parts.push(`aselect='${sel}'`, 'asetpts=N/SR/TB');
     parts.push(...atempoChain(c.speed));
     if (Math.abs(c.volume - 1) > 1e-6) parts.push(`volume=${fmt(c.volume)}`);
+    if (duck) parts.push(duck); // музыка тише под голос (время — от начала клипа)
     if (fadeIn > 0.001) parts.push(`afade=t=in:st=0:d=${fmt(fadeIn)}`);
     if (fadeOut > 0.001) parts.push(`afade=t=out:st=${fmt(Math.max(0, D - fadeOut))}:d=${fmt(fadeOut)}`);
     parts.push(`apad=whole_dur=${fmt(D)}`, `atrim=0:${fmt(D)}`, 'asetpts=PTS-STARTPTS');
@@ -777,7 +781,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       const path = den ? den.path : asset.path;
       const off = den ? den.offset : 0;
       const idx = addInput([...thr, '-ss', fmt(c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
-      audioChain(idx, null, c, clipDuration(c), c.start, c.fadeIn, c.fadeOut);
+      const duck = o.duck && isMusic(track, c, asset) ? duckExpr(o.duck.iv, c, o.duck.level) : null;
+      audioChain(idx, null, c, clipDuration(c), c.start, c.fadeIn, c.fadeOut, duck);
     }
   }
   if (aLabels.length === 0) {

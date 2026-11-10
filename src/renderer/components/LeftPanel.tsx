@@ -20,17 +20,18 @@ import type { ModelInfo, TtsVoiceId, VoiceInfo } from '../../shared/ipc';
 import { DUB_PAIRS } from '../../shared/dub';
 import { CLONE_OFFSET, CLONE_OFFSETS } from '../../shared/clone';
 import { MEMES, type MemeId } from '../../shared/memes';
+import { STICKER_GROUPS, STICKER_MOTIONS } from '../../shared/stickers';
 import {
   addText, animAllCaptions, clipEnd, findClip, mainTrack, projectDuration, removeAsset, setTransition, styleAllCaptions, updateClip,
 } from '../../shared/timeline';
 import { EFFECT_CATS, EFFECTS, fxGeometry, particleEffects, type EffectCat } from '../../shared/effects';
 import { drawParticles } from '../../shared/particles';
 import { applyPixelEffects } from '../engine/effectsPreview';
-import type { EffectType, MediaAsset, MediaClip, PersonFx, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
+import type { EffectType, MediaAsset, MediaClip, PersonFx, StickerMotion, TextAnimType, TextClip, TextStyle, TransitionType, WordHighlight } from '../../shared/types';
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme, addSticker,
 } from '../actions';
 import { useMenu, type MenuEntry } from './Menu';
 import { sampleCanvas, useSamplesReady } from '../sampleFrames';
@@ -580,6 +581,7 @@ function TextPanel() {
             ))}
           </div>
         </div>
+        <StickersCard />
         <div className="section-title">{tx('Готовые стили')}</div>
         <div className="tile-grid">
           {TEXT_PRESETS.map((t) => (
@@ -966,6 +968,30 @@ function EffectThumb({ type }: { type: EffectType }) {
 }
 
 const MEME_ICONS: Record<MemeId, ReactNode> = { drama: <ZoomIn size={18} />, tbc: <ArrowLeftCircle size={18} />, bass: <Speaker size={18} />, slowmo: <Timer size={18} /> };
+
+/** Стикеры: эмодзи крупно, с движением по кругу; движение видно при наведении. */
+function StickersCard() {
+  const [motion, setMotion] = useState<StickerMotion>('bounce');
+  const [group, setGroup] = useState(STICKER_GROUPS[0].id);
+  const items = STICKER_GROUPS.find((g) => g.id === group)?.items ?? [];
+  return (
+    <div className="ai-card sticker-card" data-testid="stickers">
+      <h4><Smile size={15} />{tx('Стикеры')}</h4>
+      <p className="hint">{tx('Эмодзи крупно, всё время в движении. Встаёт у курсора на 3 секунды — двигай и растягивай как текст.')}</p>
+      <div className="chips" data-testid="sticker-motion">
+        {STICKER_MOTIONS.map((m) => <button key={m.id} className={motion === m.id ? 'active' : ''} onClick={() => setMotion(m.id)} data-value={m.id}>{m.label}</button>)}
+      </div>
+      <div className="chips sticker-groups">
+        {STICKER_GROUPS.map((g) => <button key={g.id} className={group === g.id ? 'active' : ''} onClick={() => setGroup(g.id)}>{g.label}</button>)}
+      </div>
+      <div className="sticker-grid" data-motion={motion}>
+        {items.map((e) => (
+          <button key={e} onClick={() => addSticker(e, motion)} title={tx('Добавить стикер')} data-testid="sticker"><span>{e}</span></button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /** Мем-кнопки: мем начинается у розовой линии времени, со своим звуком; Ctrl+Z убирает целиком. */
 function MemeButtons() {

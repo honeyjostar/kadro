@@ -4,7 +4,7 @@ import { hasAnim, textPropsAt } from './anim';
 import { unitScale } from './geometry';
 import { bounceOut } from './clipAnim';
 import { hasTilt, layerQuad, type Quad } from './perspective';
-import type { TextAnim, TextClip, Word } from './types';
+import type { StickerMotion, TextAnim, TextClip, Word } from './types';
 import { drawSubscribe, subscribeGeom } from './subscribe';
 import { drawTbc, tbcGeom } from './tbc';
 
@@ -111,7 +111,20 @@ export function activeWordAt(words: Word[] | undefined, local: number): number {
 /** Есть ли у текста что-то, меняющееся во времени (тогда экспорт рисует его по кадрам). */
 export function isTextAnimated(c: TextClip): boolean {
   const hl = c.style.highlight && c.style.highlight.mode !== 'none' && (c.words?.length ?? 0) > 0;
-  return !!c.widget || hasAnim(c.keyframes) || !!c.anim?.in || !!c.anim?.out || !!hl || !!c.words?.some((w) => w.emoji);
+  return !!c.widget || !!c.loop || hasAnim(c.keyframes) || !!c.anim?.in || !!c.anim?.out || !!hl || !!c.words?.some((w) => w.emoji);
+}
+
+/** Движение стикера по кругу: сдвиг по высоте (доля кадра), масштаб и поворот в момент t. */
+export function stickerMotion(m: StickerMotion, t: number): { dy: number; k: number; rot: number } {
+  const TAU = Math.PI * 2;
+  switch (m) {
+    case 'bounce': { const ph = (t * 1.6) % 1; const up = Math.sin(Math.PI * ph); const land = Math.max(0, 1 - ph / 0.12) + Math.max(0, (ph - 0.9) / 0.1);
+      return { dy: -0.035 * up, k: 1 + 0.06 * up - 0.05 * Math.min(1, land), rot: 0 }; }
+    case 'pulse': return { dy: 0, k: 1 + 0.09 * Math.sin(TAU * 1.6 * t), rot: 0 };
+    case 'wiggle': return { dy: 0, k: 1, rot: 12 * Math.sin(TAU * 2.2 * t) };
+    case 'spin': return { dy: 0, k: 1, rot: (t * 180) % 360 };
+    case 'float': return { dy: 0.012 * Math.sin(TAU * 0.7 * t), k: 1, rot: 5 * Math.sin(TAU * 0.5 * t + 1) };
+  }
 }
 
 /** Какое эмодзи над текстом в момент local: последнее начавшееся; без local — первое. */
@@ -136,6 +149,7 @@ export function textStateAt(c: TextClip, local?: number): TextState {
   if (ain && ain.dur > 0) applyAnim(st, ain, clamp01(t / ain.dur), chars);
   if (aout && aout.dur > 0) applyAnim(st, aout, clamp01((c.duration - t) / aout.dur), chars);
   if (c.style.highlight && c.style.highlight.mode !== 'none') st.active = activeWordAt(c.words, t);
+  if (c.loop) { const m = stickerMotion(c.loop, t); st.y += m.dy; st.scale *= m.k; st.rotation += m.rot; }
   return st;
 }
 

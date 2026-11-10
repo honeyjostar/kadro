@@ -1,5 +1,6 @@
 // Движок превью: синхронное воспроизведение всех дорожек и сборка кадра на canvas.
 // Геометрия, цвет, переходы и текст — те же функции/формулы, что и в экспорте.
+import { duckGain, duckNow, isMusic, speechIntervals } from '../../shared/duck';
 import { aiSource, audioSource, videoSource } from '../../shared/ai';
 import { mediaPropsAt } from '../../shared/anim';
 import { maskBytes } from '../../shared/mask';
@@ -148,6 +149,7 @@ export class PreviewEngine {
     // человек отдельным слоем (портрет, неон, текст за человеком) — клип раскладывается на фон и вырезанного человека
     this.project = expandSfx(expandPerson(p)); // и звуки на стыках — своей дорожкой
     this.beats = projectBeats(p);
+    this.duckIv = null; // где говорят — пересчитается при первом звуке
     this.ensureLogo(p);
     this.syncFilters();
     this.syncElements();
@@ -500,9 +502,20 @@ export class PreviewEngine {
   }
   private settleUntil = 0;
 
+  /** Музыка тише под голос: где говорят (время таймлайна); null — ещё не считали для этого проекта. */
+  private duckIv: [number, number][] | null = null;
+  /** Множитель громкости музыки (1 — не музыка или голоса рядом нет). */
+  duckAt(c: MediaClip, track: Track, t: number): number {
+    const d = duckNow();
+    if (!d.on || !this.project) return 1;
+    if (!isMusic(track, c, this.project.assets.find((a) => a.id === c.assetId))) return 1;
+    this.duckIv ??= speechIntervals(this.project);
+    return duckGain(this.duckIv, t, d.level);
+  }
+
   private gainFor(c: MediaClip, track: Track, prevTr: number, t: number, isVisualEntryWithSeparateAudio: boolean): number {
     if (isVisualEntryWithSeparateAudio || track.muted || c.muted) return 0;
-    let v = c.volume;
+    let v = c.volume * this.duckAt(c, track, t);
     const local = t - c.start;
     const dur = clipDuration(c);
     const fi = Math.max(c.fadeIn, prevTr);

@@ -9,9 +9,11 @@ import * as actions from './actions';
 import * as preflight from './preflight';
 import * as templates from '../shared/templates';
 import { App } from './components/App';
+import * as duck from '../shared/duck';
 import { api, getState, useStore } from './store';
 import { CrashGuard } from './components/Crash';
 import { setTextWarper } from '../shared/textRender';
+import * as textRender from '../shared/textRender';
 import type { Appearance } from '../shared/appearance';
 import { warper } from './engine/warp';
 import * as glReg from './glRegistry';
@@ -19,9 +21,11 @@ import { glRunner } from './engine/gl';
 import * as userFonts from './userFonts';
 
 document.documentElement.lang = uiLang();
+// музыка тише под голос — настройка из главного процесса (плеер считает так же, как экспорт)
+duck.setDuck(api.initialDuck);
 
 // доступ для автотестов (window.__kadro) — в обычной работе не используется
-(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates, gl: { ...glReg, runner: glRunner }, fonts: userFonts };
+(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates, duck, textRender, gl: { ...glReg, runner: glRunner }, fonts: userFonts };
 // каталог шейдеров (переходы gl-transitions) — в фоне, не задерживая окно
 void glReg.loadGlCatalog();
 // плагины пользователя (папка %USERPROFILE%\\.kadro\\plugins) — при запуске и после каждой правки файла

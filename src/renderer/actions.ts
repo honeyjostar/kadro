@@ -15,11 +15,14 @@ import { renderGlSegments } from './engine/glExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
 import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit';
 import { readingTime, scriptBase, scriptEdit, splitScript, type ScriptScene, type ScriptSummary } from '../shared/scriptVideo';
-import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, PersonFx, Project, RampPoint, Retime, TextClip, VoiceEffect, Word } from '../shared/types';
+import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, PersonFx, Project, RampPoint, Retime, StickerMotion, TextClip, VoiceEffect, Word } from '../shared/types';
 import { retimeWords } from '../shared/captions';
 import { cuesToSrt, parseSubtitles } from '../shared/subtitles';
 import { copyAttrs } from '../shared/attrs';
 import { addClone, type CloneSource } from '../shared/clone';
+import { addStickerClip } from '../shared/stickers';
+import { applyBoomerang, boomerangPiece } from '../shared/boomerang';
+import { matchLut } from '../shared/colorMatch';
 import { bassBoost, dramaZoom, MEMES, slowMo, toBeContinued, type MemeId, type MemeSound } from '../shared/memes';
 import { groupCues, langInline, splitTranslation, type LangCode } from '../shared/translate';
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
@@ -641,6 +644,71 @@ export async function freezeFrame(dur = 2): Promise<void> {
   getState().toast(tx('Стоп-кадр добавлен'), 'ok');
 }
 
+// ---------- цвет как у другого клипа ----------
+/** Моменты исходника, по которым меряется цвет клипа: четверть, середина, три четверти. */
+function sampleTimes(c: MediaClip, kind: string): number[] {
+  if (kind === 'image') return [0];
+  return [0.25, 0.5, 0.75].map((k) => c.in + (c.out - c.in) * k);
+}
+
+/** Подобрать цвет клипа под клип-образец: LUT с переносом цвета, сила — 100%. Одним шагом (Ctrl+Z). */
+export async function matchColor(clipId: string, refId: string): Promise<boolean> {
+  const p = getState().project;
+  const a = mediaClip(clipId); const b = mediaClip(refId);
+  if (!a || !b || clipId === refId) return false;
+  const aa = p.assets.find((x) => x.id === a.clip.assetId); const ba = p.assets.find((x) => x.id === b.clip.assetId);
+  if (!aa || !ba || aa.kind === 'audio' || ba.kind === 'audio') { getState().toast(tx('Цвет подбирается между видео и фото'), 'err'); return false; }
+  const jobId = `cm_${uidShort()}`;
+  getState().setJob({ id: jobId, label: tx('Подбираю цвет'), progress: 0.4, clipId, cancellable: false });
+  try {
+    const [tgt, ref] = await Promise.all([api.colorStats(aa.path, sampleTimes(a.clip, aa.kind)), api.colorStats(ba.path, sampleTimes(b.clip, ba.kind))]);
+    if (!tgt || !ref) { getState().toast(tx('Не получилось прочитать кадры для подбора цвета'), 'err'); return false; }
+    const name = tx('Как у «{0}»', ba.name.replace(/\.[^.]+$/, ''));
+    const lut = await api.saveLut(name, matchLut(tgt, ref, name));
+    getState().commit((q) => {
+      const f = findClip(q, clipId);
+      if (!f || f.clip.type !== 'media') return q;
+      return updateClip(q, clipId, { grade: { ...f.clip.grade, lut: { path: lut.path, name: lut.name, amount: 1 } } });
+    });
+    getState().toast(tx('Цвет подобран — LUT «{0}». Сила — ползунком во вкладке «Цвет».', lut.name), 'ok');
+    return true;
+  } finally {
+    getState().setJob(null, jobId);
+  }
+}
+
+// ---------- бумеранг ----------
+/** Бумеранг у курсора: кусок 1,5 с вперёд-назад дважды, быстрее и без звука — одним шагом (Ctrl+Z). */
+export async function boomerang(clipId?: string): Promise<boolean> {
+  const c = clipId ? mediaClip(clipId)?.clip ?? null : freezeTarget();
+  if (!c) { getState().toast(tx('Поставь розовую линию времени на видео — бумеранг возьмёт кусок оттуда'), 'err'); return false; }
+  const p0 = getState().project;
+  const t = getState().playhead >= c.start && getState().playhead < clipEnd(c) ? getState().playhead : c.start;
+  const piece = boomerangPiece(p0, c.id, t);
+  if ('error' in piece) { getState().toast(piece.error, 'err'); return false; }
+  const m = findClip(piece.project, piece.clipId)!.clip as MediaClip;
+  const src = p0.assets.find((a) => a.id === m.assetId)!;
+  const res = await runJob(tx('Делаю бумеранг'), {
+    kind: 'retime', jobId: `bm_${uidShort()}`, path: src.path, in: m.in, out: m.out, reverse: true, smooth: false,
+    hasVideo: true, hasAudio: false, width: src.width, height: src.height, fps: src.fps || p0.settings.fps,
+  }, c.id);
+  if (!res.ok || res.output?.kind !== 'retime') { if (res.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', res.error), 'err'); return false; }
+  const rev = await importDerived(res.output.path, `${src.name} · ${tx('бумеранг')}`);
+  if (!rev) return false;
+  // пока шла обработка, проект мог поменяться — кусок режем заново по текущему и сверяем с тем, что перевернули
+  const again = boomerangPiece(getState().project, c.id, t);
+  const now = 'error' in again ? null : findClip(again.project, again.clipId)?.clip as MediaClip | undefined;
+  if ('error' in again || !now || now.assetId !== m.assetId || Math.abs(now.in - m.in) > 1e-3 || Math.abs(now.out - m.out) > 1e-3) {
+    getState().toast(tx('Клип изменился, пока шла обработка — повтори действие')); return false;
+  }
+  const out = applyBoomerang(addAsset(again.project, rev), again.clipId, rev.id, Math.min(rev.duration || res.output.duration, res.output.duration));
+  getState().commit(() => out.project);
+  takeEarlyPatches([rev.id]);
+  getState().select(out.ids);
+  getState().toast(tx('Бумеранг готов — Ctrl+Z, чтобы убрать'), 'ok');
+  return true;
+}
+
 // ---------- мем-кнопки ----------
 /** Звук мема как файл проекта: уже есть — тот же, нет — импорт (ещё не в проекте: добавляется вместе с правкой). */
 async function memeSoundAsset(sound: MemeSound): Promise<MediaAsset | null> {
@@ -754,6 +822,7 @@ export async function stopRecording(): Promise<string | null> {
     if (!asset) { getState().toast(tx('Запись не добавилась: {0}', imp.errors[0]?.message ?? ''), 'err'); return null; }
     const n = getState().project.assets.filter((a) => a.name.startsWith(tx('Голос '))).length + 1;
     asset.name = tx('Голос {0}', n);
+    asset.voice = true;
     let clipId = '';
     getState().commit((p) => { const res = addFree(addAsset(p, asset), asset.id, rec.startT); clipId = res.clipId; return res.project; });
     takeEarlyPatches([asset.id]);
@@ -971,6 +1040,7 @@ export async function speakText(clipId: string, voice: TtsVoiceId, speed: number
   if (!asset) { getState().toast(tx('Не получилось добавить озвучку'), 'err'); return; }
   const start = (findClip(getState().project, clipId)?.clip.start) ?? 0;
   asset.name = tx('Озвучка: {0}{1}', text.slice(0, 24), text.length > 24 ? '…' : '');
+  asset.voice = true;
   getState().commit((p) => {
     let q = addAsset(p, asset);
     q = addFree(q, asset.id, start).project;
@@ -1523,6 +1593,7 @@ export async function buildScriptVideo(params: ScriptParams, onStage?: (s: AutoS
       const a = imp.assets[0];
       if (!a) { getState().toast(tx('Не получилось добавить озвучку'), 'err'); return null; }
       a.name = tx('Голос {0}: {1}{2}', i + 1, text.slice(0, 24), text.length > 24 ? '…' : '');
+      a.voice = true;
       scenes.push({ text, dur: Math.round((r.output.duration + 0.3) * 100) / 100, voice: a });
     }
   } else {
@@ -1793,7 +1864,7 @@ export async function dubProject(o: DubOptions, onStage?: (label: string, k: num
   if (!files.length) { getState().toast(tx('Нечего озвучивать — перевод пустой')); return false; }
   const imp = await api.importMedia(files.map((f) => f.path));
   if (imp.assets.length !== files.length) { getState().toast(tx('Не получилось добавить озвучку'), 'err'); return false; }
-  imp.assets.forEach((a, k) => { a.name = tx('Дубляж: {0}{1}', files[k].text.slice(0, 24), files[k].text.length > 24 ? '…' : ''); });
+  imp.assets.forEach((a, k) => { a.name = tx('Дубляж: {0}{1}', files[k].text.slice(0, 24), files[k].text.length > 24 ? '…' : ''); a.voice = true; });
   getState().commit((p) => {
     let q = imp.assets.reduce((acc, a) => addAsset(acc, a), p);
     q = placeDub(q, imp.assets.map((a, k) => ({ assetId: a.id, start: files[k].start })), tx('Дубляж ({0})', langInline(o.to)));
@@ -1840,6 +1911,14 @@ export async function setPersonFx(clipId: string, patch: Partial<PersonFx>): Pro
 
 // ---------- кнопка «Подписаться» ----------
 /** Добавить анимированную кнопку «Подписаться» с колокольчиком у курсора. */
+/** Стикер у курсора (эмодзи с движением по кругу). */
+export function addSticker(emoji: string, motion: StickerMotion): void {
+  const s = getState();
+  let id = '';
+  s.commit((p) => { const r = addStickerClip(p, s.playhead, emoji, motion); id = r.clipId; return r.project; });
+  if (id) s.select([id]);
+}
+
 export function addSubscribe(color: string): void {
   const s = getState();
   const at = s.playhead;

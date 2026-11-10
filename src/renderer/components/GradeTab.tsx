@@ -1,12 +1,14 @@
 // Вкладка «Цвет» → кривые, HSL по цветам, свой LUT.
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { RotateCcw, Upload, X } from 'lucide-react';
+import { Pipette, RotateCcw, Upload, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { HSL_BANDS, IDENTITY_CURVE, curveFn } from '../../shared/grade';
 import { updateClip } from '../../shared/timeline';
 import type { CurvePoint, Grade, HslBand, MediaClip } from '../../shared/types';
 import { api, getState, useStore } from '../store';
+import { matchColor } from '../actions';
+import { fmtTime } from '../util';
 import { Seg, Slider } from './controls';
 
 type Ch = 'all' | 'r' | 'g' | 'b';
@@ -172,5 +174,33 @@ export function LutPanel({ clip }: { clip: MediaClip }) {
           onChange={(v) => set({ ...g, lut: { ...cur, amount: v } }, 'lutamt')} onReset={() => set({ ...g, lut: { ...cur, amount: 1 } }, 'lutamt')} />
       )}
     </>
+  );
+}
+
+/** «Цвет как у другого клипа»: выбрать образец — цвет клипа подстраивается под него (LUT с переносом цвета). */
+export function MatchColor({ clip }: { clip: MediaClip }) {
+  const project = useStore((st) => st.project);
+  const jobs = useStore((st) => st.jobs);
+  const busy = Object.values(jobs).some((j) => j.clipId === clip.id);
+  const refs = project.tracks.flatMap((t) => t.clips).filter((c): c is MediaClip => c.type === 'media' && c.id !== clip.id)
+    .map((c) => ({ c, a: project.assets.find((x) => x.id === c.assetId) }))
+    .filter((x) => x.a && x.a.kind !== 'audio' && !x.a.missing)
+    .sort((x, y) => x.c.start - y.c.start);
+  const [ref, setRef] = useState('');
+  const refId = refs.some((x) => x.c.id === ref) ? ref : refs[0]?.c.id ?? '';
+  return (
+    <div className="match-color" data-testid="match-color">
+      <div className="sub-head">{tx('Цвет как у другого клипа')}</div>
+      {refs.length ? (
+        <>
+          <select className="input" style={{ width: '100%' }} value={refId} onChange={(e) => setRef(e.target.value)} data-testid="match-ref">
+            {refs.map(({ c, a }) => <option key={c.id} value={c.id}>{`${a!.name} · ${fmtTime(c.start, project.settings.fps)}`}</option>)}
+          </select>
+          <button className="btn block" style={{ marginTop: 8 }} disabled={busy || !refId} onClick={() => void matchColor(clip.id, refId)} data-testid="match-run">
+            <Pipette size={14} />{tx('Подобрать цвет')}</button>
+          <p className="hint small">{tx('Яркость, контраст и оттенок подстроятся под выбранный клип — удобно, когда сняли на разные телефоны. Получится LUT: сила — во вкладке «LUT».')}</p>
+        </>
+      ) : <p className="hint small">{tx('Добавь на таймлайн ещё одно видео или фото — под его цвет и подстроится этот клип.')}</p>}
+    </div>
   );
 }

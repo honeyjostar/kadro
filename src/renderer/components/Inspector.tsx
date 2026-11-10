@@ -1,8 +1,8 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { AudioLines, Box, Eraser, X, ImagePlus, RefreshCw, Trash2, Snowflake, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2, ClipboardCopy, ClipboardPaste } from 'lucide-react';
+import { AudioLines, Box, Eraser, X, ImagePlus, RefreshCw, Trash2, Snowflake, Repeat, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2, ClipboardCopy, ClipboardPaste } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
-import { alignToBeats, extractAudio, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection, userCurve, userSpeed, copyClipAttrs, openPasteAttrs } from '../actions';
+import { alignToBeats, boomerang, extractAudio, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection, userCurve, userSpeed, copyClipAttrs, openPasteAttrs } from '../actions';
 import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
 import { DEFAULT_MASK } from '../../shared/mask';
 import { EFFECTS } from '../../shared/effects';
@@ -23,7 +23,7 @@ import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
 import { ColorField, Field, FontPicker, KeyButton, Seg, Slider, Toggle } from './controls';
 import { AiTools, textPreviewStyle } from './LeftPanel';
-import { CurvesPanel, HslPanel, LutPanel } from './GradeTab';
+import { CurvesPanel, HslPanel, LutPanel, MatchColor } from './GradeTab';
 
 export function Inspector() {
   const sel = useSelected();
@@ -333,6 +333,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
               onChange={(v) => up({ color: { ...c, warmth: v } }, 'warm')} onReset={() => up({ color: { ...c, warmth: 0 } }, 'warm')} />
             <button className="btn block" onClick={() => up({ color: { ...DEFAULT_COLOR } }, 'creset')}><RotateCcw size={14} />{tx('Сбросить цвет')}</button>
             <p className="hint small" style={{ marginTop: 8 }}>{tx('Двойной клик по ползунку — вернуть значение по умолчанию.')}</p>
+            <MatchColor clip={clip} />
           </>
         )}
         {cur === 'speed' && <SpeedTab clip={clip} asset={asset} />}
@@ -532,6 +533,11 @@ function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
       {isVideo && (
         <button className="btn block" disabled={busy} data-testid="freeze" onClick={() => void freezeFrame()} style={{ marginTop: 10 }}>
           <Snowflake size={14} />{tx('Стоп-кадр в позиции курсора')}</button>
+      )}
+      {isVideo && (
+        <button className="btn block" disabled={busy} data-testid="boomerang" onClick={() => void boomerang(clip.id)} style={{ marginTop: 6 }}
+          title={tx('1,5 секунды от курсора — вперёд и назад два раза, быстрее и без звука')}>
+          <Repeat size={14} />{tx('Бумеранг')}</button>
       )}
       <p className="hint small" style={{ marginTop: 8 }}>
         {tx('Реверс, кривая и плавное замедление создают копию фрагмента — это занимает немного времени. Обрезка и разрезание работают как обычно.')}</p>

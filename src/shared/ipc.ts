@@ -136,6 +136,9 @@ export interface KadroApi {
   intro: { on: boolean; offer: boolean; shown: boolean };
   setIntro(on: boolean): void;
   introAsked(): void;
+  /** Музыка тише под голос (во всех проектах). */
+  initialDuck: import('./duck').DuckSettings;
+  setDuck(patch: Partial<import('./duck').DuckSettings>): Promise<import('./duck').DuckSettings>;
   /** сохранить проекты шортсов (папка — по имени исходного видео); пути файлов */
   saveShorts(projects: Project[], folder: string): Promise<string[]>;
   /** сохранить кадр из плеера (PNG); путь или null, если отменили */
@@ -245,6 +248,10 @@ export interface KadroApi {
   pickLut(): Promise<{ path: string; name: string } | { error: string } | null>;
   listLuts(): Promise<{ path: string; name: string }[]>;
   readLut(path: string): Promise<string | null>;
+  /** Средний цвет и разброс (Lab) по кадрам файла в моменты times — для «Цвет как у другого клипа». */
+  colorStats(path: string, times: number[]): Promise<import('./colorMatch').LabStats | null>;
+  /** Сохранить LUT, сделанный Kadro, в папку LUT. */
+  saveLut(name: string, text: string): Promise<{ path: string; name: string }>;
   /** Звук файла — отдельным файлом FLAC (для «Извлечь звук»). */
   extractAudio(path: string): Promise<string>;
   /** 3D: выбрать файл модели (GLB, GLTF, OBJ, STL, FBX). */

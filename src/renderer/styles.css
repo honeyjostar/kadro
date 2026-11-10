@@ -1228,3 +1228,21 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .meme-btn .meme-ico { grid-row: span 2; color: var(--accent); display: flex; }
 .meme-btn b { font-size: 12.5px; line-height: 1.25; }
 .meme-btn .hint { font-size: 11px; line-height: 1.3; margin: 0; }
+
+/* стикеры (раздел «Текст») */
+.sticker-groups { margin-top: 6px; }
+.sticker-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 8px; }
+.sticker-grid button { aspect-ratio: 1; border-radius: 9px; border: 1px solid var(--line-soft); background: var(--bg); cursor: pointer; font-size: 22px; display: flex; align-items: center; justify-content: center; padding: 0; }
+.sticker-grid button:hover { border-color: var(--accent); background: var(--accent-soft); }
+.sticker-grid button span { display: inline-block; line-height: 1; }
+.sticker-grid[data-motion='bounce'] button:hover span { animation: st-bounce 0.62s ease-in-out infinite; }
+.sticker-grid[data-motion='pulse'] button:hover span { animation: st-pulse 0.62s ease-in-out infinite; }
+.sticker-grid[data-motion='wiggle'] button:hover span { animation: st-wiggle 0.45s ease-in-out infinite; }
+.sticker-grid[data-motion='spin'] button:hover span { animation: st-spin 2s linear infinite; }
+.sticker-grid[data-motion='float'] button:hover span { animation: st-float 1.4s ease-in-out infinite; }
+@keyframes st-bounce { 0%, 100% { transform: translateY(0) scale(1, 0.94); } 50% { transform: translateY(-6px) scale(1.04); } }
+@keyframes st-pulse { 0%, 100% { transform: scale(0.92); } 50% { transform: scale(1.12); } }
+@keyframes st-wiggle { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
+@keyframes st-spin { to { transform: rotate(360deg); } }
+@keyframes st-float { 0%, 100% { transform: translateY(2px) rotate(-4deg); } 50% { transform: translateY(-3px) rotate(4deg); } }
+@media (prefers-reduced-motion: reduce) { .sticker-grid button:hover span { animation: none !important; } }

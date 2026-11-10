@@ -46,6 +46,7 @@ export interface MediaAsset {
   derived?: boolean;         // служебная копия (реверс, кривая скорости, стоп-кадр) — не показывается в медиатеке
   thumbs?: string[];         // пути к кадрам-миниатюрам (равномерно по длительности)
   peaks?: number[];          // форма волны 0..1 (до ~2000 точек)
+  voice?: boolean;           // голос (запись с микрофона, озвучка, дубляж) — под ним музыка тише
 }
 
 export type TrackKind = 'main' | 'video' | 'audio' | 'text';
@@ -297,6 +298,7 @@ export interface WordHighlight {
   color: string;
 }
 
+export type StickerMotion = 'bounce' | 'pulse' | 'wiggle' | 'spin' | 'float';
 export type TextAnimType = 'fade' | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRight' | 'pop' | 'zoom' | 'typewriter' | 'blur' | 'wipe' | 'bounce' | 'elastic' | 'spin';
 export interface TextAnim { type: TextAnimType; dur: number }
 /** key — ключевое слово (цвет keyColor), emoji — эмодзи над субтитром с этого слова (субтитры «как у блогеров»). */
@@ -321,6 +323,8 @@ export interface TextClip {
   tilt?: { x: number; y: number }; // наклон в перспективе, градусы
   /** готовая анимированная плашка вместо обычного текста: «Подписаться» с колокольчиком */
   widget?: 'subscribe' | 'tbc';
+  /** стикер: движение по кругу всё время показа (прыжки, пульс, покачивание, вращение, парение) */
+  loop?: StickerMotion;
 }
 
 export type Clip = MediaClip | TextClip;

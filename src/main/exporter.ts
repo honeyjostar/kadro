@@ -15,6 +15,25 @@ import { hardwareInfo } from './hardware';
 import { loadLuts } from './luts';
 import { expandPerson } from '../shared/person';
 import { expandSfx } from '../shared/sfx';
+import { duckNow, speechIntervals } from '../shared/duck';
+import { makePeaks } from './media';
+import type { Project } from '../shared/types';
+
+/**
+ * Музыка тише под голос: где говорят — по пикам голосовых файлов (нет пиков — посчитаем).
+ * Выключено в настройках или голоса нет — undefined.
+ */
+async function duckFor(p: Project): Promise<{ level: number; iv: [number, number][] } | undefined> {
+  const d = duckNow();
+  if (!d.on) return undefined;
+  const extra = new Map<string, number[]>();
+  for (const a of p.assets) {
+    if (a.peaks?.length || !a.hasAudio || a.missing || !(a.voice || a.kind === 'video')) continue;
+    extra.set(a.id, await makePeaks(a).catch(() => []));
+  }
+  const iv = speechIntervals(p, (a) => (a.peaks?.length ? a.peaks : extra.get(a.id)));
+  return iv.length ? { level: d.level, iv } : undefined;
+}
 
 
 /** Папки с кадрами шейдеров (окно рисует, экспорт накладывает). Токен — чтобы окно не писало куда попало. */
@@ -74,7 +93,8 @@ async function exportMp3(req: ExportReq, onProgress: (p: number) => void, signal
   const t0 = Date.now();
   const { project, opts } = req;
   // звуки на стыках — тоже в звуке ролика
-  const g = buildGraph(expandSfx(project), { width: 16, height: 16, fps: 30, textLayers: [], audioOnly: true, includeMusic: true });
+  const full = expandSfx(project);
+  const g = buildGraph(full, { width: 16, height: 16, fps: 30, textLayers: [], audioOnly: true, includeMusic: true, duck: await duckFor(full) });
   fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });
   const tmpOut = path.join(path.dirname(opts.outPath), `.${path.basename(opts.outPath, '.mp3')}.kadro-part.mp3`);
   const filterFile = path.join(cacheDir('export'), `mp3_${Date.now()}.txt`);
@@ -134,7 +154,7 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     const glSegments = req.glToken && !opts.alpha
       ? (req.glSegments ?? []).flatMap((s, i) => { const pattern = glFrames.pattern(req.glToken!, i); return pattern ? [{ ...s, pattern }] : []; })
       : [];
-    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments });
+    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments, duck: opts.alpha ? undefined : await duckFor(project) });
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);
     // главы из маркеров — видны в плеерах (VLC, MPC-HC, «Кино и ТВ»)

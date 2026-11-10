@@ -3,6 +3,7 @@ import './lang'; // язык — раньше всего остального
 import { tx, uiLang } from '../shared/i18n';
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, shell, utilityProcess, type UtilityProcess } from 'electron';
 import crypto from 'node:crypto';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -27,6 +28,8 @@ import { decodeSubtitleBytes } from '../shared/subtitles';
 import { isKadroUrl } from '../shared/links';
 import { afterExport, type StarAnswer } from '../shared/star';
 import { introAccent, introPlan } from '../shared/intro';
+import { labStats } from '../shared/colorMatch';
+import { duckNow, setDuck, type DuckSettings } from '../shared/duck';
 import { LOGO_EXTS } from '../shared/logo';
 import { SFX_IDS, setSfxFiles } from '../shared/sfx';
 import { refreshNext, savedNext } from './next';
@@ -38,7 +41,7 @@ import { stabilize } from './ai/stab';
 import { freezeFrame, retime } from './retime';
 import { beautify } from './ai/beauty';
 import { runFfmpeg } from './ffrun';
-import { importLutFile, listLutFiles } from './luts';
+import { importLutFile, listLutFiles, lutsDir } from './luts';
 import { BUILTIN_TEMPLATES, DEMO_SCENES, isTemplate, type Template } from '../shared/templates';
 import { projectDuration } from '../shared/timeline';
 import { bundledFile, cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir, sherpaDmlDir } from './bins';
@@ -567,7 +570,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; duck?: Partial<DuckSettings> }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -1012,6 +1015,27 @@ function registerIpc(): void {
     try { return importLutFile(src); } catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
   });
   ipcMain.handle('lut:list', () => listLutFiles());
+  // «Цвет как у другого клипа»: средний цвет и разброс (Lab) по нескольким маленьким кадрам файла
+  ipcMain.handle('color:stats', async (_e, file: string, times: number[]) => {
+    const frames: Buffer[] = [];
+    for (const t of times.slice(0, 6)) {
+      const buf = await new Promise<Buffer | null>((resolve) => {
+        execFile(ffmpegPath(), ['-hide_banner', '-v', 'error', '-ss', String(Math.max(0, t)), '-i', file, '-frames:v', '1', '-vf', 'scale=96:54:flags=area',
+          '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], { encoding: 'buffer', maxBuffer: 1 << 20, windowsHide: true }, (err, out) => resolve(err ? null : out as Buffer));
+      });
+      if (buf?.length) frames.push(buf);
+    }
+    if (!frames.length) return null;
+    return labStats(new Uint8Array(Buffer.concat(frames)));
+  });
+  // свой LUT, сделанный Kadro (подбор цвета), — в папку LUT, как загруженные
+  ipcMain.handle('lut:save', (_e, name: string, text: string) => {
+    const hash = crypto.createHash('sha1').update(text).digest('hex').slice(0, 10);
+    const base = String(name).replace(/[^\p{L}\p{N} ._-]+/gu, '_').slice(0, 60) || 'match';
+    const dst = path.join(lutsDir(), `${base}_${hash}.cube`);
+    if (!fs.existsSync(dst)) fs.writeFileSync(dst, text);
+    return { path: dst, name };
+  });
   const tplDir = () => { const d = path.join(dataDir(), 'templates'); fs.mkdirSync(d, { recursive: true }); return d; };
   const tplFile = (id: string) => path.join(tplDir(), `${id.replace(/[^a-z0-9_-]/gi, '_')}.json`);
   ipcMain.handle('tpl:list', () => fs.readdirSync(tplDir()).filter((f) => f.endsWith('.json')).flatMap((f) => {
@@ -1177,6 +1201,14 @@ function registerIpc(): void {
   });
   ipcMain.on('intro:set', (_e, on: boolean) => writeSettings({ ...readSettings(), intro: on === true, introAsked: true }));
   ipcMain.on('intro:asked', () => writeSettings({ ...readSettings(), introAsked: true }));
+  // музыка тише под голос — во всех проектах (плеер и экспорт)
+  setDuck(readSettings().duck);
+  ipcMain.on('duck:get', (e) => { e.returnValue = duckNow(); });
+  ipcMain.handle('duck:set', (_e, patch: Partial<DuckSettings>) => {
+    setDuck({ ...duckNow(), ...patch });
+    writeSettings({ ...readSettings(), duck: duckNow() });
+    return duckNow();
+  });
   ipcMain.handle('app:openUrl', async (_e, url: string) => {
     if (!isKadroUrl(url)) return false;
     log('open url', url.slice(0, 120));
