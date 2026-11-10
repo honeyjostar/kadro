@@ -3,7 +3,7 @@ import { txj } from '../txj';
 import {
   Clapperboard,
   Zap, AudioLines, BellRing, Blend, Volume2, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -18,6 +18,7 @@ import { togglePreview, usePreview } from '../audioPreview';
 import { LANGS, guessLang, langInline, langLabel, routeFor, targetsFrom, type LangCode } from '../../shared/translate';
 import type { ModelInfo, TtsVoiceId, VoiceInfo } from '../../shared/ipc';
 import { DUB_PAIRS } from '../../shared/dub';
+import { CLONE_OFFSET, CLONE_OFFSETS } from '../../shared/clone';
 import {
   addText, animAllCaptions, clipEnd, findClip, mainTrack, projectDuration, removeAsset, setTransition, styleAllCaptions, updateClip,
 } from '../../shared/timeline';
@@ -28,7 +29,7 @@ import type { EffectType, MediaAsset, MediaClip, PersonFx, TextAnimType, TextCli
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf,
 } from '../actions';
 import { useMenu, type MenuEntry } from './Menu';
 import { sampleCanvas, useSamplesReady } from '../sampleFrames';
@@ -686,6 +687,40 @@ function PersonCard({ clip, busy }: { clip: MediaClip | null; busy: boolean }) {
   );
 }
 
+/** «Клон себя»: копия клипа с другого момента или второй дубль поверх, с удалённым фоном. */
+function CloneCard({ clip, busy }: { clip: MediaClip | null; busy: boolean }) {
+  const project = useStore((s) => s.project);
+  const [mode, setMode] = useState<'offset' | 'take'>('offset');
+  const [seconds, setSeconds] = useState(CLONE_OFFSET);
+  const takes = project.assets.filter((a) => a.kind === 'video' && !a.derived && a.id !== clip?.assetId);
+  const [take, setTake] = useState<string>('');
+  const takeId = takes.some((a) => a.id === take) ? take : takes[0]?.id ?? '';
+  const run = () => { if (clip) void cloneSelf(clip.id, mode === 'offset' ? { kind: 'offset', seconds } : { kind: 'take', assetId: takeId }); };
+  return (
+    <div className={`ai-card ${!clip ? 'off' : ''}`} data-testid="clone-card">
+      <h4><Users size={15} />{tx('Клон себя')}</h4>
+      <p className="hint">{tx('Ты дважды в кадре. Камера должна стоять на месте: Kadro положит второго тебя поверх и уберёт у него фон.')}</p>
+      {!clip ? <div className="hint small">{tx('Нужен видеоклип')}</div> : <>
+        <Seg value={mode} onChange={setMode} testId="clone-mode"
+          options={[{ value: 'offset', label: tx('Из этого же видео') }, { value: 'take', label: tx('Второй дубль') }]} />
+        {mode === 'offset' ? <>
+          <div className="field-row"><label>{tx('Второй ты — через')}</label></div>
+          <div className="chips" data-testid="clone-offset">
+            {CLONE_OFFSETS.map((v) => <button key={v} className={seconds === v ? 'active' : ''} onClick={() => setSeconds(v)} data-value={v}>{tx('{0} с', v)}</button>)}
+          </div>
+          <p className="hint small">{tx('Подойди в другое место кадра и продолжай — Kadro возьмёт тебя с того момента. Звук клона выключен.')}</p>
+        </> : takes.length ? (
+          <select value={takeId} onChange={(e) => setTake(e.target.value)} data-testid="clone-take">
+            {takes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        ) : <p className="hint small">{tx('Добавь в проект второй дубль — видео с того же места камеры.')}</p>}
+        <button className="btn block" disabled={busy || (mode === 'take' && !takeId)} onClick={run} data-testid="clone-run">
+          {busy ? tx('Делаю клона…') : tx('Сделать клона')}</button>
+      </>}
+    </div>
+  );
+}
+
 /** Послушать звук стыка. */
 function playSfx(id: SfxId): void {
   const f = sfxFile(id);
@@ -1270,6 +1305,7 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
       </div>}
 
       {asset?.kind !== 'audio' && <PersonCard clip={clip && isVideo ? clip : null} busy={busy} />}
+      {asset?.kind !== 'audio' && <CloneCard clip={clip && isVideo ? clip : null} busy={busy} />}
 
       <div className={`ai-card ${!clip || !hasAudio ? 'off' : ''}`}>
         <h4><AudioLines size={15} />{tx('Чистый голос')}</h4>

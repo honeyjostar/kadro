@@ -19,6 +19,7 @@ import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, PersonFx
 import { retimeWords } from '../shared/captions';
 import { cuesToSrt, parseSubtitles } from '../shared/subtitles';
 import { copyAttrs } from '../shared/attrs';
+import { addClone, type CloneSource } from '../shared/clone';
 import { groupCues, langInline, splitTranslation, type LangCode } from '../shared/translate';
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
 import { fmtDur, fmtTime, plural, uidShort } from './util';
@@ -275,18 +276,34 @@ function gifBlocked(p: Project, c: MediaClip, what: string): boolean {
   return true;
 }
 
-export async function removeBackground(clipId: string, forPerson = false): Promise<void> {
+/** Удалить фон у клипа. done — своё сообщение об успехе. true — получилось. */
+export async function removeBackground(clipId: string, forPerson = false, done?: string): Promise<boolean> {
   const m = mediaClip(clipId);
-  if (!m || gifBlocked(m.p, m.clip, tx('Удаление фона'))) return;
+  if (!m || gifBlocked(m.p, m.clip, tx('Удаление фона'))) return false;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
-  if (!a || a.kind !== 'video') { getState().toast(tx('Удаление фона работает с видео')); return; }
+  if (!a || a.kind !== 'video') { getState().toast(tx('Удаление фона работает с видео')); return false; }
   const st = videoInputFor(m.clip, 'removeBg');
   const src = st ? { path: st.path, off: st.offset } : { path: a.path, off: 0 };
   const r = await runJob(tx('Удаляю фон'), { kind: 'removeBg', jobId: `bg_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, offset: src.off, width: a.width, height: a.height, fps: Math.min(60, a.fps || 30) }, clipId);
-  if (!r.ok || r.output?.kind !== 'removeBg') { if (r.error !== tx('Отменено')) getState().toast(tx('Фон убрать не удалось: {0}', r.error), 'err'); return; }
+  if (!r.ok || r.output?.kind !== 'removeBg') { if (r.error !== tx('Отменено')) getState().toast(tx('Фон убрать не удалось: {0}', r.error), 'err'); return false; }
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { removeBg: { enabled: true, status: 'ready', path: out.path, range: out.range } }));
-  getState().toast(forPerson ? tx('Человек вырезан — фон остаётся') : tx('Фон удалён'), 'ok');
+  getState().toast(done ?? (forPerson ? tx('Человек вырезан — фон остаётся') : tx('Фон удалён')), 'ok');
+  return true;
+}
+
+/**
+ * «Клон себя»: над клипом — копия с другого момента или второй дубль, у копии удаляется фон.
+ * Не получилось удалить фон — клон убирается (иначе он просто закрыл бы клип).
+ */
+export async function cloneSelf(clipId: string, src: CloneSource): Promise<string | null> {
+  const r = addClone(getState().project, clipId, src);
+  if ('error' in r) { getState().toast(r.error, 'err'); return null; }
+  getState().commit(() => r.project);
+  getState().select([r.cloneId]);
+  const ok = await removeBackground(r.cloneId, false, tx('Клон готов — ты дважды в кадре'));
+  if (!ok) { getState().commit((p) => deleteClips(p, [r.cloneId])); getState().select([clipId]); return null; }
+  return r.cloneId;
 }
 
 export function disableRemoveBg(clipId: string): void {

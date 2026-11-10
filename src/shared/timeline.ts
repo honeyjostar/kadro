@@ -96,7 +96,7 @@ function overlaps(track: Track, start: number, end: number, ignoreId?: string): 
 }
 
 /** Кладёт клип на первую свободную дорожку нужного типа или создаёт новую. Возвращает id дорожки. */
-function placeFree(d: Project, kind: Exclude<TrackKind, 'main'>, clip: Clip, preferTrackId?: string): string {
+export function placeFree(d: Project, kind: Exclude<TrackKind, 'main'>, clip: Clip, preferTrackId?: string): string {
   const end = clip.start + clipDuration(clip);
   const candidates = d.tracks.filter((t) => t.kind === kind);
   const pref = preferTrackId ? candidates.find((t) => t.id === preferTrackId) : undefined;
