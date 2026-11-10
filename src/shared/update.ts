@@ -24,7 +24,9 @@ export function compareVersions(a: string, b: string): number {
 
 export interface ReleaseAsset { name: string; url: string; size: number }
 export interface ReleaseInfo {
-  version: string;        // 0.6.0
+  version: string;        // 0.6.0 — только для автообновления и отчёта об ошибке; людям — тема и дата
+  title: string;          // название релиза на GitHub («Обновление 22 ноября: запись экрана»)
+  date?: string;          // дата выхода (ISO)
   notes: string;          // описание релиза (Markdown)
   page: string;           // страница релиза
   setup: ReleaseAsset | null;
@@ -38,7 +40,7 @@ export interface ReleaseInfo {
  */
 export function parseRelease(json: unknown, allowFile = false): ReleaseInfo | null {
   if (!json || typeof json !== 'object') return null;
-  const r = json as { tag_name?: unknown; body?: unknown; html_url?: unknown; assets?: unknown; draft?: unknown; prerelease?: unknown };
+  const r = json as { tag_name?: unknown; name?: unknown; published_at?: unknown; body?: unknown; html_url?: unknown; assets?: unknown; draft?: unknown; prerelease?: unknown };
   if (typeof r.tag_name !== 'string' || !/^v?\d+\.\d+\.\d+/.test(r.tag_name) || r.draft || r.prerelease) return null;
   const assets: ReleaseAsset[] = Array.isArray(r.assets)
     ? r.assets.flatMap((a) => {
@@ -51,6 +53,8 @@ export function parseRelease(json: unknown, allowFile = false): ReleaseInfo | nu
   const version = r.tag_name.replace(/^v/i, '');
   return {
     version,
+    title: typeof r.name === 'string' ? r.name.slice(0, 120) : '',
+    date: typeof r.published_at === 'string' && !Number.isNaN(Date.parse(r.published_at)) ? r.published_at : undefined,
     notes: typeof r.body === 'string' ? r.body.slice(0, 20_000) : '',
     page: typeof r.html_url === 'string' && r.html_url.startsWith('https://github.com/') ? r.html_url : `${RELEASES_PAGE}/tag/v${version}`,
     setup: assets.find((a) => /^Kadro-Setup-.*\.exe$/i.test(a.name)) ?? null,
@@ -82,6 +86,11 @@ export interface UpdateState {
   portable: boolean;
   progress?: number;     // 0..1
   error?: string;
+  /** тема и дата вышедшего обновления (вместо номера) */
+  title?: string;
+  date?: string;
+  /** когда собран установленный Kadro (ISO-дата) */
+  currentDate?: string;
   /** Kadro только что обновился: с какой версии. */
   updatedFrom?: string;
   autoCheck: boolean;
@@ -100,4 +109,25 @@ export function notesLines(md: string): { kind: 'h' | 'li' | 'p'; text: string }
     if (li) return [{ kind: 'li', text: clean(li[1]) }];
     return [{ kind: 'p', text: clean(t) }];
   });
+}
+
+/**
+ * Тема обновления для людей: название релиза без «Kadro» и номера версии; пусто — первый заголовок описания
+ * (тоже без номера). Ничего нет — пустая строка.
+ */
+export function releaseTheme(title: string, notes = ''): string {
+  const clean = (v: string) => v.replace(/kadro/gi, '').replace(/\bv?\d+\.\d+(\.\d+)?\b/g, '').replace(/^[\s:—–\-·.,]+|[\s:—–\-·.,]+$/g, '').replace(/\s{2,}/g, ' ').trim();
+  const t = clean(title);
+  if (t.length > 2) return t;
+  const h = /^#{1,3}\s+(.+)$/m.exec(notes)?.[1] ?? '';
+  const ht = clean(h.replace(/^что нового( в)?/i, '').replace(/^what'?s new( in)?/i, ''));
+  return ht.length > 2 ? ht : '';
+}
+
+/** Дата для людей: «22 ноября» (год — если не текущий). */
+export function releaseDate(iso: string | undefined, locale: string, now = new Date()): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(locale, { day: 'numeric', month: 'long', ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}) });
 }

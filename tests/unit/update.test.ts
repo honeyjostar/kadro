@@ -40,3 +40,26 @@ describe('обновления', () => {
     ]);
   });
 });
+
+describe('обновление без номеров версий', () => {
+  it('тема — из названия релиза без «Kadro» и номера; нет — из заголовка описания', async () => {
+    const { releaseTheme } = await import('../../src/shared/update');
+    expect(releaseTheme('Kadro 1.0 — субтитры как у блогеров и шортсы')).toBe('субтитры как у блогеров и шортсы');
+    expect(releaseTheme('Обновление 22 ноября: запись экрана')).toBe('Обновление 22 ноября: запись экрана');
+    expect(releaseTheme('Kadro 0.9.7', '## Что нового в 0.9.7: миниатюры на настоящих кадрах\n- …')).toBe('миниатюры на настоящих кадрах');
+    expect(releaseTheme('Kadro 0.9.7', 'просто текст')).toBe('');
+  });
+  it('дата — «22 ноября», год — только если не текущий', async () => {
+    const { releaseDate } = await import('../../src/shared/update');
+    const now = new Date('2026-12-01T00:00:00Z');
+    expect(releaseDate('2026-11-22T10:00:00Z', 'ru-RU', now)).toBe('22 ноября');
+    expect(releaseDate('2025-11-22T10:00:00Z', 'ru-RU', now)).toBe('22 ноября 2025 г.');
+    expect(releaseDate('2026-11-22', 'en-US', now)).toBe('November 22');
+    expect(releaseDate(undefined, 'ru-RU')).toBe('');
+  });
+  it('название и дата релиза из ответа GitHub', async () => {
+    const { parseRelease } = await import('../../src/shared/update');
+    const r = parseRelease({ tag_name: 'v1.0.0', name: 'Kadro 1.0 — большой выпуск', published_at: '2026-11-22T10:00:00Z', assets: [] })!;
+    expect(r).toMatchObject({ version: '1.0.0', title: 'Kadro 1.0 — большой выпуск', date: '2026-11-22T10:00:00Z' });
+  });
+});

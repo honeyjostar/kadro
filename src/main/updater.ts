@@ -14,6 +14,9 @@ import { RELEASES_API, compareVersions, parseRelease, parseSums, type ReleaseInf
 import { cacheDir, dataDir } from './bins';
 
 interface Saved { autoCheck?: boolean; lastCheck?: number; lastVersion?: string }
+declare const __KADRO_BUILD_DATE__: string | undefined;
+/** Когда собран этот Kadro (подставляется при сборке; в разработке — пусто). */
+const BUILD_DATE = typeof __KADRO_BUILD_DATE__ === 'string' ? __KADRO_BUILD_DATE__ : '';
 const CHECK_EVERY = 6 * 3600 * 1000;
 const file = () => path.join(dataDir(), 'update.json');
 const read = (): Saved => { try { return JSON.parse(fs.readFileSync(file(), 'utf8')) as Saved; } catch { return {}; } };
@@ -46,7 +49,7 @@ export function initUpdater(opts: { emit: (s: UpdateState) => void; log: (...a: 
   const current = app.getVersion();
   const updatedFrom = saved.lastVersion && compareVersions(current, saved.lastVersion) > 0 ? saved.lastVersion : undefined;
   if (saved.lastVersion !== current) save({ lastVersion: current });
-  state = { phase: 'idle', current, portable: !installed(), autoCheck: saved.autoCheck ?? true, checkedAt: saved.lastCheck, updatedFrom };
+  state = { phase: 'idle', current, currentDate: BUILD_DATE || undefined, portable: !installed(), autoCheck: saved.autoCheck ?? true, checkedAt: saved.lastCheck, updatedFrom };
   // старые скачанные установщики больше не нужны
   try { for (const f of fs.readdirSync(cacheDir('update'))) fs.rmSync(path.join(cacheDir('update'), f), { force: true }); } catch { /* нет папки */ }
   // сами проверяем только в собранной программе (в разработке и автотестах — если задан адрес)
@@ -80,7 +83,7 @@ export async function check(manual: boolean): Promise<UpdateState> {
     save({ lastCheck: now });
     if (compareVersions(rel.version, state.current) > 0) {
       log('update: available', rel.version);
-      return set({ phase: 'available', version: rel.version, notes: rel.notes, page: rel.page, size: rel.setup?.size, checkedAt: now, portable: !installed() || !rel.setup });
+      return set({ phase: 'available', version: rel.version, title: rel.title, date: rel.date, notes: rel.notes, page: rel.page, size: rel.setup?.size, checkedAt: now, portable: !installed() || !rel.setup });
     }
     return set({ phase: 'latest', version: rel.version, notes: rel.notes, page: rel.page, checkedAt: now });
   } catch (e) {

@@ -9,6 +9,8 @@ const common = {
   sourcemap: true,
   external: ['electron', 'sherpa-onnx-node', 'onnxruntime-node', 'sherpa-onnx-*'],
   logLevel: 'warning',
+  // дата сборки — в «Настройки → Обновления» показывается «Kadro от …» вместо номера версии
+  define: { __KADRO_BUILD_DATE__: JSON.stringify(process.env.KADRO_BUILD_DATE || new Date().toISOString().slice(0, 10)) },
 };
 
 await Promise.all([

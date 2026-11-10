@@ -26,7 +26,7 @@ function release(version: string, opts: { bad?: boolean; sums?: boolean } = {}):
   const sha = createHash('sha256').update(opts.bad ? 'x' : body).digest('hex');
   fs.writeFileSync(path.join(fx, `sums-${version}.txt`), `${sha}  ${setup}\n`);
   const json = {
-    tag_name: `v${version}`, html_url: `https://github.com/honeyjostar/kadro/releases/tag/v${version}`,
+    tag_name: `v${version}`, name: `Kadro ${version} — маркеры и каталог плагинов`, published_at: '2026-11-22T10:00:00Z', html_url: `https://github.com/honeyjostar/kadro/releases/tag/v${version}`,
     body: `## Что нового в ${version}\n\n- **Маркеры** на таймлайне\n- Каталог плагинов`,
     assets: [
       { name: setup, browser_download_url: url(setup), size: body.length },
@@ -47,10 +47,12 @@ test.describe.configure({ mode: 'serial' });
 test.setTimeout(120_000);
 test.afterAll(async () => { await K?.app.close(); });
 
-test('при запуске: «Вышел Kadro 99.0.0» и «Что нового»', async () => {
+test('при запуске: «Вышло обновление от …» — тема без номера и «Что нового»', async () => {
   K = await launch({ data, env: { KADRO_UPDATE_URL: release('99.0.0'), KADRO_UPDATE_INSTALLED: '1', KADRO_UPDATE_NO_RUN: '1', KADRO_UPDATE_SLOW: '1', KADRO_NO_OPEN: '1' } });
   win = K.win;
-  await expect(card()).toContainText('Вышел Kadro 99.0.0', { timeout: 15_000 });
+  await expect(card()).toContainText('Вышло обновление от 22 ноября', { timeout: 15_000 });
+  await expect(win.getByTestId('update-theme')).toHaveText('маркеры и каталог плагинов');
+  await expect(card()).not.toContainText('99.0.0');
   await expect(card()).toContainText('Обновление 3 МБ');
   await win.getByTestId('update-notes').click();
   const notes = win.getByTestId('update-notes-dialog');
@@ -68,7 +70,7 @@ test('«Обновить»: полоска, «Отмена» — назад; в�
   expect(fs.readdirSync(path.join(data, 'cache', 'update'))).toEqual([]);
   await win.getByTestId('update-go').click();
   await expect(card()).toHaveAttribute('data-phase', 'ready', { timeout: 60_000 });
-  await expect(card()).toContainText('Kadro 99.0.0 скачан');
+  await expect(card()).toContainText('Обновление скачано');
   const got = fs.readFileSync(path.join(data, 'cache', 'update', 'Kadro-Setup-99.0.0.exe'));
   expect(got.equals(fs.readFileSync(path.join(fx, 'Kadro-Setup-99.0.0.exe')))).toBe(true);
   await win.getByTestId('update-install').click();
@@ -85,7 +87,7 @@ test('повреждённый файл — ошибка и «Повторить
   await setEnv({ KADRO_UPDATE_URL: release('99.0.1', { bad: true }), KADRO_UPDATE_SLOW: null });
   await store(win, 'setSettingsOpen', true);
   await win.getByTestId('update-check').click();
-  await expect(win.getByTestId('update-status')).toHaveText('Вышла версия 99.0.1.');
+  await expect(win.getByTestId('update-status')).toHaveText('Вышло обновление: маркеры и каталог плагинов.');
   await win.getByTestId('update-go-settings').click();
   await expect(win.getByTestId('update-status')).toContainText('Файл скачался с ошибкой', { timeout: 30_000 });
   await win.keyboard.press('Escape');
@@ -106,7 +108,8 @@ test('переносная версия — «Скачать» открывае�
   await setEnv({ KADRO_UPDATE_URL: release(pkg.version) });
   await store(win, 'setSettingsOpen', true);
   await win.getByTestId('update-check').click();
-  await expect(win.getByTestId('update-status')).toHaveText('У тебя последняя версия.');
+  await expect(win.getByTestId('update-status')).toHaveText('У тебя самый свежий Kadro.');
+  await expect(win.getByTestId('update-version')).toContainText(pkg.version);
   await win.keyboard.press('Escape');
   await expect(card()).toHaveCount(0);
 });
@@ -121,13 +124,13 @@ test('GitHub не отвечает — понятная ошибка в наст
   await win.keyboard.press('Escape');
 });
 
-test('после обновления: «Kadro обновлён до …» один раз', async () => {
+test('после обновления: «Kadro обновился» один раз', async () => {
   await K.app.close();
   const f = path.join(data, 'update.json');
   fs.writeFileSync(f, JSON.stringify({ ...JSON.parse(fs.readFileSync(f, 'utf8')), lastVersion: '0.1.0' }));
   K = await launch({ data, env: { KADRO_NO_OPEN: '1' } });
   win = K.win;
-  await expect(card()).toContainText(`Kadro обновлён до ${pkg.version}`);
+  await expect(card()).toContainText('Kadro обновился');
   await win.getByTestId('update-whatsnew').click();
   await expect(card()).toHaveCount(0);
   expect(JSON.parse(fs.readFileSync(f, 'utf8')).lastVersion).toBe(pkg.version);
