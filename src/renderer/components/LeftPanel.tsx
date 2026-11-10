@@ -2,7 +2,7 @@ import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
 import {
   Clapperboard,
-  Zap, AudioLines, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
+  Zap, AudioLines, BellRing, Blend, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
   LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -28,7 +28,7 @@ import type { EffectType, MediaAsset, MediaClip, PersonFx, TextAnimType, TextCli
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe,
 } from '../actions';
 import { useMenu, type MenuEntry } from './Menu';
 import { sampleCanvas, useSamplesReady } from '../sampleFrames';
@@ -43,6 +43,7 @@ import { fmtDur, fmtTime, peakLevel } from '../util';
 import { ColorField, FontPicker, Progress, Seg, Slider, Toggle } from './controls';
 import { aiCovers, aiSource } from '../../shared/ai';
 import { NEON_DEFAULT, personWanted } from '../../shared/person';
+import { SUBSCRIBE_COLORS } from '../../shared/subscribe';
 
 const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'media', label: tx('Медиа'), icon: <Film size={19} /> },
@@ -565,6 +566,17 @@ function TextPanel() {
       <div className="panel-body">
         <button className="btn primary block" onClick={() => add()} data-testid="add-text"><Plus size={15} />{tx('Добавить текст')}</button>
         <p className="hint small" style={{ marginTop: 8 }}>{tx('Текст появится у курсора на таймлайне. Двигай его прямо в окне просмотра.')}</p>
+        <div className="ai-card subscribe-card" data-testid="subscribe-card">
+          <h4><BellRing size={15} />{tx('Кнопка «Подписаться»')}</h4>
+          <p className="hint">{tx('Выскакивает, курсор нажимает — «Вы подписаны», звенит колокольчик. Длится 3 секунды.')}</p>
+          <div className="subscribe-row">
+            {SUBSCRIBE_COLORS.map((c) => (
+              <button key={c.id} className="subscribe-swatch" style={{ background: c.color }} title={tx('Добавить: {0}', c.label)} onClick={() => addSubscribe(c.color)} data-testid={`add-subscribe-${c.id}`}>
+                <BellRing size={13} />{tx('Подписаться')}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="section-title">{tx('Готовые стили')}</div>
         <div className="tile-grid">
           {TEXT_PRESETS.map((t) => (

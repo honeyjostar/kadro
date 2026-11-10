@@ -318,6 +318,8 @@ export interface TextClip {
   anim?: { in?: TextAnim; out?: TextAnim };
   words?: Word[];      // слова со временем от начала клипа (для подсветки)
   tilt?: { x: number; y: number }; // наклон в перспективе, градусы
+  /** готовая анимированная плашка вместо обычного текста: «Подписаться» с колокольчиком */
+  widget?: 'subscribe';
 }
 
 export type Clip = MediaClip | TextClip;

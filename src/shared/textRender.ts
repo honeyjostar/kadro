@@ -5,6 +5,7 @@ import { unitScale } from './geometry';
 import { bounceOut } from './clipAnim';
 import { hasTilt, layerQuad, type Quad } from './perspective';
 import type { TextAnim, TextClip, Word } from './types';
+import { drawSubscribe, subscribeGeom } from './subscribe';
 
 export interface TextLayout {
   lines: string[];
@@ -71,6 +72,7 @@ export interface TextState {
   active: number;      // индекс произносимого слова (-1 — нет)
   emoji: number;       // слово, чьё эмодзи сейчас над текстом (-1 — нет)
   emojiK: number;      // 0..1 — эмодзи «выскакивает»
+  widgetT: number;     // время для анимированной плашки (−1 — не плашка)
 }
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -108,7 +110,7 @@ export function activeWordAt(words: Word[] | undefined, local: number): number {
 /** Есть ли у текста что-то, меняющееся во времени (тогда экспорт рисует его по кадрам). */
 export function isTextAnimated(c: TextClip): boolean {
   const hl = c.style.highlight && c.style.highlight.mode !== 'none' && (c.words?.length ?? 0) > 0;
-  return hasAnim(c.keyframes) || !!c.anim?.in || !!c.anim?.out || !!hl || !!c.words?.some((w) => w.emoji);
+  return !!c.widget || hasAnim(c.keyframes) || !!c.anim?.in || !!c.anim?.out || !!hl || !!c.words?.some((w) => w.emoji);
 }
 
 /** Какое эмодзи над текстом в момент local: последнее начавшееся; без local — первое. */
@@ -125,7 +127,7 @@ export function textStateAt(c: TextClip, local?: number): TextState {
   const t = local ?? Math.min(c.duration / 2, 0.5);
   const p = textPropsAt(c, t);
   const em = emojiAt(c.words, local);
-  const st: TextState = { ...p, reveal: Infinity, wipe: 1, blur: 0, active: -1, emoji: em.i, emojiK: em.k };
+  const st: TextState = { ...p, reveal: Infinity, wipe: 1, blur: 0, active: -1, emoji: em.i, emojiK: em.k, widgetT: c.widget && local !== undefined ? Math.round(local * 60) / 60 : -1 };
   if (local === undefined) return st;
   const chars = c.text.replace(/\s+/g, '').length;
   const ain = c.anim?.in;
@@ -139,12 +141,13 @@ export function textStateAt(c: TextClip, local?: number): TextState {
 /** Ключ состояния — одинаковые кадры экспорта не рисуются заново. */
 export function textStateKey(s: TextState): string {
   const r = (v: number) => Math.round(v * 1e4) / 1e4;
-  return [r(s.x), r(s.y), r(s.scale), r(s.rotation), r(s.opacity), s.reveal === Infinity ? 'all' : s.reveal, r(s.wipe), r(s.blur), s.active, s.emoji, r(s.emojiK)].join('|');
+  return [r(s.x), r(s.y), r(s.scale), r(s.rotation), r(s.opacity), s.reveal === Infinity ? 'all' : s.reveal, r(s.wipe), r(s.blur), s.active, s.emoji, r(s.emojiK), s.widgetT].join('|');
 }
 
 /** Прямоугольник текста до поворота (центр, размеры) — для рамки в плеере. */
 export function textBounds(ctx: Ctx, clip: TextClip, W: number, H: number, local?: number): { cx: number; cy: number; w: number; h: number; rotation: number } {
   const st = textStateAt(clip, local);
+  if (clip.widget === 'subscribe') { const g = subscribeGeom(ctx, clip, W, H, st.x, st.y); return { cx: g.cx, cy: g.cy, w: g.w * st.scale, h: g.h * st.scale, rotation: st.rotation }; }
   const L = layoutText(ctx, clip, W, H, st.x, st.y);
   return { cx: L.cx, cy: L.cy, w: (L.blockW + 2 * L.padX) * st.scale, h: (L.blockH + 2 * L.padY) * st.scale, rotation: st.rotation };
 }
@@ -195,6 +198,7 @@ let textWarper: TextWarper | null = null;
 export function setTextWarper(w: TextWarper | null): void { textWarper = w; }
 
 export function drawText(ctx: Ctx, clip: TextClip, W: number, H: number, local?: number): void {
+  if (clip.widget === 'subscribe') { drawSubscribe(ctx, clip, W, H, local, textStateAt(clip, local)); return; }
   if (hasTilt(clip.tilt) && textWarper) {
     // наклон: текст рисуется ровно по центру, без поворота, а потом весь кадр натягивается на перспективу
     const st = textStateAt(clip, local);

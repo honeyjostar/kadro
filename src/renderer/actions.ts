@@ -7,7 +7,7 @@ import { CAPTION_STYLE, newProject, shortSideOf, sizeFor } from '../shared/defau
 import { exportSize } from '../shared/geometry';
 import type { AiJob, AiOutput, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
 import {
-  addAsset, addFree, addToMain, alignMainToBeats, mainTrack, moveClipsBy, trimClip, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
+  addAsset, addFree, addText, addToMain, alignMainToBeats, mainTrack, moveClipsBy, trimClip, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
   splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip, setSettings, type SourceRange,
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
@@ -29,6 +29,7 @@ import type { BlogStyle } from '../shared/blogCaptions';
 import { retentionIssues, zoomKeys, type RetIssue } from '../shared/retention';
 import { captionCues, dubPhrases, fitSpeed, placeDub, quietOriginal, slotOf } from '../shared/dub';
 import { personWanted } from '../shared/person';
+import { SUBSCRIBE_DUR } from '../shared/subscribe';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -1749,4 +1750,19 @@ export async function setPersonFx(clipId: string, patch: Partial<PersonFx>): Pro
     return;
   }
   await removeBackground(clipId, true);
+}
+
+// ---------- кнопка «Подписаться» ----------
+/** Добавить анимированную кнопку «Подписаться» с колокольчиком у курсора. */
+export function addSubscribe(color: string): void {
+  const s = getState();
+  const at = s.playhead;
+  const vertical = s.project.settings.height > s.project.settings.width;
+  let id = '';
+  s.commit((p) => {
+    const r = addText(p, at, tx('ПОДПИСАТЬСЯ'), { font: 'Montserrat', bold: true, size: 54, color: '#ffffff', bgColor: color, bgOpacity: 1, strokeWidth: 0, shadow: false });
+    id = r.clipId;
+    return updateClip(r.project, r.clipId, { widget: 'subscribe', duration: SUBSCRIBE_DUR, y: vertical ? 0.72 : 0.78 });
+  });
+  if (id) s.select([id]);
 }

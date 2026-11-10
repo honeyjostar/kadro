@@ -229,3 +229,33 @@ test('полоска прогресса — в плеере и в экспорт
   expect(K.errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
   await K.app.close();
 });
+
+test('кнопка «Подписаться»: выскакивает, нажимается — «Вы подписаны»; в плеере и в экспорте', async () => {
+  const out = path.join(tmp('sub'), 'sub.mp4');
+  const K = await launch({ env: { KADRO_TEST_EXPORT: out } });
+  const win = K.win;
+  await act(win, 'newProjectAction', '9:16');
+  await importAt(win, [solidVideo('blue6.mp4', 'blue', 6)], 'main', 0);
+  await waitAssetsReady(win);
+  await win.getByTestId('tab-text').click();
+  await win.getByTestId('add-subscribe-red').click();
+  const c = (await state<any[]>(win, "(s) => s.project.tracks.flatMap((t) => t.clips).filter((c) => c.type === 'text')"))[0];
+  expect(c).toMatchObject({ widget: 'subscribe', text: 'ПОДПИСАТЬСЯ', y: 0.72 });
+  expect(c.duration).toBeCloseTo(3.4, 2);
+  await store(win, 'select', []);
+  // верх плашки над надписью: высота плашки 1,9 размера шрифта
+  const h = 54 * 1.9;
+  const pt = [0.5, 0.72 - (0.38 * h) / 1920] as const;
+  await seekAndSettle(win, 0.8);
+  expect(near(await previewPixel(win, ...pt), [255, 33, 66], 45)).toBe(true);
+  await seekAndSettle(win, 2.2);
+  expect(near(await previewPixel(win, ...pt), [59, 55, 66], 45)).toBe(true);
+  await seekAndSettle(win, 4);
+  expect(near(await previewPixel(win, ...pt), [0, 0, 0], 45)).toBe(true); // плашка ушла — фон кадра
+  await exportNow(win);
+  const at = (t: number) => { const f = rawFrame(['-ss', String(t), '-i', out], 108, 192); const x = 54; const y = Math.round(pt[1] * 191); return [...f.subarray((y * 108 + x) * 3, (y * 108 + x) * 3 + 3)]; };
+  expect(near(at(0.8), [255, 33, 66], 70)).toBe(true);
+  expect(near(at(2.2), [59, 55, 66], 70)).toBe(true);
+  expect(K.errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
+  await K.app.close();
+});
