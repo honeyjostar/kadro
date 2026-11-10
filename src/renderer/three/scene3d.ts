@@ -259,6 +259,9 @@ export class Stage3D {
     this.pivot.rotation.set(p.rx, p.ry, p.rz, 'XYZ');
     this.pivot.position.set(p.x, p.y, 0);
     this.pivot.scale.setScalar(p.s);
+    // растяжение — по осям самого объекта (поворачивается вместе с ним)
+    const st = m.stretch;
+    this.holder.scale.set(st?.x ?? 1, st?.y ?? 1, st?.z ?? 1);
     this.renderer.render(this.scene, this.camera);
   }
 

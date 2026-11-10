@@ -8,7 +8,7 @@ import { animFades, animMaxScale, animMoves, clipAnimAt, clipAnimExpr } from './
 import { applyH, focal, hasPerspective, hasTilt, homography, pinQuad, quadSize, tiltExpr } from './perspective';
 import { effectiveColor, ffmpegColorFilter } from './color';
 import { GRADE_N, gradeActive, gradeTable, haldImage, type CubeLut } from './grade';
-import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale } from './geometry';
+import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale, stretchedSize } from './geometry';
 import { beatTimes, clipDuration, mainTrack, projectDuration } from './timeline';
 import type { BlendMode, MediaAsset, MediaClip, Project } from './types';
 import { maskBytes } from './mask';
@@ -94,7 +94,7 @@ function sameLook(a: MediaClip, b: MediaClip): boolean {
   if (a.anim?.in || a.anim?.out || b.anim?.in || b.anim?.out) return false;
   // эффекты тоже считаются от начала клипа (вспышка, глитч, тряска)
   if (a.effects?.length || b.effects?.length) return false;
-  const extra = (c: MediaClip) => JSON.stringify([c.opacity ?? 1, c.mask ?? null, c.blend ?? 'normal', c.chroma ?? null, c.stab?.path ?? '', c.voice?.path ?? '', c.grade ?? null, c.tilt ?? null, c.pin ?? null]);
+  const extra = (c: MediaClip) => JSON.stringify([c.opacity ?? 1, c.mask ?? null, c.blend ?? 'normal', c.chroma ?? null, c.stab?.path ?? '', c.voice?.path ?? '', c.grade ?? null, c.tilt ?? null, c.pin ?? null, c.stretch ?? null]);
   if (extra(a) !== extra(b)) return false;
   return a.assetId === b.assetId && a.speed === b.speed && a.fit === b.fit &&
     JSON.stringify(a.transform) === JSON.stringify(b.transform) &&
@@ -147,7 +147,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
   /** Видеопоток клипа/группы: возвращает метку потока RGBA, уже размещённого на холсте (или картинку и место для overlay). */
   function visualChain(src: string, c: MediaClip, asset: MediaAsset, withAlpha: boolean, isMain = false): { label: string; x: number; y: number } {
     void withAlpha;
-    const o2 = orientedSize(asset.width, asset.height, 0);
+    const o0 = orientedSize(asset.width, asset.height, 0);
+    const o2 = stretchedSize(o0.w, o0.h, c.stretch); // растянутая по ширине или высоте картинка — до вписывания в кадр
     let cur = src;
     let parts: string[] = ['format=rgba'];
     const flush = () => { const l = L('vc'); chains.push(`[${cur}]${parts.join(',')}[${l}]`); cur = l; parts = []; };
@@ -427,7 +428,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       const pl = placeOnCanvas(W, H, o2.w, o2.h, c.fit, c.transform);
       const sw = Math.max(1, Math.round(pl.w));
       const sh = Math.max(1, Math.round(pl.h));
-      parts.push(`scale=${sw}:${sh}:flags=bicubic`);
+      parts.push(`scale=${sw}:${sh}:flags=lanczos`); // lanczos — чётче при увеличении и растяжении
       applyPaint(sw, sh);
       applyGrade();
       applyEffects(sw, sh);
@@ -485,7 +486,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const [x1, y1] = corner(PW, 0);
     const [x2, y2] = corner(0, PH);
     const [x3, y3] = corner(PW, PH);
-    parts.push(`scale=${wm}:${hm}:flags=bicubic`);
+    parts.push(`scale=${wm}:${hm}:flags=lanczos`);
     applyPaint(wm, hm);
     applyGrade();
     applyEffects(wm, hm);

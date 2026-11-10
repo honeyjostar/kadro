@@ -275,6 +275,12 @@ button { cursor: pointer; }
 .sel-handle.ne { right: -7px; top: -7px; cursor: nesw-resize; }
 .sel-handle.sw { left: -7px; bottom: -7px; cursor: nesw-resize; }
 .sel-handle.se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+/* боковые ручки — растянуть по ширине или высоте */
+.sel-edge { position: absolute; background: #fff; border: 2px solid var(--accent); border-radius: 4px; }
+.sel-edge.e, .sel-edge.w { top: 50%; width: 8px; height: 22px; margin-top: -11px; cursor: ew-resize; }
+.sel-edge.e { right: -5px; } .sel-edge.w { left: -5px; }
+.sel-edge.n, .sel-edge.s { left: 50%; width: 22px; height: 8px; margin-left: -11px; cursor: ns-resize; }
+.sel-edge.n { top: -5px; } .sel-edge.s { bottom: -5px; }
 .sel-rotate { position: absolute; left: 50%; top: -30px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--accent); border: 2px solid #fff; cursor: grab; }
 .sel-rotate::after { content: ''; position: absolute; left: 4px; top: 12px; width: 1.5px; height: 14px; background: var(--accent); }
 .guide { position: absolute; background: #ffe14d; pointer-events: none; opacity: 0.9; }

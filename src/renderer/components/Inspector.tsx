@@ -249,6 +249,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
               <Seg value={clip.fit} onChange={(v) => up({ fit: v }, 'fit')} options={[{ value: 'contain', label: tx('Целиком') }, { value: 'cover', label: tx('Заполнить') }]} />
             </Field>
             <AnimFields clip={clip} defs={MEDIA_ANIM} />
+            <StretchFields clip={clip} />
             {trackKind === 'video' && (
               <Field label={tx('Режим наложения')}>
                 <select className="input" value={clip.blend ?? 'normal'} data-testid="blend" onChange={(e) => up({ blend: e.target.value as BlendMode }, 'blend')}>
@@ -401,9 +402,9 @@ function MediaPerspective({ clip, asset }: { clip: MediaClip; asset?: MediaAsset
       <TiltFields tilt={clip.tilt} disabled={pinOn} onChange={(t) => up({ tilt: t }, 'tilt')} testPrefix="tilt" />
       <Toggle label={tx('Углы — натянуть на 4 точки')} hint={pinOn ? tx('Тяни белые точки в окне просмотра. Подходит, чтобы вставить видео в экран телефона, на билборд или стену.') : tx('Например, вставить видео в экран телефона или на стену')}
         on={pinOn} testId="pin-toggle"
-        onChange={(v) => up({ pin: v && asset ? pinFromTransform(clip, asset.width, asset.height, settings.width, settings.height) : undefined }, 'pin')} />
+        onChange={(v) => up({ pin: v && asset ? pinFromTransform(clip, asset.width * (clip.stretch?.x ?? 1), asset.height * (clip.stretch?.y ?? 1), settings.width, settings.height) : undefined }, 'pin')} />
       {pinOn && (
-        <button className="btn block small" onClick={() => asset && up({ pin: pinFromTransform({ ...clip, tilt: undefined }, asset.width, asset.height, settings.width, settings.height) }, 'pinreset')}>
+        <button className="btn block small" onClick={() => asset && up({ pin: pinFromTransform({ ...clip, tilt: undefined }, asset.width * (clip.stretch?.x ?? 1), asset.height * (clip.stretch?.y ?? 1), settings.width, settings.height) }, 'pinreset')}>
           {tx('Вернуть углы ровно')}</button>
       )}
     </>
@@ -822,6 +823,23 @@ function AnimFields({ clip, defs }: { clip: Clip; defs: AnimDef[] }) {
             onReset={() => commit((p) => writeProps(p, clip, { [d.prop]: d.reset }, playhead), `anim-${d.prop}-${clip.id}`)} />
         );
       })}
+    </>
+  );
+}
+
+/** Растянуть или сжать картинку по ширине и высоте (рамка в плеере — боковые ручки). */
+function StretchFields({ clip }: { clip: MediaClip }) {
+  const commit = useStore((s) => s.commit);
+  const sx = clip.stretch?.x ?? 1;
+  const sy = clip.stretch?.y ?? 1;
+  const put = (x: number, y: number) => commit((p) => updateClip(p, clip.id, { stretch: Math.abs(x - 1) < 1e-3 && Math.abs(y - 1) < 1e-3 ? undefined : { x, y } }), `stretch-${clip.id}`);
+  return (
+    <>
+      <div className="sub-head">{tx('Растянуть')}</div>
+      <Slider label={tx('По ширине')} min={0.25} max={3} step={0.01} value={sx} format={pct} testId="stretch-x" onChange={(v) => put(v, sy)} onReset={() => put(1, sy)} />
+      <Slider label={tx('По высоте')} min={0.25} max={3} step={0.01} value={sy} format={pct} testId="stretch-y" onChange={(v) => put(sx, v)} onReset={() => put(sx, 1)} />
+      {(sx !== 1 || sy !== 1) && <button className="btn ghost small" onClick={() => put(1, 1)} data-testid="stretch-reset"><RotateCcw size={13} />{tx('Без растяжения')}</button>}
+      <p className="hint small">{tx('Или тяни боковые ручки рамки в плеере. Картинка масштабируется заново из исходника — без «лесенки».')}</p>
     </>
   );
 }

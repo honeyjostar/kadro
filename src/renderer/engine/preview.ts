@@ -14,7 +14,7 @@ import { ChromaKeyer } from './chroma';
 import { effectiveColor, isIdentity, svgFilterMarkup } from '../../shared/color';
 import { gradeActive } from '../../shared/grade';
 import { GradeProcessor, lutFor, setLutListener } from './grade';
-import { BLUR_SIGMA_1080, placeOnCanvas, unitScale } from '../../shared/geometry';
+import { BLUR_SIGMA_1080, placeOnCanvas, stretchedSize, unitScale } from '../../shared/geometry';
 import { drawText } from '../../shared/textRender';
 import { logoBox, progressBox } from '../../shared/logo';
 import { expandPerson, neonPulse, projectBeats } from '../../shared/person';
@@ -623,7 +623,8 @@ export class PreviewEngine {
     g.dx += ga.dx; g.dy += ga.dy; g.drot += ga.drot; g.scale *= ga.scale;
     mp.opacity *= ga.opacity;
     if (mp.opacity <= 0.001) { if (isMain) drawMainBars(c2d, c, W, H); return; }
-    const pl = placeOnCanvas(W, H, asset.width, asset.height, c.fit, { x: mp.x + g.dx, y: mp.y + g.dy, scale: mp.scale * g.scale, rotation: mp.rotation + g.drot });
+    const ss = stretchedSize(asset.width, asset.height, c.stretch); // растяжение по ширине или высоте
+    const pl = placeOnCanvas(W, H, ss.w, ss.h, c.fit, { x: mp.x + g.dx, y: mp.y + g.dy, scale: mp.scale * g.scale, rotation: mp.rotation + g.drot });
     let img: CanvasImageSource = src.el;
     if (c.chroma) {
       const sc = Math.min(1, 1920 / Math.max(src.w, src.h));

@@ -2,7 +2,7 @@ import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
 import { Camera, Maximize2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { placeOnCanvas } from '../../shared/geometry';
+import { placeOnCanvas, stretchedSize } from '../../shared/geometry';
 import { mediaPropsAt } from '../../shared/anim';
 import { textBounds } from '../../shared/textRender';
 import { propValue, writeProps } from '../animEdit';
@@ -38,7 +38,8 @@ function boxOf(p: Project, c: Clip, W: number, H: number, t: number): Box | null
     return { id: c.id, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, w: x1 - x0, h: y1 - y0, rot: 0, kind: 'media', pin: c.pin };
   }
   const mp = mediaPropsAt(c, t);
-  const pl = placeOnCanvas(W, H, a.width, a.height, c.fit, { x: mp.x, y: mp.y, scale: mp.scale, rotation: mp.rotation });
+  const ss = stretchedSize(a.width, a.height, c.stretch);
+  const pl = placeOnCanvas(W, H, ss.w, ss.h, c.fit, { x: mp.x, y: mp.y, scale: mp.scale, rotation: mp.rotation });
   return { id: c.id, cx: pl.cx, cy: pl.cy, w: pl.w, h: pl.h, rot: pl.rotation, kind: 'media' };
 }
 
@@ -146,7 +147,7 @@ export function Player() {
   };
 
   /** Перетаскивание: move — сдвиг, scale — угол рамки, rotate — поворот. */
-  const startDrag = (e: React.PointerEvent, mode: 'move' | 'scale' | 'rotate', clipArg?: Clip) => {
+  const startDrag = (e: React.PointerEvent, mode: 'move' | 'scale' | 'rotate' | 'stretchX' | 'stretchY', clipArg?: Clip) => {
     const p0 = getState().project;
     const id = clipArg?.id ?? selection[0];
     const f = p0.tracks.flatMap((t) => t.clips).find((c) => c.id === id);
@@ -195,6 +196,15 @@ export function Player() {
           const scale = Math.min(10, Math.max(0.05, propValue(f, 'scale', ph) * r));
           getState().commit((p) => writeProps(p, f, { scale: Math.round(scale * 1000) / 1000 }, ph), key);
         }
+      } else if ((mode === 'stretchX' || mode === 'stretchY') && f.type === 'media') {
+        // боковая ручка: растянуть по ширине или высоте (в осях рамки, центр на месте)
+        const r = (b0.rot * Math.PI) / 180;
+        const dx = x - b0.cx; const dy = y - b0.cy;
+        const along = mode === 'stretchX' ? Math.abs(dx * Math.cos(r) + dy * Math.sin(r)) / Math.max(4, b0.w / 2) : Math.abs(-dx * Math.sin(r) + dy * Math.cos(r)) / Math.max(4, b0.h / 2);
+        const s0 = f.stretch ?? { x: 1, y: 1 };
+        const v = Math.round(Math.min(5, Math.max(0.1, (mode === 'stretchX' ? s0.x : s0.y) * along)) * 1000) / 1000;
+        const next = mode === 'stretchX' ? { x: v, y: s0.y } : { x: s0.x, y: v };
+        getState().commit((p) => updateClip(p, id, { stretch: next }), key);
       } else if (mode === 'rotate') {
         let deg = propValue(f, 'rotation', ph) + ((Math.atan2(y - b0.cy, x - b0.cx) - a0) * 180) / Math.PI;
         deg = ((deg + 540) % 360) - 180;
@@ -282,6 +292,10 @@ export function Player() {
               onPointerDown={(e) => startDrag(e, 'move')} data-testid="sel-box">
               {(['nw', 'ne', 'sw', 'se'] as const).map((c) => (
                 <div key={c} className={`sel-handle ${c}`} onPointerDown={(e) => startDrag(e, 'scale')} title={tx('Тяни, чтобы изменить размер')} />
+              ))}
+              {box.kind === 'media' && (['e', 'w', 'n', 's'] as const).map((c) => (
+                <div key={c} className={`sel-edge ${c}`} onPointerDown={(e) => startDrag(e, c === 'e' || c === 'w' ? 'stretchX' : 'stretchY')}
+                  title={c === 'e' || c === 'w' ? tx('Тяни, чтобы растянуть по ширине') : tx('Тяни, чтобы растянуть по высоте')} data-testid={`edge-${c}`} />
               ))}
               <div className="sel-rotate" onPointerDown={(e) => startDrag(e, 'rotate')} title={tx('Тяни, чтобы повернуть')} />
             </div>

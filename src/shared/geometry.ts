@@ -17,6 +17,11 @@ export function orientedSize(w: number, h: number, rotation: number): { w: numbe
   return r === 90 || r === 270 ? { w: h, h: w } : { w, h };
 }
 
+/** Размер картинки клипа с растяжением по ширине и высоте (без растяжения — как у файла). */
+export function stretchedSize(w: number, h: number, s?: { x: number; y: number }): { w: number; h: number } {
+  return s ? { w: w * Math.max(0.05, s.x || 1), h: h * Math.max(0.05, s.y || 1) } : { w, h };
+}
+
 export function placeOnCanvas(
   canvasW: number, canvasH: number, srcW: number, srcH: number, fit: 'contain' | 'cover', t: Transform,
 ): Placement {

@@ -246,6 +246,13 @@ export function Model3DDialog() {
             <Slider label={tx('Сдвиг вниз-вверх')} min={-1.5} max={1.5} step={0.01} value={cur.posY} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => setPose({ posY: v })} onReset={() => setPose({ posY: 0 })} testId="m3d-py" />
             <Slider label={tx('Приближение')} min={0.3} max={3} step={0.01} value={cur.zoom} format={(v) => `${Math.round(v * 100)}%`} onChange={(v) => setPose({ zoom: v })} onReset={() => setPose({ zoom: 1 })} testId="m3d-zoom" />
             <button className="btn ghost small" onClick={() => setPose({ ...POSE0 })} data-testid="m3d-reset"><RotateCcw size={13} />{tx('Сбросить положение')}</button>
+            <div className="section-title">{tx('Растянуть')}</div>
+            {(['x', 'y', 'z'] as const).map((ax) => {
+              const st = m.stretch ?? { x: 1, y: 1, z: 1 };
+              const label = ax === 'x' ? tx('По ширине') : ax === 'y' ? tx('По высоте') : tx('По глубине');
+              const put = (v: number) => { const n = { ...st, [ax]: v }; set({ stretch: n.x === 1 && n.y === 1 && n.z === 1 ? undefined : n }); };
+              return <Slider key={ax} label={label} min={0.2} max={3} step={0.01} value={st[ax]} format={(v) => `${Math.round(v * 100)}%`} onChange={put} onReset={() => put(1)} testId={`m3d-stretch-${ax}`} />;
+            })}
             <div className="section-title">{tx('Материал')}</div>
             <div className="chips">{mats.map((x) => <button key={x.id} className={m.material === x.id ? 'active' : ''} onClick={() => set({ material: x.id })} data-testid={`m3d-mat-${x.id}`}>{x.label}</button>)}</div>
             {m.material !== 'model' && <ColorField label={tx('Цвет')} value={m.color} onChange={(v) => set({ color: v })} />}
