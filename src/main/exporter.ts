@@ -15,6 +15,7 @@ import { hardwareInfo } from './hardware';
 import { loadLuts } from './luts';
 import { expandPerson } from '../shared/person';
 import { expandSfx } from '../shared/sfx';
+import { stickerArgs, stickerFilter, stickerSize, TG_KBPS, TG_STICKER } from '../shared/tgSticker';
 import { duckNow, speechIntervals } from '../shared/duck';
 import { makePeaks } from './media';
 import type { Project } from '../shared/types';
@@ -124,7 +125,7 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
   const lost = project.assets.filter((a) => used.has(a.id) && !fs.existsSync(a.path));
   if (lost.length) return { ok: false, error: tx('Не найден файл: {0}. Верни его на место или убери клип с таймлайна.', lost.map((a) => `«${a.name}»`).join(', ')) };
   if (opts.format === 'mp3') return exportMp3(req, onProgress, signal);
-  const size = exportSize(project.settings.width, project.settings.height, opts.height);
+  const size = opts.format === 'sticker' ? stickerSize(project.settings.width, project.settings.height) : exportSize(project.settings.width, project.settings.height, opts.height);
   const format = opts.format ?? 'mp4';
   // логотипа нет на месте — экспорт без него (как в плеере)
   if (project.settings.logo && !fs.existsSync(project.settings.logo.path)) {
@@ -154,7 +155,9 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     const glSegments = req.glToken && !opts.alpha
       ? (req.glSegments ?? []).flatMap((s, i) => { const pattern = glFrames.pattern(req.glToken!, i); return pattern ? [{ ...s, pattern }] : []; })
       : [];
-    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments, duck: opts.alpha ? undefined : await duckFor(project) });
+    const sticker = format === 'sticker';
+    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments,
+      duck: opts.alpha || sticker ? undefined : await duckFor(project), maxDuration: sticker ? TG_STICKER.maxSec : undefined });
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);
     // главы из маркеров — видны в плеерах (VLC, MPC-HC, «Кино и ТВ»)
@@ -177,6 +180,27 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
       fs.rmSync(opts.outPath, { force: true });
       fs.renameSync(tmpOut, opts.outPath);
       onProgress(1);
+      return { ok: true, path: opts.outPath, seconds: (Date.now() - t0) / 1000 };
+    }
+    // видеостикер Telegram: VP9 без звука; не влез в 256 КБ — ещё раз с битрейтом пониже
+    if (sticker) {
+      fs.writeFileSync(filterFile, stickerFilter(graph));
+      const dur = Math.min(TG_STICKER.maxSec, graph.duration);
+      for (let i = 0; i < TG_KBPS.length; i++) {
+        try {
+          await runFfmpeg(stickerArgs(graph, filterFile, ffmpegMajor(), tmpOut, TG_KBPS[i], !!opts.alpha), { duration: dur, onProgress: (p) => onProgress((i + p) / TG_KBPS.length), signal });
+        } catch (e) {
+          fs.rmSync(tmpOut, { force: true });
+          if (signal?.aborted) return { ok: false, error: tx('Экспорт отменён') };
+          throw e;
+        }
+        if (fs.statSync(tmpOut).size <= TG_STICKER.maxBytes || i === TG_KBPS.length - 1) break;
+      }
+      const bytes = fs.statSync(tmpOut).size;
+      fs.rmSync(opts.outPath, { force: true });
+      fs.renameSync(tmpOut, opts.outPath);
+      onProgress(1);
+      if (bytes > TG_STICKER.maxBytes) return { ok: false, error: tx('Стикер получился больше 256 КБ — Telegram его не примет. Сделай ролик проще или короче.') };
       return { ok: true, path: opts.outPath, seconds: (Date.now() - t0) / 1000 };
     }
     // видеокарта: то, что прошло пробное кодирование; не вышло — следующий кодировщик, в конце процессор

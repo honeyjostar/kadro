@@ -3,6 +3,7 @@ import { txj } from '../txj';
 import { CheckCircle2, ClipboardList, FolderOpen, ScanEye, ShieldCheck, Star, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { exportSize } from '../../shared/geometry';
+import { stickerShortSide, TG_STICKER } from '../../shared/tgSticker';
 import type { ExportResult } from '../../shared/ipc';
 import { encoderLabel, reasonText, type HwInfo } from '../../shared/hw';
 import { projectDuration } from '../../shared/timeline';
@@ -40,14 +41,16 @@ const GIF_SIZES = [360, 480, 720] as const;
 const GIF_LONG_SEC = 15;
 
 /** Размер и частота под формат: у GIF свои (меньше), у видео — как в проекте. */
-function fitFormat(o: Omit<ExportOptions, 'outPath'>, f: ExportFormat, projShort: number, projFps: number): Omit<ExportOptions, 'outPath'> {
+function fitFormat(o: Omit<ExportOptions, 'outPath'>, f: ExportFormat, projShort: number, projFps: number, proj?: { width: number; height: number }): Omit<ExportOptions, 'outPath'> {
+  // видеостикер Telegram: размер и частота — по правилам Telegram, фон по умолчанию прозрачный
+  if (f === 'sticker') return { ...o, format: f, height: stickerShortSide(proj?.width ?? 1080, proj?.height ?? 1920), fps: 30, alpha: o.format === 'sticker' ? o.alpha : true };
   if (f === 'gif') {
     return { ...o, format: f,
       height: (GIF_SIZES as readonly number[]).includes(o.height) ? o.height : 480,
       fps: (GIF_FPS as readonly number[]).includes(o.fps) ? o.fps : 15 };
   }
-  return { ...o, format: f,
-    height: o.height >= 720 ? o.height : (projShort as ExportOptions['height']),
+  return { ...o, format: f, alpha: undefined,
+    height: o.height >= 720 && o.format !== 'sticker' ? o.height : (projShort as ExportOptions['height']),
     fps: (VIDEO_FPS as readonly number[]).includes(o.fps) ? o.fps : ((VIDEO_FPS as readonly number[]).includes(projFps) ? projFps : 30) as ExportOptions['fps'] };
 }
 
@@ -64,14 +67,15 @@ export function ExportDialog() {
     };
     // GIF помнит свой размер и частоту с прошлого раза
     if (base.format === 'gif' && lastOpts) return fitFormat({ ...base, height: lastOpts.height, fps: lastOpts.fps }, 'gif', shortSideOf(project.settings), project.settings.fps);
+    if (base.format === 'sticker') return fitFormat(base, 'sticker', shortSideOf(project.settings), project.settings.fps, project.settings);
     return base;
   });
   const format: ExportFormat = opts.format ?? 'mp4';
-  const setFormat = (f: ExportFormat) => setOpts((o) => fitFormat(o, f, shortSideOf(project.settings), project.settings.fps));
+  const setFormat = (f: ExportFormat) => setOpts((o) => fitFormat(o, f, shortSideOf(project.settings), project.settings.fps, project.settings));
   const [star, setStar] = useState<'ask' | 'thanks' | 'hidden'>('ask');
   const retention = useStore((s) => s.retention);
   const [retBusy, setRetBusy] = useState(false);
-  const title = format === 'gif' ? tx('Экспорт в GIF') : format === 'mp3' ? tx('Экспорт звука') : tx('Экспорт видео');
+  const title = format === 'gif' ? tx('Экспорт в GIF') : format === 'mp3' ? tx('Экспорт звука') : format === 'sticker' ? tx('Видеостикер Telegram') : tx('Экспорт видео');
   const [phase, setPhase] = useState<Phase>('setup');
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState('');
@@ -140,7 +144,7 @@ export function ExportDialog() {
       const { layers, blank } = await renderTextLayers(project, size.w, size.h, opts.fps, (p) => setProgress(p * 0.05));
       // переходы и эффекты-шейдеры: эти кадры рисует сам Kadro (FFmpeg шейдеры не умеет)
       gl = await renderGlSegments(project, size.w, size.h, opts.fps, (f, d, n) => { setStage(tx('Рисую шейдеры: кадр {0} из {1}', d, n)); setProgress(f); }, () => cancelled.current);
-      setStage(format === 'gif' ? tx('Сохраняю GIF') : tx('Сохраняю видео'));
+      setStage(format === 'gif' ? tx('Сохраняю GIF') : format === 'sticker' ? tx('Сохраняю стикер') : tx('Сохраняю видео'));
       setProgress(0);
       const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: layers, blankPng: blank, glToken: gl?.token, glSegments: gl?.segments });
       if (r.ok) getState().markExported();
@@ -164,11 +168,22 @@ export function ExportDialog() {
 
         {phase === 'setup' && (
           <>
-            <p className="hint">{`${project.name} · ${fmtDur(duration)} · ${format === 'gif' ? tx('GIF без звука, по кругу') : format === 'mp3' ? tx('MP3 — только звук') : tx('MP4 (H.264 + AAC), без водяного знака')}`}</p>
+            <p className="hint">{`${project.name} · ${fmtDur(duration)} · ${format === 'gif' ? tx('GIF без звука, по кругу') : format === 'mp3' ? tx('MP3 — только звук') : format === 'sticker' ? tx('WebM без звука, 512 px, до 3 с') : tx('MP4 (H.264 + AAC), без водяного знака')}`}</p>
             <Field label={tx('Формат')}>
               <Seg value={format} onChange={setFormat} testId="export-format"
-                options={[{ value: 'mp4', label: tx('Видео MP4') }, { value: 'gif', label: 'GIF' }, { value: 'mp3', label: tx('Звук MP3') }]} />
+                options={[{ value: 'mp4', label: tx('Видео MP4') }, { value: 'gif', label: 'GIF' }, { value: 'mp3', label: tx('Звук MP3') }, { value: 'sticker', label: tx('Стикер ТГ') }]} />
             </Field>
+            {format === 'sticker' && (
+              <>
+                <Field label={tx('Фон')} right={<span className="value">{size.w}×{size.h}</span>}>
+                  <Seg value={opts.alpha ? 'clear' : 'frame'} onChange={(v) => setOpts({ ...opts, alpha: v === 'clear' })} testId="export-sticker-bg"
+                    options={[{ value: 'clear', label: tx('Прозрачный') }, { value: 'frame', label: tx('Как в ролике') }]} />
+                </Field>
+                {opts.alpha && <p className="hint small">{tx('Прозрачным будет всё, где нет кадра: вырезанный человек (удаление фона во вкладке «ИИ»), надписи, стикеры и 3D — без фона.')}</p>}
+                {duration > TG_STICKER.maxSec + 0.05 && <p className="hint small" data-testid="export-sticker-long">{tx('Ролик длиннее 3 секунд — в стикер войдут первые 3.')}</p>}
+                <p className="hint small">{tx('Telegram: 512 px, до 3 секунд, без звука, до 256 КБ — Kadro подгонит сам. Готовый файл отправь боту @Stickers: /newvideo — новый набор, /addsticker — в свой.')}</p>
+              </>
+            )}
             {format === 'gif' && (
               <>
                 <Field label={tx('Размер')} right={<span className="value">{size.w}×{size.h}</span>}>
@@ -267,7 +282,7 @@ export function ExportDialog() {
 
         {phase === 'done' && result?.path && (
           <>
-            <div className="done-line"><CheckCircle2 size={20} /><span>{`${format === 'gif' ? tx('GIF готов') : format === 'mp3' ? tx('Звук готов') : tx('Видео готово')}${result.seconds ? tx(' за {0}', fmtDur(result.seconds)) : ''}${result.encoder ? ` (${encoderLabel(result.encoder)})` : ''}`}</span></div>
+            <div className="done-line"><CheckCircle2 size={20} /><span>{`${format === 'gif' ? tx('GIF готов') : format === 'mp3' ? tx('Звук готов') : format === 'sticker' ? tx('Стикер готов') : tx('Видео готово')}${result.seconds ? tx(' за {0}', fmtDur(result.seconds)) : ''}${result.encoder ? ` (${encoderLabel(result.encoder)})` : ''}`}</span></div>
             <p className="hint path-line" title={result.path}>{result.path}</p>
             {result.askStar && star === 'ask' && (
               <div className="star-ask" data-testid="star-ask">

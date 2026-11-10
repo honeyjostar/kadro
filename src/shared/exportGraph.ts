@@ -41,6 +41,8 @@ export interface BuildOpts {
   transparent?: boolean;
   /** Куски с шейдерами: последовательности PNG W×H (кадры start, start+1/F, …) — поверх всего готового кадра. */
   glSegments?: { start: number; frames: number; pattern: string }[];
+  /** Не длиннее этого, с (видеостикер Telegram — 3 с). */
+  maxDuration?: number;
   /** Музыка тише под голос: где говорят (время таймлайна) и во сколько раз тише. */
   duck?: { level: number; iv: [number, number][] };
 }
@@ -126,7 +128,7 @@ export function groupMain(p: Project): Group[] {
 }
 
 export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
-  const total = projectDuration(p);
+  const total = o.maxDuration ? Math.min(o.maxDuration, projectDuration(p)) : projectDuration(p);
   if (total <= 0) throw new Error(tx('Проект пустой — нечего экспортировать'));
   const W = o.width;
   const H = o.height;
@@ -526,6 +528,9 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
   const groups = main.hidden ? [] : groupMain(p);
   if (!o.audioOnly) {
     const segLabels: string[] = [];
+    // прозрачный фон (стикер Telegram, группа из наложений): у основной дорожки вместо цвета проекта — пустота,
+    // вырезанный человек остаётся без фона
+    const clearMain = !!o.transparent;
     for (const g of groups) {
       const c0 = g.clips[0];
       const D = g.duration;
@@ -556,7 +561,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       const bgLabel = L('bg');
       const bgColor = p.settings.background === 'white' ? 'white' : 'black';
       let fgSrc = srcLabel;
-      if (p.settings.background === 'blur' && !bgr) {
+      if (p.settings.background === 'blur' && !bgr && !clearMain) {
         const a = L('s');
         const b = L('s');
         chains.push(`[${srcLabel}]split=2[${a}][${b}]`);
@@ -566,6 +571,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
         const ch = Math.ceil(o2.h * cov / 2) * 2;
         chains.push(`[${a}]scale=${cw}:${ch},crop=${W}:${H},gblur=sigma=${fmt(BLUR_SIGMA_1080 * k)},format=yuv420p[${bgLabel}]`);
         fgSrc = b;
+      } else if (clearMain) {
+        chains.push(`color=c=black@0:s=${W}x${H}:r=${F}:d=${fmt(D)},format=yuva420p[${bgLabel}]`);
       } else {
         chains.push(`color=c=${bgColor}:s=${W}x${H}:r=${F}:d=${fmt(D)},format=yuv420p[${bgLabel}]`);
       }
@@ -574,7 +581,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       // кино-полосы клипа основной дорожки — по краям кадра: при заполнении кадра края слоя обрезаны
       const lb = c0.effects?.find((e) => e.type === 'letterbox' && e.amount > 0);
       const bars = lb ? `,drawbox=x=0:y=0:w=${W}:h=${letterboxBar(H, lb.amount)}:color=black:t=fill,drawbox=x=0:y=${H - letterboxBar(H, lb.amount)}:w=${W}:h=${letterboxBar(H, lb.amount)}:color=black:t=fill` : '';
-      chains.push(`[${bgLabel}][${fg.label}]overlay=x=${fg.x}:y=${fg.y}:eof_action=repeat:shortest=1${bars},format=yuv420p,setsar=1[${seg}]`);
+      chains.push(`[${bgLabel}][${fg.label}]overlay=x=${fg.x}:y=${fg.y}:eof_action=repeat:shortest=1${clearMain ? ':format=auto' : ''}${bars},format=${clearMain ? 'yuva420p' : 'yuv420p'},setsar=1[${seg}]`);
       segLabels.push(seg);
     }
 
@@ -599,14 +606,14 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     }
 
     let v = L('v');
-    const clear = !!o.transparent && !segLabels.length;
+    const clear = !!o.transparent;
     const ovf = clear ? ':format=auto' : ''; // на прозрачном холсте сохраняем альфу в RGBA
     chains.push(clear
       ? `color=c=black@0:s=${W}x${H}:r=${F}:d=${fmt(total)},format=rgba[${v}]`
       : `color=c=black:s=${W}x${H}:r=${F}:d=${fmt(total)},format=yuv420p[${v}]`);
     if (mainOut) {
       const nv = L('v');
-      chains.push(`[${v}][${mainOut}]overlay=x=0:y=0:eof_action=pass[${nv}]`);
+      chains.push(`[${v}][${mainOut}]overlay=x=0:y=0:eof_action=pass${ovf}[${nv}]`);
       v = nv;
     }
 

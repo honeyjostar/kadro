@@ -42,6 +42,7 @@ Kadro 0.6.0 и новее обновится сам: «Вышел Kadro 1.0.0» 
 - **Кнопка «Подписаться»** — анимированная: курсор нажимает, кнопка становится «Вы подписаны», звенит колокольчик. Четыре цвета, вкладка «Текст».
 - **Полоска прогресса** внизу или вверху ролика — на шортсах видно, сколько осталось.
 - **Свой логотип** в углу на весь ролик.
+- **Видеостикеры для Telegram** — формат «Стикер ТГ» в окне экспорта: 512 px, до 3 секунд, до 256 КБ, с прозрачным фоном (вырезанный человек, надписи, эмодзи) — сразу для бота @Stickers.
 - **Экспорт в GIF и MP3**, **кадр в PNG** (Shift+E), перемотка **J / K / L**, как в больших монтажках.
 
 ### И ещё
@@ -69,7 +70,7 @@ Kadro 0.6.0 и новее обновится сам: «Вышел Kadro 1.0.0» 
 - **Studio voice** in one click, and **music quieter under voice in all projects** (Settings).
 
 ### For your videos
-- **Stickers** (moving emoji), **boomerang**, **color like another clip**, **sounds on cuts** (whoosh, click, boom), an animated **Subscribe button**, a **progress bar**, **your own logo**, **GIF and MP3 export**, **save a frame as PNG** (Shift+E), **J / K / L** shuttle.
+- **Telegram video stickers** (512 px, up to 3 s, transparent background), **stickers** (moving emoji), **boomerang**, **color like another clip**, **sounds on cuts** (whoosh, click, boom), an animated **Subscribe button**, a **progress bar**, **your own logo**, **GIF and MP3 export**, **save a frame as PNG** (Shift+E), **J / K / L** shuttle.
 
 ### Also
 - A **launch animation**, **your first video in 3 steps** for beginners, **Coming soon in Kadro** on the home screen. **No version numbers**: Settings show “Kadro from” and a date, updates are named by topic and date.

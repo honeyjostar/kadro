@@ -76,7 +76,7 @@ time you use it, and to check for updates (you can turn that off).
 
 **Publishing**
 - Safe zones for TikTok, Reels and Shorts in the player and a pre-publish check.
-- MP4 (H.264), **GIF** and **MP3** (audio only) export, save the player frame as PNG (Shift+E); GPU encoding on NVIDIA (NVENC), AMD (AMF) and Intel (Quick Sync); Settings → Computer shows your GPU and why it doesn't encode, if it doesn't; autosaved drafts, `.kadro` projects.
+- MP4 (H.264), **GIF**, **MP3** (audio only) and **Telegram video sticker** (WebM 512 px, up to 3 s, transparent background) export, save the player frame as PNG (Shift+E); GPU encoding on NVIDIA (NVENC), AMD (AMF) and Intel (Quick Sync); Settings → Computer shows your GPU and why it doesn't encode, if it doesn't; autosaved drafts, `.kadro` projects.
 - **Auto-update** and **Report a bug** (a ready GitHub issue with version and log — you see everything before sending).
 
 ## System requirements

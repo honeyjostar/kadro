@@ -1,23 +1,27 @@
 {
   "id": "2026-12-after-1.0",
   "ru": {
-    "title": "Запись экрана, кружки Telegram и обложки",
-    "when": "в декабре",
+    "title": "Запись экрана, монтаж через текст и ещё 10 функций",
+    "when": "в декабре–январе",
     "items": [
       "Запись экрана и веб-камеры прямо в Kadro",
-      "Кружки Telegram, ВК Клипы и RuTube — с их форматами и зонами",
+      "Кружки Telegram, ВК Клипы, RuTube и Дзен; экспорт сразу в 9:16, 16:9 и 1:1",
       "Обложка для YouTube и TikTok в один клик",
-      "Экспорт сразу в 9:16, 16:9 и 1:1 — кадр следует за человеком"
+      "Монтаж через текст: удалил слово — вырезалось; «убери паузы, музыку тише» — Kadro сделает",
+      "Автозум на важных словах, размытие лиц и номеров, которое едет за объектом",
+      "Качество 720p → 1080p, 3D-фото, синхронизация камер по звуку, таймлапс"
     ]
   },
   "en": {
-    "title": "Screen recording, Telegram circles and thumbnails",
-    "when": "in December",
+    "title": "Screen recording, text-based editing and 10 more features",
+    "when": "in December–January",
     "items": [
       "Screen and webcam recording right in Kadro",
-      "Telegram video circles, VK Clips and RuTube — with their formats and safe zones",
+      "Telegram circles, VK Clips, RuTube and Dzen; export to 9:16, 16:9 and 1:1 at once",
       "A YouTube and TikTok thumbnail in one click",
-      "Export to 9:16, 16:9 and 1:1 at once — the frame follows the person"
+      "Text-based editing: delete a word and it's cut; “remove pauses, music quieter” — Kadro does it",
+      "Auto-zoom on key words, face and plate blur that follows the object",
+      "720p → 1080p upscaling, 3D photos, multi-camera sync by sound, timelapse"
     ]
   }
 }
