@@ -1,13 +1,14 @@
 // Главный экран (как «Главная» в Premiere): новый проект нужного формата, демо-ролик и демо-проект,
 // мои проекты (как в CapCut), шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
-import { tx } from '../../shared/i18n';
+import { tx, uiLang } from '../../shared/i18n';
 import { txj } from '../txj';
-import { Clapperboard, FileText, FolderOpen, Keyboard, Play, Scissors, Send, Settings, WandSparkles, X } from 'lucide-react';
+import { Clapperboard, FileText, FolderOpen, Keyboard, Play, Scissors, Send, Settings, Sparkles, WandSparkles, X } from 'lucide-react';
 import { TELEGRAM_CHANNEL } from '../../shared/links';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
 import { APP_ICONS, type IconId } from '../../shared/appearance';
 import type { HomeInfo } from '../../shared/ipc';
+import { nextText, type NextInfo } from '../../shared/next';
 import { BUILTIN_TEMPLATES, templateDuration, type Template } from '../../shared/templates';
 import type { AspectKey } from '../../shared/types';
 import { newProjectAction, openDemo, openProject, templateFromFiles, tryTemplate } from '../actions';
@@ -56,6 +57,23 @@ export function TemplatePreview({ t, active }: { t: Template; active: boolean })
   return <div className={cls} style={t.thumb ? { backgroundImage: `url("${t.thumb}")` } : { background: t.swatch ?? 'var(--raised-2)' }} />;
 }
 
+/** «Скоро в Kadro»: что готовится в следующем обновлении (текст — docs/next.json на GitHub). */
+function NextCard({ next, onHide }: { next: NextInfo; onHide: () => void }) {
+  const t = nextText(next, uiLang());
+  return (
+    <aside className="home-next" data-testid="home-next">
+      <div className="home-next-head">
+        <Sparkles size={15} />
+        <b>{tx('Скоро в Kadro')}</b>
+        {t.when && <span className="home-next-when" data-testid="home-next-when">{t.when}</span>}
+        <button className="icon-btn" onClick={onHide} title={tx('Скрыть до следующего анонса')} data-testid="home-next-hide"><X size={14} /></button>
+      </div>
+      <div className="home-next-title" data-testid="home-next-title">{t.title}</div>
+      <ul>{t.items.map((x) => <li key={x}>{x}</li>)}</ul>
+    </aside>
+  );
+}
+
 export function Home() {
   const [info, setInfo] = useState<HomeInfo | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,6 +88,8 @@ export function Home() {
   const load = () => void api.homeInfo().then((i) => { setInfo(i); setShowAtStart(i.show); getState().setDemo(i.demo); });
   useEffect(load, []);
   useEffect(() => api.onCoversReady(load), []);
+  // «Скоро в Kadro»: анонс поменялся на GitHub — показываем новый
+  useEffect(() => api.onNext((n) => setInfo((i) => (i ? { ...i, next: n } : i))), []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && current) getState().setHome(false); };
     window.addEventListener('keydown', onKey);
@@ -149,6 +169,7 @@ export function Home() {
             </div>
           </div>
 
+          <div className="home-side">
           <figure className="home-reel">
             <HomeReel vertical={reelSrc} wide={info?.demo.reel ? info.demo.reelWide ?? null : null} withSound={!!info?.demo.reel} />
             <figcaption>
@@ -157,6 +178,8 @@ export function Home() {
                 <Play size={14} fill="currentColor" />{tx('Открыть демо-проект')}</button>
             </figcaption>
           </figure>
+          {info?.next && <NextCard next={info.next} onHide={() => { api.hideNext(info.next!.id); setInfo({ ...info, next: null }); }} />}
+          </div>
         </section>
 
         <ProjectsSection list={info?.recent ?? []} busy={busy} run={run} reload={load} />

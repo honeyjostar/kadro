@@ -28,6 +28,8 @@ import { isKadroUrl } from '../shared/links';
 import { afterExport, type StarAnswer } from '../shared/star';
 import { LOGO_EXTS } from '../shared/logo';
 import { SFX_IDS, setSfxFiles } from '../shared/sfx';
+import { refreshNext, savedNext } from './next';
+import type { NextInfo } from '../shared/next';
 import { AI_MIRROR, ASR_MODELS, asrModelReady, TTS_VOICES, ttsVoiceReady, type AsrModelId, type TtsVoiceId } from './ai/models';
 import { denoise } from './ai/denoise';
 import { processVoice } from './ai/voice';
@@ -564,7 +566,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -883,7 +885,12 @@ function registerIpc(): void {
     autoOpen: !process.env.KADRO_SKIP_HOME && readSettings().showHome !== false,
     demo: demoFiles(),
     recent: recentProjects(),
+    next: visibleNext(savedNext()),
   }));
+  // «Скоро в Kadro»: скрытый анонс не показываем, пока не выйдет следующий
+  const visibleNext = (n: NextInfo | null) => (n && readSettings().nextHidden !== n.id ? n : null);
+  ipcMain.on('home:hideNext', (_e, id: string) => writeSettings({ ...readSettings(), nextHidden: String(id) }));
+  setTimeout(() => void refreshNext((n) => win?.webContents.send('home:next', visibleNext(n)), log), process.env.KADRO_NEXT_URL ? 500 : 6000);
   ipcMain.on('home:show', (_e, show: boolean) => writeSettings({ ...readSettings(), showHome: !!show }));
   ipcMain.handle('project:last', async () => {
     try {

@@ -98,7 +98,7 @@ export interface RecentProject { path: string; name: string; mtime: number; clip
 /** Демо-файлы из комплекта программы: ролики-сцены, бит, демо-ролик и превью шаблонов. Только те, что есть на диске. */
 export interface DemoFiles { scenes: Record<string, string>; beat: string | null; reel: string | null; reelWide?: string | null; previews: Record<string, string>; /** звуки на стыках */ sfx?: Record<string, string> }
 /** show — настройка «показывать при запуске», autoOpen — открыть ли сейчас (в автотестах выключено). */
-export interface HomeInfo { show: boolean; autoOpen: boolean; demo: DemoFiles; recent: RecentProject[] }
+export interface HomeInfo { show: boolean; autoOpen: boolean; demo: DemoFiles; recent: RecentProject[]; /** «Скоро в Kadro» (null — нет или скрыт) */ next?: import('./next').NextInfo | null }
 
 export interface KadroApi {
   info(): Promise<AppInfo>;
@@ -143,6 +143,10 @@ export interface KadroApi {
   glFrame(token: string, seg: number, k: number, png: Uint8Array): Promise<boolean>;
   glFramesDrop(token: string): void;
   onCoversReady(cb: () => void): () => void;
+  /** анонс «Скоро в Kadro» поменялся */
+  onNext(cb: (n: import('./next').NextInfo | null) => void): () => void;
+  /** скрыть этот анонс (покажется следующий) */
+  hideNext(id: string): void;
   renameProjectFile(file: string, name: string): Promise<{ path: string } | { error: string }>;
   duplicateProject(file: string): Promise<{ path: string } | { error: string }>;
   trashProject(file: string): Promise<{ ok: true } | { error: string }>;
