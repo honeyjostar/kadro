@@ -22,6 +22,7 @@ import { cancelDownload, check as checkUpdate, clearUpdated, download as downloa
 import * as m3d from './model3d';
 import { highlights } from './highlights';
 import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
+import { KadroTray } from './tray';
 import { normalizeAppearance, type Appearance } from '../shared/appearance';
 import type { AspectKey, ExportFormat, MediaAsset, Project } from '../shared/types';
 import { decodeSubtitleBytes } from '../shared/subtitles';
@@ -151,6 +152,8 @@ function createWindow(): void {
     },
   });
   win.setMenu(null);
+  // закрыли окно во время экспорта — оно прячется, экспорт доделывается в фоне (значок у часов)
+  win.on('close', (e) => { if (tray.onClose()) e.preventDefault(); });
   win.once('ready-to-show', () => { if (!process.env.KADRO_HIDDEN) win?.show(); });
   win.webContents.on('before-input-event', (_e, input) => {
     if (input.type === 'keyDown' && input.key === 'F12') win?.webContents.toggleDevTools();
@@ -699,6 +702,19 @@ function writeProject(file: string, project: Project): void {
 
 let exportAbort: AbortController | null = null;
 
+/** Значок для области у часов: .ico на Windows (в нём все размеры), иначе PNG. */
+function trayIcon(): string {
+  const a = appearance();
+  if (process.platform === 'win32') {
+    if (a.icon === 'custom' && a.iconFile && fs.existsSync(a.iconFile)) return a.iconFile;
+    const ico = bundledFile('icons', `kadro-${a.icon === 'custom' ? 'black' : a.icon}.ico`);
+    if (fs.existsSync(ico)) return ico;
+  }
+  return iconPng(a);
+}
+const tray = new KadroTray({ win: () => win, icon: trayIcon, cancelExport: () => exportAbort?.abort(), log, quitMs: Number(process.env.KADRO_BG_QUIT_MS) || undefined });
+(globalThis as unknown as { __kadroTray: KadroTray }).__kadroTray = tray; // автотесты
+
 function registerIpc(): void {
   ipcMain.handle('app:info', async () => ({
     version: app.getVersion(), platform: process.platform, dataDir: dataDir(),
@@ -931,11 +947,19 @@ function registerIpc(): void {
   });
   ipcMain.handle('export:start', async (_e, req: ExportReq) => {
     exportAbort?.abort();
-    exportAbort = new AbortController();
+    const ctl = new AbortController();
+    exportAbort = ctl;
     log('export start', req.opts);
-    const r = await exportProject(req, (p) => win?.webContents.send('export:progress', p), exportAbort.signal);
+    tray.exportStart();
+    let r: Awaited<ReturnType<typeof exportProject>>;
+    try {
+      r = await exportProject(req, (p) => { win?.webContents.send('export:progress', p); tray.progress(p); }, ctl.signal);
+    } catch (e) {
+      r = { ok: false, error: e instanceof Error ? e.message : String(e) };
+    }
     log('export result', r);
-    exportAbort = null;
+    // новый экспорт мог начаться поверх (старый отменён) — значок показывает только текущий
+    if (exportAbort === ctl) { exportAbort = null; tray.exportEnd(r, ctl.signal.aborted); }
     // просьба о звезде на GitHub — после удачного экспорта (первого и ещё раз после 10-го)
     if (r.ok && !req.opts.alpha) {
       const st = readSettings();
@@ -1233,6 +1257,7 @@ function registerIpc(): void {
     let shortcuts = 0;
     if (next.icon !== before.icon || next.iconFile !== before.iconFile) {
       applyWindowIcon(win, next);
+      tray.refreshIcon();
       try { shortcuts = applyShortcutIcons(next); } catch (e) { log('shortcut icons', e); }
     }
     if (next.uiScale !== before.uiScale) win?.webContents.setZoomFactor(next.uiScale);
@@ -1256,6 +1281,7 @@ function registerIpc(): void {
       const next = normalizeAppearance({ ...appearance(), icon: 'custom', iconFile });
       writeSettings({ ...readSettings(), appearance: next });
       applyWindowIcon(win, next);
+      tray.refreshIcon();
       let shortcuts = 0;
       try { shortcuts = applyShortcutIcons(next); } catch (e) { log('shortcut icons', e); }
       win?.webContents.send('appearance:changed', next);
@@ -1384,8 +1410,8 @@ if (!lock) {
 } else {
   app.on('second-instance', (_e, argv) => {
     if (!win) return;
-    if (win.isMinimized()) win.restore();
-    win.focus();
+    tray.open(); // и спрятанное окно (экспорт в фоне) — тоже
+
     const files = filesFromArgv(argv);
     if (files.length) win.webContents.send('app:openFiles', files);
   });
@@ -1396,6 +1422,7 @@ if (!lock) {
     nativeTheme.on('updated', () => applyTheme(nativeTheme.themeSource as ThemePref));
     initUpdater({ emit: (s) => win?.webContents.send('update:changed', s), log });
     createWindow();
+    if (!process.env.KADRO_NO_TRAY) tray.create();
     customStyles.setEnabled(appearance().custom);
     setTimeout(() => { void hardwareInfo().then((h) => log('hw', JSON.stringify({ cpu: h.cpu, threads: h.threads, ram: h.ramGb, gpus: h.gpus, enc: h.encoders.map((e) => (e.ok ? e.id : `${e.id}:${e.code}${e.need ? `>=${e.need}` : ''}`)) }))); }, 3000);
     setTimeout(cleanTempOnStart, 6000); // временные файлы прошлых сеансов
@@ -1410,6 +1437,7 @@ if (!lock) {
     if (app.isPackaged) setTimeout(() => { try { applyShortcutIcons(appearance()); } catch (e) { log('shortcut icons', e); } }, 4000);
     log('Kadro started', app.getVersion(), process.platform, 'ffmpeg:', ffmpegPath());
   });
+  app.on('before-quit', () => { tray.quitting = true; });
   app.on('window-all-closed', () => {
     for (const w of workers.values()) w.kill();
     app.quit();
