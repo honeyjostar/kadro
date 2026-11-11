@@ -4,159 +4,130 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kadro — бесплатный видеоредактор для Windows, аналог CapCut без водяного знака</title>
-<meta name="description" content="Kadro — бесплатный видеоредактор для Windows с ИИ, который работает на твоём компьютере: субтитры как у блогеров, 181 переход, удаление фона, нарезка в шортсы, экспорт до 4K. Без подписки, водяного знака и регистрации. Открытый код.">
+<meta name="description" content="Kadro — бесплатный видеоредактор для Windows с ИИ, который работает на твоём компьютере: субтитры как у блогеров, 181 переход, мем-кнопки, удаление фона, нарезка в шортсы, экспорт до 4K. Без подписки, водяного знака и регистрации. Открытый код.">
 <link rel="canonical" href="https://honeyjostar.github.io/kadro/">
 <link rel="alternate" hreflang="ru" href="https://honeyjostar.github.io/kadro/">
 <link rel="alternate" hreflang="en" href="https://honeyjostar.github.io/kadro/en/">
 <link rel="alternate" hreflang="x-default" href="https://honeyjostar.github.io/kadro/">
 <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
-<meta name="theme-color" content="#131116">
+<meta name="theme-color" content="#000000">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Kadro — бесплатный видеоредактор для Windows">
-<meta property="og:description" content="Монтаж для TikTok, Reels и Shorts с ИИ на твоём компьютере. Без подписки, водяного знака и регистрации.">
+<meta property="og:title" content="Kadro — монтаж уровня Pro. Бесплатно.">
+<meta property="og:description" content="Видеоредактор для Windows с ИИ на твоём компьютере. Без подписки, водяного знака и регистрации.">
 <meta property="og:url" content="https://honeyjostar.github.io/kadro/">
 <meta property="og:image" content="https://honeyjostar.github.io/kadro/assets/og.png">
 <meta property="og:locale" content="ru_RU">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preload" href="assets/fonts/onest-cyrillic-900-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/onest-cyrillic-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/style.css">
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  "name": "Kadro",
-  "description": "Бесплатный видеоредактор для Windows с ИИ, который работает на компьютере пользователя: автосубтитры, переходы, эффекты, удаление фона, нарезка длинного видео в шортсы, экспорт до 4K без водяного знака. Открытый код (GPL-3.0).",
-  "applicationCategory": "MultimediaApplication",
-  "applicationSubCategory": "Video editor",
-  "operatingSystem": "Windows 10, Windows 11",
-  "url": "https://honeyjostar.github.io/kadro/",
-  "downloadUrl": "https://github.com/honeyjostar/kadro/releases/latest",
-  "image": "https://honeyjostar.github.io/kadro/assets/og.png",
-  "screenshot": "https://honeyjostar.github.io/kadro/assets/img/captions.webp",
-  "license": "https://www.gnu.org/licenses/gpl-3.0.html",
-  "isAccessibleForFree": true,
-  "inLanguage": ["ru", "en"],
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "RUB" },
-  "author": { "@type": "Person", "name": "yaposspall", "url": "https://github.com/honeyjostar" },
-  "sameAs": ["https://github.com/honeyjostar/kadro", "https://t.me/kadroOffical", "https://alternativeto.net/software/kadro-video-editor/about/"]
-}
-</script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    { "@type": "Question", "name": "Kadro правда бесплатный?", "acceptedAnswer": { "@type": "Answer", "text": "Да. Без подписки, пробного периода, водяного знака и регистрации. Код открыт под лицензией GPL-3.0." } },
-    { "@type": "Question", "name": "Kadro — это аналог CapCut?", "acceptedAnswer": { "@type": "Answer", "text": "Kadro сделан по мотивам CapCut Pro: таймлайн, переходы, эффекты, субтитры как у блогеров, шаблоны, нарезка длинного видео в шортсы. Отличие в том, что всё бесплатно и работает на компьютере, без аккаунта и кредитов." } },
-    { "@type": "Question", "name": "Нужен ли Kadro интернет?", "acceptedAnswer": { "@type": "Answer", "text": "Нет. Монтаж, экспорт и ИИ работают на компьютере, видео никуда не загружаются. Интернет нужен один раз — скачать модель распознавания речи или голос для озвучки, когда впервые ими пользуешься." } },
-    { "@type": "Question", "name": "Как сделать субтитры автоматически бесплатно?", "acceptedAnswer": { "@type": "Answer", "text": "В Kadro открой вкладку «Субтитры» → «Автосубтитры». Kadro распознаёт речь прямо на компьютере (русский, английский и ещё 23 языка) и расставляет субтитры по словам. Стиль можно выбрать как у блогеров: «Хормози», «MrBeast», «По слову», «Неон», «Караоке»." } },
-    { "@type": "Question", "name": "Можно ли экспортировать видео в 4K без водяного знака?", "acceptedAnswer": { "@type": "Answer", "text": "Да. Kadro сохраняет MP4 до 4K без водяного знака, а также GIF, звук MP3 и видеостикер для Telegram." } },
-    { "@type": "Question", "name": "Какие системные требования у Kadro?", "acceptedAnswer": { "@type": "Answer", "text": "Windows 10 или 11 (64-бит), 8 ГБ оперативной памяти (для 4K и удаления фона лучше 16 ГБ), около 1 ГБ на диске. Видеокарта не обязательна, но NVIDIA, AMD и Intel ускоряют экспорт." } },
-    { "@type": "Question", "name": "Windows пишет «Система Windows защитила ваш компьютер». Это вирус?", "acceptedAnswer": { "@type": "Answer", "text": "Нет. Так Windows реагирует на программы без платной цифровой подписи. Нажми «Подробнее» → «Выполнить в любом случае». Код Kadro открыт на GitHub, установщик собирается автоматически на серверах GitHub." } },
-    { "@type": "Question", "name": "Есть ли Kadro для Mac, Android или iPhone?", "acceptedAnswer": { "@type": "Answer", "text": "Пока только для Windows 10 и 11." } }
-  ]
-}
-</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Kadro", "description": "Бесплатный видеоредактор для Windows с ИИ, который работает на компьютере пользователя: автосубтитры, переходы, эффекты, мем-кнопки, удаление фона, нарезка длинного видео в шортсы, экспорт до 4K без водяного знака. Открытый код (GPL-3.0).", "applicationCategory": "MultimediaApplication", "applicationSubCategory": "Video editor", "operatingSystem": "Windows 10, Windows 11", "url": "https://honeyjostar.github.io/kadro/", "downloadUrl": "https://github.com/honeyjostar/kadro/releases/latest", "image": "https://honeyjostar.github.io/kadro/assets/og.png", "screenshot": "https://honeyjostar.github.io/kadro/assets/shots/captions.webp", "license": "https://www.gnu.org/licenses/gpl-3.0.html", "isAccessibleForFree": true, "inLanguage": ["ru", "en"], "offers": {"@type": "Offer", "price": "0", "priceCurrency": "RUB"}, "author": {"@type": "Person", "name": "yaposspall", "url": "https://github.com/honeyjostar"}, "sameAs": ["https://github.com/honeyjostar/kadro", "https://t.me/kadroOffical", "https://alternativeto.net/software/kadro-video-editor/about/"]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Kadro правда бесплатный?", "acceptedAnswer": {"@type": "Answer", "text": "Да. Без подписки, пробного периода, водяного знака и регистрации. Код открыт под лицензией GPL-3.0 — его может проверить кто угодно."}}, {"@type": "Question", "name": "Kadro — это аналог CapCut?", "acceptedAnswer": {"@type": "Answer", "text": "Kadro сделан по мотивам CapCut Pro: таймлайн, переходы, эффекты, субтитры как у блогеров, шаблоны, нарезка длинного видео в шортсы. Отличие в том, что всё бесплатно и работает на компьютере, без аккаунта и кредитов."}}, {"@type": "Question", "name": "Нужен ли Kadro интернет?", "acceptedAnswer": {"@type": "Answer", "text": "Нет. Монтаж, экспорт и ИИ работают на компьютере, видео никуда не загружаются. Интернет нужен один раз — скачать модель распознавания речи или голос для озвучки, когда впервые ими пользуешься."}}, {"@type": "Question", "name": "Как сделать субтитры автоматически бесплатно?", "acceptedAnswer": {"@type": "Answer", "text": "Открой вкладку «Субтитры» → «Автосубтитры». Kadro распознаёт речь прямо на компьютере (русский, английский и ещё 23 языка) и расставляет субтитры по словам. Стиль можно выбрать как у блогеров: «Хормози», «MrBeast», «По слову», «Неон», «Караоке»."}}, {"@type": "Question", "name": "Можно ли экспортировать видео в 4K без водяного знака?", "acceptedAnswer": {"@type": "Answer", "text": "Да. Kadro сохраняет MP4 до 4K без водяного знака, а также GIF, звук MP3 и видеостикер для Telegram."}}, {"@type": "Question", "name": "Какие системные требования?", "acceptedAnswer": {"@type": "Answer", "text": "Windows 10 или 11 (64-бит), 8 ГБ оперативной памяти (для 4K и удаления фона лучше 16 ГБ), около 1 ГБ на диске. Видеокарта не обязательна, но NVIDIA, AMD и Intel ускоряют экспорт."}}, {"@type": "Question", "name": "Windows пишет «Система Windows защитила ваш компьютер». Это вирус?", "acceptedAnswer": {"@type": "Answer", "text": "Нет. Так Windows реагирует на программы без платной цифровой подписи. Нажми «Подробнее» → «Выполнить в любом случае». Код Kadro открыт на GitHub, а установщик собирается автоматически на серверах GitHub."}}, {"@type": "Question", "name": "Есть ли Kadro для Mac, Android или iPhone?", "acceptedAnswer": {"@type": "Answer", "text": "Пока только для Windows 10 и 11."}}]}</script>
 </head>
 <body>
 <a class="skip" href="#main">К содержанию</a>
-<div class="rail" aria-hidden="true"><div class="ticks"></div><div class="playhead"><div class="line"></div><div class="tc">00:00:00:00</div></div></div>
-
-<div class="wrap">
-<header class="top">
-  <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="30" height="30">Kadro</a>
-  <nav class="top" aria-label="Разделы">
-    <a href="#features">Возможности</a>
-    <a href="#compare">Сравнение</a>
-    <a href="#download">Скачать</a>
-    <a href="#faq">Вопросы</a>
-    <a class="lang" href="en/" hreflang="en" lang="en">English</a>
-  </nav>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="assets/logo.svg" alt="" width="24" height="24">Kadro</a>
+    <a class="l" href="#features">Возможности</a>
+    <a class="l" href="#templates">Шаблоны</a>
+    <a class="l" href="#compare">Сравнение</a>
+    <a class="l" href="#faq">Вопросы</a>
+    <a class="l lang" href="en/" hreflang="en" lang="en">English</a>
+    <a class="pill" data-dl href="https://github.com/honeyjostar/kadro/releases/latest">Скачать</a>
+  </div>
 </header>
 
 <main id="main">
 <section class="hero">
-  <div>
-    <h1><span class="name">Kadro</span> бесплатный видеоредактор для Windows</h1>
-    <p class="lead">Монтаж для TikTok, Reels и Shorts с ИИ, который работает прямо на твоём компьютере. Без подписки, без водяного знака, без регистрации.</p>
+  <div class="wrap">
+    <div class="name grad">Kadro</div>
+    <h1>Монтаж уровня Pro.<br><span class="grad">Бесплатно.</span></h1>
+    <p class="sub">Видеоредактор для Windows с ИИ, который работает прямо на твоём компьютере. Без подписки, без водяного знака, без регистрации.</p>
     <div class="cta">
-      <a class="btn primary" data-dl href="https://github.com/honeyjostar/kadro/releases/latest">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17z M5 19h14v2H5z"/></svg>
-        Скачать для Windows
-      </a>
-      <a class="btn" href="https://github.com/honeyjostar/kadro">Код на GitHub <span class="count" data-stars hidden></span></a>
+      <a class="btn" data-dl href="https://github.com/honeyjostar/kadro/releases/latest"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17z M5 19h14v2H5z"/></svg>Скачать для Windows</a>
+      <a class="link" href="#features">Посмотреть, что умеет</a>
     </div>
-    <p class="note" data-size="Установщик {mb} МБ, Windows 10 и 11. Версия без установки — на странице релиза.">Установщик около 340 МБ, Windows 10 и 11.</p>
+    <p class="note" data-size="Установщик {mb} МБ, Windows 10 и 11">Установщик около 340 МБ, Windows 10 и 11</p>
   </div>
-  <figure class="phone">
-    <video src="assets/reel.mp4" poster="assets/reel-poster.jpg" autoplay muted loop playsinline preload="metadata" aria-label="Демо-ролик, смонтированный в Kadro"></video>
-    <figcaption>Этот ролик смонтирован в Kadro</figcaption>
+  <figure class="film">
+    <div class="frame"><video muted loop playsinline autoplay preload="auto" poster="assets/media/film-poster.jpg" aria-label="Запись экрана Kadro: авто-ролик собирается из шести видео и музыки"><source src="assets/media/film.webm" type="video/webm"><source src="assets/media/film.mp4" type="video/mp4"></video></div>
+    <figcaption>Настоящая запись экрана: шесть видео и музыка — и через полминуты готовый ролик.</figcaption>
   </figure>
 </section>
 
-<section id="features">
-  <h2>Всё, что нужно для коротких роликов</h2>
-  <p class="lead" style="margin-top:20px">Kadro — обычная программа, а не сайт. Видео не загружаются ни на какие серверы: монтаж, экспорт и ИИ работают на процессоре и видеокарте твоего компьютера.</p>
+<div class="wrap">
+<section class="stats" aria-label="Kadro">
+  <div class="rise"><b class="grad">181</b><span>переход</span></div>
+  <div class="rise"><b class="grad">54</b><span>эффекта</span></div>
+  <div class="rise"><b class="grad">47</b><span>фильтров</span></div>
+  <div class="rise"><b class="grad">4K</b><span>без водяного знака</span></div>
+  <div class="rise"><b class="grad">0 ₽</b><span>навсегда</span></div>
+</section>
 
-  <div class="feature">
-    <div class="shot"><img src="assets/img/captions.webp" width="1600" height="1000" loading="lazy" alt="Kadro: автосубтитры в стиле блогеров на вертикальном ролике"></div>
+<section class="block" id="features">
+  <div class="head rise"><h2>Всё для коротких роликов.</h2><p>TikTok, Reels, Shorts и YouTube. Видео никуда не загружаются: монтаж, экспорт и ИИ работают на твоём компьютере.</p></div>
+  <div class="chapters">
     <div>
-      <h3>Субтитры как у блогеров</h3>
-      <p>Kadro сам распознаёт речь: русский, английский и ещё 23 языка. Субтитры встают по словам, ключевые слова и числа выделяются цветом, к смыслу подбираются эмодзи.</p>
-      <ul><li>стили «Хормози», «MrBeast», «По слову», «Плашка», «Неон», «Караоке»</li><li>готовые .srt и .vtt тоже можно загрузить</li><li>перевод субтитров на другой язык</li></ul>
+      <article class="chapter on">
+        <h3>Субтитры как у блогеров.</h3>
+        <p>Kadro сам распознаёт речь — русский, английский и ещё 23 языка — и ставит субтитры по словам. Ключевые слова цветом, эмодзи по смыслу.</p>
+        <ul><li>Стили «Хормози», «MrBeast», «Неон», «Караоке»</li><li>Готовые .srt и .vtt тоже подходят</li><li>Перевод субтитров на другой язык</li></ul>
+        <img class="inline" src="assets/shots/captions.webp" width="2400" height="1492" loading="lazy" alt="Kadro: субтитры в стиле «Хормози» на вертикальном ролике">
+      </article>
+      <article class="chapter">
+        <h3>Мем-кнопки и 54 эффекта.</h3>
+        <p>Драматический зум, «Продолжение следует…», басс-буст, замедление с «бум» — в один щелчок, у каждой кнопки свой звук.</p>
+        <ul><li>Свечение, RGB-сдвиг, тряска, пульс</li><li>Ключевые кадры, маски, хромакей</li><li>Стикеры и текст с анимацией</li></ul>
+        <img class="inline" src="assets/shots/effects.webp" width="2400" height="1492" loading="lazy" alt="Kadro: вкладка эффектов и мем-кнопки">
+      </article>
+      <article class="chapter">
+        <h3>181 переход. Оживают под курсором.</h3>
+        <p>Наведи на переход — увидишь его на своём видео. Нажми — он встанет на стык.</p>
+        <ul><li>Шторки, фигуры, 3D</li><li>Глитч, зум и вращение</li><li>Звуки на стыках: свуш, щелчок, «бум»</li></ul>
+        <img class="inline" src="assets/shots/transitions.webp" width="2400" height="1492" loading="lazy" alt="Kadro: вкладка переходов с живыми миниатюрами">
+      </article>
+      <article class="chapter">
+        <h3>ИИ без облака и кредитов.</h3>
+        <p>Всё считается на твоём компьютере — бесплатно и без лимитов.</p>
+        <ul><li>Нарезка стрима или подкаста в шортсы</li><li>Дубляж с переводом: русский и английский</li><li>Удаление фона и «Клон себя»</li><li>Студийный голос одной кнопкой</li></ul>
+        <img class="inline" src="assets/shots/ai.webp" width="2400" height="1492" loading="lazy" alt="Kadro: вкладка ИИ-инструментов">
+      </article>
     </div>
-  </div>
-
-  <div class="feature">
-    <div class="shot"><img src="assets/img/effects.webp" width="1600" height="1000" loading="lazy" alt="Kadro: вкладка эффектов и мем-кнопки"></div>
-    <div>
-      <h3>181 переход, 54 эффекта, 47 фильтров</h3>
-      <p>Переходы оживают под курсором, эффекты настраиваются ползунком. Мем-кнопки в один щелчок: драматический зум, «Продолжение следует…», басс-буст, замедление с «бум», у каждой свой звук.</p>
-      <ul><li>ключевые кадры, маски, хромакей</li><li>текст с анимацией, стикеры, 3D-объекты</li><li>19 шаблонов с живым превью</li></ul>
+    <div class="stage" aria-hidden="true">
+      <div class="pin">
+        <img class="on" src="assets/shots/captions.webp" width="2400" height="1492" alt="Kadro: субтитры в стиле «Хормози» на вертикальном ролике">
+        <img src="assets/shots/effects.webp" width="2400" height="1492" loading="lazy" alt="Kadro: вкладка эффектов и мем-кнопки">
+        <img src="assets/shots/transitions.webp" width="2400" height="1492" loading="lazy" alt="Kadro: вкладка переходов с живыми миниатюрами">
+        <img src="assets/shots/ai.webp" width="2400" height="1492" loading="lazy" alt="Kadro: вкладка ИИ-инструментов">
+      </div>
     </div>
-  </div>
-
-  <div class="feature">
-    <div class="shot"><img src="assets/img/ai.webp" width="1600" height="1000" loading="lazy" alt="Kadro: ИИ-инструменты — автосубтитры, нарезка в шортсы, дубляж, удаление фона"></div>
-    <div>
-      <h3>ИИ без облака и кредитов</h3>
-      <p>Всё считается на твоём компьютере, бесплатно и без лимитов.</p>
-      <ul><li>удаление фона и «Клон себя»: ты дважды в кадре</li><li>нарезка стрима или подкаста в вертикальные шортсы</li><li>дубляж с переводом: русский и английский</li><li>студийный голос одной кнопкой</li><li>«Где пролистнут»: Kadro покажет, где зритель уйдёт</li></ul>
-    </div>
-  </div>
-
-  <div class="feature">
-    <div class="shot tall"><img src="assets/img/export.webp" width="960" height="1185" loading="lazy" alt="Kadro: окно экспорта — MP4 до 4K без водяного знака"></div>
-    <div>
-      <h3>Экспорт до 4K без водяного знака</h3>
-      <p>MP4 в 720p, 1080p, 2K и 4K, от 24 до 60 кадров в секунду. Ещё GIF, звук MP3 и видеостикер для Telegram. Видеокарты NVIDIA, AMD и Intel ускоряют экспорт.</p>
-    </div>
-  </div>
-
-  <div class="more">
-    <h3>И ещё</h3>
-    <ul>
-      <li><b>Авто-ролик:</b> выбрал видео и музыку, Kadro смонтировал в ритм</li>
-      <li><b>Повтор монтажа по ролику,</b> как шаблоны CapCut</li>
-      <li><b>Ролик по сценарию</b> с озвучкой шестью голосами</li>
-      <li><b>Видео на 4 точках</b> и текст в перспективе</li>
-      <li><b>Форматы</b> 9:16, 16:9, 1:1, 4:5 и другие</li>
-      <li><b>Музыка тише под голос</b> автоматически</li>
-      <li><b>Бумеранг,</b> стоп-кадр, реверс, кривая скорости</li>
-      <li><b>Цвет как у другого клипа</b> в один щелчок</li>
-      <li><b>Плагины-шейдеры</b> и своё оформление</li>
-      <li><b>Светлая и тёмная тема</b></li>
-      <li><b>Автообновление</b> в один щелчок</li>
-      <li><b>«Первый ролик за 3 шага»</b> для новичков</li>
-    </ul>
   </div>
 </section>
 
-<section id="compare">
-  <h2>Kadro, CapCut и Premiere Pro</h2>
-  <div class="table">
+<section class="block">
+  <div class="head rise"><h2>И это ещё не всё.</h2></div>
+  <div class="bento">
+    <div class="tile t-wide rise"><h3>Авто-ролик</h3><p>Выбери видео и музыку — Kadro сам возьмёт лучшие куски и смонтирует их в ритм.</p><div class="pic"><img src="assets/shots/auto-dialog.webp" width="1600" height="1273" loading="lazy" alt="Окно «Авто-ролик» в Kadro"></div></div>
+    <div class="tile t-small t-text t-pink rise"><div class="big grad">0 ₽</div><h3>Навсегда.</h3><p>Без подписки, пробного периода и регистрации.</p></div>
+    <div class="tile t-mid rise"><h3>3D-объекты</h3><p>Готовые фигуры и свои модели: материалы, свет, вращение.</p><div class="pic"><img src="assets/shots/3d-dialog.webp" width="1580" height="1240" loading="lazy" alt="Окно 3D-объекта в Kadro: металлическое сердце"></div></div>
+    <div class="tile t-mid rise"><h3>Экспорт до 4K</h3><p>MP4, GIF, MP3 и стикеры для Telegram. Перед публикацией Kadro проверит, не закроют ли кнопки TikTok твои субтитры.</p><div class="pic narrow"><img src="assets/shots/export-dialog.webp" width="1030" height="1520" loading="lazy" alt="Окно экспорта Kadro"></div></div>
+    <div class="tile t-small t-text rise"><div class="big grad" data-stars="★ {n}">★ 13</div><h3>Открытый код</h3><p>GPL-3.0. Каждую строчку можно проверить на GitHub.</p></div>
+    <div class="tile t-wide rise"><h3>Светлая и тёмная тема</h3><p>Плюс свой цвет, значок и оформление.</p><div class="pic"><img src="assets/shots/light-crop.webp" width="1600" height="962" loading="lazy" alt="Kadro в светлой теме: вкладка фильтров"></div></div>
+  </div>
+</section>
+</div>
+
+<section class="block" id="templates">
+  <div class="wrap head rise"><h2>19 шаблонов. Поставь свои видео.</h2><p>Как шаблоны CapCut: выбери стиль — видео и фото встанут в окошки в ритм музыки. Или повтори монтаж любого понравившегося ролика.</p></div>
+  <div class="reel"><div class="track"><figure><video muted loop playsinline preload="none" poster="assets/tpl/trip.jpg" aria-hidden="true"><source src="assets/tpl/trip.webm" type="video/webm"><source src="assets/tpl/trip.mp4" type="video/mp4"></video><figcaption>Путешествие</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/neonnight.jpg" aria-hidden="true"><source src="assets/tpl/neonnight.webm" type="video/webm"><source src="assets/tpl/neonnight.mp4" type="video/mp4"></video><figcaption>Неоновая ночь</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/party.jpg" aria-hidden="true"><source src="assets/tpl/party.webm" type="video/webm"><source src="assets/tpl/party.mp4" type="video/mp4"></video><figcaption>Вечеринка</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/aesthetic.jpg" aria-hidden="true"><source src="assets/tpl/aesthetic.webm" type="video/webm"><source src="assets/tpl/aesthetic.mp4" type="video/mp4"></video><figcaption>Эстетика</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/sport.jpg" aria-hidden="true"><source src="assets/tpl/sport.webm" type="video/webm"><source src="assets/tpl/sport.mp4" type="video/mp4"></video><figcaption>Энергия</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/vlog.jpg" aria-hidden="true"><source src="assets/tpl/vlog.webm" type="video/webm"><source src="assets/tpl/vlog.mp4" type="video/mp4"></video><figcaption>Влог дня</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/love.jpg" aria-hidden="true"><source src="assets/tpl/love.webm" type="video/webm"><source src="assets/tpl/love.mp4" type="video/mp4"></video><figcaption>Любовь</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/pulse.jpg" aria-hidden="true"><source src="assets/tpl/pulse.webm" type="video/webm"><source src="assets/tpl/pulse.mp4" type="video/mp4"></video><figcaption>Ритм</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/countdown.jpg" aria-hidden="true"><source src="assets/tpl/countdown.webm" type="video/webm"><source src="assets/tpl/countdown.mp4" type="video/mp4"></video><figcaption>Обратный отсчёт</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/winter.jpg" aria-hidden="true"><source src="assets/tpl/winter.webm" type="video/webm"><source src="assets/tpl/winter.mp4" type="video/mp4"></video><figcaption>Зимняя сказка</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/collage.jpg" aria-hidden="true"><source src="assets/tpl/collage.webm" type="video/webm"><source src="assets/tpl/collage.mp4" type="video/mp4"></video><figcaption>Коллаж</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/beforeafter.jpg" aria-hidden="true"><source src="assets/tpl/beforeafter.webm" type="video/webm"><source src="assets/tpl/beforeafter.mp4" type="video/mp4"></video><figcaption>До и после</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/birthday.jpg" aria-hidden="true"><source src="assets/tpl/birthday.webm" type="video/webm"><source src="assets/tpl/birthday.mp4" type="video/mp4"></video><figcaption>С днём рождения</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/trip.jpg" aria-hidden="true"><source src="assets/tpl/trip.webm" type="video/webm"><source src="assets/tpl/trip.mp4" type="video/mp4"></video><figcaption>Путешествие</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/neonnight.jpg" aria-hidden="true"><source src="assets/tpl/neonnight.webm" type="video/webm"><source src="assets/tpl/neonnight.mp4" type="video/mp4"></video><figcaption>Неоновая ночь</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/party.jpg" aria-hidden="true"><source src="assets/tpl/party.webm" type="video/webm"><source src="assets/tpl/party.mp4" type="video/mp4"></video><figcaption>Вечеринка</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/aesthetic.jpg" aria-hidden="true"><source src="assets/tpl/aesthetic.webm" type="video/webm"><source src="assets/tpl/aesthetic.mp4" type="video/mp4"></video><figcaption>Эстетика</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/sport.jpg" aria-hidden="true"><source src="assets/tpl/sport.webm" type="video/webm"><source src="assets/tpl/sport.mp4" type="video/mp4"></video><figcaption>Энергия</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/vlog.jpg" aria-hidden="true"><source src="assets/tpl/vlog.webm" type="video/webm"><source src="assets/tpl/vlog.mp4" type="video/mp4"></video><figcaption>Влог дня</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/love.jpg" aria-hidden="true"><source src="assets/tpl/love.webm" type="video/webm"><source src="assets/tpl/love.mp4" type="video/mp4"></video><figcaption>Любовь</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/pulse.jpg" aria-hidden="true"><source src="assets/tpl/pulse.webm" type="video/webm"><source src="assets/tpl/pulse.mp4" type="video/mp4"></video><figcaption>Ритм</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/countdown.jpg" aria-hidden="true"><source src="assets/tpl/countdown.webm" type="video/webm"><source src="assets/tpl/countdown.mp4" type="video/mp4"></video><figcaption>Обратный отсчёт</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/winter.jpg" aria-hidden="true"><source src="assets/tpl/winter.webm" type="video/webm"><source src="assets/tpl/winter.mp4" type="video/mp4"></video><figcaption>Зимняя сказка</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/collage.jpg" aria-hidden="true"><source src="assets/tpl/collage.webm" type="video/webm"><source src="assets/tpl/collage.mp4" type="video/mp4"></video><figcaption>Коллаж</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/beforeafter.jpg" aria-hidden="true"><source src="assets/tpl/beforeafter.webm" type="video/webm"><source src="assets/tpl/beforeafter.mp4" type="video/mp4"></video><figcaption>До и после</figcaption></figure><figure><video muted loop playsinline preload="none" poster="assets/tpl/birthday.jpg" aria-hidden="true"><source src="assets/tpl/birthday.webm" type="video/webm"><source src="assets/tpl/birthday.mp4" type="video/mp4"></video><figcaption>С днём рождения</figcaption></figure></div></div>
+</section>
+
+<div class="wrap">
+<section class="block" id="compare">
+  <div class="head rise"><h2>Kadro, CapCut и Premiere Pro.</h2></div>
+  <div class="compare rise">
     <table>
-      <thead><tr><th scope="col"><span class="sr">Что сравниваем</span></th><th scope="col" class="us">Kadro</th><th scope="col">CapCut</th><th scope="col">Premiere Pro</th></tr></thead>
+      <thead><tr><th scope="col"><span class="sr">Что сравниваем</span></th><th scope="col" class="us"><span>Kadro</span></th><th scope="col">CapCut</th><th scope="col">Premiere Pro</th></tr></thead>
       <tbody>
         <tr><th scope="row">Цена</th><td class="us">Бесплатно, навсегда</td><td>Базовый монтаж бесплатно, Pro — по подписке</td><td>От $22.99 в месяц</td></tr>
         <tr><th scope="row">ИИ-функции</th><td class="us">Бесплатно, на твоём компьютере</td><td>Тратят кредиты</td><td>Только с подпиской</td></tr>
@@ -169,18 +140,21 @@
   <p class="sources">Данные о конкурентах на ноябрь 2026: <a href="https://dtf.ru/howto/5311103-capcut-v-rossii-kak-oplatit-capcut-pro">DTF о CapCut в России</a>, <a href="https://costbench.com/software/video-editing/adobe-premiere-pro/">цены Premiere Pro</a>.</p>
 </section>
 
-<section id="download">
-  <h2>Скачать Kadro</h2>
+<section class="get" id="download">
+  <img class="icon rise" src="assets/logo.svg" alt="" width="108" height="108">
+  <h2 class="rise">Скачай Kadro. Это бесплатно.</h2>
+  <div class="cta"><a class="btn" data-dl href="https://github.com/honeyjostar/kadro/releases/latest"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17z M5 19h14v2H5z"/></svg>Скачать для Windows</a></div>
+  <p class="note" style="margin-top:18px;font-size:14px;color:var(--muted)" data-size="Установщик {mb} МБ, Windows 10 и 11">Установщик около 340 МБ, Windows 10 и 11</p>
   <ol class="steps">
-    <li><b>Скачай установщик.</b> Браузер может спросить, сохранить ли редкий файл, — выбери «Сохранить».<div class="cta"><a class="btn primary" data-dl href="https://github.com/honeyjostar/kadro/releases/latest">Скачать для Windows</a></div></li>
+    <li><b>Скачай установщик.</b> Браузер может спросить, сохранить ли редкий файл, — выбери «Сохранить».</li>
     <li><b>Запусти его.</b> Если Windows покажет «Система Windows защитила ваш компьютер», нажми «Подробнее» → «Выполнить в любом случае». Так бывает с программами без платной подписи.</li>
     <li><b>Открой Kadro</b> с ярлыка на рабочем столе. Права администратора не нужны, дальше программа обновляется сама.</li>
   </ol>
-  <p class="req">Нужны Windows 10 или 11 (64-бит), 8 ГБ памяти (для 4K и удаления фона лучше 16 ГБ) и около 1 ГБ на диске. Видеокарта не обязательна. Есть версия без установки — zip на <a href="https://github.com/honeyjostar/kadro/releases/latest">странице релиза</a>.</p>
+  <p class="req">Нужны Windows 10 или 11 (64-бит), 8 ГБ памяти (для 4K и удаления фона лучше 16 ГБ) и около 1 ГБ на диске. Видеокарта не обязательна. Версия без установки — zip на <a href="https://github.com/honeyjostar/kadro/releases/latest">странице релиза</a>.</p>
 </section>
 
-<section id="faq">
-  <h2>Частые вопросы</h2>
+<section class="block" id="faq">
+  <div class="head rise"><h2>Частые вопросы.</h2></div>
   <div class="faq">
     <details><summary>Kadro правда бесплатный?</summary><p>Да. Без подписки, пробного периода, водяного знака и регистрации. Код открыт под лицензией GPL-3.0 — его может проверить кто угодно.</p></details>
     <details><summary>Kadro — это аналог CapCut?</summary><p>Kadro сделан по мотивам CapCut Pro: таймлайн, переходы, эффекты, субтитры как у блогеров, шаблоны, нарезка длинного видео в шортсы. Отличие в том, что всё бесплатно и работает на компьютере, без аккаунта и кредитов.</p></details>
@@ -192,18 +166,15 @@
     <details><summary>Есть ли Kadro для Mac, Android или iPhone?</summary><p>Пока только для Windows 10 и 11.</p></details>
   </div>
 </section>
-
-<section class="final">
-  <h2>Монтируй бесплатно. Прямо сейчас.</h2>
-  <div class="cta"><a class="btn primary" data-dl href="https://github.com/honeyjostar/kadro/releases/latest">Скачать Kadro для Windows</a><a class="btn" href="https://t.me/kadroOffical">Канал в Telegram</a></div>
-</section>
+</div>
 </main>
 
 <footer>
-  <span>Kadro делает <a href="https://github.com/honeyjostar">yaposspall</a>. Открытый код, лицензия GPL-3.0.</span>
-  <span><a href="https://github.com/honeyjostar/kadro">GitHub</a> &nbsp; <a href="https://t.me/kadroOffical">Telegram</a> &nbsp; <a href="https://github.com/honeyjostar/kadro/blob/master/docs/GUIDE.md">Руководство</a> &nbsp; <a href="en/" hreflang="en" lang="en">English</a></span>
+  <div class="wrap">
+    <span>Kadro делает <a href="https://github.com/honeyjostar">yaposspall</a>. Открытый код, лицензия GPL-3.0.</span>
+    <span><a href="https://github.com/honeyjostar/kadro">GitHub</a> &nbsp; <a href="https://t.me/kadroOffical">Telegram</a> &nbsp; <a href="https://github.com/honeyjostar/kadro/blob/master/docs/GUIDE.md">Руководство</a> &nbsp; <a href="en/" hreflang="en" lang="en">English</a></span>
+  </div>
 </footer>
-</div>
 <script src="assets/app.js" defer></script>
 </body>
 </html>
