@@ -39,3 +39,49 @@
   document.querySelectorAll('.film video, .reel').forEach((el) => play.observe(el));
   if (calm) document.querySelectorAll('.film video').forEach((v) => { v.controls = true; });
 })();
+
+// «Покрути сам»: вкладки и кнопки меняют настоящий ролик Kadro; фильтры — ползунок «до / после»
+(() => {
+  const box = document.querySelector('.try');
+  if (!box) return;
+  const base = box.dataset.base;
+  const video = box.querySelector('.device video');
+  const ba = box.querySelector('.ba');
+  const top = box.querySelector('.ba-top');
+  const range = box.querySelector('.ba-range');
+  const sound = box.querySelector('.sound');
+  const tabs = [...box.querySelectorAll('[role=tab]')];
+  let visible = false;
+  const setSound = (on) => { video.muted = !on; sound.textContent = on ? sound.dataset.off : sound.dataset.on; };
+  const show = (kind, id) => {
+    if (kind === 'filt') {
+      video.pause(); video.hidden = true; ba.hidden = false; sound.hidden = true;
+      top.src = `${base}/filt/${id}.webp`;
+      return;
+    }
+    ba.hidden = true; video.hidden = false;
+    sound.hidden = kind !== 'meme';
+    if (kind !== 'meme') setSound(false);
+    video.poster = `${base}/${kind}/${id}.jpg`;
+    video.innerHTML = `<source src="${base}/${kind}/${id}.webm" type="video/webm"><source src="${base}/${kind}/${id}.mp4" type="video/mp4">`;
+    video.load();
+    if (visible) video.play().catch(() => undefined);
+  };
+  tabs.forEach((t) => t.addEventListener('click', () => {
+    tabs.forEach((x) => x.setAttribute('aria-selected', String(x === t)));
+    box.querySelectorAll('.pane').forEach((p) => { p.hidden = p.id !== `pane-${t.dataset.tab}`; });
+    const first = box.querySelector(`#pane-${t.dataset.tab} .opt`);
+    first?.click();
+  }));
+  box.querySelectorAll('.opt').forEach((b) => b.addEventListener('click', () => {
+    b.parentElement.querySelectorAll('.opt').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+    show(b.dataset.kind, b.dataset.id);
+  }));
+  range.addEventListener('input', () => { ba.style.setProperty('--cut', `${range.value}%`); });
+  sound.addEventListener('click', () => setSound(video.muted));
+  new IntersectionObserver((es) => es.forEach((e) => {
+    visible = e.isIntersecting;
+    if (visible && !video.hidden && !matchMedia('(prefers-reduced-motion: reduce)').matches) video.play().catch(() => undefined);
+    else video.pause();
+  }), { threshold: 0.3 }).observe(video.parentElement);
+})();

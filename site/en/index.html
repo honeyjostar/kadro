@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kadro — free video editor for Windows, a CapCut alternative with no watermark</title>
-<meta name="description" content="Kadro is a free, open-source video editor for Windows with AI that runs on your own PC: creator-style captions, 181 transitions, meme buttons, background removal, cutting long videos into Shorts, export up to 4K. No subscription, no watermark, no sign-up.">
+<meta name="description" content="Kadro is a free, open-source video editor for Windows with AI that runs on your own PC: creator-style captions, 180+ transitions, meme buttons, background removal, cutting long videos into Shorts, export up to 4K. No subscription, no watermark, no sign-up.">
 <link rel="canonical" href="https://honeyjostar.github.io/kadro/en/">
 <link rel="alternate" hreflang="ru" href="https://honeyjostar.github.io/kadro/">
 <link rel="alternate" hreflang="en" href="https://honeyjostar.github.io/kadro/en/">
@@ -29,6 +29,7 @@
   <div class="wrap">
     <a class="brand" href="./"><img src="../assets/logo.svg" alt="" width="24" height="24">Kadro</a>
     <a class="l" href="#features">Features</a>
+    <a class="l" href="#try">Try it</a>
     <a class="l" href="#templates">Templates</a>
     <a class="l" href="#compare">Compare</a>
     <a class="l" href="#faq">FAQ</a>
@@ -40,8 +41,8 @@
 <main id="main">
 <section class="hero">
   <div class="wrap">
-    <div class="name grad">Kadro</div>
-    <h1>Pro-level editing.<br><span class="grad">Free.</span></h1>
+    <div class="name">Kadro</div>
+    <h1>Pro-level editing.<br>Free.</h1>
     <p class="sub">A video editor for Windows with AI that runs right on your computer. No subscription, no watermark, no sign-up.</p>
     <div class="cta">
       <a class="btn" data-dl href="https://github.com/honeyjostar/kadro/releases/latest"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17z M5 19h14v2H5z"/></svg>Download for Windows</a>
@@ -57,11 +58,11 @@
 
 <div class="wrap">
 <section class="stats" aria-label="Kadro">
-  <div class="rise"><b class="grad">181</b><span>transitions</span></div>
-  <div class="rise"><b class="grad">54</b><span>effects</span></div>
-  <div class="rise"><b class="grad">47</b><span>filters</span></div>
-  <div class="rise"><b class="grad">4K</b><span>no watermark</span></div>
-  <div class="rise"><b class="grad">$0</b><span>forever</span></div>
+  <div class="rise"><b>180+</b><span>transitions</span></div>
+  <div class="rise"><b>50+</b><span>effects</span></div>
+  <div class="rise"><b>45+</b><span>filters</span></div>
+  <div class="rise"><b>25</b><span>caption languages</span></div>
+  <div class="rise"><b>$0</b><span>forever</span></div>
 </section>
 
 <section class="block" id="features">
@@ -75,13 +76,13 @@
         <img class="inline" src="../assets/shots/captions.webp" width="2400" height="1492" loading="lazy" alt="Kadro: Hormozi-style captions on a vertical video">
       </article>
       <article class="chapter">
-        <h3>Meme buttons and 54 effects.</h3>
+        <h3>Meme buttons and 50+ effects.</h3>
         <p>Dramatic zoom, &quot;To be continued…&quot;, bass boost, slow-mo with a boom — one click each, every button with its own sound.</p>
         <ul><li>Glow, RGB split, shake, pulse</li><li>Keyframes, masks, chroma key</li><li>Stickers and animated text</li></ul>
         <img class="inline" src="../assets/shots/effects.webp" width="2400" height="1492" loading="lazy" alt="Kadro: effects tab and meme buttons">
       </article>
       <article class="chapter">
-        <h3>181 transitions. Live on hover.</h3>
+        <h3>180+ transitions. Live on hover.</h3>
         <p>Hover over a transition to see it on your own video. Click to put it on the cut.</p>
         <ul><li>Wipes, shapes, 3D</li><li>Glitch, zoom and spin</li><li>Sounds on cuts: whoosh, click, boom</li></ul>
         <img class="inline" src="../assets/shots/transitions.webp" width="2400" height="1492" loading="lazy" alt="Kadro: transitions tab with live thumbnails">
@@ -104,14 +105,29 @@
   </div>
 </section>
 
+<section class="block" id="try">
+  <div class="head rise"><h2>Try it yourself.</h2><p>These are real videos edited in Kadro. Click and see the difference.</p></div>
+  <div class="try rise" data-base="../assets/demo">
+    <div class="tabs" role="tablist"><button role="tab" id="tab-caps" aria-controls="pane-caps" aria-selected="true" data-tab="caps">Captions</button><button role="tab" id="tab-tr" aria-controls="pane-tr" aria-selected="false" data-tab="tr">Transitions</button><button role="tab" id="tab-meme" aria-controls="pane-meme" aria-selected="false" data-tab="meme">Meme buttons</button><button role="tab" id="tab-filt" aria-controls="pane-filt" aria-selected="false" data-tab="filt">Filters</button></div>
+    <div class="try-body">
+      <div class="device">
+        <video muted loop playsinline preload="none" poster="../assets/demo/caps/hormozi.jpg"><source src="../assets/demo/caps/hormozi.webm" type="video/webm"><source src="../assets/demo/caps/hormozi.mp4" type="video/mp4"></video>
+        <div class="ba" hidden><img class="ba-base" src="../assets/demo/filt/none.webp" width="720" height="1280" alt=""><img class="ba-top" src="../assets/demo/filt/vivid.webp" width="720" height="1280" alt=""><span class="ba-line" aria-hidden="true"></span><input class="ba-range" type="range" min="0" max="100" value="50" aria-label="Compare: original and filter"></div>
+        <button class="sound" hidden data-on="Sound on" data-off="Sound off">Sound on</button>
+      </div>
+      <div class="panes"><div class="pane" id="pane-caps" role="tabpanel" aria-labelledby="tab-caps"><h3>Six styles, one video.</h3><p>Change the style in one click; captions stay on their words.</p><div class="opts"><button class="opt on" data-kind="caps" data-id="hormozi" aria-pressed="true">Hormozi</button><button class="opt" data-kind="caps" data-id="beast" aria-pressed="false">MrBeast</button><button class="opt" data-kind="caps" data-id="word" aria-pressed="false">One word</button><button class="opt" data-kind="caps" data-id="boxword" aria-pressed="false">Label</button><button class="opt" data-kind="caps" data-id="neonblog" aria-pressed="false">Neon</button><button class="opt" data-kind="caps" data-id="karaoke" aria-pressed="false">Karaoke</button></div></div><div class="pane" id="pane-tr" role="tabpanel" aria-labelledby="tab-tr" hidden><h3>One cut, eight transitions.</h3><p>Eight of 180+. Each lands on the cut in one click; set the length with a slider.</p><div class="opts"><button class="opt on" data-kind="tr" data-id="zoomin" aria-pressed="true">Zoom in</button><button class="opt" data-kind="tr" data-id="slideleft" aria-pressed="false">Slide</button><button class="opt" data-kind="tr" data-id="circleopen" aria-pressed="false">Circle from the center</button><button class="opt" data-kind="tr" data-id="fadewhite" aria-pressed="false">Through white</button><button class="opt" data-kind="tr" data-id="hlwind" aria-pressed="false">Wind</button><button class="opt" data-kind="tr" data-id="gl-Cube" aria-pressed="false">Cube</button><button class="opt" data-kind="tr" data-id="gl-GlitchMemories" aria-pressed="false">Glitch</button><button class="opt" data-kind="tr" data-id="gl-CrossZoom" aria-pressed="false">Zoom blur</button></div></div><div class="pane" id="pane-meme" role="tabpanel" aria-labelledby="tab-meme" hidden><h3>A meme in one click.</h3><p>Each button is a clip edit plus its own sound. Turn the sound on.</p><div class="opts"><button class="opt on" data-kind="meme" data-id="drama" aria-pressed="true">Dramatic zoom</button><button class="opt" data-kind="meme" data-id="tbc" aria-pressed="false">To be continued…</button><button class="opt" data-kind="meme" data-id="bass" aria-pressed="false">Bass boost</button><button class="opt" data-kind="meme" data-id="slowmo" aria-pressed="false">Slow-mo with a boom</button></div></div><div class="pane" id="pane-filt" role="tabpanel" aria-labelledby="tab-filt" hidden><h3>One filter, a different frame.</h3><p>Drag the slider: original on the left, filter on the right.</p><div class="opts"><button class="opt on" data-kind="filt" data-id="vivid" aria-pressed="true">Vivid</button><button class="opt" data-kind="filt" data-id="tealorange" aria-pressed="false">Teal &amp; orange</button><button class="opt" data-kind="filt" data-id="cinema" aria-pressed="false">Cinematic</button><button class="opt" data-kind="filt" data-id="moody" aria-pressed="false">Moody</button><button class="opt" data-kind="filt" data-id="golden" aria-pressed="false">Golden hour</button><button class="opt" data-kind="filt" data-id="film" aria-pressed="false">Film</button></div></div></div>
+    </div>
+  </div>
+</section>
+
 <section class="block">
   <div class="head rise"><h2>And that is not all.</h2></div>
   <div class="bento">
     <div class="tile t-wide rise"><h3>Auto Video</h3><p>Pick videos and music — Kadro takes the best bits and cuts them to the beat.</p><div class="pic"><img src="../assets/shots/auto-dialog.webp" width="1600" height="1273" loading="lazy" alt="The Auto Video dialog in Kadro"></div></div>
-    <div class="tile t-small t-text t-pink rise"><div class="big grad">$0</div><h3>Forever.</h3><p>No subscription, no trial, no sign-up.</p></div>
+    <div class="tile t-small t-text t-pink rise"><div class="big">$0</div><h3>Forever.</h3><p>No subscription, no trial, no sign-up.</p></div>
     <div class="tile t-mid rise"><h3>3D objects</h3><p>Ready shapes and your own models: materials, light, rotation.</p><div class="pic"><img src="../assets/shots/3d-dialog.webp" width="1580" height="1240" loading="lazy" alt="Kadro 3D object dialog: a metal heart"></div></div>
     <div class="tile t-mid rise"><h3>Export up to 4K</h3><p>MP4, GIF, MP3 and Telegram stickers. Before you post, Kadro checks that TikTok buttons will not cover your captions.</p><div class="pic narrow"><img src="../assets/shots/export-dialog.webp" width="1030" height="1520" loading="lazy" alt="Kadro export dialog"></div></div>
-    <div class="tile t-small t-text rise"><div class="big grad" data-stars="★ {n}">★ 13</div><h3>Open source</h3><p>GPL-3.0. Every line can be checked on GitHub.</p></div>
+    <div class="tile t-small t-text rise"><div class="big" data-stars="★ {n}">★ 13</div><h3>Open source</h3><p>GPL-3.0. Every line can be checked on GitHub.</p></div>
     <div class="tile t-wide rise"><h3>Light and dark theme</h3><p>Plus your own colour, icon and styling.</p><div class="pic"><img src="../assets/shots/light-crop.webp" width="1600" height="962" loading="lazy" alt="Kadro in the light theme: filters tab"></div></div>
   </div>
 </section>

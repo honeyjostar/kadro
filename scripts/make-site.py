@@ -33,29 +33,43 @@ T = {
     'ru': {
         'lang': 'ru', 'url': f'{BASE}/', 'root': '', 'other': 'en/', 'other_lang': 'en', 'other_name': 'English', 'locale': 'ru_RU', 'price_cur': 'RUB',
         'title': 'Kadro — бесплатный видеоредактор для Windows, аналог CapCut без водяного знака',
-        'desc': 'Kadro — бесплатный видеоредактор для Windows с ИИ, который работает на твоём компьютере: субтитры как у блогеров, 181 переход, мем-кнопки, удаление фона, нарезка в шортсы, экспорт до 4K. Без подписки, водяного знака и регистрации. Открытый код.',
+        'desc': 'Kadro — бесплатный видеоредактор для Windows с ИИ, который работает на твоём компьютере: субтитры как у блогеров, 180+ переходов, мем-кнопки, удаление фона, нарезка в шортсы, экспорт до 4K. Без подписки, водяного знака и регистрации. Открытый код.',
         'og_title': 'Kadro — монтаж уровня Pro. Бесплатно.',
         'og_desc': 'Видеоредактор для Windows с ИИ на твоём компьютере. Без подписки, водяного знака и регистрации.',
-        'skip': 'К содержанию', 'nav': [('#features', 'Возможности'), ('#templates', 'Шаблоны'), ('#compare', 'Сравнение'), ('#faq', 'Вопросы')], 'nav_dl': 'Скачать',
-        'h1': 'Монтаж уровня Pro.<br><span class="grad">Бесплатно.</span>',
+        'skip': 'К содержанию', 'nav': [('#features', 'Возможности'), ('#try', 'Попробовать'), ('#templates', 'Шаблоны'), ('#compare', 'Сравнение'), ('#faq', 'Вопросы')], 'nav_dl': 'Скачать',
+        'h1': 'Монтаж уровня Pro.<br>Бесплатно.',
         'sub': 'Видеоредактор для Windows с ИИ, который работает прямо на твоём компьютере. Без подписки, без водяного знака, без регистрации.',
         'dl': 'Скачать для Windows', 'see': 'Посмотреть, что умеет',
         'note': ('Установщик {mb} МБ, Windows 10 и 11', 'Установщик около 340 МБ, Windows 10 и 11'),
         'film_alt': 'Запись экрана Kadro: авто-ролик собирается из шести видео и музыки',
         'film_cap': 'Настоящая запись экрана: шесть видео и музыка — и через полминуты готовый ролик.',
-        'stats': [('181', 'переход'), ('54', 'эффекта'), ('47', 'фильтров'), ('4K', 'без водяного знака'), ('0 ₽', 'навсегда')],
+        'stats': [('180+', 'переходов'), ('50+', 'эффектов'), ('45+', 'фильтров'), ('25', 'языков субтитров'), ('0 ₽', 'навсегда')],
         'f_h2': 'Всё для коротких роликов.',
         'f_p': 'TikTok, Reels, Shorts и YouTube. Видео никуда не загружаются: монтаж, экспорт и ИИ работают на твоём компьютере.',
         'chapters': [
             ('captions', 'Субтитры как у блогеров.', 'Kadro сам распознаёт речь — русский, английский и ещё 23 языка — и ставит субтитры по словам. Ключевые слова цветом, эмодзи по смыслу.',
              ['Стили «Хормози», «MrBeast», «Неон», «Караоке»', 'Готовые .srt и .vtt тоже подходят', 'Перевод субтитров на другой язык'], 'Kadro: субтитры в стиле «Хормози» на вертикальном ролике'),
-            ('effects', 'Мем-кнопки и 54 эффекта.', 'Драматический зум, «Продолжение следует…», басс-буст, замедление с «бум» — в один щелчок, у каждой кнопки свой звук.',
+            ('effects', 'Мем-кнопки и 50+ эффектов.', 'Драматический зум, «Продолжение следует…», басс-буст, замедление с «бум» — в один щелчок, у каждой кнопки свой звук.',
              ['Свечение, RGB-сдвиг, тряска, пульс', 'Ключевые кадры, маски, хромакей', 'Стикеры и текст с анимацией'], 'Kadro: вкладка эффектов и мем-кнопки'),
-            ('transitions', '181 переход. Оживают под курсором.', 'Наведи на переход — увидишь его на своём видео. Нажми — он встанет на стык.',
+            ('transitions', '180+ переходов. Оживают под курсором.', 'Наведи на переход — увидишь его на своём видео. Нажми — он встанет на стык.',
              ['Шторки, фигуры, 3D', 'Глитч, зум и вращение', 'Звуки на стыках: свуш, щелчок, «бум»'], 'Kadro: вкладка переходов с живыми миниатюрами'),
             ('ai', 'ИИ без облака и кредитов.', 'Всё считается на твоём компьютере — бесплатно и без лимитов.',
              ['Нарезка стрима или подкаста в шортсы', 'Дубляж с переводом: русский и английский', 'Удаление фона и «Клон себя»', 'Студийный голос одной кнопкой'], 'Kadro: вкладка ИИ-инструментов'),
         ],
+        'try': {
+            'h2': 'Покрути сам.', 'p': 'Это настоящие ролики, смонтированные в Kadro. Нажимай и смотри разницу.',
+            'sound_on': 'Со звуком', 'sound_off': 'Без звука', 'ba': 'Сравнить: исходник и фильтр',
+            'tabs': [
+                ('caps', 'Субтитры', 'Шесть стилей — один ролик.', 'Стиль меняется одним щелчком, субтитры остаются на своих словах.',
+                 [('hormozi', 'Хормози'), ('beast', 'MrBeast'), ('word', 'По слову'), ('boxword', 'Плашка'), ('neonblog', 'Неон'), ('karaoke', 'Караоке')]),
+                ('tr', 'Переходы', 'Один стык — восемь переходов.', 'Восемь из 180+. Каждый ложится на стык одним щелчком, длительность — ползунком.',
+                 [('zoomin', 'Приближение'), ('slideleft', 'Сдвиг'), ('circleopen', 'Круг из центра'), ('fadewhite', 'Через белый'), ('hlwind', 'Ветер'), ('gl-Cube', 'Куб'), ('gl-GlitchMemories', 'Глитч'), ('gl-CrossZoom', 'Зум-размытие')]),
+                ('meme', 'Мем-кнопки', 'Мем — одной кнопкой.', 'Каждая кнопка — правка клипа и свой звук. Включи звук.',
+                 [('drama', 'Драматический зум'), ('tbc', 'Продолжение следует…'), ('bass', 'Басс-буст'), ('slowmo', 'Замедление с «бум»')]),
+                ('filt', 'Фильтры', 'Фильтр — и кадр другой.', 'Двигай ползунок: слева исходник, справа фильтр.',
+                 [('vivid', 'Сочный'), ('tealorange', 'Бирюза и оранж'), ('cinema', 'Кинематограф'), ('moody', 'Мрачный'), ('golden', 'Золотой час'), ('film', 'Плёнка')]),
+            ],
+        },
         'b_h2': 'И это ещё не всё.',
         'tiles': {
             'auto': ('Авто-ролик', 'Выбери видео и музыку — Kadro сам возьмёт лучшие куски и смонтирует их в ритм.', 'Окно «Авто-ролик» в Kadro'),
@@ -101,29 +115,43 @@ T = {
     'en': {
         'lang': 'en', 'url': f'{BASE}/en/', 'root': '../', 'other': '../', 'other_lang': 'ru', 'other_name': 'Русский', 'locale': 'en_US', 'price_cur': 'USD',
         'title': 'Kadro — free video editor for Windows, a CapCut alternative with no watermark',
-        'desc': 'Kadro is a free, open-source video editor for Windows with AI that runs on your own PC: creator-style captions, 181 transitions, meme buttons, background removal, cutting long videos into Shorts, export up to 4K. No subscription, no watermark, no sign-up.',
+        'desc': 'Kadro is a free, open-source video editor for Windows with AI that runs on your own PC: creator-style captions, 180+ transitions, meme buttons, background removal, cutting long videos into Shorts, export up to 4K. No subscription, no watermark, no sign-up.',
         'og_title': 'Kadro — Pro-level editing. Free.',
         'og_desc': 'A video editor for Windows with AI on your own PC. No subscription, no watermark, no sign-up.',
-        'skip': 'Skip to content', 'nav': [('#features', 'Features'), ('#templates', 'Templates'), ('#compare', 'Compare'), ('#faq', 'FAQ')], 'nav_dl': 'Download',
-        'h1': 'Pro-level editing.<br><span class="grad">Free.</span>',
+        'skip': 'Skip to content', 'nav': [('#features', 'Features'), ('#try', 'Try it'), ('#templates', 'Templates'), ('#compare', 'Compare'), ('#faq', 'FAQ')], 'nav_dl': 'Download',
+        'h1': 'Pro-level editing.<br>Free.',
         'sub': 'A video editor for Windows with AI that runs right on your computer. No subscription, no watermark, no sign-up.',
         'dl': 'Download for Windows', 'see': 'See what it can do',
         'note': ('Installer {mb} MB, Windows 10 and 11', 'Installer about 340 MB, Windows 10 and 11'),
         'film_alt': 'Kadro screen recording: Auto Video edits six clips and music into a video',
         'film_cap': 'A real screen recording: six clips and a track, and half a minute later the video is ready.',
-        'stats': [('181', 'transitions'), ('54', 'effects'), ('47', 'filters'), ('4K', 'no watermark'), ('$0', 'forever')],
+        'stats': [('180+', 'transitions'), ('50+', 'effects'), ('45+', 'filters'), ('25', 'caption languages'), ('$0', 'forever')],
         'f_h2': 'Everything for short videos.',
         'f_p': 'TikTok, Reels, Shorts and YouTube. Your videos are never uploaded: editing, export and AI all run on your computer.',
         'chapters': [
             ('captions', 'Captions like creators use.', 'Kadro recognises speech by itself — English, Russian and 23 more languages — and places captions word by word. Keywords get highlighted, emojis match the meaning.',
              ['Hormozi, MrBeast, Neon and Karaoke styles', 'Ready .srt and .vtt files work too', 'Translate captions into another language'], 'Kadro: Hormozi-style captions on a vertical video'),
-            ('effects', 'Meme buttons and 54 effects.', 'Dramatic zoom, "To be continued…", bass boost, slow-mo with a boom — one click each, every button with its own sound.',
+            ('effects', 'Meme buttons and 50+ effects.', 'Dramatic zoom, "To be continued…", bass boost, slow-mo with a boom — one click each, every button with its own sound.',
              ['Glow, RGB split, shake, pulse', 'Keyframes, masks, chroma key', 'Stickers and animated text'], 'Kadro: effects tab and meme buttons'),
-            ('transitions', '181 transitions. Live on hover.', 'Hover over a transition to see it on your own video. Click to put it on the cut.',
+            ('transitions', '180+ transitions. Live on hover.', 'Hover over a transition to see it on your own video. Click to put it on the cut.',
              ['Wipes, shapes, 3D', 'Glitch, zoom and spin', 'Sounds on cuts: whoosh, click, boom'], 'Kadro: transitions tab with live thumbnails'),
             ('ai', 'AI with no cloud and no credits.', 'Everything runs on your computer, free and unlimited.',
              ['Cut a stream or podcast into Shorts', 'Dubbing with translation between English and Russian', 'Background removal and Clone yourself', 'Studio voice in one click'], 'Kadro: AI tools tab'),
         ],
+        'try': {
+            'h2': 'Try it yourself.', 'p': 'These are real videos edited in Kadro. Click and see the difference.',
+            'sound_on': 'Sound on', 'sound_off': 'Sound off', 'ba': 'Compare: original and filter',
+            'tabs': [
+                ('caps', 'Captions', 'Six styles, one video.', 'Change the style in one click; captions stay on their words.',
+                 [('hormozi', 'Hormozi'), ('beast', 'MrBeast'), ('word', 'One word'), ('boxword', 'Label'), ('neonblog', 'Neon'), ('karaoke', 'Karaoke')]),
+                ('tr', 'Transitions', 'One cut, eight transitions.', 'Eight of 180+. Each lands on the cut in one click; set the length with a slider.',
+                 [('zoomin', 'Zoom in'), ('slideleft', 'Slide'), ('circleopen', 'Circle from the center'), ('fadewhite', 'Through white'), ('hlwind', 'Wind'), ('gl-Cube', 'Cube'), ('gl-GlitchMemories', 'Glitch'), ('gl-CrossZoom', 'Zoom blur')]),
+                ('meme', 'Meme buttons', 'A meme in one click.', 'Each button is a clip edit plus its own sound. Turn the sound on.',
+                 [('drama', 'Dramatic zoom'), ('tbc', 'To be continued…'), ('bass', 'Bass boost'), ('slowmo', 'Slow-mo with a boom')]),
+                ('filt', 'Filters', 'One filter, a different frame.', 'Drag the slider: original on the left, filter on the right.',
+                 [('vivid', 'Vivid'), ('tealorange', 'Teal & orange'), ('cinema', 'Cinematic'), ('moody', 'Moody'), ('golden', 'Golden hour'), ('film', 'Film')]),
+            ],
+        },
         'b_h2': 'And that is not all.',
         'tiles': {
             'auto': ('Auto Video', 'Pick videos and music — Kadro takes the best bits and cuts them to the beat.', 'The Auto Video dialog in Kadro'),
@@ -189,7 +217,7 @@ def page(t: dict) -> str:
     ld_faq = {'@context': 'https://schema.org', '@type': 'FAQPage', 'mainEntity': [
         {'@type': 'Question', 'name': q, 'acceptedAnswer': {'@type': 'Answer', 'text': ans}} for q, ans in t['faq']]}
     nav = '\n'.join(f'    <a class="l" href="{h}">{esc(n)}</a>' for h, n in t['nav'])
-    stats = '\n'.join(f'  <div class="rise"><b class="grad">{esc(n)}</b><span>{esc(l)}</span></div>' for n, l in t['stats'])
+    stats = '\n'.join(f'  <div class="rise"><b>{esc(n)}</b><span>{esc(l)}</span></div>' for n, l in t['stats'])
     ch_text, ch_imgs = [], []
     for i, (img, h, p, items, alt) in enumerate(t['chapters']):
         lis = ''.join(f'<li>{esc(x)}</li>' for x in items)
@@ -204,12 +232,34 @@ def page(t: dict) -> str:
     tile_pic = lambda key, img, w, h: f'<div class="pic"><img src="{a}/shots/{img}.webp" width="{w}" height="{h}" loading="lazy" alt="{esc(tl[key][2])}"></div>'
     bento = f'''  <div class="bento">
     <div class="tile t-wide rise"><h3>{esc(tl['auto'][0])}</h3><p>{esc(tl['auto'][1])}</p>{tile_pic('auto', 'auto-dialog', 1600, 1273)}</div>
-    <div class="tile t-small t-text t-pink rise"><div class="big grad">{esc(tl['free'][0])}</div><h3>{esc(tl['free'][1])}</h3><p>{esc(tl['free'][2])}</p></div>
+    <div class="tile t-small t-text t-pink rise"><div class="big">{esc(tl['free'][0])}</div><h3>{esc(tl['free'][1])}</h3><p>{esc(tl['free'][2])}</p></div>
     <div class="tile t-mid rise"><h3>{esc(tl['3d'][0])}</h3><p>{esc(tl['3d'][1])}</p>{tile_pic('3d', '3d-dialog', 1580, 1240)}</div>
     <div class="tile t-mid rise"><h3>{esc(tl['export'][0])}</h3><p>{esc(tl['export'][1])}</p>{tile_pic('export', 'export-dialog', 1030, 1520).replace('class="pic"', 'class="pic narrow"')}</div>
-    <div class="tile t-small t-text rise"><div class="big grad" data-stars="{esc(tl['code'][0])}">{esc(tl['code'][0].replace('{n}', '13'))}</div><h3>{esc(tl['code'][1])}</h3><p>{esc(tl['code'][2])}</p></div>
+    <div class="tile t-small t-text rise"><div class="big" data-stars="{esc(tl['code'][0])}">{esc(tl['code'][0].replace('{n}', '13'))}</div><h3>{esc(tl['code'][1])}</h3><p>{esc(tl['code'][2])}</p></div>
     <div class="tile t-wide rise"><h3>{esc(tl['light'][0])}</h3><p>{esc(tl['light'][1])}</p>{tile_pic('light', 'light-crop', 1600, 962)}</div>
   </div>'''
+    tr = t['try']
+    tabs = ''.join(f'<button role="tab" id="tab-{k}" aria-controls="pane-{k}" aria-selected="{str(i == 0).lower()}" data-tab="{k}">{esc(name)}</button>' for i, (k, name, *_ ) in enumerate(tr['tabs']))
+    panes = []
+    for i, (k, name, h, p, opts) in enumerate(tr['tabs']):
+        btns = ''.join(f'<button class="opt{" on" if j == 0 else ""}" data-kind="{k}" data-id="{oid}" aria-pressed="{str(j == 0).lower()}">{esc(lab)}</button>' for j, (oid, lab) in enumerate(opts))
+        hid = '' if i == 0 else ' hidden'
+        panes.append(f'<div class="pane" id="pane-{k}" role="tabpanel" aria-labelledby="tab-{k}"{hid}><h3>{esc(h)}</h3><p>{esc(p)}</p><div class="opts">{btns}</div></div>')
+    first = tr['tabs'][0][4][0][0]
+    try_html = f"""<section class="block" id="try">
+  <div class="head rise"><h2>{esc(tr['h2'])}</h2><p>{esc(tr['p'])}</p></div>
+  <div class="try rise" data-base="{a}/demo">
+    <div class="tabs" role="tablist">{tabs}</div>
+    <div class="try-body">
+      <div class="device">
+        <video muted loop playsinline preload="none" poster="{a}/demo/caps/{first}.jpg"><source src="{a}/demo/caps/{first}.webm" type="video/webm"><source src="{a}/demo/caps/{first}.mp4" type="video/mp4"></video>
+        <div class="ba" hidden><img class="ba-base" src="{a}/demo/filt/none.webp" width="720" height="1280" alt=""><img class="ba-top" src="{a}/demo/filt/vivid.webp" width="720" height="1280" alt=""><span class="ba-line" aria-hidden="true"></span><input class="ba-range" type="range" min="0" max="100" value="50" aria-label="{esc(tr['ba'])}"></div>
+        <button class="sound" hidden data-on="{esc(tr['sound_on'])}" data-off="{esc(tr['sound_off'])}">{esc(tr['sound_on'])}</button>
+      </div>
+      <div class="panes">{''.join(panes)}</div>
+    </div>
+  </div>
+</section>"""
     li = 0 if t['lang'] == 'ru' else 1
     cards = ''.join(f'<figure><video muted loop playsinline preload="none" poster="{a}/tpl/{tid}.jpg" aria-hidden="true"><source src="{a}/tpl/{tid}.webm" type="video/webm"><source src="{a}/tpl/{tid}.mp4" type="video/mp4"></video><figcaption>{esc(names[li])}</figcaption></figure>'
                     for tid, *names in TEMPLATES)
@@ -256,7 +306,7 @@ def page(t: dict) -> str:
 <main id="main">
 <section class="hero">
   <div class="wrap">
-    <div class="name grad">Kadro</div>
+    <div class="name">Kadro</div>
     <h1>{t['h1']}</h1>
     <p class="sub">{esc(t['sub'])}</p>
     <div class="cta">
@@ -289,6 +339,8 @@ def page(t: dict) -> str:
     </div>
   </div>
 </section>
+
+{try_html}
 
 <section class="block">
   <div class="head rise"><h2>{esc(t['b_h2'])}</h2></div>
