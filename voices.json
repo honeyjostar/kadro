@@ -1,0 +1,10 @@
+{
+  "S": {
+    "instruct": "",
+    "ref_text": "Внимание. Свет погас. Связи нет. Город замер. У тебя есть ровно одна минута, чтобы принять решение."
+  },
+  "M": {
+    "instruct": "Young man around 22, energetic and confident tech blogger on TikTok. Bright, slightly low voice with a confident grin, fast punchy delivery, excited but not shouting. Very clear crisp Russian diction, firm emphasis on key words, short dramatic pauses between phrases.",
+    "ref_text": "Слушай, я нашёл программу, в которой монтирую все свои ролики. Она бесплатная, и в ней реально есть всё."
+  }
+}

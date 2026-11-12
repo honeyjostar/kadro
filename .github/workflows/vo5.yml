@@ -1,0 +1,113 @@
+# Временная ветка: озвучка ролика Kadro v5 (Qwen3-TTS — Apache-2.0, Chatterbox — MIT) и проверка дублей.
+# Результат — в ветку promo-vo5, потом обе ветки удаляются.
+name: Promo voice v5
+on:
+  push:
+    branches: [promo-vo5-src]
+permissions:
+  contents: write
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: |
+          pip install -q torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q qwen-tts==0.1.1 soundfile
+          sudo apt-get install -y -q sox >/dev/null
+      - run: python gen_qwen.py
+        env: { MODE: design, NREF: '2' }
+      - uses: actions/upload-artifact@v4
+        with: { name: refs, path: refs/ }
+
+  qwen:
+    needs: design
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix: { shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/download-artifact@v4
+        with: { name: refs, path: refs }
+      - run: |
+          pip install -q torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q qwen-tts==0.1.1 soundfile
+          sudo apt-get install -y -q sox >/dev/null
+      - run: python gen_qwen.py
+        env: { MODE: lines, SHARD: "${{ matrix.shard }}", NSHARDS: '14', TAKES: '3' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "vo-q${{ matrix.shard }}", path: out/ }
+
+  cb:
+    needs: design
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix: { shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/download-artifact@v4
+        with: { name: refs, path: refs }
+      - run: |
+          pip install -q torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q chatterbox-tts==0.1.7 soundfile
+      - run: python gen_cb.py
+        env: { SHARD: "${{ matrix.shard }}", NSHARDS: '14', TAKES: '3' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "vo-c${{ matrix.shard }}", path: out/ }
+
+  score:
+    needs: [qwen, cb]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: { shard: [0, 1, 2, 3, 4, 5] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/download-artifact@v4
+        with: { pattern: 'vo-*', path: vo }
+      - run: |
+          pip install -q torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q librosa soundfile sherpa-onnx
+          mkdir -p asr && cd asr
+          curl -fsSL https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-transducer-giga-am-v2-russian-2025-04-19.tar.bz2 | tar xj
+      - run: python score.py
+        env: { SHARD: "${{ matrix.shard }}", NSHARDS: '6' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "sc-${{ matrix.shard }}", path: scores/ }
+
+  collect:
+    needs: [score]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: parts }
+      - run: |
+          mkdir -p pub/out pub/scores pub/refs
+          find parts -path '*vo-*' -name '*.wav' -exec cp {} pub/out/ \;
+          find parts -path '*vo-*' -name '*.txt' -exec cp {} pub/out/ \;
+          find parts -path '*sc-*' -name '*.json' -exec cp {} pub/scores/ \;
+          find parts -path '*refs*' -name '*.wav' -exec cp {} pub/refs/ \;
+          cd pub && git init -q && git checkout -q -b promo-vo5
+          git config user.name "kadro-bot" && git config user.email "kadro-bot@users.noreply.github.com"
+          git add -A && git commit -qm "Озвучка ролика v5 (временно)"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push -q -f origin promo-vo5
