@@ -29,5 +29,8 @@ describe('команды словами', () => {
     expect(parseOne('сделай обложку')).toEqual({ kind: 'cover' });
     expect(parseOne('экспорт')).toEqual({ kind: 'export' });
     expect(parseOne('remove pauses')).toEqual({ kind: 'pauses' });
+    expect(parseOne('добавь автозум')).toEqual({ kind: 'autoZoom' });
+    expect(parseOne('наезды на важных словах')).toEqual({ kind: 'autoZoom' });
+    expect(parseOne('убери автозум')).toEqual({ kind: 'noAutoZoom' });
   });
 });

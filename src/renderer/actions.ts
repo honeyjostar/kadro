@@ -43,6 +43,7 @@ import { findLag, SYNC_MIN_CONFIDENCE, syncedPlacement } from '../shared/audioSy
 import { frameStats, type FrameStats } from '../shared/cover';
 import { cutLength, cutRanges, cutTimeline, fillerIndices, transcriptWords } from '../shared/textEdit';
 import { parseCommands, type Command } from '../shared/commands';
+import { applyAutoZoom, clearAutoZoom, zoomMoments, ZOOM, type ZoomStrength } from '../shared/autoZoom';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -2291,9 +2292,29 @@ export async function runCommands(text: string): Promise<{ done: string[]; unkno
       }
       case 'export': s().setExportOpen(true); done.push(tx('экспорт')); break;
       case 'cover': s().setCoverOpen(true); done.push(tx('обложка')); break;
+      case 'autoZoom': if (await autoZoomWords('mid')) done.push(tx('автозум')); break;
+      case 'noAutoZoom': removeAutoZoom(); done.push(tx('автозум убран')); break;
     }
   }
   if (done.length) s().toast(tx('Сделано: {0}', done.join(', ')), 'ok');
   if (unknown.length) s().toast(tx('Не понял: «{0}». Попробуй: «убери паузы», «музыку тише», «добавь субтитры»', unknown.join('», «')));
   return { done, unknown };
+}
+
+// ---------- автозум на важных словах ----------
+/** Наезды камеры на ключевых словах (по субтитрам; нет субтитров — сначала распознаём речь). */
+export async function autoZoomWords(strength: ZoomStrength = 'mid'): Promise<number> {
+  if (!(await ensureTranscript())) return 0;
+  const z = ZOOM[strength];
+  const moments = zoomMoments(transcriptWords(getState().project), z.gap);
+  if (!moments.length) { getState().toast(tx('Не нашёл слов для наезда — в ролике мало речи')); return 0; }
+  let count = 0;
+  getState().commit((p) => { const r = applyAutoZoom(p, moments, z.to); count = r.count; return r.project; });
+  if (count) getState().toast(tx('Автозум: наездов {0}. Убрать — «Убрать автозум» или Ctrl+Z', count), 'ok');
+  else getState().toast(tx('Слова есть, но наезды не встали: на основной дорожке нет видео в эти моменты'));
+  return count;
+}
+
+export function removeAutoZoom(): void {
+  getState().commit((p) => clearAutoZoom(p));
 }

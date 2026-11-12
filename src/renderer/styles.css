@@ -1376,3 +1376,4 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .tw.cur { box-shadow: inset 0 -2px 0 var(--accent); }
 .tw.sel { background: var(--accent-soft); color: var(--text); text-decoration: line-through; text-decoration-color: var(--accent); }
 .textedit-empty { margin-top: 16px; }
+.textedit-zoom { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }

@@ -14,7 +14,9 @@ export type Command =
   | { kind: 'speed'; factor: number }
   | { kind: 'removeBg' }
   | { kind: 'export' }
-  | { kind: 'cover' };
+  | { kind: 'cover' }
+  | { kind: 'autoZoom' }
+  | { kind: 'noAutoZoom' };
 
 const n = (s: string) => s.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
 const num = (s: string | undefined, def: number) => {
@@ -45,6 +47,7 @@ export function parseOne(part: string): Command | null {
     return { kind: 'speed', factor: fast ? k : Math.max(0.25, 1 / k) };
   }
   if (/(фона?(?![а-я])|background)/.test(s) && /(убер|удал|выреж|без|remove)/.test(s) && !/(музык|music)/.test(s)) return { kind: 'removeBg' };
+  if (/(автозум|авто-зум|наезд|зум|zoom)/.test(s)) return /(убер|удал|без|выключ|remove)/.test(s) ? { kind: 'noAutoZoom' } : { kind: 'autoZoom' };
   if (/(обложк|превью|thumbnail)/.test(s)) return { kind: 'cover' };
   if (/(экспорт|сохрани видео|выгрузи|export|render)/.test(s)) return { kind: 'export' };
   return null;

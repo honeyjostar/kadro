@@ -4,7 +4,7 @@ import { Scissors, Sparkles, Wand2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { tx } from '../../shared/i18n';
 import { cutLength, cutRanges, fillerIndices, transcriptWords } from '../../shared/textEdit';
-import { cutWords, ensureTranscript, runCommands } from '../actions';
+import { autoZoomWords, cutWords, ensureTranscript, removeAutoZoom, runCommands } from '../actions';
 import { useJobRunning } from '../hooks';
 import { getState, useStore } from '../store';
 import { txj } from '../txj';
@@ -61,6 +61,7 @@ export function TextEditPanel() {
   const recognize = async () => { setBusy(true); try { await ensureTranscript(); } finally { setBusy(false); } };
 
   const current = words.findIndex((w) => playhead >= w.start && playhead < w.end);
+  const hasZoom = project.tracks.some((t) => t.clips.some((c) => c.type === 'media' && !!c.autoZoom?.length));
   const selSec = sel.length ? cutLength(cutRanges(words, sel)) : 0;
   // абзацы — по фразам субтитров
   const paras: number[][] = [];
@@ -93,6 +94,15 @@ export function TextEditPanel() {
                 title={tx('Э-э, ну, типа, короче, как бы — выделить, а удалить — Delete')}>{txj('Паразиты: {0}', fillers.size)}</button>
               <button className="btn small primary" disabled={!sel.length} onClick={cut} data-testid="textedit-cut"><Scissors size={13} />{tx('Вырезать')}</button>
               {sel.length > 0 && <span className="hint small">{txj('Выделено: {0} · −{1} с', sel.length, selSec.toFixed(1))}</span>}
+            </div>
+            <div className="textedit-zoom" data-testid="textedit-zoom">
+              <span className="hint small">{tx('Автозум на важных словах:')}</span>
+              {(['soft', 'mid', 'strong'] as const).map((k) => (
+                <button key={k} className="btn small" disabled={busy || running} onClick={() => void autoZoomWords(k)} data-testid={`zoom-${k}`}>
+                  {k === 'soft' ? tx('Мягко') : k === 'mid' ? tx('Средне') : tx('Сильно')}
+                </button>
+              ))}
+              {hasZoom && <button className="btn small ghost" onClick={removeAutoZoom} data-testid="zoom-off">{tx('Убрать')}</button>}
             </div>
             <div className="textedit-text" data-testid="textedit-text">
               {paras.map((p) => (

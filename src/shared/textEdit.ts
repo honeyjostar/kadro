@@ -4,7 +4,7 @@ import { clipEnd, edit, keepSourceRanges, mainTrack, MIN_CLIP, placeFree, round 
 import type { MediaClip, Project, TextClip, TrackKind } from './types';
 
 /** Слово расшифровки: время — на таймлайне. */
-export interface TWord { text: string; start: number; end: number; clipId: string }
+export interface TWord { text: string; start: number; end: number; clipId: string; key?: boolean }
 
 /** Все слова субтитров по порядку (время на таймлайне). */
 export function transcriptWords(p: Project): TWord[] {
@@ -13,7 +13,7 @@ export function transcriptWords(p: Project): TWord[] {
     if (t.kind !== 'text') continue;
     for (const c of t.clips) {
       if (c.type !== 'text' || c.role !== 'caption') continue;
-      if (c.words?.length) for (const w of c.words) out.push({ text: w.text, start: round(c.start + w.start), end: round(c.start + w.end), clipId: c.id });
+      if (c.words?.length) for (const w of c.words) out.push({ text: w.text, start: round(c.start + w.start), end: round(c.start + w.end), clipId: c.id, ...(w.key ? { key: true } : {}) });
       else if (c.text.trim()) out.push({ text: c.text.trim(), start: c.start, end: round(c.start + c.duration), clipId: c.id });
     }
   }

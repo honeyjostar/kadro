@@ -80,3 +80,20 @@ test('команды словами: «убери паузы» режет тиш
   await win.getByTestId('textedit-close').click();
   await expect(win.getByTestId('textedit')).toHaveCount(0);
 });
+
+test('автозум на важных словах: наезды по ключам масштаба, «Убрать» — только свои', async () => {
+  await win.keyboard.press('Control+k');
+  await win.getByTestId('search-input').fill('автозум');
+  await expect(win.getByTestId('search-item').first()).toHaveAttribute('data-id', 'cmd-autozoom');
+  await win.keyboard.press('Escape');
+  await win.getByTestId('tab-captions').click();
+  await win.getByTestId('open-textedit').click();
+  await win.getByTestId('zoom-strong').click();
+  await expect(win.locator('.toast').filter({ hasText: 'Автозум: наездов' })).toBeVisible();
+  const zoomed = async () => (await project(win)).tracks.find((t) => t.kind === 'main')!.clips.filter((c: any) => c.autoZoom?.length);
+  expect((await zoomed()).length).toBeGreaterThan(0);
+  const c: any = (await zoomed())[0];
+  expect(Math.max(...c.keyframes.scale.map((k: any) => k.v))).toBeCloseTo(1.28, 2);
+  await win.getByTestId('zoom-off').click();
+  await expect.poll(async () => (await zoomed()).length).toBe(0);
+});
