@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { CheckCircle2, ClipboardList, FolderOpen, ScanEye, ShieldCheck, Star, TriangleAlert, X } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FolderOpen, ImageDown, ScanEye, ShieldCheck, Star, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { exportSize } from '../../shared/geometry';
 import { stickerShortSide, TG_STICKER } from '../../shared/tgSticker';
@@ -369,6 +369,7 @@ export function ExportDialog() {
               </div>
             )}
             <div className="actions">
+              {format === 'mp4' && <button className="btn" onClick={() => { close(); getState().setCoverOpen(true); }} data-testid="export-cover"><ImageDown size={15} />{tx('Обложка')}</button>}
               <button className="btn" onClick={close}>{tx('Закрыть')}</button>
               <button className="btn primary" onClick={() => api.showInFolder(result.path!)} data-testid="export-show"><FolderOpen size={15} />{tx('Показать в папке')}</button>
             </div>

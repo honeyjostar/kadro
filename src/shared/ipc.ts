@@ -257,6 +257,8 @@ export interface KadroApi {
   saveLut(name: string, text: string): Promise<{ path: string; name: string }>;
   /** Огибающая «начал звуков» файла (200 точек в секунду) — для синхронизации камер по звуку; нет звука — null. */
   audioEnvelope(path: string): Promise<Float32Array | null>;
+  /** Кадры файлов в заданные моменты — JPEG до maxW по ширине (для обложки); не вышло — null. */
+  grabFrames(items: { path: string; t: number }[], maxW: number): Promise<(string | null)[]>;
   /** Звук файла — отдельным файлом FLAC (для «Извлечь звук»). */
   extractAudio(path: string): Promise<string>;
   /** 3D: выбрать файл модели (GLB, GLTF, OBJ, STL, FBX). */

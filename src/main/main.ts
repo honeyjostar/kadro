@@ -1145,6 +1145,28 @@ function registerIpc(): void {
       return null;
     }
   });
+  // обложка: кадры исходников в нужные моменты (JPEG до maxW по ширине), один раз на файл и момент
+  ipcMain.handle('frames:grab', async (_e, items: { path: string; t: number }[], maxW: number) => {
+    const dir = cacheDir('covers');
+    fs.mkdirSync(dir, { recursive: true });
+    const out: (string | null)[] = [];
+    for (const it of items.slice(0, 60)) {
+      try {
+        const st = fs.statSync(it.path);
+        const key = crypto.createHash('sha1').update(`${it.path}|${st.size}|${st.mtimeMs}|${it.t.toFixed(3)}|${maxW}`).digest('hex').slice(0, 16);
+        const f = path.join(dir, `f_${key}.jpg`);
+        if (!fs.existsSync(f)) {
+          await runFfmpeg(['-hide_banner', '-y', '-ss', String(Math.max(0, it.t)), '-i', it.path, '-frames:v', '1',
+            '-vf', `scale='min(${Math.round(maxW)},iw)':-2`, '-q:v', '3', '-update', '1', f]);
+        }
+        out.push(fs.existsSync(f) ? f : null);
+      } catch (err) {
+        log('frame grab failed', it.path, err);
+        out.push(null);
+      }
+    }
+    return out;
+  });
   // «Извлечь звук»: дорожка звука файла — отдельным файлом без потерь (один раз на файл)
   ipcMain.handle('audio:extract', async (_e, src: string) => {
     const st = fs.statSync(src);

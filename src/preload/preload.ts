@@ -137,6 +137,7 @@ const api: KadroApi = {
   pickMusic: () => ipcRenderer.invoke('dialog:music'),
   extractAudio: (p) => ipcRenderer.invoke('audio:extract', p),
   audioEnvelope: (p) => ipcRenderer.invoke('audio:envelope', p),
+  grabFrames: (items, maxW) => ipcRenderer.invoke('frames:grab', items, maxW),
   m3dBegin: (w, h, fps) => ipcRenderer.invoke('m3d:begin', w, h, fps),
   m3dFrame: (id, rgba) => ipcRenderer.invoke('m3d:frame', id, rgba),
   m3dEnd: (id) => ipcRenderer.invoke('m3d:end', id),

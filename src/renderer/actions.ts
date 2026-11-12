@@ -15,7 +15,7 @@ import { renderGlSegments } from './engine/glExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
 import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit';
 import { readingTime, scriptBase, scriptEdit, splitScript, type ScriptScene, type ScriptSummary } from '../shared/scriptVideo';
-import type { AspectKey, ExportOptions, MediaAsset, MediaClip, Model3D, PersonFx, Project, RampPoint, Retime, StickerMotion, TextClip, VoiceEffect, Word } from '../shared/types';
+import type { AspectKey, Clip, ExportOptions, MediaAsset, MediaClip, Model3D, PersonFx, Project, RampPoint, Retime, StickerMotion, TextClip, VoiceEffect, Word } from '../shared/types';
 import { retimeWords } from '../shared/captions';
 import { cuesToSrt, parseSubtitles } from '../shared/subtitles';
 import { copyAttrs } from '../shared/attrs';
@@ -40,6 +40,7 @@ import { setTransition } from '../shared/timeline';
 import type { EffectType, TransitionType } from '../shared/types';
 import { noteUsed } from './favs';
 import { findLag, SYNC_MIN_CONFIDENCE, syncedPlacement } from '../shared/audioSync';
+import { frameStats, type FrameStats } from '../shared/cover';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -2096,4 +2097,56 @@ export async function syncByAudio(): Promise<number> {
   if (failed.length) s.toast(tx('Не нашёл общего звука: {0}. Проверь, что это запись той же сцены', failed.join(', ')), moves.length ? 'info' : 'err');
   if (moves.length) s.toast(tx('Синхронизировано по звуку: {0}', moves.length), 'ok');
   return moves.length;
+}
+
+// ---------- обложка ----------
+export interface CoverFrame { file: string; url: string; t: number; stats: FrameStats; img: HTMLImageElement }
+
+/** Кадры-кандидаты для обложки: count моментов по всему ролику (основная дорожка, иначе всё видео), с оценкой. */
+export async function coverFrames(count = 18): Promise<CoverFrame[]> {
+  const p = getState().project;
+  const total = projectDuration(p);
+  if (total <= 0) return [];
+  const visual = (c: Clip) => {
+    if (c.type !== 'media') return null;
+    const a = p.assets.find((x) => x.id === c.assetId);
+    return a && (a.kind === 'video' || a.kind === 'image') && !a.missing ? a : null;
+  };
+  const main = mainTrack(p).clips.filter((c) => visual(c));
+  const pool = main.length ? main : p.tracks.filter((t) => t.kind !== 'audio').flatMap((t) => t.clips).filter((c) => visual(c));
+  const items: { path: string; t: number; at: number }[] = [];
+  for (let k = 0; k < count; k++) {
+    const at = ((k + 0.5) * total) / count;
+    const c = pool.find((x) => at >= x.start && at < clipEnd(x)) as MediaClip | undefined;
+    if (!c) continue;
+    const a = visual(c)!;
+    const t = a.kind === 'image' ? 0 : Math.max(0, Math.min(a.duration - 0.05, sourceTimeAt(c, at)));
+    if (!items.some((x) => x.path === a.path && Math.abs(x.t - t) < 0.3)) items.push({ path: a.path, t, at });
+  }
+  const files = await api.grabFrames(items.map(({ path, t }) => ({ path, t })), 1280);
+  const out: CoverFrame[] = [];
+  const cv = document.createElement('canvas');
+  for (let i = 0; i < items.length; i++) {
+    const file = files[i];
+    if (!file) continue;
+    const url = api.mediaUrl(file);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = url;
+    try { await img.decode(); } catch { continue; }
+    cv.width = 160;
+    cv.height = Math.max(1, Math.round((160 * img.naturalHeight) / Math.max(1, img.naturalWidth)));
+    const ctx = cv.getContext('2d', { willReadFrequently: true })!;
+    ctx.drawImage(img, 0, 0, cv.width, cv.height);
+    const d = ctx.getImageData(0, 0, cv.width, cv.height);
+    out.push({ file, url, t: items[i].at, stats: frameStats(d.data, cv.width, cv.height), img });
+  }
+  return out;
+}
+
+/** Сохранить обложку PNG (окно «Сохранить как»). */
+export async function saveCover(name: string, blob: Blob): Promise<string | null> {
+  const file = await api.saveFrame(name, new Uint8Array(await blob.arrayBuffer()));
+  if (file) getState().toast(tx('Обложка сохранена: {0}', file.split(/[\\/]/).pop() ?? file), 'ok');
+  return file;
 }
