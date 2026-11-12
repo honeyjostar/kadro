@@ -21,6 +21,7 @@ import { ChromaPaintDialog } from './ChromaPaint';
 import { RefEditDialog } from './RefEdit';
 import { SearchDialog } from './Search';
 import { CoverDialog } from './CoverDialog';
+import { ScreenRecDialog } from './ScreenRecDialog';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts, IntroOffer } from './Overlays';
@@ -63,6 +64,7 @@ export function App() {
   const keysOpen = useStore((s) => s.keysOpen);
   const searchOpen = useStore((s) => s.searchOpen);
   const coverOpen = useStore((s) => s.coverOpen);
+  const screenRecOpen = useStore((s) => s.screenRecOpen);
   const wide = useStore((s) => s.wide);
   const loaded = useRef(false);
 
@@ -228,6 +230,7 @@ export function App() {
       {keysOpen && <ShortcutsDialog />}
       {searchOpen && <SearchDialog />}
       {coverOpen && <CoverDialog />}
+      {screenRecOpen && <ScreenRecDialog />}
       {chromaPaintClip && <ChromaPaintDialog key={chromaPaintClip} clipId={chromaPaintClip} />}
       {refOpen && <RefEditDialog />}
       {bugOpen && <BugDialog initial={bugOpen.what} onClose={() => getState().setBugOpen(null)} />}

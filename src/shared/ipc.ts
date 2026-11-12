@@ -257,6 +257,21 @@ export interface KadroApi {
   saveLut(name: string, text: string): Promise<{ path: string; name: string }>;
   /** Огибающая «начал звуков» файла (200 точек в секунду) — для синхронизации камер по звуку; нет звука — null. */
   audioEnvelope(path: string): Promise<Float32Array | null>;
+  // ---------- запись экрана и веб-камеры ----------
+  /** Экраны и окна, которые можно записать (без окна Kadro). */
+  screenSources(): Promise<{ id: string; name: string; screen: boolean; thumb: string }[]>;
+  /** Что записывать при следующем getDisplayMedia; ответ — можно ли писать звук компьютера (только Windows). */
+  screenChoose(id: string | null, systemAudio: boolean): Promise<boolean>;
+  srecBegin(kind: 'screen' | 'cam', mime: string): Promise<string>;
+  srecChunk(id: string, data: ArrayBuffer): Promise<void>;
+  /** Собрать запись в MP4 в «Видео/Kadro»; путь к файлу. */
+  srecFinish(id: string, name: string): Promise<string | null>;
+  srecCancel(id: string): Promise<void>;
+  /** Сочетание Ctrl+Alt+R останавливает запись из любой программы (пока идёт запись). */
+  srecHotkey(on: boolean): Promise<boolean>;
+  srecMinimize(): Promise<void>;
+  srecRestore(): Promise<void>;
+  onSrecStop(cb: () => void): () => void;
   /** Кадры файлов в заданные моменты — JPEG до maxW по ширине (для обложки); не вышло — null. */
   grabFrames(items: { path: string; t: number }[], maxW: number): Promise<(string | null)[]>;
   /** Звук файла — отдельным файлом FLAC (для «Извлечь звук»). */

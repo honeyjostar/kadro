@@ -57,6 +57,8 @@ interface State {
   searchOpen: boolean;
   /** Открыто окно «Обложка». */
   coverOpen: boolean;
+  /** Открыто окно «Запись экрана». */
+  screenRecOpen: boolean;
   /** Идёт запись голоса: с какого места таймлайна и заглушён ли звук проекта. */
   recording: { startT: number; muted: boolean } | null;
   /** Открыт стартовый экран. */
@@ -134,6 +136,7 @@ interface State {
   setWide: (b: boolean) => void;
   setSearchOpen: (b: boolean) => void;
   setCoverOpen: (b: boolean) => void;
+  setScreenRecOpen: (b: boolean) => void;
   setRecording: (r: { startT: number; muted: boolean } | null) => void;
   setHome: (b: boolean) => void;
   setDemo: (d: DemoFiles) => void;
@@ -212,6 +215,7 @@ export const useStore = create<State>((set, get) => ({
   wide: readPref<boolean>('kadro.wide', false),
   searchOpen: false,
   coverOpen: false,
+  screenRecOpen: false,
   recording: null,
   home: false,
   demo: null,
@@ -317,6 +321,7 @@ export const useStore = create<State>((set, get) => ({
   setWide: (wide) => { writePref('kadro.wide', wide); set({ wide }); },
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   setCoverOpen: (coverOpen) => set({ coverOpen }),
+  setScreenRecOpen: (screenRecOpen) => set({ screenRecOpen }),
   setHome: (b) => set(b ? { home: true, playing: false } : { home: false }),
   setDemo: (d) => set({ demo: d }),
   setThemePref: (t) => { api.setTheme(t); set({ themePref: t }); },

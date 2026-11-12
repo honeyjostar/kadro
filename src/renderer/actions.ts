@@ -2150,3 +2150,33 @@ export async function saveCover(name: string, blob: Blob): Promise<string | null
   if (file) getState().toast(tx('Обложка сохранена: {0}', file.split(/[\\/]/).pop() ?? file), 'ok');
   return file;
 }
+
+// ---------- запись экрана ----------
+/** Готовую запись — в конец основной дорожки; камеру — кружком в углу поверх экрана, с тем же началом. */
+export async function placeRecording(files: { screen: string | null; cam: string | null }): Promise<void> {
+  const at = projectDuration(getState().project);
+  const clipOf = (assetId: string) => getState().project.tracks.flatMap((t) => t.clips).find((c) => c.type === 'media' && c.assetId === assetId);
+  let start = at;
+  if (files.screen) {
+    const [aid] = await importPaths([files.screen], { mode: 'main', at });
+    const c = aid ? clipOf(aid) : undefined;
+    if (c) start = c.start;
+  }
+  if (files.cam) {
+    const [cid] = await importPaths([files.cam], { mode: files.screen ? 'overlay' : 'main', at: start });
+    const c = cid ? clipOf(cid) : undefined;
+    const a = cid ? getState().project.assets.find((x) => x.id === cid) : undefined;
+    if (c && a && files.screen) {
+      const { width, height } = getState().project.settings;
+      const vertical = height > width;
+      // кружок: диаметр — 90 % высоты кадра камеры; размер и место — по формату проекта
+      const k = a.width && a.height ? a.height / a.width : 9 / 16;
+      getState().commit((p) => updateClip(p, c.id, {
+        transform: vertical ? { scale: 0.62, x: 0.24, y: 0.3, rotation: 0 } : { scale: 0.36, x: 0.36, y: 0.3, rotation: 0 },
+        mask: { shape: 'circle', x: 0, y: 0, w: 0.9 * k, h: 0.9, rotation: 0, feather: 0.02, invert: false },
+        muted: true,
+      }));
+    }
+  }
+  getState().toast(tx('Запись добавлена в проект'), 'ok');
+}

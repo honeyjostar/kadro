@@ -45,6 +45,7 @@ import { stabilize } from './ai/stab';
 import { freezeFrame, retime } from './retime';
 import { beautify } from './ai/beauty';
 import { ffmpegToBuffer, runFfmpeg } from './ffrun';
+import { initScreenRec } from './screenrec';
 import { importLutFile, listLutFiles, lutsDir } from './luts';
 import { BUILTIN_TEMPLATES, DEMO_SCENES, isTemplate, type Template } from '../shared/templates';
 import { projectDuration } from '../shared/timeline';
@@ -718,6 +719,7 @@ const tray = new KadroTray({ win: () => win, icon: trayIcon, cancelExport: () =>
 (globalThis as unknown as { __kadroTray: KadroTray }).__kadroTray = tray; // автотесты
 
 function registerIpc(): void {
+  initScreenRec(() => win, log);
   ipcMain.handle('app:info', async () => ({
     version: app.getVersion(), platform: process.platform, dataDir: dataDir(),
   }));

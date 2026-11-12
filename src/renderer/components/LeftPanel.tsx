@@ -3,7 +3,7 @@ import { txj } from '../txj';
 import {
   Clapperboard,
   Zap, AudioLines, BellRing, Blend, Volume2, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users, ZoomIn, ArrowLeftCircle, Speaker, Timer, Star, History,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users, ZoomIn, ArrowLeftCircle, Speaker, Timer, Star, History, MonitorPlay,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -331,6 +331,7 @@ function MediaPanel() {
         </div>
         {view === 'library' ? <LibraryView /> : (<>
         <DropZone accept="any" compact={assets.length > 0} />
+        <button className="btn block srec-open" onClick={() => getState().setScreenRecOpen(true)} data-testid="media-screenrec"><MonitorPlay size={14} />{tx('Записать экран или камеру')}</button>
         {assets.filter((a) => a.kind !== 'audio' && !a.missing).length > 1 && (
           <button className="btn block auto-from-media" onClick={() => getState().setAutoOpen({
             files: assets.filter((a) => a.kind !== 'audio' && !a.missing).map((a) => a.path),

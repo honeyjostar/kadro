@@ -1346,3 +1346,18 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .cover-frames button.active { border-color: var(--accent); }
 .cover-frames img { width: 100%; height: 100%; object-fit: cover; display: block; }
 @media (max-width: 900px) { .cover-body { grid-template-columns: 1fr; } }
+
+/* ---------- запись экрана ---------- */
+.srec-modal { width: 720px; }
+.srec-open { margin-top: 8px; }
+.srec-sources { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-height: 300px; overflow-y: auto; padding: 2px; }
+.srec-sources button { display: flex; flex-direction: column; gap: 6px; padding: 6px; border: 1px solid var(--line-soft); border-radius: var(--radius-s); background: var(--bg); color: var(--text); text-align: left; font-size: 12px; cursor: pointer; min-width: 0; }
+.srec-sources button.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.srec-sources img, .srec-ph { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: var(--raised); display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.srec-opts { display: grid; gap: 8px; margin: 14px 0 6px; }
+.srec-select { display: grid; grid-template-columns: 110px 1fr; align-items: center; gap: 10px; font-size: 13px; }
+.srec-cam-preview { width: 220px; aspect-ratio: 16 / 9; border-radius: 8px; background: #000; object-fit: cover; }
+.srec-count { font-size: 96px; font-weight: 800; text-align: center; padding: 40px 0; color: var(--accent); }
+.srec-live { display: flex; align-items: center; gap: 12px; font-size: 22px; padding: 18px 0 8px; }
+.srec-level { flex: 1; height: 6px; background: var(--raised); border-radius: 3px; overflow: hidden; }
+.srec-level i { display: block; height: 100%; background: var(--accent); transition: width 0.15s; }
