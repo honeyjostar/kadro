@@ -48,6 +48,8 @@ export interface BuildOpts {
   duck?: { level: number; iv: [number, number][] };
   /** Маски скрытия лиц и номеров: видео в оттенках серого (кадр 0 = начало клипа), ключ — blurMaskKey. */
   blurMasks?: Record<string, string>;
+  /** 3D-фото: карты сдвига (видео в оттенках серого, кадр 0 = начало клипа) в рабочем размере w × h. */
+  photo3dMaps?: Record<string, { x: string; y: string; w: number; h: number }>;
 }
 
 /** Ключ маски скрытия: клип и вид скрытия (размытие/мозаика/плашка с силой). */
@@ -159,6 +161,23 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     let cur = src;
     let parts: string[] = ['format=rgba'];
     const flush = () => { const l = L('vc'); chains.push(`[${cur}]${parts.join(',')}[${l}]`); cur = l; parts = []; };
+    // 0) 3D-фото: сдвиг точек по глубине в рабочем размере (дальше — как обычно)
+    const p3 = c.photo3d ? o.photo3dMaps?.[c.id] : undefined;
+    if (p3) {
+      parts.push(`scale=${p3.w}:${p3.h}:flags=bicubic`, 'format=gbrap');
+      flush();
+      const maps = [p3.x, p3.y].map((file) => {
+        const idx = addInput(['-i', file]);
+        const sp = Array.from({ length: 4 }, () => L('p3'));
+        const m = L('p3');
+        chains.push(`[${idx}:v]fps=${F},setpts=PTS-STARTPTS,format=gray,split=4${sp.map((x) => `[${x}]`).join('')}`);
+        chains.push(`${sp.map((x) => `[${x}]`).join('')}mergeplanes=0x00102030:gbrap[${m}]`);
+        return m;
+      });
+      const out = L('p3');
+      chains.push(`[${cur}][${maps[0]}][${maps[1]}]displace=edge=smear,format=rgba[${out}]`);
+      cur = out;
+    }
     // 1) хромакей — по исходным цветам
     if (c.chroma) {
       const hex = c.chroma.color.replace('#', '0x');

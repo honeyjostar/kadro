@@ -196,6 +196,7 @@ export interface MediaClip {
   chroma?: ChromaKey;
   stab?: AiResult;              // стабилизированная копия фрагмента
   beauty?: AiResult & { smooth: number; bright: number }; // ретушь кожи (копия фрагмента)
+  enhance?: AiResult & { mode: 'fast' | 'ai'; size?: [number, number] }; // улучшение качества (копия фрагмента в 1080p)
   voice?: AiResult & { effect?: VoiceEffect; withDenoise?: boolean }; // обработанный звук с эффектом голоса
   effects?: Effect[];           // видеоэффекты (тряска, глитч, виньетка…)
   retime?: Retime;              // клип показывает копию фрагмента с реверсом / кривой скорости
@@ -212,6 +213,8 @@ export interface MediaClip {
   model3d?: Model3D;             // клип — отрисованный 3D-объект (можно изменить и пересобрать)
   /** Время ключей масштаба, которые поставил автозум (чтобы убрать только их). */
   autoZoom?: number[];
+  /** 3D-фото: карта глубины и движение камеры (только у фото). */
+  photo3d?: import('./photo3d').Photo3d;
   /** Скрытые лица и номера: области размытия, которые едут за объектом. */
   blurs?: BlurRegion[];
 }

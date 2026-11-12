@@ -125,7 +125,7 @@ export function runExport(p: Project, out: string, opts: Partial<BuildOpts> & { 
     fs.writeFileSync(file, rgbPng(bytes, w, h));
     return file;
   };
-  const g = buildGraph(p, { width: W, height: H, fps: F, textLayers: opts.textLayers ?? [], grayFile, rgbFile, luts: opts.luts, transparent: opts.alpha, blurMasks: opts.blurMasks });
+  const g = buildGraph(p, { width: W, height: H, fps: F, textLayers: opts.textLayers ?? [], grayFile, rgbFile, luts: opts.luts, transparent: opts.alpha, blurMasks: opts.blurMasks, photo3dMaps: opts.photo3dMaps });
   const filterFile = out + '.filter.txt';
   fs.writeFileSync(filterFile, g.filter);
   const args = fullArgs(g, filterFile, ffmpegMajor(), opts.alpha ? 'vp9alpha' : 'x264', opts.quality ?? 'normal', F, out)

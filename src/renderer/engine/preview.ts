@@ -5,6 +5,7 @@ import { aiSource, audioSource, videoSource } from '../../shared/ai';
 import { mediaKeyTime, mediaPropsAt } from '../../shared/anim';
 import { maskBytes } from '../../shared/mask';
 import { blurGroups, blurMaskBytes, blurRadius, maskSize, mosaicBlock } from '../../shared/blur';
+import { displaceRgba, MAX_SHIFT, motionAt, type Photo3d } from '../../shared/photo3d';
 import { fxGeometry, particleEffects, sortedEffects } from '../../shared/effects';
 import { clipAnimAt } from '../../shared/clipAnim';
 import { hasTilt, layerQuad, pinQuad, quadSize } from '../../shared/perspective';
@@ -647,7 +648,8 @@ export class PreviewEngine {
     // перспектива: «Углы» — картинка на 4 точках; наклон — углы слоя после 3D-поворота
     const quad = c.pin ? pinQuad(c.pin, W, H) : hasTilt(c.tilt) ? layerQuad(pl.w / 2, pl.h / 2, pl.cx, pl.cy, pl.rotation, c.tilt, W, H) : null;
     const blurOn = blurGroups(c.blurs).length > 0;
-    if (c.mask || fx.length || glFx.length || graded || quad || blurOn) {
+    const p3 = c.photo3d && asset.kind === 'image' ? c.photo3d : null;
+    if (c.mask || fx.length || glFx.length || graded || quad || blurOn || p3) {
       // слой нужного размера: цвет → эффекты → маска (destination-in) → на холст
       const [qw, qh] = quad && c.pin ? quadSize(quad) : [pl.w, pl.h];
       const w = Math.max(1, Math.round(Math.min(qw, 3 * Math.max(W, H))));
@@ -661,6 +663,7 @@ export class PreviewEngine {
       lc.drawImage(img, 0, 0, w, h);
       lc.filter = 'none';
       lc.restore();
+      if (p3) this.apply3d(layer, p3, local / Math.max(1e-6, clipDuration(c)));
       if (blurOn) this.applyBlurs(layer, c, mediaKeyTime(c, t));
       if (graded) this.grader().apply(layer, c.grade ?? {}, cube, c.color);
       if (fx.length) applyPixelEffects(layer, c, local, (l, key, tb) => this.grader().applyTable(l, key, tb), isMain);
@@ -686,6 +689,31 @@ export class PreviewEngine {
     }
     c2d.restore();
     if (isMain) drawMainBars(c2d, c, W, H);
+  }
+
+  /** 3D-фото: точки сдвигаются по глубине — та же функция, что даёт карты сдвига для экспорта. */
+  private depthCache = new Map<string, Uint8Array>();
+  private apply3d(layer: HTMLCanvasElement, p: Photo3d, u: number): void {
+    const img = this.paintFor(p.depth);
+    if (!img) return;
+    const w = layer.width, h = layer.height;
+    const key = `${p.depth}:${w}x${h}`;
+    let depth = this.depthCache.get(key);
+    if (!depth) {
+      const dc = this.canvasFor('p3:depth', w, h).getContext('2d', { willReadFrequently: true })!;
+      dc.globalCompositeOperation = 'copy';
+      dc.drawImage(img, 0, 0, w, h);
+      const px = dc.getImageData(0, 0, w, h).data;
+      depth = new Uint8Array(w * h);
+      for (let i = 0; i < depth.length; i++) depth[i] = px[i * 4];
+      if (this.depthCache.size > 8) this.depthCache.clear();
+      this.depthCache.set(key, depth);
+    }
+    const lc = layer.getContext('2d', { willReadFrequently: true })!;
+    const src = lc.getImageData(0, 0, w, h);
+    const dst = new ImageData(w, h);
+    displaceRgba(src.data, dst.data, depth, w, h, motionAt(p.motion, p.amount, u), MAX_SHIFT * (w / Math.max(1, p.w)));
+    lc.putImageData(dst, 0, 0);
   }
 
   /** Скрыть лица и номера: размытая (мозаика, плашка) копия слоя по маске — той же, что в экспорте. */

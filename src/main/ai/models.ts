@@ -61,6 +61,8 @@ export const MATTING_MODEL = () => bundledModel('rvm_mobilenetv3_fp32.onnx');
 /** Поиск лиц: YuNet 2023mar (OpenCV Zoo, MIT). */
 export const FACE_MODEL = () => bundledModel('face_detection_yunet_2023mar.onnx');
 export const RNNOISE_MODEL = () => bundledModel('std.rnnn');
+/** Улучшение качества: Real-ESRGAN realesr-general-x4v3 (BSD-3-Clause), переведена в ONNX. */
+export const UPSCALE_MODEL = () => bundledModel('realesr_general_x4v3.onnx');
 
 // ---------- откуда качать ----------
 // Сначала копия в релизе ai-models репозитория Kadro (простой .tar с контрольной суммой — распаковывается быстро),

@@ -46,6 +46,8 @@ import { parseCommands, type Command } from '../shared/commands';
 import { applyAutoZoom, clearAutoZoom, zoomMoments, ZOOM, type ZoomStrength } from '../shared/autoZoom';
 import { BLUR_HOLD, linkTracks, newRegion, padFace, regionSpan } from '../shared/blur';
 import { mediaKeyTime } from '../shared/anim';
+import { aiAllowed, type EnhanceMode } from '../shared/enhance';
+import type { Photo3d, Photo3dMotion } from '../shared/photo3d';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -385,7 +387,9 @@ export async function stabilizeClip(clipId: string, strength = 0.5): Promise<voi
   if (!m || gifBlocked(m.p, m.clip, tx('Стабилизация'))) return;
   const a = m.p.assets.find((x) => x.id === m.clip.assetId);
   if (!a || a.kind !== 'video') { getState().toast(tx('Стабилизация работает с видео')); return; }
-  const r = await runJob(tx('Стабилизирую'), { kind: 'stab', jobId: `st_${uidShort()}`, path: a.path, in: m.clip.in, out: m.clip.out, strength }, clipId);
+  const en = videoInputFor(m.clip, 'stab');
+  const src = en ? { path: en.path, off: en.offset } : { path: a.path, off: 0 };
+  const r = await runJob(tx('Стабилизирую'), { kind: 'stab', jobId: `st_${uidShort()}`, path: src.path, in: m.clip.in - src.off, out: m.clip.out - src.off, offset: src.off, strength }, clipId);
   if (!r.ok || r.output?.kind !== 'stab') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return; }
   const out = r.output;
   getState().commit((p) => updateClip(p, clipId, { stab: { enabled: true, status: 'ready', path: out.path, range: out.range } }));
@@ -402,11 +406,40 @@ export function disableStab(clipId: string): void {
 }
 
 /** Обработки картинки идут цепочкой (стабилизация → ретушь → без фона): после смены звена пересобираем следующие. */
-async function rebuildAfter(clipId: string, changed: 'stab' | 'beauty'): Promise<void> {
+async function rebuildAfter(clipId: string, changed: 'enhance' | 'stab' | 'beauty'): Promise<void> {
   const c = mediaClip(clipId)?.clip;
   if (!c) return;
+  if (changed === 'enhance' && c.stab?.enabled) { await stabilizeClip(clipId); return; }
+  if (changed === 'enhance' && c.beauty?.enabled) { await retouchClip(clipId, c.beauty.smooth, c.beauty.bright); return; }
   if (changed === 'stab' && c.beauty?.enabled) { await retouchClip(clipId, c.beauty.smooth, c.beauty.bright); return; }
   if (c.removeBg.enabled) await removeBackground(clipId);
+}
+
+// ---------- улучшение качества ----------
+/** Маленькое видео → 1080p: «Быстро» (FFmpeg) или «Нейросеть» (Real-ESRGAN, лучше на видеокарте). */
+export async function enhanceClip(clipId: string, mode: EnhanceMode): Promise<boolean> {
+  const m = mediaClip(clipId);
+  if (!m || gifBlocked(m.p, m.clip, tx('Улучшение качества'))) return false;
+  const a = m.p.assets.find((x) => x.id === m.clip.assetId);
+  if (!a || a.kind !== 'video') { getState().toast(tx('Улучшение качества работает с видео')); return false; }
+  if (mode === 'ai' && !aiAllowed(a.width, a.height)) { getState().toast(tx('Видео уже чёткое (больше 720p) — нейросеть почти ничего не добавит. Попробуй «Быстро»: только резкость.')); return false; }
+  const r = await runJob(mode === 'ai' ? tx('Улучшаю качество нейросетью') : tx('Улучшаю качество'), {
+    kind: 'enhance', jobId: `en_${uidShort()}`, mode, path: a.path, in: m.clip.in, out: m.clip.out, offset: 0, width: a.width, height: a.height, fps: Math.min(60, a.fps || 30),
+  }, clipId);
+  if (!r.ok || r.output?.kind !== 'enhance') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return false; }
+  const out = r.output;
+  getState().commit((p) => updateClip(p, clipId, { enhance: { enabled: true, status: 'ready', path: out.path, range: out.range, mode, size: out.size } }));
+  getState().toast(tx('Качество улучшено: {0}×{1} — уже в превью и экспорте', out.size[0], out.size[1]), 'ok');
+  await rebuildAfter(clipId, 'enhance');
+  return true;
+}
+export function disableEnhance(clipId: string): void {
+  getState().commit((p) => {
+    const f = findClip(p, clipId);
+    if (!f || f.clip.type !== 'media' || !f.clip.enhance) return p;
+    return updateClip(p, clipId, { enhance: { ...f.clip.enhance, enabled: false } });
+  });
+  void rebuildAfter(clipId, 'enhance');
 }
 
 // ---------- ретушь ----------
@@ -596,6 +629,7 @@ async function importDerived(path: string, name: string): Promise<MediaAsset | n
 async function reprocessAi(clipId: string): Promise<void> {
   const m = mediaClip(clipId);
   if (!m) return;
+  if (m.clip.enhance?.enabled && aiStale(m.clip, 'enhance')) { await enhanceClip(clipId, m.clip.enhance.mode); return; } // сама пересоберёт остальное
   if (m.clip.stab?.enabled && aiStale(m.clip, 'stab')) await stabilizeClip(clipId); // сама пересоберёт ретушь и фон
   const c1 = mediaClip(clipId)?.clip;
   if (c1?.beauty?.enabled && aiStale(c1, 'beauty')) await retouchClip(clipId, c1.beauty.smooth, c1.beauty.bright);
@@ -1213,7 +1247,7 @@ export async function translateCaptions(from: LangCode, to: LangCode, mode: 'rep
 export function staleAiClips(p: Project): string[] {
   const out: string[] = [];
   for (const t of p.tracks) for (const c of t.clips) {
-    if (c.type === 'media' && (aiStale(c, 'removeBg') || aiStale(c, 'denoise') || aiStale(c, 'stab') || aiStale(c, 'beauty') || aiStale(c, 'voice'))) out.push(c.id);
+    if (c.type === 'media' && (aiStale(c, 'removeBg') || aiStale(c, 'denoise') || aiStale(c, 'stab') || aiStale(c, 'beauty') || aiStale(c, 'voice') || aiStale(c, 'enhance'))) out.push(c.id);
   }
   return out;
 }
@@ -2421,4 +2455,30 @@ export function removeBlur(clipId: string, regionId?: string): void {
     const rest = regionId ? (c.blurs ?? []).filter((r) => r.id !== regionId) : [];
     return updateClip(p, clipId, { blurs: rest.length ? rest : undefined });
   });
+}
+
+// ---------- 3D-фото ----------
+/** Оживить фото объёмом: карта глубины считается один раз (модель скачивается при первом разе), дальше — движение камеры. */
+export async function make3dPhoto(clipId: string, motion: Photo3dMotion = 'dolly', amount = 0.6): Promise<boolean> {
+  const m = mediaClip(clipId);
+  if (!m) return false;
+  const a = m.p.assets.find((x) => x.id === m.clip.assetId);
+  if (!a || a.kind !== 'image') { getState().toast(tx('3D-фото работает с фотографиями')); return false; }
+  if (m.clip.photo3d?.depth) {
+    getState().commit((p) => updateClip(p, clipId, { photo3d: { ...m.clip.photo3d!, motion, amount } }));
+    return true;
+  }
+  const r = await runJob(tx('3D-фото'), { kind: 'depth', jobId: `dp_${uidShort()}`, path: a.path, width: a.width, height: a.height }, clipId);
+  if (!r.ok || r.output?.kind !== 'depth') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return false; }
+  const out = r.output;
+  getState().commit((p) => updateClip(p, clipId, { photo3d: { depth: out.path, w: out.w, h: out.h, motion, amount } }));
+  getState().toast(tx('Фото ожило: ближнее движется сильнее дальнего. Включи воспроизведение'), 'ok');
+  return true;
+}
+export function set3dPhoto(clipId: string, patch: Partial<Photo3d> | null, key?: string): void {
+  getState().commit((p) => {
+    const c = findClip(p, clipId)?.clip;
+    if (!c || c.type !== 'media' || !c.photo3d) return p;
+    return updateClip(p, clipId, { photo3d: patch ? { ...c.photo3d, ...patch } : undefined });
+  }, key);
 }

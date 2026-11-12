@@ -32,7 +32,9 @@ import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
   loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme, addSticker,
+  enhanceClip, disableEnhance,
 } from '../actions';
+import { aiAllowed, enhanceTarget } from '../../shared/enhance';
 import { useMenu, type MenuEntry } from './Menu';
 import { sampleCanvas, useSamplesReady } from '../sampleFrames';
 import { listMics, recPrefs, type MicInfo } from '../recorder';
@@ -1366,6 +1368,41 @@ function AiStatus({ clip, kind }: { clip: MediaClip; kind: 'removeBg' | 'denoise
   return <div className="status-line err">{tx('Клип обрезали после обработки — запусти заново')}</div>;
 }
 
+/** Улучшить качество: маленькое видео → 1080p («Быстро» или «Нейросеть»). */
+function EnhanceCard({ clip, asset, busy }: { clip: MediaClip | null; asset?: MediaAsset; busy: boolean }) {
+  const tgt = asset ? enhanceTarget(asset.width, asset.height) : null;
+  const en = clip?.enhance;
+  return (
+    <div className={`ai-card ${!clip ? 'off' : ''}`} data-testid="enhance-card">
+      <h4><Sparkles size={15} />{tx('Улучшить качество')}</h4>
+      <p className="hint">{tx('Маленькое или мыльное видео → 1080p, резче и чище. «Нейросеть» дорисовывает детали — быстро на видеокарте, на процессоре очень долго.')}</p>
+      {clip && asset && tgt ? (
+        en?.enabled ? (
+          <>
+            {aiCovers(en, clip.in, clip.out)
+              ? <div className="status-line ok" data-testid="enhance-ready">{txj('Готово: {0} — уже в превью и экспорте', `${en.size?.[0] ?? tgt.w}×${en.size?.[1] ?? tgt.h}${en.mode === 'ai' ? tx(', нейросеть') : ''}`)}</div>
+              : <div className="status-line err">{tx('Клип обрезали после обработки — запусти заново')}</div>}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              {!aiCovers(en, clip.in, clip.out) && <button className="btn small" disabled={busy} onClick={() => void enhanceClip(clip.id, en.mode)}>{tx('Заново')}</button>}
+              <button className="btn small" onClick={() => disableEnhance(clip.id)} data-testid="enhance-off">{tx('Выключить')}</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="hint small" data-testid="enhance-size">{tgt.up ? `${asset.width}×${asset.height} → ${tgt.w}×${tgt.h}` : txj('{0}×{1} — уже 1080p: только резкость', asset.width, asset.height)}</div>
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              <button className="btn grow" disabled={busy} onClick={() => void enhanceClip(clip.id, 'fast')} data-testid="enhance-fast"
+                title={tx('Увеличение, лёгкая чистка шума и резкость — на любом компьютере, быстро')}>{tx('Быстро')}</button>
+              <button className="btn grow" disabled={busy || !aiAllowed(asset.width, asset.height)} onClick={() => void enhanceClip(clip.id, 'ai')} data-testid="enhance-ai"
+                title={aiAllowed(asset.width, asset.height) ? tx('Real-ESRGAN: дорисовывает детали. На видеокарте — минуты, на процессоре — часы') : tx('Для видео до 720p')}>{tx('Нейросеть')}</button>
+            </div>
+          </>
+        )
+      ) : <div className="hint small">{tx('Нужен видеоклип')}</div>}
+    </div>
+  );
+}
+
 export function AiTools({ compact = false }: { compact?: boolean }) {
   const sel = useSelected();
   const clip = sel?.clip.type === 'media' ? (sel.clip as MediaClip) : null;
@@ -1441,6 +1478,8 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
           ) : <button className="btn block" disabled={busy} onClick={() => void enhanceVoice(clip.id)} data-testid="ai-denoise">{tx('Очистить голос')}</button>
         ) : <div className="hint small">{tx('Нужен клип со звуком')}</div>}
       </div>
+
+      {asset?.kind !== 'audio' && <EnhanceCard clip={clip && isVideo ? clip : null} asset={asset} busy={busy} />}
 
       {asset?.kind !== 'audio' && (
         <div className={`ai-card ${!clip || !isVideo ? 'off' : ''}`}>

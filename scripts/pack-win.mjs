@@ -147,6 +147,8 @@ async function buildApp() {
     '- Silero VAD (MIT)',
     '- RobustVideoMatting (GPL-3.0)',
     '- YuNet — поиск лиц (OpenCV Zoo, Shiqi Yu и др.; MIT), resources/models/face_detection_yunet_2023mar.onnx',
+    '- Real-ESRGAN realesr-general-x4v3 — улучшение качества (Xintao Wang и др.; BSD-3-Clause), переведена в ONNX: resources/models/realesr_general_x4v3.onnx',
+    '- Depth Anything V2 Small — глубина для 3D-фото (Apache-2.0; ONNX — fabio-sim/Depth-Anything-ONNX), скачивается при первом использовании',
     '- RNNoise / arnndn-models (BSD-3-Clause)',
     '- gl-transitions — 123 перехода-шейдера (MIT; InvertedPageCurl — BSD-3-Clause, Hewlett-Packard; StereoViewer — BSD-2-Clause, Theodore K Schundler); авторы и тексты лицензий — licenses/gl-transitions.md',
     '- Модели распознавания речи скачиваются при первом использовании: NVIDIA Parakeet TDT v3 (CC-BY-4.0), GigaAM v2 (MIT)',

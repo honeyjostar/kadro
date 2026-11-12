@@ -49,7 +49,7 @@ export type AiJob =
   | { kind: 'tts'; jobId: string; text: string; voice: TtsVoiceId; speed: number }
   | { kind: 'ttsDownload'; jobId: string; voice: TtsVoiceId }
   | { kind: 'modelImport'; jobId: string; what: 'asr' | 'tts'; id: string; file: string }
-  | { kind: 'stab'; jobId: string; path: string; in: number; out: number; strength: number }
+  | { kind: 'stab'; jobId: string; path: string; in: number; out: number; strength: number; offset?: number }
   | { kind: 'beats'; jobId: string; path: string }
   | { kind: 'highlights'; jobId: string; path: string; duration: number }
   | { kind: 'refEdit'; jobId: string; path: string }
@@ -59,6 +59,8 @@ export type AiJob =
   | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; smooth?: boolean; timelapse?: number; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
   | { kind: 'freeze'; jobId: string; path: string; t: number; fps: number; alpha: boolean }
   | { kind: 'beauty'; jobId: string; path: string; in: number; out: number; offset: number; smooth: number; bright: number; width: number; height: number }
+  | { kind: 'depth'; jobId: string; path: string; width: number; height: number; at?: number }
+  | { kind: 'enhance'; jobId: string; mode: 'fast' | 'ai'; path: string; in: number; out: number; offset: number; width: number; height: number; fps: number }
   | { kind: 'translate'; jobId: string; texts: string[]; from: import('./translate').LangCode; to: import('./translate').LangCode };
 
 export type AiOutput =
@@ -79,7 +81,9 @@ export type AiOutput =
   | { kind: 'retime'; path: string; duration: number }
   | { kind: 'freeze'; path: string }
   | { kind: 'translate'; texts: string[] }
-  | { kind: 'beauty'; path: string; range: [number, number] };
+  | { kind: 'beauty'; path: string; range: [number, number] }
+  | { kind: 'depth'; path: string; w: number; h: number }
+  | { kind: 'enhance'; path: string; range: [number, number]; size: [number, number]; device?: 'gpu' | 'cpu' };
 
 export interface AiResponse { ok: boolean; output?: AiOutput; error?: string }
 

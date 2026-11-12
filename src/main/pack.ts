@@ -10,7 +10,7 @@ import { dataDir } from './bins';
 import { FONT_EXT, filesForFamilies, installPackageFonts, loadableFace } from './fonts';
 import { pluginsDir } from './plugins';
 
-const AI_KEYS = ['removeBg', 'denoise', 'stab', 'beauty', 'voice'] as const;
+const AI_KEYS = ['removeBg', 'denoise', 'stab', 'beauty', 'voice', 'enhance'] as const;
 const PLUGIN_DIRS = { t: 'transitions', e: 'effects' } as const;
 
 const safeName = (s: string) => s.replace(/[<>:"/\\|?*\x00-\x1f]+/g, '').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '').slice(0, 80);
@@ -82,6 +82,12 @@ export async function packProject(project: Project, parent: string): Promise<Pac
       paint.path = path.join(dir, rel);
       paint.rel = toRel(rel);
     }
+    const p3 = m.photo3d;
+    if (p3?.depth && fs.existsSync(p3.depth)) {
+      const rel = await copy(p3.depth, 'masks');
+      p3.depth = path.join(dir, rel);
+      p3.rel = toRel(rel);
+    }
     const lut = m.grade?.lut;
     if (lut?.path && fs.existsSync(lut.path)) {
       const rel = await copy(lut.path, 'luts');
@@ -146,6 +152,8 @@ export function relinkProject(p: Project, projectFile: string): number {
     if (lut?.path) { const hit = find(lut.path, lut.rel, ['luts']); if (hit) lut.path = hit; }
     const paint = m.chroma?.paint;
     if (paint?.path) { const hit = find(paint.path, paint.rel, ['masks']); if (hit) paint.path = hit; }
+    const p3 = m.photo3d;
+    if (p3?.depth) { const hit = find(p3.depth, p3.rel, ['masks']); if (hit) p3.depth = hit; }
   }
   return n;
 }

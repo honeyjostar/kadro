@@ -29,6 +29,8 @@ type Msg =
   | { id: string; kind: 'tts'; text: string; voice: TtsVoiceId; speed: number; outPath: string }
   | { id: string; kind: 'beats'; path: string }
   | { id: string; kind: 'reframe'; path: string; in: number; out: number; width: number; height: number }
+  | { id: string; kind: 'depth'; path: string; width: number; height: number; at: number; outPath: string }
+  | { id: string; kind: 'enhance'; path: string; in: number; out: number; width: number; height: number; fps: number; tw: number; th: number; outPath: string }
   | { id: string; kind: 'faces'; path: string; in: number; out: number; width: number; height: number; image?: boolean }
   | { id: string; kind: 'trackBox'; path: string; in: number; out: number; at: number; box: { x: number; y: number; w: number; h: number }; width: number; height: number }
   | { id: string; kind: 'mtDownload'; pairs: string[] }
@@ -116,7 +118,19 @@ port.on('message', async (e) => {
       const { trackPerson } = await import('../main/ai/matting');
       result = { points: await trackPerson({ src: m.path, ss: m.in, dur: m.out - m.in, width: m.width, height: m.height, onProgress: (p) => progress(p, tx('Слежу за человеком')), signal: ac.signal }) };
     }
-    else if (m.kind === 'faces') {
+    else if (m.kind === 'depth') {
+      const { depthReady, downloadDepth, estimateDepth } = await import('../main/ai/depth');
+      if (!depthReady()) await downloadDepth((p) => progress(p * 0.85, tx('Скачиваю модель глубины (100 МБ, один раз)')), ac.signal);
+      progress(0.9, tx('Считаю глубину'));
+      result = await estimateDepth(m.path, m.width, m.height, m.outPath, m.at);
+    } else if (m.kind === 'enhance') {
+      const { aiEnhance } = await import('../main/ai/upscale');
+      fs.rmSync(m.outPath, { force: true });
+      progress(0.01, tx('Запускаю нейросеть'));
+      const device = await aiEnhance({ src: m.path, ss: m.in, dur: m.out - m.in, fps: m.fps, width: m.width, height: m.height, tw: m.tw, th: m.th, out: m.outPath,
+        onProgress: (p, stage) => progress(p, stage), signal: ac.signal });
+      result = { device };
+    } else if (m.kind === 'faces') {
       const { detectFaces } = await import('../main/ai/faces');
       result = { frames: await detectFaces({ src: m.path, ss: m.in, dur: m.out - m.in, width: m.width, height: m.height, image: m.image, onProgress: (p) => progress(p, tx('Ищу лица')), signal: ac.signal }) };
     } else if (m.kind === 'trackBox') {

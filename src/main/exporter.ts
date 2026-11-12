@@ -1,5 +1,6 @@
 // Экспорт проекта в MP4 (а также GIF и MP3): слои текста → списки concat, граф FFmpeg, кодирование с прогрессом.
 import { makeBlurMasks } from './blurMask';
+import { makePhoto3dMaps } from './photo3dMaps';
 import { tx } from '../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -159,7 +160,8 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     const sticker = format === 'sticker';
     // скрытые лица и номера: маска на каждый кадр клипа
     const blurMasks = await makeBlurMasks(project, job, opts.fps, signal);
-    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments, blurMasks,
+    const photo3dMaps = await makePhoto3dMaps(project, job, opts.fps, signal); // 3D-фото: сдвиг по глубине на каждый кадр
+    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments, blurMasks, photo3dMaps,
       duck: opts.alpha || sticker ? undefined : await duckFor(project), maxDuration: sticker ? TG_STICKER.maxSec : opts.maxSec });
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);

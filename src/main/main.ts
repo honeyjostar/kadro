@@ -44,6 +44,8 @@ import { processVoice } from './ai/voice';
 import { stabilize } from './ai/stab';
 import { freezeFrame, retime } from './retime';
 import { beautify } from './ai/beauty';
+import { fastEnhance } from './ai/enhance';
+import { enhanceTarget } from '../shared/enhance';
 import { ffmpegToBuffer, runFfmpeg } from './ffrun';
 import { initScreenRec } from './screenrec';
 import { importLutFile, listLutFiles, lutsDir } from './luts';
@@ -236,7 +238,7 @@ function aiWorker(lane: Lane): UtilityProcess {
 
 function workerCall<T>(id: string, msg: Record<string, unknown>): Promise<T> {
   // onnxruntime-node (фон, слежение, перевод) — в процессе «vision», sherpa-onnx — в «speech»
-  const lane: Lane = ['removeBg', 'reframe', 'translate', 'mtDownload', 'faces', 'trackBox'].includes(String(msg.kind)) ? 'vision' : 'speech';
+  const lane: Lane = ['removeBg', 'reframe', 'translate', 'mtDownload', 'faces', 'trackBox', 'enhance', 'depth'].includes(String(msg.kind)) ? 'vision' : 'speech';
   return new Promise<T>((resolve, reject) => {
     const w = aiWorker(lane);
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject, lane, w });
@@ -426,7 +428,7 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       aiAborts.set(id, ac);
       const out = path.join(cacheDir('ai'), `stab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.mp4`);
       await stabilize(job.path, job.in, job.out - job.in, job.strength, out, (p) => send(p, tx('Стабилизирую')), ac.signal);
-      return { ok: true, output: { kind: 'stab', path: out, range: [job.in, job.out] } };
+      return { ok: true, output: { kind: 'stab', path: out, range: [job.in + (job.offset ?? 0), job.out + (job.offset ?? 0)] } };
     }
     if (job.kind === 'modelImport') {
       await workerCall(id, { kind: 'install', what: job.what, model: job.id, file: job.file });
@@ -487,6 +489,24 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       aiAborts.set(id, ac);
       const r = await retime(job, (p) => send(p, job.timelapse ? tx('Собираю таймлапс') : job.smooth ? tx('Дорисовываю кадры') : job.reverse ? tx('Переворачиваю') : tx('Меняю скорость')), ac.signal);
       return { ok: true, output: { kind: 'retime', path: r.path, duration: r.duration } };
+    }
+    if (job.kind === 'depth') {
+      const out = path.join(cacheDir('ai'), `depth_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.png`);
+      const r = await workerCall<{ path: string; w: number; h: number }>(id, { kind: 'depth', path: job.path, width: job.width, height: job.height, at: job.at ?? 0, outPath: out });
+      return { ok: true, output: { kind: 'depth', path: r.path, w: r.w, h: r.h } };
+    }
+    if (job.kind === 'enhance') {
+      const tgt = enhanceTarget(job.width, job.height);
+      const out = path.join(cacheDir('ai'), `enhance_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.mp4`);
+      const range: [number, number] = [job.in + job.offset, job.out + job.offset];
+      if (job.mode === 'fast') {
+        const ac = new AbortController();
+        aiAborts.set(id, ac);
+        await fastEnhance(job.path, job.in, job.out - job.in, job.width, job.height, tgt, out, (p) => send(p, tx('Улучшаю качество')), ac.signal);
+        return { ok: true, output: { kind: 'enhance', path: out, range, size: [tgt.w, tgt.h] } };
+      }
+      const r = await workerCall<{ device: 'gpu' | 'cpu' }>(id, { kind: 'enhance', path: job.path, in: job.in, out: job.out, width: job.width, height: job.height, fps: job.fps, tw: tgt.w, th: tgt.h, outPath: out });
+      return { ok: true, output: { kind: 'enhance', path: out, range, size: [tgt.w, tgt.h], device: r.device } };
     }
     if (job.kind === 'beauty') {
       const ac = new AbortController();

@@ -698,6 +698,7 @@ export function setRetime(p: Project, clipId: string, r: Retime | undefined, ass
     c.denoise = reset(c.denoise);
     if (c.stab) c.stab = reset(c.stab);
     if (c.beauty) c.beauty = reset(c.beauty);
+    if (c.enhance) c.enhance = reset(c.enhance);
     if (c.voice) c.voice = reset(c.voice);
     sanitizeMedia(d, c);
     pruneDerived(d);

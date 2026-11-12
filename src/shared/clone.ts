@@ -74,6 +74,7 @@ export function addClone(p: Project, clipId: string, src: CloneSource): { projec
       denoise: { enabled: false, status: 'none' },
       stab: undefined,
       beauty: undefined,
+      enhance: undefined,
       voice: undefined,
       person: undefined,
       transitionOut: undefined,
