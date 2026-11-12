@@ -19,14 +19,15 @@ jobs:
       - run: |
           git clone -q --depth 1 -b promo-vo5 "https://github.com/${{ github.repository }}" vo
           pip install -q torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
-          pip install -q transformers==4.57.1 librosa soundfile sherpa-onnx
+          pip install -q transformers==4.57.1 librosa soundfile sherpa-onnx phonemizer
+          sudo apt-get install -y -q espeak-ng >/dev/null
           mkdir -p asr && cd asr
           curl -fsSL https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-nemo-transducer-giga-am-v2-russian-2025-04-19.tar.bz2 | tar xj
-      - run: python score.py
+      - run: python ph.py
         env: { SHARD: "${{ matrix.shard }}", NSHARDS: '6' }
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: "sc-${{ matrix.shard }}", path: scores/ }
+        with: { name: "ph-${{ matrix.shard }}", path: ph/ }
   collect:
     needs: [score]
     if: always()
@@ -36,6 +37,6 @@ jobs:
         with: { path: parts }
       - run: |
           git clone -q --depth 1 -b promo-vo5 "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" pub
-          mkdir -p pub/scores2 && find parts -name '*.json' -exec cp {} pub/scores2/ \;
+          mkdir -p pub/ph && find parts -name '*.json' -exec cp {} pub/ph/ \;
           cd pub && git config user.name "kadro-bot" && git config user.email "kadro-bot@users.noreply.github.com"
           git add -A && git commit -qm "Проверка озвучки v5 (временно)" && git push -q origin promo-vo5
