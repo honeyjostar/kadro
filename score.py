@@ -89,7 +89,7 @@ def texts_for(name):
 
 
 def main():
-    files = sorted(glob.glob('vo/**/*.wav', recursive=True))
+    files = sorted(glob.glob('vo/out/c.*.wav'))
     files = [f for k, f in enumerate(files) if k % NSH == SHARD]
     # та же модель MMS forced alignment, копия на Hugging Face (у dl.fbaipublicfiles.com истёк сертификат)
     from transformers import AutoModelForCTC, AutoTokenizer
@@ -144,7 +144,8 @@ def main():
                 sp = spans[k:k + len(r)]
                 nxt = flat_starts[k + len(r)] if k + len(r) < len(spans) else None
                 k += len(r)
-                feats = []
+                feats, raw = [], []
+                word_letters = w['word']
                 for j, (lat, li, isv) in enumerate(r):
                     if not isv:
                         continue
@@ -160,8 +161,9 @@ def main():
                     if w['final'] and j == max(jj for jj, (_, _, v) in enumerate(r) if v):
                         ld -= 0.26  # удлинение последнего слога перед паузой — не ударение
                     feats.append((ld, en, fst))
+                    raw.append(dict(v=word_letters[li], ld=round(ld, 4), en=round(en, 3), f0=None if fst is None else round(fst, 3)))
                 ent = dict(w=w['word'], t0=round(sp[0].start * hop / SR, 3), t1=round(sp[-1].end * hop / SR, 3),
-                           stress=w['stress'], natural=nat[wi]['stress'] if wi < len(nat) else None)
+                           stress=w['stress'], natural=nat[wi]['stress'] if wi < len(nat) else None, raw=raw, final=w['final'])
                 if w['nv'] >= 2 and w['stress'] is not None and len(feats) == w['nv']:
                     def z(vals):
                         vals = np.array(vals, dtype=float)
