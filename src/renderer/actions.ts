@@ -541,6 +541,41 @@ export async function retimeClip(clipId: string, opts: { reverse?: boolean; ramp
   await reprocessAi(clipId);
 }
 
+/** Таймлапс: фрагмент клипа ускоряется в factor раз, соседние кадры смешиваются; null — обратно к обычной скорости. */
+export async function timelapseClip(clipId: string, factor: number | null): Promise<void> {
+  const m = mediaClip(clipId);
+  if (!m || gifBlocked(m.p, m.clip, tx('Таймлапс'))) return;
+  const c = m.clip;
+  if (factor === null) {
+    if (c.retime?.timelapse) await retimeClip(clipId, { reverse: false, ramp: null, smooth: false, speed: 1 });
+    return;
+  }
+  const orig = originalRange(c);
+  const src = m.p.assets.find((a) => a.id === orig.assetId);
+  if (!src || src.kind !== 'video' || !src.hasVideo) { getState().toast(tx('Таймлапс делается из видео')); return; }
+  if (src.missing) { getState().toast(tx('Файл «{0}» не найден на диске', src.name), 'err'); return; }
+  if ((orig.out - orig.in) / factor < 0.2) { getState().toast(tx('Фрагмент слишком короткий для такого ускорения — возьми кусок длиннее')); return; }
+  const r: Retime = { assetId: orig.assetId, in: orig.in, out: orig.out, reverse: false, ramp: [{ x: 0, v: factor }, { x: 1, v: factor }], timelapse: factor };
+  const res = await runJob(tx('Собираю таймлапс'), {
+    kind: 'retime', jobId: `tl_${uidShort()}`, path: src.path, in: r.in, out: r.out, reverse: false, timelapse: factor,
+    hasVideo: true, hasAudio: false, width: src.width, height: src.height, fps: getState().project.settings.fps || src.fps || 30,
+  }, clipId);
+  if (!res.ok || res.output?.kind !== 'retime') { if (res.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', res.error), 'err'); return; }
+  const out = res.output;
+  const asset = await importDerived(out.path, `${src.name} · ${tx('таймлапс {0}×', factor)}`);
+  if (!asset) return;
+  const now = findClip(getState().project, clipId);
+  const o2 = now?.clip.type === 'media' ? originalRange(now.clip as MediaClip) : null;
+  if (!o2 || o2.assetId !== orig.assetId || Math.abs(o2.in - orig.in) > 1e-3 || Math.abs(o2.out - orig.out) > 1e-3) {
+    getState().toast(tx('Клип изменился, пока шла обработка — повтори действие'));
+    return;
+  }
+  getState().commit((p) => updateClip(setRetime(addAsset(p, asset), clipId, r, asset.id, 0, Math.min(asset.duration || out.duration, out.duration)), clipId, { speed: 1 }));
+  takeEarlyPatches([asset.id]);
+  await reprocessAi(clipId);
+  getState().toast(tx('Таймлапс {0}×: {1} → {2}', factor, fmtDur(orig.out - orig.in), fmtDur(out.duration)), 'ok');
+}
+
 /** Добавляет служебный файл (копию, кадр) как скрытый ресурс проекта. */
 async function importDerived(path: string, name: string): Promise<MediaAsset | null> {
   const imp = await api.importMedia([path]);

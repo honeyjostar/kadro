@@ -277,6 +277,8 @@ export interface Retime {
   smooth?: boolean;
   speed?: number;               // постоянная скорость, вшитая в копию (при smooth)
   userRamp?: RampPoint[];       // кривая, которую выбрал пользователь (при smooth)
+  /** Таймлапс: ускорение в столько раз, соседние кадры смешаны (ramp — та же постоянная скорость), копия без звука. */
+  timelapse?: number;
 }
 
 export interface TextStyle {

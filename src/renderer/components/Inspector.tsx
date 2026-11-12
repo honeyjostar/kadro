@@ -2,7 +2,7 @@ import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
 import { AudioLines, Box, Eraser, X, ImagePlus, RefreshCw, Trash2, Snowflake, Repeat, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2, ClipboardCopy, ClipboardPaste } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
-import { syncByAudio } from '../actions';
+import { syncByAudio, timelapseClip } from '../actions';
 import { alignToBeats, boomerang, extractAudio, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection, userCurve, userSpeed, copyClipAttrs, openPasteAttrs } from '../actions';
 import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
 import { DEFAULT_MASK } from '../../shared/mask';
@@ -459,6 +459,26 @@ type ColorSub = 'basic' | 'curves' | 'hsl' | 'lut';
 let lastColorSub: ColorSub = 'basic';
 
 // ---------- скорость: постоянная, кривая, реверс, стоп-кадр ----------
+const TL_FACTORS = [4, 8, 16, 30, 60];
+/** Таймлапс: ускорение в 4–60 раз со смешиванием соседних кадров (копия фрагмента без звука). */
+function TimelapseBox({ clip, busy }: { clip: MediaClip; busy: boolean }) {
+  const cur = clip.retime?.timelapse;
+  return (
+    <div className={`smooth-box ${cur ? 'on' : ''}`} data-testid="timelapse-box">
+      <div className="sub-head" style={{ marginTop: 0 }}>{tx('Таймлапс')}</div>
+      <p className="hint small">{cur
+        ? txj('Ускорено в {0} раз, соседние кадры смешаны — движение плывёт, а не прыгает. Звук убран.', cur)
+        : tx('Закат, облака, город, стройка: ускорение в 4–60 раз, кадры смешиваются плавно. Звук убирается.')}</p>
+      <div className="chips">
+        {TL_FACTORS.map((f) => (
+          <button key={f} className={cur === f ? 'active' : ''} disabled={busy} onClick={() => void timelapseClip(clip.id, f)} data-testid={`tl-${f}`}>{f}×</button>
+        ))}
+        {cur && <button disabled={busy} onClick={() => void timelapseClip(clip.id, null)} data-testid="tl-off">{tx('Обычная скорость')}</button>}
+      </div>
+    </div>
+  );
+}
+
 function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
   const commit = useStore((s) => s.commit);
   const up = (patch: Partial<MediaClip>, key: string) => commit((p) => updateClip(p, clip.id, patch), `${key}-${clip.id}`);
@@ -484,6 +504,7 @@ function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
   };
   useEffect(() => () => clearTimeout(timer.current), []);
   const slowSomewhere = speed < 0.999 || (userRamp ?? []).some((q) => q.v * speed < 0.999);
+  if (r?.timelapse) return <TimelapseBox clip={clip} busy={busy} />;
   const pick = (id: string) => {
     setDraft(null);
     if (id === 'none') { if (userRamp) void retimeClip(clip.id, { ramp: null }); return; }
@@ -535,6 +556,8 @@ function SpeedTab({ clip, asset }: { clip: MediaClip; asset?: MediaAsset }) {
           )}
         </>
       )}
+
+      {isVideo && <TimelapseBox clip={clip} busy={busy} />}
 
       <div className="sub-head">{tx('Ещё')}</div>
       <Toggle label={tx('Реверс — проиграть задом наперёд')} on={!!r?.reverse} testId="reverse"

@@ -476,7 +476,7 @@ async function runAi(job: AiJob): Promise<AiResponse> {
     if (job.kind === 'retime') {
       const ac = new AbortController();
       aiAborts.set(id, ac);
-      const r = await retime(job, (p) => send(p, job.smooth ? tx('Дорисовываю кадры') : job.reverse ? tx('Переворачиваю') : tx('Меняю скорость')), ac.signal);
+      const r = await retime(job, (p) => send(p, job.timelapse ? tx('Собираю таймлапс') : job.smooth ? tx('Дорисовываю кадры') : job.reverse ? tx('Переворачиваю') : tx('Меняю скорость')), ac.signal);
       return { ok: true, output: { kind: 'retime', path: r.path, duration: r.duration } };
     }
     if (job.kind === 'beauty') {

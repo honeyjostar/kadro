@@ -54,7 +54,7 @@ export type AiJob =
   | { kind: 'highlights'; jobId: string; path: string; duration: number }
   | { kind: 'refEdit'; jobId: string; path: string }
   | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number }
-  | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; smooth?: boolean; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
+  | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; smooth?: boolean; timelapse?: number; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
   | { kind: 'freeze'; jobId: string; path: string; t: number; fps: number; alpha: boolean }
   | { kind: 'beauty'; jobId: string; path: string; in: number; out: number; offset: number; smooth: number; bright: number; width: number; height: number }
   | { kind: 'translate'; jobId: string; texts: string[]; from: import('./translate').LangCode; to: import('./translate').LangCode };

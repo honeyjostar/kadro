@@ -12,6 +12,7 @@ export interface RetimeJob {
   path: string; in: number; out: number;
   reverse: boolean; ramp?: RampPoint[];
   smooth?: boolean;               // дорисовать промежуточные кадры (плавное замедление)
+  timelapse?: number;             // таймлапс: ускорить в столько раз, смешивая соседние кадры (без звука)
   hasVideo: boolean; hasAudio: boolean;
   width: number; height: number; fps: number;
 }
@@ -28,10 +29,11 @@ export async function retime(job: RetimeJob, onProgress?: (p: number) => void, s
   const work = path.join(cacheDir('tmp'), `rt_${uniq()}`);
   fs.mkdirSync(work, { recursive: true });
   const ext = job.hasVideo ? 'mp4' : 'm4a';
-  const out = path.join(cacheDir('clips'), `${job.reverse ? 'rev' : job.smooth ? 'smooth' : 'ramp'}_${uniq()}.${ext}`);
+  const out = path.join(cacheDir('clips'), `${job.timelapse ? 'timelapse' : job.reverse ? 'rev' : job.smooth ? 'smooth' : 'ramp'}_${uniq()}.${ext}`);
   const L = job.out - job.in;
   const fps = Math.min(60, Math.max(1, job.fps || 30));
   try {
+    if (job.timelapse) return await timelapse(job, job.timelapse, fps, L, out, onProgress, signal);
     let src = job.path;
     let ss = job.in;
     const revShare = job.reverse && job.ramp ? 0.6 : 1;
@@ -71,6 +73,22 @@ export async function retime(job: RetimeJob, onProgress?: (p: number) => void, s
   } finally {
     fs.rmSync(work, { recursive: true, force: true });
   }
+}
+
+/**
+ * Таймлапс: фрагмент ускоряется в factor раз. Кадры не выбрасываются, а смешиваются (до 10 соседних) —
+ * облака, машины и люди плывут шлейфом, а не прыгают. Звук не нужен (ускоренный звук — писк).
+ */
+async function timelapse(job: RetimeJob, factor: number, fps: number, L: number, out: string, onProgress?: (p: number) => void, signal?: AbortSignal): Promise<{ path: string; duration: number }> {
+  if (!job.hasVideo) throw new Error(tx('Таймлапс делается из видео'));
+  const total = L / factor;
+  const blend = Math.max(2, Math.min(10, Math.round(factor)));
+  await runFfmpeg([
+    '-hide_banner', '-y', '-ss', fmt(job.in), '-t', fmt(L), '-i', job.path, '-an',
+    '-vf', `setpts=PTS-STARTPTS,tmix=frames=${blend},setpts=PTS/${fmt(factor)},fps=${fps},trim=duration=${fmt(total)}`,
+    ...videoEnc(fps), '-movflags', '+faststart', '-progress', 'pipe:1', '-nostats', out,
+  ], { duration: total, onProgress, signal });
+  return { path: out, duration: total };
 }
 
 /** Реверс фрагмента: куски с конца к началу, каждый перевёрнут, затем склейка. */
