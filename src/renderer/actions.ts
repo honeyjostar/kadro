@@ -39,6 +39,7 @@ import { EFFECTS } from '../shared/effects';
 import { setTransition } from '../shared/timeline';
 import type { EffectType, TransitionType } from '../shared/types';
 import { noteUsed } from './favs';
+import { findLag, SYNC_MIN_CONFIDENCE, syncedPlacement } from '../shared/audioSync';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -2009,4 +2010,55 @@ export function applyTransition(type: TransitionType, at?: number, name?: string
   noteUsed('tr', type);
   if (name) s.toast(tx('Переход «{0}» поставлен', name), 'ok');
   return true;
+}
+
+// ---------- синхронизация камер по звуку ----------
+/**
+ * Выделенные клипы со звуком (два ракурса, отдельный диктофон…) встают так, чтобы их звук совпал.
+ * Опора — клип основной дорожки (или первый выделенный); двигаются клипы наложения и звука.
+ */
+export async function syncByAudio(): Promise<number> {
+  const s = getState();
+  const p = s.project;
+  const picked = s.selection
+    .map((id) => findClip(p, id))
+    .filter((f): f is NonNullable<ReturnType<typeof findClip>> => !!f && f.clip.type === 'media')
+    .map((f) => ({ track: f.track, clip: f.clip as MediaClip, asset: p.assets.find((a) => a.id === (f.clip as MediaClip).assetId) }))
+    .filter((x): x is { track: typeof x.track; clip: MediaClip; asset: MediaAsset } => !!x.asset && x.asset.kind !== 'image' && x.asset.hasAudio);
+  if (picked.length < 2) { s.toast(tx('Выдели два или больше клипа со звуком (Ctrl+щелчок) — например, два ракурса одной сцены')); return 0; }
+  if (picked.some((x) => Math.abs(x.clip.speed - 1) > 1e-6 || x.clip.retime)) { s.toast(tx('Синхронизация по звуку — для клипов с обычной скоростью (1×), без реверса')); return 0; }
+  const ref = picked.find((x) => x.track.kind === 'main') ?? picked[0];
+  const others = picked.filter((x) => x !== ref);
+  if (others.some((x) => x.track.kind === 'main')) { s.toast(tx('Двигаются только клипы наложения и звука: второй ракурс положи на дорожку над основной')); return 0; }
+  const jobId = 'sync-audio';
+  s.setJob({ id: jobId, label: tx('Сравниваю звук'), progress: 0.2, cancellable: false });
+  const envs = new Map<string, Float32Array | null>();
+  try {
+    for (const x of picked) if (!envs.has(x.asset.path)) envs.set(x.asset.path, await api.audioEnvelope(x.asset.path));
+  } finally {
+    s.setJob(null, jobId);
+  }
+  const eRef = envs.get(ref.asset.path);
+  if (!eRef) { s.toast(tx('Не получилось прочитать звук «{0}»', ref.asset.name), 'err'); return 0; }
+  const moves: { id: string; start: number; in: number }[] = [];
+  const failed: string[] = [];
+  for (const x of others) {
+    const e = envs.get(x.asset.path);
+    const r = e ? findLag(eRef, e) : null;
+    const pl = r && r.confidence >= SYNC_MIN_CONFIDENCE ? syncedPlacement(ref.clip, x.clip, r.lag) : null;
+    if (pl) moves.push({ id: x.clip.id, ...pl });
+    else failed.push(x.asset.name);
+  }
+  if (moves.length) {
+    s.commit((p0) => moves.reduce((acc, m) => {
+      const f = findClip(acc, m.id);
+      if (!f || f.clip.type !== 'media') return acc;
+      const c = f.clip as MediaClip;
+      const trimmed = Math.abs(m.in - c.in) > 1e-6 ? updateClip(acc, m.id, { in: m.in }) : acc;
+      return moveClipsBy(trimmed, [m.id], m.start - c.start);
+    }, p0));
+  }
+  if (failed.length) s.toast(tx('Не нашёл общего звука: {0}. Проверь, что это запись той же сцены', failed.join(', ')), moves.length ? 'info' : 'err');
+  if (moves.length) s.toast(tx('Синхронизировано по звуку: {0}', moves.length), 'ok');
+  return moves.length;
 }

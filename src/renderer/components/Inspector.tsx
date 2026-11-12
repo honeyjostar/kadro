@@ -2,6 +2,7 @@ import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
 import { AudioLines, Box, Eraser, X, ImagePlus, RefreshCw, Trash2, Snowflake, Repeat, Activity, AlignCenter, AlignLeft, AlignRight, Bold, CaseUpper, ChevronLeft, ChevronRight, Italic, Pipette, RotateCcw, Volume2, ClipboardCopy, ClipboardPaste } from 'lucide-react';
 import type { TtsVoiceId, VoiceInfo } from '../../shared/ipc';
+import { syncByAudio } from '../actions';
 import { alignToBeats, boomerang, extractAudio, findBeats, freezeFrame, rebuildGroup, retimeClip, speakText, ungroupSelection, userCurve, userSpeed, copyClipAttrs, openPasteAttrs } from '../actions';
 import { RAMP_MAX, RAMP_MIN, RAMP_PRESETS, RampMap, normalizeRamp, rampSpeedAt } from '../../shared/retime';
 import { DEFAULT_MASK } from '../../shared/mask';
@@ -65,6 +66,13 @@ function ProjectInspector({ multi }: { multi: number }) {
     <>
       <div className="panel-head">{multi > 1 ? tx('Выделено клипов: {0}', multi) : tx('Проект')}</div>
       <div className="panel-body">
+        {multi > 1 && (
+          <div className="ai-card" data-testid="multi-sync">
+            <h4><AudioLines size={14} />{tx('Несколько ракурсов одной сцены')}</h4>
+            <p className="hint small">{tx('Kadro сравнит звук и поставит клипы наложения и звука так, чтобы всё совпало — как хлопок перед дублем.')}</p>
+            <button className="btn block" onClick={() => void syncByAudio()} data-testid="sync-audio">{tx('Синхронизировать по звуку')}</button>
+          </div>
+        )}
         {multi <= 1 && <p className="hint inspector-tip">{tx('Нажми на клип на таймлайне — здесь появятся его настройки: размер, цвет, эффекты, скорость, звук и анимация.')}</p>}
         <div className="section-title" style={{ marginTop: 4 }}>{tx('Формат кадра')}</div>
         <div className="aspect-grid">

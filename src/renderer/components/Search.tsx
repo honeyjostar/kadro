@@ -9,7 +9,7 @@ import { TRANSITIONS } from '../../shared/defaults';
 import { searchItems, type SearchItem } from '../../shared/search';
 import type { EffectType, TransitionType } from '../../shared/types';
 import {
-  addEffectTo, addMarkerAtPlayhead, applyTransition, deleteSelection, duplicateSelection, saveFrame, saveProject, selectedVisualClips, setFilterOn, splitAtPlayhead,
+  syncByAudio, addEffectTo, addMarkerAtPlayhead, applyTransition, deleteSelection, duplicateSelection, saveFrame, saveProject, selectedVisualClips, setFilterOn, splitAtPlayhead,
 } from '../actions';
 import { useFavs } from '../favs';
 import { glEffects, glTransitions, useGlCatalog } from '../glRegistry';
@@ -47,6 +47,7 @@ function buildItems(fav: ReturnType<typeof useFavs.getState>['s']): Item[] {
     { id: 'cmd-frame', group: cmd, label: tx('Сохранить кадр картинкой (PNG)'), keywords: [tx('скриншот')], keys: 'Shift+E', run: () => void saveFrame() },
     { id: 'cmd-full', group: cmd, label: tx('Плеер на весь экран'), keys: 'F', run: () => togglePlayerFullscreen() },
     { id: 'cmd-wide', group: cmd, label: tx('Скрыть или показать боковые панели'), keywords: [tx('большой плеер')], keys: 'Ctrl+\\', run: () => s.setWide(!s.wide) },
+    { id: 'cmd-sync', group: cmd, label: tx('Синхронизировать по звуку'), keywords: [tx('мультикамера'), tx('ракурсы'), tx('хлопок')], run: () => void syncByAudio() },
     { id: 'cmd-script', group: cmd, label: tx('Ролик по сценарию'), run: () => s.setScriptOpen(true) },
     { id: 'cmd-shorts', group: cmd, label: tx('Нарезать в шортсы'), run: () => s.setShortsOpen(true) },
     { id: 'cmd-settings', group: cmd, label: tx('Настройки'), run: () => s.setSettingsOpen(true) },

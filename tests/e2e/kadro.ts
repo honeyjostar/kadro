@@ -165,6 +165,13 @@ export function walkVideo(): string | null {
     '-filter_complex', "[1]crop=200:359:130:40,scale=320:574[p];[0][p]overlay=x='100+250*t':y=146:shortest=1,format=yuv420p",
     '-t', '3', '-c:v', 'libx264', '-preset', 'ultrafast', f]));
 }
+/** Ракурс сцены со «щелчками» в неравные моменты: тот же звук, что у других ракурсов, но запись началась на offset с позже. */
+export function clapVideo(name: string, color: string, offset: number, dur = 8): string {
+  return media(name, (f) => ff(['-f', 'lavfi', '-i', `color=c=${color}:s=640x360:r=30:d=${dur}`,
+    '-f', 'lavfi', '-i', "aevalsrc='0.8*sin(2*PI*900*t)*(lt(mod(t,1.37),0.04)+lt(mod(t,0.83),0.025)+lt(mod(t,2.11),0.06))+0.01*sin(2*PI*120*t)':s=48000:d=20",
+    '-filter_complex', `[1:a]atrim=start=${offset}:duration=${dur},asetpts=PTS-STARTPTS[a]`, '-map', '0:v', '-map', '[a]',
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-t', String(dur), f]));
+}
 export function toneMp3(): string {
   return media('tone.mp3', (f) => ff(['-f', 'lavfi', '-i', 'sine=frequency=550:sample_rate=48000:duration=6', '-c:a', 'libmp3lame', '-q:a', '4', f]));
 }

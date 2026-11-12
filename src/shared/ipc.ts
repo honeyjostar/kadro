@@ -255,6 +255,8 @@ export interface KadroApi {
   colorStats(path: string, times: number[]): Promise<import('./colorMatch').LabStats | null>;
   /** Сохранить LUT, сделанный Kadro, в папку LUT. */
   saveLut(name: string, text: string): Promise<{ path: string; name: string }>;
+  /** Огибающая «начал звуков» файла (200 точек в секунду) — для синхронизации камер по звуку; нет звука — null. */
+  audioEnvelope(path: string): Promise<Float32Array | null>;
   /** Звук файла — отдельным файлом FLAC (для «Извлечь звук»). */
   extractAudio(path: string): Promise<string>;
   /** 3D: выбрать файл модели (GLB, GLTF, OBJ, STL, FBX). */

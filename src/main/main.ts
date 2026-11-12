@@ -18,6 +18,8 @@ import { referenceTemplate } from './refEdit';
 import { normPath } from '../shared/cache';
 import { copyName, safeFileName } from '../shared/projects';
 import { scrubLog, type BugInfo } from '../shared/bugReport';
+import { onsetEnvelope } from '../shared/audioSync';
+
 import { cancelDownload, check as checkUpdate, clearUpdated, download as downloadUpdate, initUpdater, install as installUpdate, setAutoCheck, updateState } from './updater';
 import * as m3d from './model3d';
 import { highlights } from './highlights';
@@ -42,7 +44,7 @@ import { processVoice } from './ai/voice';
 import { stabilize } from './ai/stab';
 import { freezeFrame, retime } from './retime';
 import { beautify } from './ai/beauty';
-import { runFfmpeg } from './ffrun';
+import { ffmpegToBuffer, runFfmpeg } from './ffrun';
 import { importLutFile, listLutFiles, lutsDir } from './luts';
 import { BUILTIN_TEMPLATES, DEMO_SCENES, isTemplate, type Template } from '../shared/templates';
 import { projectDuration } from '../shared/timeline';
@@ -1123,6 +1125,26 @@ function registerIpc(): void {
   ipcMain.handle('group:path', (_e, ext: string) =>
     path.join(cacheDir('groups'), `group_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext === 'webm' ? 'webm' : 'mp4'}`));
   ipcMain.handle('lut:read', (_e, p: string) => { if (!/\.cube$/i.test(p)) return null; try { return fs.readFileSync(p, 'utf8'); } catch { return null; } });
+  // синхронизация камер по звуку: огибающая «начал звуков» файла (первые 20 минут, 8 кГц), с памятью на время работы
+  const envCache = new Map<string, Float32Array>();
+  ipcMain.handle('audio:envelope', async (_e, src: string) => {
+    let st: fs.Stats;
+    try { st = fs.statSync(src); } catch { return null; }
+    const key = `${src}|${st.size}|${st.mtimeMs}`;
+    const hit = envCache.get(key);
+    if (hit) return hit;
+    try {
+      const buf = await ffmpegToBuffer(['-hide_banner', '-v', 'error', '-t', '1200', '-i', src, '-vn', '-ac', '1', '-ar', '8000', '-f', 'f32le', 'pipe:1'], undefined, true);
+      const pcm = new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4));
+      const env = onsetEnvelope(pcm, 8000);
+      if (envCache.size > 20) envCache.clear();
+      envCache.set(key, env);
+      return env;
+    } catch (err) {
+      log('audio envelope failed', src, err);
+      return null;
+    }
+  });
   // «Извлечь звук»: дорожка звука файла — отдельным файлом без потерь (один раз на файл)
   ipcMain.handle('audio:extract', async (_e, src: string) => {
     const st = fs.statSync(src);
