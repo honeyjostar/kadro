@@ -18,7 +18,7 @@ animated text, 3D objects, perspective, auto captions and offline caption transl
 Export up to 4K with no watermark, no subscription and no sign-up.</p>
 
 <p align="center"><b><a href="https://github.com/honeyjostar/kadro/releases/latest">⬇ Download Kadro for Windows</a></b> — the installer is <code>Kadro-Setup-X.Y.Z.exe</code> under <b>Assets</b>.<br>
-<a href="https://honeyjostar.github.io/kadro/en/">Website</a> · <a href="README.md">Русский</a> · <a href="https://t.me/kadroOffical">Telegram channel</a> · <a href="docs/BUILD.md">Building from source</a> (in Russian)</p>
+<a href="https://kadro-editor.github.io/en/">Website</a> · <a href="README.md">Русский</a> · <a href="https://t.me/kadroOffical">Telegram channel</a> · <a href="docs/BUILD.md">Building from source</a> (in Russian)</p>
 
 > [!IMPORTANT]
 > The app is the installer on the Releases page. The green **Code → Download ZIP** button gets the source code for developers —

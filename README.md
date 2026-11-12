@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">Kadro для Windows 10 и 11 · после установки занимает около 1 ГБ ·
-  <a href="https://honeyjostar.github.io/kadro/">Сайт</a> · <a href="docs/GUIDE.md">Руководство</a> · <a href="https://t.me/kadroOffical">Канал в Telegram</a> · <a href="docs/BUILD.md">Сборка из исходников</a> · <a href="README.en.md">English</a></p>
+  <a href="https://kadro-editor.github.io/">Сайт</a> · <a href="docs/GUIDE.md">Руководство</a> · <a href="https://t.me/kadroOffical">Канал в Telegram</a> · <a href="docs/BUILD.md">Сборка из исходников</a> · <a href="README.en.md">English</a></p>
 
 > [!IMPORTANT]
 > Программа — это файлы по кнопкам выше. Зелёная кнопка **Code → Download ZIP** скачивает исходный код для программистов:

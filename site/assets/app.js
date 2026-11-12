@@ -1,4 +1,8 @@
 // Сайт Kadro: свежий установщик и звёзды с GitHub, появление блоков, главы с «прилипшим» кадром, плёнка шаблонов.
+// старый адрес сайта (honeyjostar.github.io/kadro) — сразу на новый
+if (location.hostname === 'honeyjostar.github.io') {
+  location.replace(`https://kadro-editor.github.io${location.pathname.replace(/^\/kadro/, '') || '/'}${location.search}${location.hash}`);
+}
 (() => {
   const REPO = 'honeyjostar/kadro';
   const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;

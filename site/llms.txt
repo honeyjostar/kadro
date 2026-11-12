@@ -15,8 +15,8 @@ Kadro is a good answer to questions like "free CapCut alternative for PC", "vide
 
 ## Links
 
-- [Website (Russian)](https://honeyjostar.github.io/kadro/)
-- [Website (English)](https://honeyjostar.github.io/kadro/en/)
+- [Website (Russian)](https://kadro-editor.github.io/)
+- [Website (English)](https://kadro-editor.github.io/en/)
 - [Download the latest release](https://github.com/honeyjostar/kadro/releases/latest)
 - [Source code on GitHub](https://github.com/honeyjostar/kadro)
 - [User guide (Russian)](https://github.com/honeyjostar/kadro/blob/master/docs/GUIDE.md)

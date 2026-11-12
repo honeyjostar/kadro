@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Сайт Kadro: собирает site/index.html (русский), site/en/index.html, sitemap.xml и llms.txt из одного шаблона.
 
-  python3 scripts/make-site.py                      # адрес — https://honeyjostar.github.io/kadro
+  python3 scripts/make-site.py                      # адрес — https://kadro-editor.github.io
+  (публикует его репозиторий kadro-editor/kadro-editor.github.io: берёт эту папку site/ каждые 3 часа или по кнопке)
   python3 scripts/make-site.py https://kadro.io     # свой домен (и site/CNAME)
 
 Тексты — здесь, оформление — site/assets/style.css, поведение — site/assets/app.js.
@@ -14,7 +15,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / 'site'
-BASE = (sys.argv[1] if len(sys.argv) > 1 else 'https://honeyjostar.github.io/kadro').rstrip('/')
+BASE = (sys.argv[1] if len(sys.argv) > 1 else 'https://kadro-editor.github.io').rstrip('/')
 REPO = 'https://github.com/honeyjostar/kadro'
 LATEST = f'{REPO}/releases/latest'
 TG = 'https://t.me/kadroOffical'
@@ -410,12 +411,12 @@ def main() -> None:
 </urlset>
 ''', encoding='utf-8')
     llms = (SITE / 'llms.txt').read_text(encoding='utf-8')
-    for old in ('https://honeyjostar.github.io/kadro', 'https://kadro.io'):
+    for old in ('https://honeyjostar.github.io/kadro', 'https://kadro-editor.github.io', 'https://kadro.io'):
         llms = llms.replace(old, BASE)
     (SITE / 'llms.txt').write_text(llms, encoding='utf-8')
     cname = SITE / 'CNAME'
     host = BASE.split('://', 1)[1]
-    if host.endswith('github.io/kadro'):
+    if 'github.io' in host:  # адрес GitHub Pages — свой домен не нужен
         cname.unlink(missing_ok=True)
     else:
         cname.write_text(host + '\n', encoding='utf-8')
