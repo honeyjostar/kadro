@@ -1325,3 +1325,9 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .palette-group { color: var(--muted); font-size: 12px; }
 .palette-empty { padding: 14px 10px; margin: 0; }
 .palette-foot { padding: 8px 14px; border-top: 1px solid var(--line-soft); margin: 0; }
+
+/* ---------- экспорт: ещё форматы ---------- */
+.extra-done { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 4px; }
+.extra-done li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.extra-done li svg { color: var(--accent); flex: none; }
+.extra-done li .btn { margin-left: auto; }

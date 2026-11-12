@@ -370,6 +370,8 @@ export interface ExportOptions {
   format?: ExportFormat;
   /** MP3: битрейт, кбит/с */
   mp3Kbps?: 128 | 192 | 320;
+  /** не длиннее стольких секунд (кружок Telegram — до 60 с): дальше ролик обрезается */
+  maxSec?: number;
 }
 
 export type ExportFormat = 'mp4' | 'gif' | 'mp3' | 'sticker';

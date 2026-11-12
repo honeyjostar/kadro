@@ -21,6 +21,7 @@ import { shortSideOf, sizeFor } from '../../shared/defaults';
 import { setSettings } from '../../shared/timeline';
 import { PLATFORMS, isVertical, type Platform } from '../../shared/safezones';
 import { ensureFonts, preflight, type Issue } from '../preflight';
+import { EXTRA_FORMATS, extraPath, sameAsProject, variantProject, type ExtraFormatId } from '../../shared/formats';
 
 type Phase = 'setup' | 'running' | 'done' | 'error';
 
@@ -33,6 +34,8 @@ function estimateMb(w: number, h: number, fps: number, q: ExportOptions['quality
 }
 
 let lastOpts: Omit<ExportOptions, 'outPath'> | null = null;
+let lastExtras: ExtraFormatId[] = [];
+const FMT = (id: ExtraFormatId) => EXTRA_FORMATS.find((f) => f.id === id)!;
 
 const VIDEO_FPS = [24, 25, 30, 50, 60] as const;
 const GIF_FPS = [10, 15, 24] as const;
@@ -83,6 +86,10 @@ export function ExportDialog() {
   const started = useRef(0);
   const cancelled = useRef(false);
   const [eta, setEta] = useState<number | null>(null);
+  // ещё форматы: тот же ролик сразу в 9:16 / 16:9 / 1:1 / кружок Telegram — файлами рядом с основным
+  const [extras, setExtras] = useState<ExtraFormatId[]>(() => lastExtras.filter((id) => !sameAsProject(project, FMT(id))));
+  useEffect(() => { lastExtras = extras; }, [extras]);
+  const [extraDone, setExtraDone] = useState<{ label: string; path?: string; error?: string }[]>([]);
 
   useEffect(() => { void api.hardware().then(setHw); }, []);
   useEffect(() => { lastOpts = opts; }, [opts]);
@@ -148,6 +155,25 @@ export function ExportDialog() {
       setProgress(0);
       const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: layers, blankPng: blank, glToken: gl?.token, glSegments: gl?.segments });
       if (r.ok) getState().markExported();
+      // ещё форматы — по очереди, теми же настройками
+      const done: { label: string; path?: string; error?: string }[] = [];
+      if (r.ok && format === 'mp4') {
+        const list = extras.filter((id) => !sameAsProject(project, FMT(id)));
+        for (let i = 0; i < list.length && !cancelled.current; i++) {
+          const f = FMT(list[i]);
+          const q = variantProject(project, f, opts.height);
+          const short = f.short ?? opts.height;
+          const sz = exportSize(q.settings.width, q.settings.height, short);
+          setStage(tx('Формат {0} ({1} из {2})', f.label, i + 1, list.length));
+          setProgress(0);
+          const tl = await renderTextLayers(q, sz.w, sz.h, opts.fps, () => undefined);
+          const g2 = await renderGlSegments(q, sz.w, sz.h, opts.fps, (fr) => setProgress(fr), () => cancelled.current);
+          setProgress(0);
+          const r2 = await api.startExport({ project: q, opts: { ...opts, height: short, maxSec: f.maxSec, outPath: extraPath(outPath, f) }, textLayers: tl.layers, blankPng: tl.blank, glToken: g2?.token, glSegments: g2?.segments });
+          done.push({ label: f.label, path: r2.ok ? r2.path : undefined, error: r2.ok ? undefined : r2.error });
+        }
+      }
+      setExtraDone(done);
       setResult(r);
       setPhase(r.ok ? 'done' : 'error');
     } catch (e) {
@@ -223,6 +249,25 @@ export function ExportDialog() {
               <Seg value={platform} onChange={setPlatform}
                 options={[...PLATFORMS.map((x) => ({ value: x.id as Platform | 'other', label: x.label })), { value: 'other', label: tx('Другое') }]} />
             </Field>
+            <Field label={tx('Ещё форматы — сразу, теми же настройками')}>
+              <div className="chips" data-testid="export-extras">
+                {EXTRA_FORMATS.map((f) => {
+                  const same = sameAsProject(project, f);
+                  const on = extras.includes(f.id) && !same;
+                  return (
+                    <button key={f.id} className={on ? 'active' : ''} disabled={same} data-testid={`extra-${f.id}`}
+                      title={same ? tx('Это формат проекта — основной файл') : f.where}
+                      onClick={() => setExtras(on ? extras.filter((x) => x !== f.id) : [...extras, f.id])}>{f.label}</button>
+                  );
+                })}
+              </div>
+              <p className="hint small">{extras.length
+                ? extras.filter((id) => !sameAsProject(project, FMT(id))).map((id) => `${FMT(id).label}: ${FMT(id).where}`).join(' · ')
+                : tx('Тот же ролик в другом формате кадра — отдельными файлами рядом с основным. Где видео не заполняет кадр — размытый фон.')}</p>
+              {extras.includes('tgcircle') && (
+                <p className="hint small" data-testid="extra-circle-note">{tx('Кружок: Telegram показывает кругом видеосообщения. Файл сделан по их правилам — квадрат 640×640, до 60 секунд; отправь его через бота, который делает кружки из видео, или как обычное видео.')}</p>
+              )}
+            </Field>
             <div className="preflight" data-testid="preflight">
               <div className="preflight-head"><ShieldCheck size={15} />{tx('Проверка перед публикацией')}</div>
               {issues.length === 0
@@ -284,6 +329,19 @@ export function ExportDialog() {
           <>
             <div className="done-line"><CheckCircle2 size={20} /><span>{`${format === 'gif' ? tx('GIF готов') : format === 'mp3' ? tx('Звук готов') : format === 'sticker' ? tx('Стикер готов') : tx('Видео готово')}${result.seconds ? tx(' за {0}', fmtDur(result.seconds)) : ''}${result.encoder ? ` (${encoderLabel(result.encoder)})` : ''}`}</span></div>
             <p className="hint path-line" title={result.path}>{result.path}</p>
+            {extraDone.length > 0 && (
+              <ul className="extra-done" data-testid="export-extra-done">
+                {extraDone.map((x) => (
+                  <li key={x.label}>
+                    {x.path ? <CheckCircle2 size={14} /> : <TriangleAlert size={14} />}
+                    <span>{x.label}</span>
+                    {x.path
+                      ? <button className="btn small ghost" title={x.path} onClick={() => api.showInFolder(x.path!)}><FolderOpen size={13} />{tx('Показать')}</button>
+                      : <span className="hint small">{x.error}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
             {result.askStar && star === 'ask' && (
               <div className="star-ask" data-testid="star-ask">
                 <Star size={22} fill="currentColor" className="star-ico" />

@@ -157,7 +157,7 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
       : [];
     const sticker = format === 'sticker';
     const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments,
-      duck: opts.alpha || sticker ? undefined : await duckFor(project), maxDuration: sticker ? TG_STICKER.maxSec : undefined });
+      duck: opts.alpha || sticker ? undefined : await duckFor(project), maxDuration: sticker ? TG_STICKER.maxSec : opts.maxSec });
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);
     // главы из маркеров — видны в плеерах (VLC, MPC-HC, «Кино и ТВ»)
@@ -210,7 +210,7 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     for (const enc of encoders) {
       try {
         const args = fullArgs(graph, filterFile, ffmpegMajor(), enc, opts.quality, opts.fps, tmpOut, metaFile, size);
-        await runFfmpeg(args, { duration: total, onProgress, signal });
+        await runFfmpeg(args, { duration: Math.min(total, graph.duration), onProgress, signal });
         fs.rmSync(opts.outPath, { force: true });
         fs.renameSync(tmpOut, opts.outPath);
         onProgress(1);
