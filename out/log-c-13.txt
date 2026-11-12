@@ -1,0 +1,11 @@
+загружено 34
+c.l5.M0.t1 5.4 с за 47 с
+c.l1.S0.t2 3.0 с за 23 с
+c.l6.M0.t2 4.2 с за 33 с
+c.l2.S0.t3 4.7 с за 32 с
+c.l7.M0.t3 4.4 с за 32 с
+c.cal-zvonit-ok.S0.t1 4.2 с за 28 с
+c.cal-filtrov-ok.M0.t1 3.6 с за 28 с
+c.cal-profile-ok.S0.t2 3.4 с за 24 с
+c.cal-shablony-ok.M0.t2 3.3 с за 27 с
+всё 308

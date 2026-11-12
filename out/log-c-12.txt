@@ -1,0 +1,11 @@
+загружено 30
+c.l4.M0.t1 4.9 с за 45 с
+c.l9.M1.t1 4.4 с за 31 с
+c.l5.M0.t2 5.2 с за 39 с
+c.l1.S0.t3 2.0 с за 19 с
+c.l6.M0.t3 5.0 с за 36 с
+c.cal-platit-bad.S0.t1 2.2 с за 20 с
+c.cal-zvonit-bad.M0.t1 3.7 с за 29 с
+c.cal-filtrov-bad.S0.t2 3.8 с за 28 с
+c.cal-profile-bad.M0.t2 2.5 с за 23 с
+всё 299
