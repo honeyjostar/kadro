@@ -1361,3 +1361,18 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .srec-live { display: flex; align-items: center; gap: 12px; font-size: 22px; padding: 18px 0 8px; }
 .srec-level { flex: 1; height: 6px; background: var(--raised); border-radius: 3px; overflow: hidden; }
 .srec-level i { display: block; height: 100%; background: var(--accent); transition: width 0.15s; }
+
+/* ---------- монтаж текстом ---------- */
+.workspace.textedit-on { grid-template-columns: 64px 420px minmax(0, 1fr) 300px; }
+.textedit .panel-head .icon-btn { margin-right: -6px; }
+.textedit-cmd { display: flex; align-items: center; gap: 8px; color: var(--accent); }
+.textedit-cmd .input { flex: 1; min-width: 0; }
+.textedit-tools { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; flex-wrap: wrap; }
+.textedit-text { font-size: 15px; line-height: 1.75; user-select: none; }
+.textedit-text p { margin: 0 0 10px; }
+.tw { padding: 1px 2px; border-radius: 4px; cursor: pointer; }
+.tw:hover { background: var(--raised); }
+.tw.filler { text-decoration: underline wavy var(--muted); text-underline-offset: 4px; }
+.tw.cur { box-shadow: inset 0 -2px 0 var(--accent); }
+.tw.sel { background: var(--accent-soft); color: var(--text); text-decoration: line-through; text-decoration-color: var(--accent); }
+.textedit-empty { margin-top: 16px; }

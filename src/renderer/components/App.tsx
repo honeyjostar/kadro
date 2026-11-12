@@ -22,6 +22,7 @@ import { RefEditDialog } from './RefEdit';
 import { SearchDialog } from './Search';
 import { CoverDialog } from './CoverDialog';
 import { ScreenRecDialog } from './ScreenRecDialog';
+import { TextEditPanel } from './TextEditPanel';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts, IntroOffer } from './Overlays';
@@ -65,6 +66,7 @@ export function App() {
   const searchOpen = useStore((s) => s.searchOpen);
   const coverOpen = useStore((s) => s.coverOpen);
   const screenRecOpen = useStore((s) => s.screenRecOpen);
+  const textEdit = useStore((s) => s.textEditOpen);
   const wide = useStore((s) => s.wide);
   const loaded = useRef(false);
 
@@ -209,9 +211,9 @@ export function App() {
   return (
     <div className="app" style={{ ['--tl-h' as string]: `${wide ? Math.min(tlHeight, WIDE_TL) : tlHeight}px` }}>
       <TopBar />
-      <div className={`workspace ${wide ? 'wide' : ''}`} data-testid="workspace">
+      <div className={`workspace ${wide ? 'wide' : ''} ${textEdit && !wide ? 'textedit-on' : ''}`} data-testid="workspace">
         <Rail />
-        {!wide && <LeftPanel />}
+        {!wide && (textEdit ? <TextEditPanel /> : <LeftPanel />)}
         <Player />
         {!wide && <Inspector />}
       </div>

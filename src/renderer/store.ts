@@ -59,6 +59,8 @@ interface State {
   coverOpen: boolean;
   /** Открыто окно «Запись экрана». */
   screenRecOpen: boolean;
+  /** Слева — «Монтаж текстом» вместо раздела. */
+  textEditOpen: boolean;
   /** Идёт запись голоса: с какого места таймлайна и заглушён ли звук проекта. */
   recording: { startT: number; muted: boolean } | null;
   /** Открыт стартовый экран. */
@@ -137,6 +139,7 @@ interface State {
   setSearchOpen: (b: boolean) => void;
   setCoverOpen: (b: boolean) => void;
   setScreenRecOpen: (b: boolean) => void;
+  setTextEditOpen: (b: boolean) => void;
   setRecording: (r: { startT: number; muted: boolean } | null) => void;
   setHome: (b: boolean) => void;
   setDemo: (d: DemoFiles) => void;
@@ -216,6 +219,7 @@ export const useStore = create<State>((set, get) => ({
   searchOpen: false,
   coverOpen: false,
   screenRecOpen: false,
+  textEditOpen: false,
   recording: null,
   home: false,
   demo: null,
@@ -322,6 +326,7 @@ export const useStore = create<State>((set, get) => ({
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   setCoverOpen: (coverOpen) => set({ coverOpen }),
   setScreenRecOpen: (screenRecOpen) => set({ screenRecOpen }),
+  setTextEditOpen: (textEditOpen) => set(textEditOpen ? { textEditOpen, wide: false } : { textEditOpen }),
   setHome: (b) => set(b ? { home: true, playing: false } : { home: false }),
   setDemo: (d) => set({ demo: d }),
   setThemePref: (t) => { api.setTheme(t); set({ themePref: t }); },

@@ -47,6 +47,7 @@ function buildItems(fav: ReturnType<typeof useFavs.getState>['s']): Item[] {
     { id: 'cmd-frame', group: cmd, label: tx('Сохранить кадр картинкой (PNG)'), keywords: [tx('скриншот')], keys: 'Shift+E', run: () => void saveFrame() },
     { id: 'cmd-full', group: cmd, label: tx('Плеер на весь экран'), keys: 'F', run: () => togglePlayerFullscreen() },
     { id: 'cmd-wide', group: cmd, label: tx('Скрыть или показать боковые панели'), keywords: [tx('большой плеер')], keys: 'Ctrl+\\', run: () => s.setWide(!s.wide) },
+    { id: 'cmd-textedit', group: cmd, label: tx('Монтаж текстом'), keywords: [tx('расшифровка'), tx('удалить слова'), tx('паразиты'), tx('команды')], run: () => s.setTextEditOpen(true) },
     { id: 'cmd-screenrec', group: cmd, label: tx('Записать экран или камеру'), keywords: [tx('запись экрана'), tx('веб-камера'), tx('скринкаст')], run: () => s.setScreenRecOpen(true) },
     { id: 'cmd-cover', group: cmd, label: tx('Обложка для YouTube и TikTok'), keywords: [tx('превью'), 'thumbnail'], run: () => s.setCoverOpen(true) },
     { id: 'cmd-sync', group: cmd, label: tx('Синхронизировать по звуку'), keywords: [tx('мультикамера'), tx('ракурсы'), tx('хлопок')], run: () => void syncByAudio() },

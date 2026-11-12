@@ -41,6 +41,8 @@ import type { EffectType, TransitionType } from '../shared/types';
 import { noteUsed } from './favs';
 import { findLag, SYNC_MIN_CONFIDENCE, syncedPlacement } from '../shared/audioSync';
 import { frameStats, type FrameStats } from '../shared/cover';
+import { cutLength, cutRanges, cutTimeline, fillerIndices, transcriptWords } from '../shared/textEdit';
+import { parseCommands, type Command } from '../shared/commands';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -1103,7 +1105,19 @@ export async function removePauses(clipId: string): Promise<void> {
   const before = (m.clip.out - m.clip.in) / m.clip.speed;
   const after = ranges.reduce((s, [x, y]) => s + (y - x), 0) / m.clip.speed;
   if (before - after < 0.2) { getState().toast(tx('Пауз почти нет — резать нечего'), 'ok'); return; }
-  getState().commit((p) => keepSourceRanges(p, clipId, ranges));
+  const f = findClip(getState().project, clipId);
+  if (f?.track.kind === 'main' && f.clip.type === 'media') {
+    // основная дорожка: вырезаем куски таймлайна — субтитры и всё, что после, сдвигаются вместе с видео
+    const c = f.clip;
+    const cuts: [number, number][] = [];
+    let prev = c.in;
+    for (const [a, b] of ranges) { if (a - prev > 1e-3) cuts.push([prev, a]); prev = Math.max(prev, b); }
+    if (c.out - prev > 1e-3) cuts.push([prev, c.out]);
+    const toT = (src: number) => c.start + (src - c.in) / c.speed;
+    getState().commit((p) => cutTimeline(p, cuts.map(([a, b]) => [toT(a), toT(b)] as [number, number])));
+  } else {
+    getState().commit((p) => keepSourceRanges(p, clipId, ranges));
+  }
   getState().toast(tx('Паузы вырезаны: ролик короче на {0} с', (before - after).toFixed(1)), 'ok');
 }
 
@@ -2179,4 +2193,107 @@ export async function placeRecording(files: { screen: string | null; cam: string
     }
   }
   getState().toast(tx('Запись добавлена в проект'), 'ok');
+}
+
+// ---------- монтаж через текст ----------
+const isCaptionTrack = (t: Project['tracks'][number]) => t.kind === 'text' && t.clips.length > 0 && t.clips.every((c) => c.type === 'text' && c.role === 'caption');
+
+/** Расшифровка есть? Нет — распознаём речь; если субтитров в ролике не было, их дорожка прячется. */
+export async function ensureTranscript(): Promise<boolean> {
+  if (transcriptWords(getState().project).length) return true;
+  const had = getState().project.tracks.some(isCaptionTrack);
+  if (!(await makeCaptions('multi', false))) return false;
+  if (!had) {
+    getState().commit((p) => ({ ...p, tracks: p.tracks.map((t) => (isCaptionTrack(t) ? { ...t, hidden: true } : t)) }));
+    getState().toast(tx('Речь распознана. Субтитры спрятаны — показать их можно глазом у дорожки «Субтитры»'), 'ok');
+  }
+  return true;
+}
+
+/** Вырезать из ролика слова расшифровки (номера по порядку). */
+export function cutWords(indices: number[]): number {
+  const s = getState();
+  const words = transcriptWords(s.project);
+  const ranges = cutRanges(words, indices);
+  if (!ranges.length) return 0;
+  const sec = cutLength(ranges);
+  s.commit((p) => cutTimeline(p, ranges));
+  s.toast(tx('Вырезано слов: {0} · ролик короче на {1} с', indices.length, sec.toFixed(1)), 'ok');
+  return sec;
+}
+
+const mainMedia = () => mainTrack(getState().project).clips.filter((c): c is MediaClip => c.type === 'media');
+const withAudio = (c: MediaClip) => !!getState().project.assets.find((a) => a.id === c.assetId)?.hasAudio;
+
+/** Выполнить команды словами («убери паузы, музыку тише»). Что сделано — подписи для подсказки. */
+export async function runCommands(text: string): Promise<{ done: string[]; unknown: string[] }> {
+  const { cmds, unknown } = parseCommands(text);
+  const done: string[] = [];
+  const s = () => getState();
+  // экспорт и обложка — после всего остального
+  const ordered = [...cmds.filter((c) => c.kind !== 'export' && c.kind !== 'cover'), ...cmds.filter((c) => c.kind === 'export' || c.kind === 'cover')];
+  for (const c of ordered as Command[]) {
+    switch (c.kind) {
+      case 'pauses': {
+        const ids = mainMedia().filter(withAudio).map((x) => x.id);
+        if (!ids.length) { s().toast(tx('Паузы ищутся в видео со звуком на основной дорожке')); break; }
+        for (const id of ids) await removePauses(id);
+        done.push(tx('паузы вырезаны'));
+        break;
+      }
+      case 'fillers': {
+        if (!(await ensureTranscript())) break;
+        const idx = fillerIndices(transcriptWords(s().project));
+        if (idx.length) { cutWords(idx); done.push(tx('слова-паразиты убраны: {0}', idx.length)); } else done.push(tx('слов-паразитов нет'));
+        break;
+      }
+      case 'captions': {
+        if (s().project.tracks.some(isCaptionTrack)) s().commit((p) => ({ ...p, tracks: p.tracks.map((t) => (isCaptionTrack(t) ? { ...t, hidden: false } : t)) }));
+        else if (!(await makeCaptions('multi', false))) break;
+        done.push(tx('субтитры'));
+        break;
+      }
+      case 'noCaptions':
+        s().commit((p) => ({ ...p, tracks: p.tracks.map((t) => (isCaptionTrack(t) ? { ...t, hidden: true } : t)) }));
+        done.push(tx('субтитры спрятаны'));
+        break;
+      case 'music': case 'voice': {
+        const k = c.factor;
+        s().commit((p) => ({
+          ...p,
+          tracks: p.tracks.map((t) => ((c.kind === 'music' ? t.kind === 'audio' : t.kind === 'main')
+            ? { ...t, clips: t.clips.map((x) => (x.type === 'media' ? { ...x, volume: Math.round(Math.min(2, Math.max(0, x.volume * k)) * 100) / 100 } : x)) }
+            : t)),
+        }));
+        done.push(c.kind === 'music' ? (k < 1 ? tx('музыка тише') : tx('музыка громче')) : k < 1 ? tx('голос тише') : tx('голос громче'));
+        break;
+      }
+      case 'cleanVoice': {
+        for (const x of mainMedia().filter(withAudio)) await enhanceVoice(x.id);
+        done.push(tx('чистый голос'));
+        break;
+      }
+      case 'aspect':
+        s().commit((p) => setSettings(p, { aspect: c.aspect, ...sizeFor(c.aspect, shortSideOf(p.settings)) }));
+        done.push(tx('формат {0}', c.aspect));
+        break;
+      case 'speed': {
+        const sel = s().selection.map((id) => findClip(s().project, id)?.clip).filter((x): x is MediaClip => x?.type === 'media');
+        const targets = sel.length ? sel : mainMedia();
+        s().commit((p) => targets.reduce((acc, x) => updateClip(acc, x.id, { speed: Math.round(Math.min(4, Math.max(0.25, x.speed * c.factor)) * 100) / 100 }), p));
+        done.push(c.factor > 1 ? tx('ускорено в {0} раза', c.factor) : tx('замедлено в {0} раза', Math.round((1 / c.factor) * 10) / 10));
+        break;
+      }
+      case 'removeBg': {
+        const sel = selectedVisualClips()[0] ?? mainMedia()[0];
+        if (sel && (await removeBackground(sel.id))) done.push(tx('фон убран'));
+        break;
+      }
+      case 'export': s().setExportOpen(true); done.push(tx('экспорт')); break;
+      case 'cover': s().setCoverOpen(true); done.push(tx('обложка')); break;
+    }
+  }
+  if (done.length) s().toast(tx('Сделано: {0}', done.join(', ')), 'ok');
+  if (unknown.length) s().toast(tx('Не понял: «{0}». Попробуй: «убери паузы», «музыку тише», «добавь субтитры»', unknown.join('», «')));
+  return { done, unknown };
 }

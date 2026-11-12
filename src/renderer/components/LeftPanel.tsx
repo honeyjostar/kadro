@@ -69,10 +69,11 @@ export function Rail() {
   const setTab = useStore((s) => s.setLeftTab);
   const wide = useStore((s) => s.wide);
   const setWide = useStore((s) => s.setWide);
+  const textEdit = useStore((s) => s.textEditOpen);
   return (
     <nav className="rail" aria-label={tx('Разделы')}>
       {TABS.map((t) => (
-        <button key={t.id} className={tab === t.id && !wide ? 'active' : ''} onClick={() => { setTab(t.id); if (wide) setWide(false); }} data-testid={`tab-${t.id}`}>
+        <button key={t.id} className={tab === t.id && !wide && !textEdit ? 'active' : ''} onClick={() => { setTab(t.id); if (wide) setWide(false); if (textEdit) getState().setTextEditOpen(false); }} data-testid={`tab-${t.id}`}>
           {t.icon}<span>{t.label}</span>
         </button>
       ))}
@@ -821,6 +822,8 @@ function CaptionsPanel() {
           <button className="btn primary block" disabled={running} onClick={() => void makeCaptions(model, music)} data-testid="make-captions">
             {running ? tx('Распознаю…') : captions.length ? tx('Создать заново') : tx('Создать субтитры')}
           </button>
+          <button className="btn block" style={{ marginTop: 6 }} onClick={() => getState().setTextEditOpen(true)} data-testid="open-textedit"
+            title={tx('Удалил слово в тексте — вырезался кусок видео; команды словами: «убери паузы, музыку тише»')}><FileText size={14} />{tx('Монтаж текстом')}</button>
         </div>
 
         <div className="ai-card" data-testid="subs-file">
