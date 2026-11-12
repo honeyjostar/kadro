@@ -119,6 +119,10 @@ export interface KadroApi {
   mediaUrl(path: string): string;
   pathForFile(file: File): string;
   saveProject(project: Project, path?: string | null): Promise<string | null>;
+  /** Версии проекта: снять (если изменился), список, прочитать. */
+  versionSnapshot(project: Project): Promise<boolean>;
+  versionList(project: Project): Promise<import('./versions').VersionInfo[]>;
+  versionRead(file: string): Promise<Project>;
   /** Открыть проект или видео: { media } — выбрали видео, фото, звук (не проект). */
   openProject(): Promise<{ project: Project; path: string } | { media: string[] } | null>;
   /** Файлы, с которыми запустили Kadro («Открыть с помощью»), — один раз. */

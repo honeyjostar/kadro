@@ -44,6 +44,7 @@ import { processVoice } from './ai/voice';
 import { stabilize } from './ai/stab';
 import { freezeFrame, retime } from './retime';
 import { beautify } from './ai/beauty';
+import { listVersions, readVersion, snapshot } from './versions';
 import { fastEnhance } from './ai/enhance';
 import { enhanceTarget } from '../shared/enhance';
 import { ffmpegToBuffer, runFfmpeg } from './ffrun';
@@ -771,6 +772,9 @@ function registerIpc(): void {
     return r.canceled ? [] : r.filePaths;
   });
   ipcMain.handle('media:import', (_e, paths: string[]) => importMedia(paths));
+  ipcMain.handle('version:snapshot', (_e, project: Project) => { try { return snapshot(project); } catch (e) { log('snapshot failed', e); return false; } });
+  ipcMain.handle('version:list', (_e, p: { createdAt: number }) => listVersions(p));
+  ipcMain.handle('version:read', (_e, file: string) => readVersion(file));
   ipcMain.handle('project:save', async (_e, project: Project, file?: string | null) => {
     let target = file ?? null;
     if (!target) {

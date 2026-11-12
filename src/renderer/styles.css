@@ -1394,3 +1394,22 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .blur-row-head { display: flex; align-items: center; gap: 8px; }
 .blur-row-head .spacer { flex: 1; }
 .blur-row-head .icon-btn { width: 24px; height: 24px; }
+
+/* ---------- история действий и версии ---------- */
+.history-wrap { position: relative; display: inline-flex; }
+.history-pop { position: fixed; z-index: 1000; width: 300px; max-height: 360px; display: flex; flex-direction: column; gap: 6px;
+  background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius-s); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); padding: 8px; }
+.history-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; font-weight: 600; padding: 2px 4px; }
+.history-head .hint { font-weight: 400; }
+.history-items { list-style: none; margin: 0; padding: 0; overflow-y: auto; min-height: 0; flex: 1; }
+.history-item { width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; background: transparent; border: 0; color: var(--text); padding: 5px 6px; border-radius: 6px; font-size: 12.5px; }
+.history-item:hover { background: var(--accent-soft); }
+.history-item .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+.history-item.current { background: var(--accent-soft); }
+.history-item.current .dot { background: var(--accent); }
+.history-item.future { color: var(--muted); }
+.history-item.future .dot { background: transparent; border: 1px solid var(--muted); }
+.history-now { margin-left: auto; font-size: 11px; color: var(--accent); font-weight: 600; }
+.versions-modal { width: min(520px, 92vw); }
+.versions-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 56vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.version-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: var(--radius-s); background: var(--bg); }

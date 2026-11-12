@@ -1,4 +1,5 @@
 import { tx } from '../../shared/i18n';
+import { HistoryButton } from './History';
 import {
   Activity, AudioLines, Blend, Bookmark, Copy, Eye, EyeOff, Film, Group, Layers, Maximize2, Mic, Plus, Ungroup, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
@@ -745,6 +746,7 @@ export function Timeline() {
       <div className="tl-toolbar" role="toolbar" aria-label={tx('Инструменты таймлайна')}>
         <Tool icon={<Undo2 size={17} />} label={tx('Отменить')} title={tx('Отменить последнее действие (Ctrl+Z)')} disabled={!canUndo} onClick={() => getState().undo()} testId="undo" />
         <Tool icon={<Redo2 size={17} />} label={tx('Вернуть')} title={tx('Вернуть отменённое (Ctrl+Y)')} disabled={!canRedo} onClick={() => getState().redo()} testId="redo" />
+        <HistoryButton />
         <span className="sep" />
         <Tool icon={<Scissors size={17} />} label={tx('Разрезать')} title={tx('Разрезать клип там, где розовая линия времени (S)')} onClick={splitAtPlayhead} disabled={noClips} testId="split" />
         <Tool icon={<Trash2 size={17} />} label={tx('Удалить')} title={tx('Удалить выделенное (Delete)')} onClick={deleteSelection} disabled={!selection.length} testId="delete" />

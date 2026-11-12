@@ -1,6 +1,8 @@
 import { tx } from '../../shared/i18n';
 import { useEffect, useRef, useState } from 'react';
-import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection, saveFrame, shuttle } from '../actions';
+import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection, saveFrame, shuttle, snapshotNow } from '../actions';
+import { SNAPSHOT_EVERY_MS } from '../../shared/versions';
+import { VersionsDialog } from './History';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
@@ -65,6 +67,7 @@ export function App() {
   const keysOpen = useStore((s) => s.keysOpen);
   const searchOpen = useStore((s) => s.searchOpen);
   const coverOpen = useStore((s) => s.coverOpen);
+  const versionsOpen = useStore((s) => s.versionsOpen);
   const screenRecOpen = useStore((s) => s.screenRecOpen);
   const textEdit = useStore((s) => s.textEditOpen);
   const wide = useStore((s) => s.wide);
@@ -86,7 +89,13 @@ export function App() {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let since = 0; // когда появились несохранённые изменения
-    const save = () => { since = 0; api.autosave(getState().project, getState().projectPath); };
+    // версии проекта: первая — через минуту правок, дальше — раз в 5 минут, пока идут правки
+    let lastSnap = Date.now() - SNAPSHOT_EVERY_MS + 60_000;
+    const save = () => {
+      since = 0;
+      api.autosave(getState().project, getState().projectPath);
+      if (Date.now() - lastSnap > SNAPSHOT_EVERY_MS) { lastSnap = Date.now(); void snapshotNow(); }
+    };
     const unsub = useStore.subscribe((s, prev) => {
       if (s.project !== prev.project || s.projectPath !== prev.projectPath || s.dirty !== prev.dirty) {
         api.setTitle(`${s.project.name}${s.dirty ? ' •' : ''} — Kadro`);
@@ -232,6 +241,7 @@ export function App() {
       {keysOpen && <ShortcutsDialog />}
       {searchOpen && <SearchDialog />}
       {coverOpen && <CoverDialog />}
+      {versionsOpen && <VersionsDialog />}
       {screenRecOpen && <ScreenRecDialog />}
       {chromaPaintClip && <ChromaPaintDialog key={chromaPaintClip} clipId={chromaPaintClip} />}
       {refOpen && <RefEditDialog />}

@@ -127,6 +127,12 @@ interface State {
   patchAsset: (id: string, patch: Partial<MediaAsset>) => void;
   undo: () => void;
   redo: () => void;
+  /** Перейти к любому шагу истории: i — номер состояния в [...past, project, ...future]. */
+  jumpHistory: (i: number) => void;
+  historyOpen: boolean;
+  setHistoryOpen: (b: boolean) => void;
+  versionsOpen: boolean;
+  setVersionsOpen: (b: boolean) => void;
   select: (ids: string[], junction?: string | null) => void;
   setPlayhead: (t: number) => void;
   setPlaying: (b: boolean) => void;
@@ -207,6 +213,8 @@ export const useStore = create<State>((set, get) => ({
   dirty: false,
   past: [],
   future: [],
+  historyOpen: false,
+  versionsOpen: false,
   lastKey: null,
   lastAt: 0,
   selection: [],
@@ -308,6 +316,17 @@ export const useStore = create<State>((set, get) => ({
     const next = s.future[0];
     set({ project: next, future: s.future.slice(1), past: [...s.past, s.project], dirty: true, lastKey: null });
   },
+  jumpHistory: (i) => {
+    const s = get();
+    const all = [...s.past, s.project, ...s.future];
+    if (i < 0 || i >= all.length || i === s.past.length) return;
+    const project = all[i];
+    const ids = new Set(project.tracks.flatMap((t) => t.clips.map((c) => c.id)));
+    set({ project, past: all.slice(0, i), future: all.slice(i + 1), dirty: true, lastKey: null,
+      selection: s.selection.filter((id) => ids.has(id)), playhead: Math.min(s.playhead, Math.max(0, projectDuration(project))) });
+  },
+  setHistoryOpen: (historyOpen) => set({ historyOpen }),
+  setVersionsOpen: (versionsOpen) => set({ versionsOpen, historyOpen: false }),
   select: (ids, junction = null) => set({ selection: ids, junction }),
   setPlayhead: (t) => set({ playhead: Math.max(0, t) }),
   setPlaying: (b) => set(b ? { playing: true } : { playing: false, playRate: 1 }),

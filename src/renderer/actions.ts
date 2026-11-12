@@ -1259,7 +1259,30 @@ export async function saveProject(as = false): Promise<boolean> {
   if (!path) return false;
   getState().markSaved(path);
   getState().toast(tx('Проект сохранён'), 'ok');
+  void snapshotNow();
   return true;
+}
+
+// ---------- версии проекта ----------
+/** Снять версию проекта сейчас (если с прошлой что-то изменилось). */
+export async function snapshotNow(): Promise<boolean> {
+  const p = getState().project;
+  if (p.tracks.every((t) => t.clips.length === 0)) return false;
+  return api.versionSnapshot(p).catch(() => false);
+}
+/** Открыть сохранённую версию вместо текущего проекта — одним действием, Ctrl+Z вернёт как было. */
+export async function restoreVersion(file: string, when: string): Promise<boolean> {
+  try {
+    await snapshotNow(); // текущий вариант тоже останется в версиях
+    const v = await api.versionRead(file);
+    getState().commit((p) => ({ ...v, createdAt: p.createdAt, updatedAt: Date.now() }));
+    getState().setVersionsOpen(false);
+    getState().toast(tx('Открыта версия от {0}. Вернуть как было — Ctrl+Z', when), 'ok');
+    return true;
+  } catch (e) {
+    getState().toast(tx('Не получилось открыть версию: {0}', e instanceof Error ? e.message : String(e)), 'err');
+    return false;
+  }
 }
 
 /** «Собрать проект в папку»: проект, видео, музыка, обработанные копии, шрифты, плагины, LUT — для переноса. */
