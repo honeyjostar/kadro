@@ -1377,3 +1377,20 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .tw.sel { background: var(--accent-soft); color: var(--text); text-decoration: line-through; text-decoration-color: var(--accent); }
 .textedit-empty { margin-top: 16px; }
 .textedit-zoom { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
+
+/* ---------- скрыть лица и номера ---------- */
+.blur-outline { position: absolute; border: 1.5px dashed rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35); pointer-events: none; }
+.blur-outline.oval { border-radius: 50%; }
+.blur-outline.off { border-color: rgba(255, 196, 64, 0.95); }
+.blur-draw { position: absolute; inset: 0; cursor: crosshair; touch-action: none; background: rgba(0, 0, 0, 0.12); z-index: 5; }
+.blur-draw-rect { position: absolute; border: 2px solid var(--accent); background: rgba(255, 255, 255, 0.08); border-radius: 2px; }
+.hide-btns { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+.hide-btns .btn { flex: 1 1 auto; justify-content: center; }
+.hide-btns .btn.on { border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+.hide-draw-hint { color: var(--text); }
+.blur-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.blur-row { border: 1px solid var(--line-soft); border-radius: var(--radius-s); padding: 8px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
+.blur-row.off { opacity: 0.65; }
+.blur-row-head { display: flex; align-items: center; gap: 8px; }
+.blur-row-head .spacer { flex: 1; }
+.blur-row-head .icon-btn { width: 24px; height: 24px; }

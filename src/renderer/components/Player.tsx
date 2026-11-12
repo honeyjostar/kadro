@@ -8,7 +8,9 @@ import { textBounds } from '../../shared/textRender';
 import { propValue, writeProps } from '../animEdit';
 import { activeClipsAt, projectDuration, updateClip } from '../../shared/timeline';
 import type { Clip, MediaClip, Project, TextClip } from '../../shared/types';
-import { pickAndImport, saveFrame } from '../actions';
+import { hideObject, pickAndImport, saveFrame } from '../actions';
+import { boxAt } from '../../shared/blur';
+import { mediaKeyTime } from '../../shared/anim';
 import { PreviewEngine } from '../engine/preview';
 import { api, getState, useStore, type PreviewQuality } from '../store';
 
@@ -142,6 +144,50 @@ export function Player() {
     if (!act || act.track.kind === 'audio') return null;
     return boxOf(project, act.clip, dispW, dispH, playhead);
   }, [project, playhead, selection, dispW, dispH, fontsTick]);
+
+  // «Скрыть»: рамки областей и обводка предмета мышью
+  const blurShow = useStore((s) => s.blurShow);
+  const blurDraw = useStore((s) => s.blurDraw);
+  const [drawRect, setDrawRect] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const hideAt = useMemo(() => {
+    const id = blurDraw ?? blurShow;
+    if (!id || !dispW) return null;
+    const act = activeClipsAt(project, playhead).find((x) => x.clip.id === id);
+    if (!act || act.clip.type !== 'media') return null;
+    const b = boxOf(project, act.clip, dispW, dispH, playhead);
+    return b ? { b, clip: act.clip } : null;
+  }, [project, playhead, blurShow, blurDraw, dispW, dispH]);
+  /** Точка окна просмотра → доли кадра клипа (с учётом поворота рамки). */
+  const toLocal = (b: Box, x: number, y: number) => {
+    const r = (-b.rot * Math.PI) / 180;
+    const dx = x - b.cx, dy = y - b.cy;
+    return { u: (dx * Math.cos(r) - dy * Math.sin(r)) / b.w + 0.5, v: (dx * Math.sin(r) + dy * Math.cos(r)) / b.h + 0.5 };
+  };
+  const startBlurDraw = (e: React.PointerEvent) => {
+    if (e.button !== 0 || !hideAt) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = wrapRef.current!.getBoundingClientRect();
+    const x0 = e.clientX - rect.left, y0 = e.clientY - rect.top;
+    setDrawRect({ x0, y0, x1: x0, y1: y0 });
+    const move = (ev: PointerEvent) => setDrawRect({ x0, y0, x1: ev.clientX - rect.left, y1: ev.clientY - rect.top });
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setDrawRect(null);
+      const x1 = ev.clientX - rect.left, y1 = ev.clientY - rect.top;
+      if (Math.abs(x1 - x0) < 6 || Math.abs(y1 - y0) < 6) return;
+      const pts = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]].map(([x, y]) => toLocal(hideAt.b, x, y));
+      const us = pts.map((q) => q.u), vs = pts.map((q) => q.v);
+      const u0 = Math.max(0, Math.min(...us)), u1 = Math.min(1, Math.max(...us));
+      const v0 = Math.max(0, Math.min(...vs)), v1 = Math.min(1, Math.max(...vs));
+      if (u1 - u0 < 0.005 || v1 - v0 < 0.005) return;
+      getState().setBlurDraw(null);
+      void hideObject(hideAt.clip.id, { x: (u0 + u1) / 2, y: (v0 + v1) / 2, w: u1 - u0, h: v1 - v0 });
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
 
   const selectAt = (x: number, y: number) => {
     const p = getState().project;
@@ -297,7 +343,7 @@ export function Player() {
               ))}
             </>
           )}
-          {box && !box.pin && (
+          {box && !box.pin && !blurDraw && (
             <div className="sel-box" style={{ left: box.cx - box.w / 2, top: box.cy - box.h / 2, width: box.w, height: box.h, transform: box.rot ? `rotate(${box.rot}deg)` : undefined }}
               onPointerDown={(e) => startDrag(e, 'move')} data-testid="sel-box">
               {(['nw', 'ne', 'sw', 'se'] as const).map((c) => (
@@ -308,6 +354,25 @@ export function Player() {
                   title={c === 'e' || c === 'w' ? tx('Тяни, чтобы растянуть по ширине') : tx('Тяни, чтобы растянуть по высоте')} data-testid={`edge-${c}`} />
               ))}
               <div className="sel-rotate" onPointerDown={(e) => startDrag(e, 'rotate')} title={tx('Тяни, чтобы повернуть')} />
+            </div>
+          )}
+          {hideAt && !playing && (hideAt.clip.blurs ?? []).map((r) => {
+            const bx = boxAt(r, mediaKeyTime(hideAt.clip, playhead));
+            if (!bx) return null;
+            const b = hideAt.b;
+            const lx = (bx.x - 0.5) * b.w, ly = (bx.y - 0.5) * b.h;
+            const a = (b.rot * Math.PI) / 180;
+            const cx = b.cx + lx * Math.cos(a) - ly * Math.sin(a), cy = b.cy + lx * Math.sin(a) + ly * Math.cos(a);
+            const w = bx.w * b.w, h = bx.h * b.h;
+            return <div key={r.id} className={`blur-outline ${r.shape === 'rect' ? 'rect' : 'oval'} ${r.off ? 'off' : ''}`} data-testid="blur-outline"
+              style={{ left: cx - w / 2, top: cy - h / 2, width: w, height: h, transform: b.rot ? `rotate(${b.rot}deg)` : undefined }} />;
+          })}
+          {blurDraw && (
+            <div className="blur-draw" onPointerDown={startBlurDraw} data-testid="blur-draw">
+              {!hideAt && <span className="stage-chip">{tx('Поставь бегунок на этот клип, чтобы обвести предмет')}</span>}
+              {drawRect && (
+                <div className="blur-draw-rect" style={{ left: Math.min(drawRect.x0, drawRect.x1), top: Math.min(drawRect.y0, drawRect.y1), width: Math.abs(drawRect.x1 - drawRect.x0), height: Math.abs(drawRect.y1 - drawRect.y0) }} />
+              )}
             </div>
           )}
           {empty && (

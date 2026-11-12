@@ -54,6 +54,8 @@ export type AiJob =
   | { kind: 'highlights'; jobId: string; path: string; duration: number }
   | { kind: 'refEdit'; jobId: string; path: string }
   | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number }
+  | { kind: 'faces'; jobId: string; path: string; in: number; out: number; width: number; height: number; image?: boolean }
+  | { kind: 'trackBox'; jobId: string; path: string; in: number; out: number; at: number; box: { x: number; y: number; w: number; h: number }; width: number; height: number }
   | { kind: 'retime'; jobId: string; path: string; in: number; out: number; reverse: boolean; ramp?: RampPoint[]; smooth?: boolean; timelapse?: number; hasVideo: boolean; hasAudio: boolean; width: number; height: number; fps: number }
   | { kind: 'freeze'; jobId: string; path: string; t: number; fps: number; alpha: boolean }
   | { kind: 'beauty'; jobId: string; path: string; in: number; out: number; offset: number; smooth: number; bright: number; width: number; height: number }
@@ -72,6 +74,8 @@ export type AiOutput =
   | { kind: 'highlights'; hl: Highlights }
   | { kind: 'refEdit'; template: import('./templates').Template; shots: number; flashes: number; zooms: number; music: boolean; duration: number }
   | { kind: 'reframe'; points: { t: number; x: number; y: number; found: boolean }[] }
+  | { kind: 'faces'; frames: import('./blur').DetFrame[] }
+  | { kind: 'trackBox'; boxes: import('./types').BlurBox[] }
   | { kind: 'retime'; path: string; duration: number }
   | { kind: 'freeze'; path: string }
   | { kind: 'translate'; texts: string[] }

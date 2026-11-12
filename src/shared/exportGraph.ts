@@ -12,6 +12,7 @@ import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale, stretchedSize 
 import { beatTimes, clipDuration, mainTrack, projectDuration } from './timeline';
 import type { BlendMode, MediaAsset, MediaClip, Project } from './types';
 import { maskBytes } from './mask';
+import { blurGroups, blurRadius, mosaicBlock } from './blur';
 import { logoBox, progressBox } from './logo';
 import {
   LEAK_PERIOD, SPLIT_EFFECTS, blurSigma, flashDuration, fxGeometryExpr, fxMatrixAt, fxMaxScale, fxMoves, glowOpacity, glowSigma, hueMatrix, leakBytes,
@@ -45,7 +46,12 @@ export interface BuildOpts {
   maxDuration?: number;
   /** Музыка тише под голос: где говорят (время таймлайна) и во сколько раз тише. */
   duck?: { level: number; iv: [number, number][] };
+  /** Маски скрытия лиц и номеров: видео в оттенках серого (кадр 0 = начало клипа), ключ — blurMaskKey. */
+  blurMasks?: Record<string, string>;
 }
+
+/** Ключ маски скрытия: клип и вид скрытия (размытие/мозаика/плашка с силой). */
+export const blurMaskKey = (clipId: string, groupKey: string): string => `${clipId}|${groupKey}`;
 
 export interface BuiltGraph {
   inputs: string[][];  // для каждого входа: [...опции входа, '-i', путь]
@@ -94,6 +100,7 @@ function sameLook(a: MediaClip, b: MediaClip): boolean {
   if (a.anim?.in || a.anim?.out || b.anim?.in || b.anim?.out) return false;
   // эффекты тоже считаются от начала клипа (вспышка, глитч, тряска)
   if (a.effects?.length || b.effects?.length) return false;
+  if (a.blurs?.length || b.blurs?.length) return false; // маска скрытия — от начала клипа
   const extra = (c: MediaClip) => JSON.stringify([c.opacity ?? 1, c.mask ?? null, c.blend ?? 'normal', c.chroma ?? null, c.stab?.path ?? '', c.voice?.path ?? '', c.grade ?? null, c.tilt ?? null, c.pin ?? null, c.stretch ?? null]);
   if (extra(a) !== extra(b)) return false;
   return a.assetId === b.assetId && a.speed === b.speed && a.fit === b.fit &&
@@ -218,6 +225,35 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       chains.push(`[${al2}][${r}]blend=all_mode=lighten:shortest=1[${al3}]`);
       chains.push(`[${a}][${al3}]alphamerge[${out}]`);
       cur = out;
+    };
+
+    // 1¾) скрыть лица и номера: размытая (мозаика, плашка) копия слоя — по движущейся маске
+    const applyBlur = (w: number, h: number) => {
+      for (const g of blurGroups(c.blurs)) {
+        const file = o.blurMasks?.[blurMaskKey(c.id, g.key)];
+        if (!file) continue;
+        const idx = addInput(['-i', file]);
+        if (parts.length) flush(); // у второго вида скрытия поток уже готов — пустого фильтра быть не должно
+        const [a, b, bl, m, ba, out] = Array.from({ length: 6 }, () => L('bz'));
+        const short = Math.min(w, h);
+        let eff: string;
+        if (g.style === 'pixel') {
+          const B = Math.max(2, Math.round(short * mosaicBlock(g.strength)));
+          eff = `scale=${Math.max(1, Math.round(w / B))}:${Math.max(1, Math.round(h / B))}:flags=area,scale=${w}:${h}:flags=neighbor`;
+        } else if (g.style === 'black') {
+          eff = 'lut=c0=0:c1=0:c2=0';
+        } else {
+          const R = Math.max(1, Math.min(Math.floor(short / 2) - 1, Math.round(short * blurRadius(g.strength))));
+          eff = `boxblur=luma_radius=${R}:luma_power=2`;
+        }
+        chains.push(`[${cur}]format=gbrap,split=2[${a}][${b}]`);
+        chains.push(`[${b}]${eff},format=gbrap[${bl}]`);
+        chains.push(`[${idx}:v]fps=${F},setpts=PTS-STARTPTS,format=gray,scale=${w}:${h}:flags=bilinear,setsar=1,format=gbrap[${m}]`);
+        // у маски альфа = 255 (из серого) — значит, прозрачность берётся у размытой копии, а она как у слоя
+        chains.push(`[${a}][${bl}][${m}]maskedmerge[${ba}]`);
+        chains.push(`[${ba}]format=rgba[${out}]`);
+        cur = out;
+      }
     };
 
     // 3½) кривые, HSL, свой LUT — одной таблицей (после масштаба: дешевле, а результат тот же)
@@ -430,6 +466,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
       const sh = Math.max(1, Math.round(pl.h));
       parts.push(`scale=${sw}:${sh}:flags=lanczos`); // lanczos — чётче при увеличении и растяжении
       applyPaint(sw, sh);
+      applyBlur(sw, sh);
       applyGrade();
       applyEffects(sw, sh);
       applyMask(sw, sh);
@@ -488,6 +525,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     const [x3, y3] = corner(PW, PH);
     parts.push(`scale=${wm}:${hm}:flags=lanczos`);
     applyPaint(wm, hm);
+    applyBlur(wm, hm);
     applyGrade();
     applyEffects(wm, hm);
     applyMask(wm, hm);

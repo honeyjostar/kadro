@@ -15,7 +15,7 @@ import { renderGlSegments } from './engine/glExport';
 import { DEMO_SCENES, DEMO_TEMPLATE, applyTemplate, projectToTemplate, type Template } from '../shared/templates';
 import { autoEdit, type AutoSummary, type Highlights } from '../shared/autoEdit';
 import { readingTime, scriptBase, scriptEdit, splitScript, type ScriptScene, type ScriptSummary } from '../shared/scriptVideo';
-import type { AspectKey, Clip, ExportOptions, MediaAsset, MediaClip, Model3D, PersonFx, Project, RampPoint, Retime, StickerMotion, TextClip, VoiceEffect, Word } from '../shared/types';
+import type { AspectKey, BlurRegion, Clip, ExportOptions, MediaAsset, MediaClip, Model3D, PersonFx, Project, RampPoint, Retime, StickerMotion, TextClip, VoiceEffect, Word } from '../shared/types';
 import { retimeWords } from '../shared/captions';
 import { cuesToSrt, parseSubtitles } from '../shared/subtitles';
 import { copyAttrs } from '../shared/attrs';
@@ -44,6 +44,8 @@ import { frameStats, type FrameStats } from '../shared/cover';
 import { cutLength, cutRanges, cutTimeline, fillerIndices, transcriptWords } from '../shared/textEdit';
 import { parseCommands, type Command } from '../shared/commands';
 import { applyAutoZoom, clearAutoZoom, zoomMoments, ZOOM, type ZoomStrength } from '../shared/autoZoom';
+import { BLUR_HOLD, linkTracks, newRegion, padFace, regionSpan } from '../shared/blur';
+import { mediaKeyTime } from '../shared/anim';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -2294,6 +2296,14 @@ export async function runCommands(text: string): Promise<{ done: string[]; unkno
       case 'cover': s().setCoverOpen(true); done.push(tx('обложка')); break;
       case 'autoZoom': if (await autoZoomWords('mid')) done.push(tx('автозум')); break;
       case 'noAutoZoom': removeAutoZoom(); done.push(tx('автозум убран')); break;
+      case 'hideFaces': {
+        const sel = selectedVisualClips();
+        const targets = sel.length ? sel : mainMedia().filter((x) => s().project.assets.find((a) => a.id === x.assetId)?.kind !== 'audio');
+        let n = 0;
+        for (const x of targets) n += await hideFaces(x.id, true);
+        done.push(n ? tx('лица скрыты: {0}', n) : tx('лиц не нашлось'));
+        break;
+      }
     }
   }
   if (done.length) s().toast(tx('Сделано: {0}', done.join(', ')), 'ok');
@@ -2317,4 +2327,98 @@ export async function autoZoomWords(strength: ZoomStrength = 'mid'): Promise<num
 
 export function removeAutoZoom(): void {
   getState().commit((p) => clearAutoZoom(p));
+}
+
+// ---------- скрыть лица и номера ----------
+const STILL_HOLD = 1e6; // у фото область видна всё время
+
+function blurInput(c: MediaClip, a: MediaAsset): { path: string; off: number } {
+  const vs = videoSource(c);
+  return vs ? { path: vs.path, off: vs.offset } : { path: a.path, off: 0 };
+}
+
+/** Найти все лица в клипе и скрыть их (прежние области лиц заменяются, обведённые предметы остаются). */
+export async function hideFaces(clipId: string, quiet = false): Promise<number> {
+  const m = mediaClip(clipId);
+  if (!m || gifBlocked(m.p, m.clip, tx('Скрыть лица'))) return 0;
+  const a = m.p.assets.find((x) => x.id === m.clip.assetId);
+  if (!a || a.kind === 'audio') return 0;
+  const image = a.kind === 'image';
+  const src = image ? { path: a.path, off: 0 } : blurInput(m.clip, a);
+  const r = await runJob(tx('Ищу лица'), {
+    kind: 'faces', jobId: `fc_${uidShort()}`, path: src.path, image,
+    in: image ? 0 : m.clip.in - src.off, out: image ? 1 : m.clip.out - src.off, width: a.width, height: a.height,
+  }, clipId);
+  if (!r.ok || r.output?.kind !== 'faces') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return 0; }
+  const frames = r.output.frames.map((f) => ({ ...f, t: image ? 0 : Math.round((f.t + src.off) * 1000) / 1000 }));
+  const dt = frames.length > 1 ? frames[1].t - frames[0].t : 0.125;
+  const tracks = linkTracks(frames, { maxGap: Math.max(0.8, dt * 2.5) });
+  if (!tracks.length) { if (!quiet) getState().toast(tx('Лиц в клипе не нашлось')); return 0; }
+  const regions = tracks.map((b) => {
+    const reg = newRegion(`bf_${uidShort()}`, 'face', b.map(padFace));
+    reg.hold = image ? STILL_HOLD : Math.round(Math.max(BLUR_HOLD, dt * 1.3) * 1000) / 1000;
+    return reg;
+  });
+  getState().commit((p) => {
+    const c = findClip(p, clipId)?.clip;
+    if (!c || c.type !== 'media') return p;
+    return updateClip(p, clipId, { blurs: [...(c.blurs ?? []).filter((x) => x.kind !== 'face'), ...regions] });
+  });
+  if (!quiet) getState().toast(tx('Скрыто лиц: {0}. Вид и силу — во вкладке «Скрыть»', regions.length), 'ok');
+  return regions.length;
+}
+
+/** Скрыть обведённый предмет (номер, логотип): box — доли кадра исходника в момент бегунка; дальше следит трекер. */
+export async function hideObject(clipId: string, box: { x: number; y: number; w: number; h: number }): Promise<boolean> {
+  const m = mediaClip(clipId);
+  if (!m || gifBlocked(m.p, m.clip, tx('Скрыть предмет'))) return false;
+  const a = m.p.assets.find((x) => x.id === m.clip.assetId);
+  if (!a || a.kind === 'audio') return false;
+  const b = { x: Math.min(1, Math.max(0, box.x)), y: Math.min(1, Math.max(0, box.y)), w: Math.min(1, Math.max(0.01, box.w)), h: Math.min(1, Math.max(0.01, box.h)) };
+  const add = (reg: BlurRegion) => getState().commit((p) => {
+    const c = findClip(p, clipId)?.clip;
+    return c && c.type === 'media' ? updateClip(p, clipId, { blurs: [...(c.blurs ?? []), reg] }) : p;
+  });
+  if (a.kind === 'image') {
+    const reg = newRegion(`bo_${uidShort()}`, 'object', [{ t: 0, ...b }]);
+    reg.hold = STILL_HOLD;
+    add(reg);
+    getState().toast(tx('Предмет скрыт'), 'ok');
+    return true;
+  }
+  const c = m.clip;
+  const at = Math.min(c.out - 0.05, Math.max(c.in, mediaKeyTime(c, getState().playhead)));
+  const src = blurInput(c, a);
+  const r = await runJob(tx('Слежу за предметом'), {
+    kind: 'trackBox', jobId: `tb_${uidShort()}`, path: src.path, in: c.in - src.off, out: c.out - src.off, at: at - src.off, box: b, width: a.width, height: a.height,
+  }, clipId);
+  if (!r.ok || r.output?.kind !== 'trackBox') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return false; }
+  const boxes = r.output.boxes.map((x) => ({ ...x, t: Math.round((x.t + src.off) * 1000) / 1000 }));
+  if (!boxes.length) boxes.push({ t: at, ...b });
+  const reg = newRegion(`bo_${uidShort()}`, 'object', boxes);
+  reg.hold = 0.15;
+  add(reg);
+  const [t0, t1] = regionSpan(reg);
+  const whole = t0 <= c.in + 0.25 && t1 >= c.out - 0.25;
+  getState().toast(whole ? tx('Предмет скрыт на весь клип — Kadro следит за ним')
+    : tx('Предмет скрыт на {0} с — дальше Kadro его потерял. Обведи его ещё раз там, где он снова виден', Math.round((t1 - t0) * 10) / 10), whole ? 'ok' : undefined);
+  return true;
+}
+
+export function updateBlur(clipId: string, regionId: string, patch: Partial<BlurRegion>, key?: string): void {
+  getState().commit((p) => {
+    const c = findClip(p, clipId)?.clip;
+    if (!c || c.type !== 'media') return p;
+    return updateClip(p, clipId, { blurs: (c.blurs ?? []).map((r) => (r.id === regionId ? { ...r, ...patch } : r)) });
+  }, key);
+}
+
+/** Убрать одну область (или все — regionId не задан). */
+export function removeBlur(clipId: string, regionId?: string): void {
+  getState().commit((p) => {
+    const c = findClip(p, clipId)?.clip;
+    if (!c || c.type !== 'media') return p;
+    const rest = regionId ? (c.blurs ?? []).filter((r) => r.id !== regionId) : [];
+    return updateClip(p, clipId, { blurs: rest.length ? rest : undefined });
+  });
 }

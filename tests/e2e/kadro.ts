@@ -165,6 +165,13 @@ export function walkVideo(): string | null {
     '-filter_complex', "[1]crop=200:359:130:40,scale=320:574[p];[0][p]overlay=x='100+250*t':y=146:shortest=1,format=yuv420p",
     '-t', '3', '-c:v', 'libx264', '-preset', 'ultrafast', f]));
 }
+/** Лицо (фото астронавта NASA, общественное достояние) едет по серому кадру, справа — «номер», который едет вниз. */
+export function faceVideo(): string {
+  const img = path.join(ROOT, 'tests/fixtures/astronaut.jpg');
+  return media('face.mp4', (f) => ff(['-f', 'lavfi', '-i', 'color=c=0x707070:s=640x360:r=30:d=3', '-loop', '1', '-i', img, '-f', 'lavfi', '-i', 'testsrc=s=96x32:r=30:d=3',
+    '-filter_complex', "[1]scale=200:200[p];[0][p]overlay=x='20+80*t':y=60[a];[a][2]overlay=x=480:y='60+60*t':shortest=1,format=yuv420p",
+    '-t', '3', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', f]));
+}
 /** Ракурс сцены со «щелчками» в неравные моменты: тот же звук, что у других ракурсов, но запись началась на offset с позже. */
 export function clapVideo(name: string, color: string, offset: number, dur = 8): string {
   return media(name, (f) => ff(['-f', 'lavfi', '-i', `color=c=${color}:s=640x360:r=30:d=${dur}`,

@@ -16,7 +16,8 @@ export type Command =
   | { kind: 'export' }
   | { kind: 'cover' }
   | { kind: 'autoZoom' }
-  | { kind: 'noAutoZoom' };
+  | { kind: 'noAutoZoom' }
+  | { kind: 'hideFaces' };
 
 const n = (s: string) => s.toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
 const num = (s: string | undefined, def: number) => {
@@ -33,6 +34,7 @@ export function parseOne(part: string): Command | null {
   const louder = /(громче|погромче|прибав|усиль|louder|boost)/.test(s);
   if (/(паузы?|тишин|pause|silence)/.test(s) && /(убер|удал|выреж|вырез|убра|без|remove|cut)/.test(s)) return { kind: 'pauses' };
   if (/(паразит|э-?э|мычан|заминк|filler)/.test(s)) return { kind: 'fillers' };
+  if (/(лиц[оаы]?(?![а-я])|лица|faces?)/.test(s) && /(скр|размо|размы|замаж|замаз|спряч|спрят|закр|blur|hide)/.test(s)) return { kind: 'hideFaces' };
   if (/(субтитр|caption|subtitle)/.test(s)) return /(убер|удал|без|спрят|спряч|выключ|remove|hide)/.test(s) ? { kind: 'noCaptions' } : { kind: 'captions' };
   if (/(музык|music)/.test(s) && (quieter || louder)) return { kind: 'music', factor: quieter ? 0.6 : 1.5 };
   if (/(чист|улучш|шум|clean|noise)/.test(s) && /(голос|звук|речь|шум|voice|audio|noise)/.test(s)) return { kind: 'cleanVoice' };

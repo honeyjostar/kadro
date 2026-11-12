@@ -146,6 +146,7 @@ async function buildApp() {
     '- sherpa-onnx (Apache-2.0); resources/sherpa-dml — та же версия, собранная с ONNX Runtime 1.22 и DirectML 1.15.4 (распознавание речи на видеокарте), с библиотеками Microsoft Visual C++ (msvcp140, vcruntime140 — распространяемые файлы Visual Studio)',
     '- Silero VAD (MIT)',
     '- RobustVideoMatting (GPL-3.0)',
+    '- YuNet — поиск лиц (OpenCV Zoo, Shiqi Yu и др.; MIT), resources/models/face_detection_yunet_2023mar.onnx',
     '- RNNoise / arnndn-models (BSD-3-Clause)',
     '- gl-transitions — 123 перехода-шейдера (MIT; InvertedPageCurl — BSD-3-Clause, Hewlett-Packard; StereoViewer — BSD-2-Clause, Theodore K Schundler); авторы и тексты лицензий — licenses/gl-transitions.md',
     '- Модели распознавания речи скачиваются при первом использовании: NVIDIA Parakeet TDT v3 (CC-BY-4.0), GigaAM v2 (MIT)',

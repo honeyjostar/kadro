@@ -2,8 +2,9 @@
 // Геометрия, цвет, переходы и текст — те же функции/формулы, что и в экспорте.
 import { duckGain, duckNow, isMusic, speechIntervals } from '../../shared/duck';
 import { aiSource, audioSource, videoSource } from '../../shared/ai';
-import { mediaPropsAt } from '../../shared/anim';
+import { mediaKeyTime, mediaPropsAt } from '../../shared/anim';
 import { maskBytes } from '../../shared/mask';
+import { blurGroups, blurMaskBytes, blurRadius, maskSize, mosaicBlock } from '../../shared/blur';
 import { fxGeometry, particleEffects, sortedEffects } from '../../shared/effects';
 import { clipAnimAt } from '../../shared/clipAnim';
 import { hasTilt, layerQuad, pinQuad, quadSize } from '../../shared/perspective';
@@ -645,7 +646,8 @@ export class PreviewEngine {
     const graded = gradeActive(c.grade, !!cube, c.color);
     // перспектива: «Углы» — картинка на 4 точках; наклон — углы слоя после 3D-поворота
     const quad = c.pin ? pinQuad(c.pin, W, H) : hasTilt(c.tilt) ? layerQuad(pl.w / 2, pl.h / 2, pl.cx, pl.cy, pl.rotation, c.tilt, W, H) : null;
-    if (c.mask || fx.length || glFx.length || graded || quad) {
+    const blurOn = blurGroups(c.blurs).length > 0;
+    if (c.mask || fx.length || glFx.length || graded || quad || blurOn) {
       // слой нужного размера: цвет → эффекты → маска (destination-in) → на холст
       const [qw, qh] = quad && c.pin ? quadSize(quad) : [pl.w, pl.h];
       const w = Math.max(1, Math.round(Math.min(qw, 3 * Math.max(W, H))));
@@ -659,6 +661,7 @@ export class PreviewEngine {
       lc.drawImage(img, 0, 0, w, h);
       lc.filter = 'none';
       lc.restore();
+      if (blurOn) this.applyBlurs(layer, c, mediaKeyTime(c, t));
       if (graded) this.grader().apply(layer, c.grade ?? {}, cube, c.color);
       if (fx.length) applyPixelEffects(layer, c, local, (l, key, tb) => this.grader().applyTable(l, key, tb), isMain);
       if (glFx.length) applyGlEffects(layer, c, local, clipDuration(c));
@@ -683,6 +686,59 @@ export class PreviewEngine {
     }
     c2d.restore();
     if (isMain) drawMainBars(c2d, c, W, H);
+  }
+
+  /** Скрыть лица и номера: размытая (мозаика, плашка) копия слоя по маске — той же, что в экспорте. */
+  private applyBlurs(layer: HTMLCanvasElement, c: MediaClip, srcT: number): void {
+    const w = layer.width, h = layer.height;
+    const short = Math.min(w, h);
+    const lc = layer.getContext('2d')!;
+    for (const g of blurGroups(c.blurs)) {
+      const ms = maskSize(w, h);
+      const bytes = blurMaskBytes(g.regions, srcT, ms.w, ms.h);
+      let any = false;
+      for (let i = 0; i < bytes.length; i++) if (bytes[i]) { any = true; break; }
+      if (!any) continue;
+      const mk = this.canvasFor(`${c.id}:bmask`, ms.w, ms.h);
+      const img = new ImageData(ms.w, ms.h);
+      for (let i = 0; i < bytes.length; i++) img.data[i * 4 + 3] = bytes[i];
+      mk.getContext('2d')!.putImageData(img, 0, 0);
+      const tmp = this.canvasFor(`${c.id}:blur`, w, h);
+      const tc = tmp.getContext('2d')!;
+      tc.save();
+      tc.globalCompositeOperation = 'copy';
+      if (g.style === 'pixel') {
+        const B = Math.max(2, Math.round(short * mosaicBlock(g.strength)));
+        const sw = Math.max(1, Math.round(w / B)), sh = Math.max(1, Math.round(h / B));
+        const small = this.canvasFor(`${c.id}:bpix`, sw, sh);
+        const sc = small.getContext('2d')!;
+        sc.globalCompositeOperation = 'copy';
+        sc.imageSmoothingEnabled = true;
+        sc.imageSmoothingQuality = 'high';
+        sc.drawImage(layer, 0, 0, sw, sh);
+        tc.imageSmoothingEnabled = false;
+        tc.drawImage(small, 0, 0, w, h);
+      } else if (g.style === 'black') {
+        tc.drawImage(layer, 0, 0);
+        tc.globalCompositeOperation = 'source-in';
+        tc.fillStyle = '#000';
+        tc.fillRect(0, 0, w, h);
+      } else {
+        // boxblur в экспорте (радиус R, 2 прохода) ≈ гаусс с σ = R·√(2/3)
+        tc.filter = `blur(${(short * blurRadius(g.strength) * 0.816).toFixed(1)}px)`;
+        tc.drawImage(layer, 0, 0);
+      }
+      tc.restore();
+      tc.save();
+      tc.globalCompositeOperation = 'destination-in';
+      tc.imageSmoothingEnabled = true;
+      tc.drawImage(mk, 0, 0, w, h);
+      tc.restore();
+      lc.save();
+      lc.globalCompositeOperation = 'source-over';
+      lc.drawImage(tmp, 0, 0);
+      lc.restore();
+    }
   }
 
   /** Неоновый контур под вырезанным человеком: его силуэт цвета неона, размытый (сильнее на долю такта). */

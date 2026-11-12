@@ -212,6 +212,23 @@ export interface MediaClip {
   model3d?: Model3D;             // клип — отрисованный 3D-объект (можно изменить и пересобрать)
   /** Время ключей масштаба, которые поставил автозум (чтобы убрать только их). */
   autoZoom?: number[];
+  /** Скрытые лица и номера: области размытия, которые едут за объектом. */
+  blurs?: BlurRegion[];
+}
+
+/** Рамка скрываемого объекта: t — время исходника, центр и размер — доли кадра исходника. */
+export interface BlurBox { t: number; x: number; y: number; w: number; h: number }
+export type BlurStyle = 'blur' | 'pixel' | 'black';
+/** Область скрытия: лицо (нашёл детектор) или предмет (обвёл человек, ведёт трекер). */
+export interface BlurRegion {
+  id: string;
+  kind: 'face' | 'object';
+  style: BlurStyle;
+  strength: number;              // 0..1
+  shape?: 'ellipse' | 'rect';
+  boxes: BlurBox[];
+  hold?: number;                 // сколько секунд держать до первой и после последней рамки
+  off?: boolean;                 // временно не скрывать (чтобы посмотреть, кто это)
 }
 
 /** 3D-объект: готовая фигура или свой файл модели, движение, угол, материал и свет. */

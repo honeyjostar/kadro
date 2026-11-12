@@ -58,6 +58,8 @@ export function asrModelReady(id: AsrModelId): boolean {
 /** Небольшие модели, которые идут вместе с программой. */
 export const VAD_MODEL = () => bundledModel('silero_vad.onnx');
 export const MATTING_MODEL = () => bundledModel('rvm_mobilenetv3_fp32.onnx');
+/** Поиск лиц: YuNet 2023mar (OpenCV Zoo, MIT). */
+export const FACE_MODEL = () => bundledModel('face_detection_yunet_2023mar.onnx');
 export const RNNOISE_MODEL = () => bundledModel('std.rnnn');
 
 // ---------- откуда качать ----------

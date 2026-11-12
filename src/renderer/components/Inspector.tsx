@@ -25,6 +25,7 @@ import { fmtDur } from '../util';
 import { ColorField, Field, FontPicker, KeyButton, Seg, Slider, Toggle } from './controls';
 import { AiTools, textPreviewStyle } from './LeftPanel';
 import { CurvesPanel, HslPanel, LutPanel, MatchColor } from './GradeTab';
+import { HideTab } from './HideTab';
 
 export function Inspector() {
   const sel = useSelected();
@@ -210,7 +211,7 @@ function AttrButtons() {
 }
 
 // ---------- видео, фото, звук ----------
-type MTab = 'basic' | 'anim' | 'color' | 'mask' | 'fx' | 'speed' | 'audio' | 'ai';
+type MTab = 'basic' | 'anim' | 'color' | 'mask' | 'hide' | 'fx' | 'speed' | 'audio' | 'ai';
 
 function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: MediaAsset; trackKind: string }) {
   const commit = useStore((s) => s.commit);
@@ -220,6 +221,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
     ? [{ id: 'audio', label: tx('Звук') }, { id: 'speed', label: tx('Скорость') }]
     : [
       { id: 'basic', label: tx('Кадр') }, { id: 'anim', label: tx('Анимация') }, { id: 'color', label: tx('Цвет') }, { id: 'mask', label: tx('Маска') },
+      { id: 'hide', label: tx('Скрыть') },
       ...(clip.effects?.length ? [{ id: 'fx' as MTab, label: tx('Эффекты') }] : []),
       ...(!isImage ? [{ id: 'speed' as MTab, label: tx('Скорость') }] : []),
       ...(asset?.hasAudio ? [{ id: 'audio' as MTab, label: tx('Звук') }] : []),
@@ -276,6 +278,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
         )}
         {cur === 'anim' && <ClipAnimTab clip={clip} />}
         {cur === 'mask' && <MaskTab clip={clip} />}
+        {cur === 'hide' && <HideTab clip={clip} asset={asset} />}
         {cur === 'fx' && (
           <>
             {(clip.effects ?? []).map((e) => {

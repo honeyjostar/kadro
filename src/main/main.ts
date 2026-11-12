@@ -236,7 +236,7 @@ function aiWorker(lane: Lane): UtilityProcess {
 
 function workerCall<T>(id: string, msg: Record<string, unknown>): Promise<T> {
   // onnxruntime-node (фон, слежение, перевод) — в процессе «vision», sherpa-onnx — в «speech»
-  const lane: Lane = msg.kind === 'removeBg' || msg.kind === 'reframe' || msg.kind === 'translate' || msg.kind === 'mtDownload' ? 'vision' : 'speech';
+  const lane: Lane = ['removeBg', 'reframe', 'translate', 'mtDownload', 'faces', 'trackBox'].includes(String(msg.kind)) ? 'vision' : 'speech';
   return new Promise<T>((resolve, reject) => {
     const w = aiWorker(lane);
     pending.set(id, { resolve: resolve as (v: unknown) => void, reject, lane, w });
@@ -469,6 +469,14 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       aiAborts.set(id, ac);
       const hl = await highlights(job.path, job.duration, (p) => send(p, tx('Смотрю видео')), ac.signal);
       return { ok: true, output: { kind: 'highlights', hl } };
+    }
+    if (job.kind === 'faces') {
+      const r = await workerCall<{ frames: import('../shared/blur').DetFrame[] }>(id, { kind: 'faces', path: job.path, in: job.in, out: job.out, width: job.width, height: job.height, image: job.image });
+      return { ok: true, output: { kind: 'faces', frames: r.frames } };
+    }
+    if (job.kind === 'trackBox') {
+      const r = await workerCall<{ boxes: import('../shared/types').BlurBox[] }>(id, { kind: 'trackBox', path: job.path, in: job.in, out: job.out, at: job.at, box: job.box, width: job.width, height: job.height });
+      return { ok: true, output: { kind: 'trackBox', boxes: r.boxes } };
     }
     if (job.kind === 'reframe') {
       const r = await workerCall<{ points: { t: number; x: number; y: number; found: boolean }[] }>(id, { kind: 'reframe', path: job.path, in: job.in, out: job.out, width: job.width, height: job.height });

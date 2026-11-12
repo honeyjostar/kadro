@@ -94,6 +94,9 @@ interface State {
   pasteOpen: boolean;
   /** Клип, для которого открыт «Ластик для хромакея». */
   chromaPaintClip: string | null;
+  /** «Скрыть»: рамки областей на плеере (id клипа) и режим обводки предмета мышью. */
+  blurShow: string | null;
+  blurDraw: string | null;
   /** Окно «Повторить монтаж по ролику»: fresh — новым проектом; ref — сразу разобрать этот ролик. */
   refOpen: { fresh: boolean; ref?: string; files?: string[] } | null;
   keysOpen: boolean;
@@ -140,6 +143,8 @@ interface State {
   setCoverOpen: (b: boolean) => void;
   setScreenRecOpen: (b: boolean) => void;
   setTextEditOpen: (b: boolean) => void;
+  setBlurShow: (id: string | null) => void;
+  setBlurDraw: (id: string | null) => void;
   setRecording: (r: { startT: number; muted: boolean } | null) => void;
   setHome: (b: boolean) => void;
   setDemo: (d: DemoFiles) => void;
@@ -238,6 +243,8 @@ export const useStore = create<State>((set, get) => ({
   copiedAttrs: null,
   pasteOpen: false,
   chromaPaintClip: null,
+  blurShow: null,
+  blurDraw: null,
   refOpen: null,
   keysOpen: false,
   update: null,
@@ -344,6 +351,8 @@ export const useStore = create<State>((set, get) => ({
   setCopiedAttrs: (a) => set({ copiedAttrs: a }),
   setPasteOpen: (b) => set({ pasteOpen: b }),
   setChromaPaintClip: (id) => set({ chromaPaintClip: id }),
+  setBlurShow: (blurShow) => set(blurShow ? { blurShow } : { blurShow, blurDraw: null }),
+  setBlurDraw: (blurDraw) => set({ blurDraw }),
   setRefOpen: (o) => set({ refOpen: o }),
   setKeysOpen: (b) => set({ keysOpen: b }),
   setUpdate: (u) => set({ update: u }),

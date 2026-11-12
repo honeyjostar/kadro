@@ -29,6 +29,8 @@ type Msg =
   | { id: string; kind: 'tts'; text: string; voice: TtsVoiceId; speed: number; outPath: string }
   | { id: string; kind: 'beats'; path: string }
   | { id: string; kind: 'reframe'; path: string; in: number; out: number; width: number; height: number }
+  | { id: string; kind: 'faces'; path: string; in: number; out: number; width: number; height: number; image?: boolean }
+  | { id: string; kind: 'trackBox'; path: string; in: number; out: number; at: number; box: { x: number; y: number; w: number; h: number }; width: number; height: number }
   | { id: string; kind: 'mtDownload'; pairs: string[] }
   | { id: string; kind: 'translate'; texts: string[]; route: import('../shared/translate').Pair[] }
   | { cancel: string };
@@ -113,6 +115,13 @@ port.on('message', async (e) => {
     } else if (m.kind === 'reframe') {
       const { trackPerson } = await import('../main/ai/matting');
       result = { points: await trackPerson({ src: m.path, ss: m.in, dur: m.out - m.in, width: m.width, height: m.height, onProgress: (p) => progress(p, tx('Слежу за человеком')), signal: ac.signal }) };
+    }
+    else if (m.kind === 'faces') {
+      const { detectFaces } = await import('../main/ai/faces');
+      result = { frames: await detectFaces({ src: m.path, ss: m.in, dur: m.out - m.in, width: m.width, height: m.height, image: m.image, onProgress: (p) => progress(p, tx('Ищу лица')), signal: ac.signal }) };
+    } else if (m.kind === 'trackBox') {
+      const { trackBox } = await import('../main/ai/track');
+      result = { boxes: await trackBox({ src: m.path, in: m.in, out: m.out, at: m.at, box: m.box, width: m.width, height: m.height, onProgress: (p) => progress(p, tx('Слежу за предметом')), signal: ac.signal }) };
     }
     else if (m.kind === 'mtDownload') {
       const { downloadMt } = await import('../main/ai/mtModels');
