@@ -1288,3 +1288,40 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 @keyframes beacon { 0% { box-shadow: 0 0 0 0 var(--accent-soft); opacity: 1; } 70% { box-shadow: 0 0 0 12px transparent; opacity: 0.9; } 100% { box-shadow: 0 0 0 0 transparent; opacity: 1; } }
 .beacon-label { position: fixed; z-index: 58; pointer-events: none; padding: 5px 10px; border-radius: 8px; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: 0 6px 18px var(--shadow); }
 @media (prefers-reduced-motion: reduce) { .beacon { animation: none; } .tour-hole, .tour-card { transition: none; } }
+
+/* ---------- окно шире: боковые панели спрятаны (Ctrl+\) ---------- */
+.workspace.wide { grid-template-columns: 64px minmax(0, 1fr); }
+.rail { overflow-y: auto; scrollbar-width: none; }
+.rail .rail-wide { margin-top: auto; }
+
+/* ---------- избранное: звёздочка на плитке ---------- */
+.tile { position: relative; }
+.fav-star {
+  position: absolute; top: 5px; right: 5px; display: flex; padding: 3px; border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55); color: #fff; opacity: 0; transition: opacity 0.12s;
+}
+.tile:hover .fav-star, .tile:focus-visible .fav-star, .fav-star.on { opacity: 1; }
+.fav-star.on { color: var(--accent); }
+.fav-star:hover { background: rgba(0, 0, 0, 0.8); }
+.chips button svg { margin-right: 4px; vertical-align: -2px; }
+
+/* ---------- поиск по всему (Ctrl+K) ---------- */
+.search-btn kbd { font: inherit; font-size: 10.5px; padding: 0 5px; margin-left: 4px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); }
+.palette-back { align-items: flex-start; padding-top: 12vh; }
+.palette {
+  width: 600px; max-width: calc(100vw - 32px); background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: 0 24px 64px var(--shadow); overflow: hidden; display: flex; flex-direction: column;
+}
+.palette-input { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); color: var(--muted); }
+.palette-input input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 16px; }
+.palette kbd { font: inherit; font-size: 10.5px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.palette-list { max-height: min(420px, 56vh); overflow-y: auto; padding: 6px; }
+.palette-list button {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: var(--radius-s);
+  background: transparent; color: var(--text); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer;
+}
+.palette-list button.active { background: var(--accent-soft); }
+.palette-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-group { color: var(--muted); font-size: 12px; }
+.palette-empty { padding: 14px 10px; margin: 0; }
+.palette-foot { padding: 8px 14px; border-top: 1px solid var(--line-soft); margin: 0; }

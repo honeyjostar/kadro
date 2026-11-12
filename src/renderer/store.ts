@@ -51,6 +51,10 @@ interface State {
   toasts: Toast[];
   exportOpen: boolean;
   tlHeight: number;
+  /** Боковые панели спрятаны — плеер шире (Ctrl+\\). */
+  wide: boolean;
+  /** Открыт поиск по всему (Ctrl+K). */
+  searchOpen: boolean;
   /** Идёт запись голоса: с какого места таймлайна и заглушён ли звук проекта. */
   recording: { startT: number; muted: boolean } | null;
   /** Открыт стартовый экран. */
@@ -125,6 +129,8 @@ interface State {
   setExportOpen: (b: boolean) => void;
   markSaved: (path: string) => void;
   setTlHeight: (h: number) => void;
+  setWide: (b: boolean) => void;
+  setSearchOpen: (b: boolean) => void;
   setRecording: (r: { startT: number; muted: boolean } | null) => void;
   setHome: (b: boolean) => void;
   setDemo: (d: DemoFiles) => void;
@@ -199,7 +205,9 @@ export const useStore = create<State>((set, get) => ({
   jobs: {},
   toasts: [],
   exportOpen: false,
-  tlHeight: 300,
+  tlHeight: readPref<number>('kadro.tlHeight', 300),
+  wide: readPref<boolean>('kadro.wide', false),
+  searchOpen: false,
   recording: null,
   home: false,
   demo: null,
@@ -301,7 +309,9 @@ export const useStore = create<State>((set, get) => ({
   setExportOpen: (b) => set({ exportOpen: b }),
   markSaved: (path) => set({ projectPath: path, dirty: false, savedAt: Date.now() }),
   setRecording: (r) => set({ recording: r }),
-  setTlHeight: (h) => set({ tlHeight: Math.min(560, Math.max(180, h)) }),
+  setTlHeight: (h) => { const tlHeight = Math.min(560, Math.max(180, h)); writePref('kadro.tlHeight', tlHeight); set({ tlHeight }); },
+  setWide: (wide) => { writePref('kadro.wide', wide); set({ wide }); },
+  setSearchOpen: (searchOpen) => set({ searchOpen }),
   setHome: (b) => set(b ? { home: true, playing: false } : { home: false }),
   setDemo: (d) => set({ demo: d }),
   setThemePref: (t) => { api.setTheme(t); set({ themePref: t }); },

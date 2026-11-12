@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { Camera, Maximize2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-react';
+import { Camera, Fullscreen, Maximize2, Minimize2, Pause, Play, SkipBack, SkipForward, Upload } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { placeOnCanvas, stretchedSize } from '../../shared/geometry';
 import { mediaPropsAt } from '../../shared/anim';
@@ -52,6 +52,14 @@ function inside(b: Box, x: number, y: number): boolean {
   return Math.abs(lx) <= b.w / 2 && Math.abs(ly) <= b.h / 2;
 }
 
+// окно плеера — для полноэкранного режима по клавише F и из поиска
+let fsTarget: HTMLElement | null = null;
+/** Плеер на весь экран; уже на весь экран — обратно. */
+export function togglePlayerFullscreen(): void {
+  if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+  else void fsTarget?.requestFullscreen().catch(() => undefined);
+}
+
 export function Player() {
   const project = useStore((s) => s.project);
   const playing = useStore((s) => s.playing);
@@ -60,9 +68,11 @@ export function Player() {
   const selection = useStore((s) => s.selection);
   const recording = useStore((s) => s.recording);
   const safeZone = useStore((s) => s.safeZone);
+  const wide = useStore((s) => s.wide);
   const vertical = useStore((s) => isVertical(s.project.settings.width, s.project.settings.height));
   const areaRef = useRef<HTMLDivElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { fsTarget = wrapRef.current; return () => { if (fsTarget === wrapRef.current) fsTarget = null; }; }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<PreviewEngine | null>(null);
   const [area, setArea] = useState({ w: 0, h: 0 });
@@ -340,7 +350,9 @@ export function Player() {
           </select>
           <FormatMenu />
           <button className="icon-btn" title={tx('Сохранить кадр картинкой (Shift+E)')} onClick={() => void saveFrame()} disabled={duration <= 0} data-testid="save-frame"><Camera size={16} /></button>
-          <button className="icon-btn" title={tx('Во весь экран')} onClick={() => void wrapRef.current?.requestFullscreen()}><Maximize2 size={16} /></button>
+          <button className={`icon-btn ${wide ? 'on' : ''}`} onClick={() => getState().setWide(!wide)} data-testid="player-wide" aria-pressed={wide}
+            title={wide ? tx('Обычный вид: вернуть боковые панели и таймлайн (Ctrl+\\)') : tx('Большой плеер: спрятать боковые панели и ужать таймлайн (Ctrl+\\)')}>{wide ? <Minimize2 size={16} /> : <Fullscreen size={16} />}</button>
+          <button className="icon-btn" title={tx('Во весь экран (F)')} onClick={() => togglePlayerFullscreen()} data-testid="player-fullscreen"><Maximize2 size={16} /></button>
         </div>
       </div>
     </section>

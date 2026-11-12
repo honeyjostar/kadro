@@ -3,7 +3,7 @@ import { txj } from '../txj';
 import {
   Clapperboard,
   Zap, AudioLines, BellRing, Blend, Volume2, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users, ZoomIn, ArrowLeftCircle, Speaker, Timer,
+  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users, ZoomIn, ArrowLeftCircle, Speaker, Timer, Star, History,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -48,8 +48,10 @@ import { aiCovers, aiSource } from '../../shared/ai';
 import { NEON_DEFAULT, personWanted } from '../../shared/person';
 import { SUBSCRIBE_COLORS } from '../../shared/subscribe';
 import { SFX, SFX_IDS, sfxFile, type SfxId } from '../../shared/sfx';
+import { pickInOrder, type FavKind } from '../../shared/favs';
+import { noteUsed, useFavs } from '../favs';
 
-const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
+export const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'media', label: tx('Медиа'), icon: <Film size={19} /> },
   { id: 'audio', label: tx('Аудио'), icon: <Music size={19} /> },
   { id: 'text', label: tx('Текст'), icon: <Type size={19} /> },
@@ -65,10 +67,12 @@ const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
 export function Rail() {
   const tab = useStore((s) => s.leftTab);
   const setTab = useStore((s) => s.setLeftTab);
+  const wide = useStore((s) => s.wide);
+  const setWide = useStore((s) => s.setWide);
   return (
     <nav className="rail" aria-label={tx('Разделы')}>
       {TABS.map((t) => (
-        <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)} data-testid={`tab-${t.id}`}>
+        <button key={t.id} className={tab === t.id && !wide ? 'active' : ''} onClick={() => { setTab(t.id); if (wide) setWide(false); }} data-testid={`tab-${t.id}`}>
           {t.icon}<span>{t.label}</span>
         </button>
       ))}
@@ -1015,10 +1019,53 @@ function MemeButtons() {
   );
 }
 
+// ---------- избранное, недавние, перетаскивание на клип ----------
+/** Звёздочка в углу плитки: в избранное и обратно. */
+function FavStar({ kind, id }: { kind: FavKind; id: string }) {
+  const on = useFavs((f) => f.s.fav[kind].includes(id));
+  const label = on ? tx('Убрать из избранного') : tx('В избранное');
+  return (
+    <span className={`fav-star ${on ? 'on' : ''}`} role="button" aria-label={label} title={label} data-testid={`fav-${kind}-${id}`}
+      onClick={(e) => { e.stopPropagation(); e.preventDefault(); useFavs.getState().toggle(kind, id); }}>
+      <Star size={13} fill={on ? 'currentColor' : 'none'} />
+    </span>
+  );
+}
+
+/** Плитку эффекта, фильтра или перехода можно перетащить на клип или стык на таймлайне. */
+const lookDrag = (k: FavKind, id: string, name: string) => (e: React.DragEvent) => {
+  e.dataTransfer.setData('application/x-kadro-look', JSON.stringify({ k, id, name }));
+  e.dataTransfer.effectAllowed = 'copy';
+};
+
+/** Кнопки «Избранное» и «Недавние» среди разделов — только когда в них что-то есть. */
+function FavChips({ kind, cat, setCat }: { kind: FavKind; cat: string; setCat: (c: 'fav' | 'recent') => void }) {
+  const favs = useFavs((f) => f.s.fav[kind]);
+  const recent = useFavs((f) => f.s.recent[kind]);
+  return (
+    <>
+      {favs.length > 0 && <button className={cat === 'fav' ? 'active' : ''} onClick={() => setCat('fav')} data-testid={`${kind}cat-fav`}><Star size={12} />{tx('Избранное')}</button>}
+      {recent.length > 0 && <button className={cat === 'recent' ? 'active' : ''} onClick={() => setCat('recent')} data-testid={`${kind}cat-recent`}><History size={12} />{tx('Недавние')}</button>}
+    </>
+  );
+}
+
+/** Список с учётом «Избранного» и «Недавних»; пустой раздел — показываем всё. */
+function useFavView<T>(kind: FavKind, cat: string, all: T[], idOf: (x: T) => string, byCat: (x: T) => boolean): T[] {
+  const favs = useFavs((f) => f.s.fav[kind]);
+  const recent = useFavs((f) => f.s.recent[kind]);
+  if (cat === 'fav' && favs.length) return pickInOrder(all, favs, idOf);
+  if (cat === 'recent' && recent.length) return pickInOrder(all, recent, idOf);
+  if (cat === 'fav' || cat === 'recent') return all;
+  return all.filter(byCat);
+}
+
+const FavHint = () => <p className="hint small" style={{ marginTop: 10 }}>{tx('★ — в избранное. Плитку можно перетащить прямо на клип на таймлайне.')}</p>;
+
 function EffectsPanel() {
   const sel = useSelected();
   const commit = useStore((s) => s.commit);
-  const [cat, setCat] = useState<EffectCat | 'shader' | 'plugins' | 'all'>('all');
+  const [cat, setCat] = useState<EffectCat | 'shader' | 'plugins' | 'all' | 'fav' | 'recent'>('all');
   const clip = sel?.clip.type === 'media' && sel.asset?.kind !== 'audio' ? (sel.clip as MediaClip) : null;
   const toggle = (type: EffectType) => {
     if (!clip) { getState().toast(tx('Сначала выдели видео или фото на таймлайне — эффект встанет на него')); return; }
@@ -1026,12 +1073,13 @@ function EffectsPanel() {
     const def = EFFECTS.find((x) => x.type === type);
     const effects = has ? clip.effects!.filter((e) => e.type !== type) : [...(clip.effects ?? []), { type, amount: def?.toggle ? 1 : 0.6 }];
     commit((p) => updateClip(p, clip.id, { effects: effects.length ? effects : undefined }));
+    if (!has) noteUsed('fx', type);
   };
   useGlCatalog();
   // встроенные эффекты + шейдеры (свои Kadro и плагины пользователя)
   const shaders = glEffects().map((d) => ({ type: d.id as EffectType, label: d.name, hint: d.description ?? '', cat: (d.source ? 'plugins' : 'shader') as EffectCat | 'shader' | 'plugins' }));
   const all: { type: EffectType; label: string; hint: string; cat: EffectCat | 'shader' | 'plugins' }[] = [...EFFECTS, ...shaders];
-  const list = all.filter((e) => cat === 'all' || e.cat === cat);
+  const list = useFavView('fx', cat, all, (e) => e.type, (e) => cat === 'all' || e.cat === cat);
   const hasPlugins = shaders.some((x) => x.cat === 'plugins');
   return (
     <>
@@ -1041,6 +1089,7 @@ function EffectsPanel() {
         <p className="hint">{clip ? tx('Нажми — эффект добавится, ещё раз — уберётся. Наведи мышь, чтобы посмотреть. Сила — справа, во вкладке «Эффекты».') : tx('Выдели клип на таймлайне — эффекты применяются к нему. Наведи мышь на эффект, чтобы посмотреть.')}</p>
         <div className="chips" style={{ margin: '10px 0 8px' }}>
           <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>
+          <FavChips kind="fx" cat={cat} setCat={setCat} />
           {EFFECT_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
           <button className={cat === 'shader' ? 'active' : ''} onClick={() => setCat('shader')} data-testid="fxcat-shader">{tx('Шейдеры')}</button>
           {hasPlugins && <button className={cat === 'plugins' ? 'active' : ''} onClick={() => setCat('plugins')} data-testid="fxcat-plugins">{tx('Плагины')}</button>}
@@ -1049,13 +1098,16 @@ function EffectsPanel() {
           {list.map((e) => {
             const on = !!clip?.effects?.some((x) => x.type === e.type);
             return (
-              <button key={e.type} className={`tile ${on ? 'active' : ''}`} onClick={() => toggle(e.type)} title={e.hint} data-testid={`fx-${e.type}`}>
+              <button key={e.type} className={`tile ${on ? 'active' : ''}`} onClick={() => toggle(e.type)} title={e.hint} data-testid={`fx-${e.type}`}
+                draggable onDragStart={lookDrag('fx', e.type, e.label)}>
                 <EffectThumb type={e.type} />
                 <span className="label">{e.label}</span>
+                <FavStar kind="fx" id={e.type} />
               </button>
             );
           })}
         </div>
+        <FavHint />
       </div>
     </>
   );
@@ -1131,6 +1183,7 @@ function TransitionsPanel() {
   const apply = (type: TransitionType | null) => {
     if (!targetId) { getState().toast(tx('Переход ставится между двумя клипами — добавь на основную дорожку ещё одно видео или фото')); return; }
     commit((p) => setTransition(p, targetId!, type ? { type, duration: durNow } : null));
+    if (type) noteUsed('tr', type);
     if (type && auto) getState().toast(tx('Переход поставлен на ближайший к курсору стык'), 'ok');
   };
   const applyAll = () => {
@@ -1152,7 +1205,7 @@ function TransitionsPanel() {
   // встроенные + 123 шейдера gl-transitions + плагины пользователя
   const shaders = glTransitions().map((d) => ({ type: d.id as TransitionType, label: d.name, cat: d.source ? 'plugins' : d.cat, hint: d.author ? tx('{0} — автор {1}', d.name, d.author) : d.name }));
   const all: { type: TransitionType; label: string; cat: string; hint?: string }[] = [...TRANSITIONS, ...shaders];
-  const list = all.filter((t) => cat === 'all' || t.cat === cat);
+  const list = useFavView('tr', cat, all, (t) => t.type, (t) => cat === 'all' || t.cat === cat);
   const glCats = GL_TRANSITION_CATS.filter((c) => shaders.some((x) => x.cat === c.id));
   const hasPlugins = shaders.some((x) => x.cat === 'plugins');
   return (
@@ -1165,6 +1218,7 @@ function TransitionsPanel() {
         </p>
         <div className="chips" style={{ margin: '10px 0 8px' }}>
           <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>
+          <FavChips kind="tr" cat={cat} setCat={setCat} />
           {TRANSITION_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
           {glCats.map((c) => <button key={c.id} className={`gl ${cat === c.id ? 'active' : ''}`} onClick={() => setCat(c.id)} data-testid={`trcat-${c.id}`}>{c.label}</button>)}
           {hasPlugins && <button className={cat === 'plugins' ? 'active' : ''} onClick={() => setCat('plugins')} data-testid="trcat-plugins">{tx('Плагины')}</button>}
@@ -1175,9 +1229,11 @@ function TransitionsPanel() {
             <span className="label">{tx('Без перехода')}</span>
           </button>
           {list.map((t) => (
-            <button key={t.type} className={`tile ${cur?.type === t.type ? 'active' : ''}`} onClick={() => apply(t.type)} disabled={!target} data-testid={`tr-${t.type}`} title={t.hint}>
+            <button key={t.type} className={`tile ${cur?.type === t.type ? 'active' : ''}`} onClick={() => apply(t.type)} disabled={!target} data-testid={`tr-${t.type}`} title={t.hint}
+              draggable onDragStart={lookDrag('tr', t.type, t.label)}>
               <TransitionThumb type={t.type} />
               <span className="label">{t.label}</span>
+              <FavStar kind="tr" id={t.type} />
             </button>
           ))}
         </div>
@@ -1196,6 +1252,7 @@ function TransitionsPanel() {
         </div>
         <p className="hint small">{tx('Свуш — на быстрых переходах, щелчок — на резких склейках, «бум» — на главном моменте.')}</p>
         <button className="btn block" disabled={!target?.cutSound || joints < 2} onClick={soundAll} data-testid="sfx-all">{tx('Звук на все стыки')}</button>
+        <FavHint />
       </div>
     </>
   );
@@ -1245,12 +1302,13 @@ function FiltersPanel() {
   const sel = useSelected();
   const commit = useStore((s) => s.commit);
   const project = useStore((s) => s.project);
-  const [cat, setCat] = useState<FilterCat | 'all'>('all');
+  const [cat, setCat] = useState<FilterCat | 'all' | 'fav' | 'recent'>('all');
   const clip = sel?.clip.type === 'media' && sel.asset?.kind !== 'audio' ? (sel.clip as MediaClip) : null;
   const thumb = clip && sel?.asset ? sel.asset.thumbs?.[Math.floor((sel.asset.thumbs?.length ?? 1) / 2)] ?? (sel.asset.kind === 'image' ? sel.asset.previewPath : undefined) : undefined;
   const setPreset = (id: string) => {
     if (!clip) { getState().toast(tx('Сначала выдели видео или фото на таймлайне — фильтр встанет на него')); return; }
     commit((p) => updateClip(p, clip.id, { color: { ...clip.color, preset: id, presetAmount: clip.color.preset === id ? clip.color.presetAmount : 1 } }));
+    if (id !== 'none') noteUsed('filter', id);
   };
   const applyAll = () => {
     if (!clip) return;
@@ -1262,7 +1320,8 @@ function FiltersPanel() {
     }, p));
     getState().toast(tx('Фильтр применён ко всем клипам'), 'ok');
   };
-  const list = FILTER_PRESETS.filter((f) => f.id === 'none' || cat === 'all' || f.cat === cat);
+  const named = useFavView('filter', cat, FILTER_PRESETS.filter((f) => f.id !== 'none'), (f) => f.id, (f) => cat === 'all' || f.cat === cat);
+  const list = [...FILTER_PRESETS.filter((f) => f.id === 'none'), ...named];
   return (
     <>
       <div className="panel-head">{txj('Фильтры · {0}', FILTER_PRESETS.length - 1)}</div>
@@ -1274,18 +1333,22 @@ function FiltersPanel() {
         )}
         <div className="chips" style={{ margin: '10px 0 8px' }}>
           <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>
+          <FavChips kind="filter" cat={cat} setCat={setCat} />
           {FILTER_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
         </div>
         <div className="tile-grid">
           {list.map((f) => (
-            <button key={f.id} className={`tile ${clip?.color.preset === f.id ? 'active' : ''}`} onClick={() => setPreset(f.id)} data-testid={`filter-${f.id}`}>
+            <button key={f.id} className={`tile ${clip?.color.preset === f.id ? 'active' : ''}`} onClick={() => setPreset(f.id)} data-testid={`filter-${f.id}`}
+              draggable onDragStart={lookDrag('filter', f.id, f.label)}>
               <FilterThumb id={f.id} src={thumb} />
               <span className="label">{f.label}</span>
+              {f.id !== 'none' && <FavStar kind="filter" id={f.id} />}
             </button>
           ))}
         </div>
         {clip && <button className="btn block" style={{ marginTop: 10 }} onClick={applyAll}>{tx('Применить ко всем клипам')}</button>}
         <p className="hint small" style={{ marginTop: 10 }}>{tx('Яркость, контраст, насыщенность и теплота — справа во вкладке «Цвет».')}</p>
+        <FavHint />
       </div>
     </>
   );

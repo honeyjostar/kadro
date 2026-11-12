@@ -35,6 +35,10 @@ import { retentionIssues, zoomKeys, type RetIssue } from '../shared/retention';
 import { captionCues, dubPhrases, fitSpeed, placeDub, quietOriginal, slotOf } from '../shared/dub';
 import { personWanted } from '../shared/person';
 import { SUBSCRIBE_DUR } from '../shared/subscribe';
+import { EFFECTS } from '../shared/effects';
+import { setTransition } from '../shared/timeline';
+import type { EffectType, TransitionType } from '../shared/types';
+import { noteUsed } from './favs';
 
 // ---------- импорт ----------
 export async function importPaths(paths: string[], place?: { mode: 'main' | 'overlay' | 'auto'; at?: number }): Promise<string[]> {
@@ -1930,4 +1934,79 @@ export function addSubscribe(color: string): void {
     return updateClip(r.project, r.clipId, { widget: 'subscribe', duration: SUBSCRIBE_DUR, y: vertical ? 0.72 : 0.78 });
   });
   if (id) s.select([id]);
+}
+
+// ---------- эффекты, фильтры, переходы: из поиска (Ctrl+K) и перетаскиванием на клип ----------
+/** Клип, на который ставятся эффект и фильтр: видео или фото (не звук и не текст). */
+function visualClip(id: string): MediaClip | null {
+  const s = getState();
+  const f = findClip(s.project, id);
+  if (!f || f.clip.type !== 'media') return null;
+  const clip = f.clip as MediaClip;
+  const a = s.project.assets.find((x) => x.id === clip.assetId);
+  return a && a.kind !== 'audio' ? clip : null;
+}
+
+/** Выделенные видео и фото — им достаётся эффект или фильтр из поиска. */
+export function selectedVisualClips(): MediaClip[] {
+  return getState().selection.map(visualClip).filter((c): c is MediaClip => !!c);
+}
+
+/** Добавить эффект на клип (если его там ещё нет). */
+export function addEffectTo(clipId: string, type: EffectType, name?: string): boolean {
+  const s = getState();
+  const clip = visualClip(clipId);
+  if (!clip) { s.toast(tx('Эффект ставится на видео или фото')); return false; }
+  noteUsed('fx', type);
+  if (clip.effects?.some((e) => e.type === type)) { s.toast(tx('Этот эффект уже есть на клипе')); return true; }
+  const def = EFFECTS.find((x) => x.type === type);
+  s.commit((p) => updateClip(p, clip.id, { effects: [...(clip.effects ?? []), { type, amount: def?.toggle ? 1 : 0.6 }] }));
+  if (name) s.toast(tx('Эффект «{0}» добавлен', name), 'ok');
+  return true;
+}
+
+/** Поставить фильтр (пресет цвета) на клип. */
+export function setFilterOn(clipId: string, preset: string, name?: string): boolean {
+  const s = getState();
+  const clip = visualClip(clipId);
+  if (!clip) { s.toast(tx('Фильтр ставится на видео или фото')); return false; }
+  s.commit((p) => updateClip(p, clip.id, { color: { ...clip.color, preset, presetAmount: clip.color.preset === preset ? clip.color.presetAmount : 1 } }));
+  if (preset !== 'none') noteUsed('filter', preset);
+  if (name) s.toast(tx('Фильтр «{0}» поставлен', name), 'ok');
+  return true;
+}
+
+/** Куда встанет переход: выбранный стык, выделенный клип основной дорожки или стык, ближайший к времени `at`
+ *  (по умолчанию — к розовой линии времени). auto — стык выбран сам, по близости. */
+export function transitionTarget(at?: number): { id: string | null; auto: boolean } {
+  const s = getState();
+  const main = mainTrack(s.project);
+  if (at === undefined) {
+    if (s.junction) return { id: s.junction, auto: false };
+    if (s.selection.length === 1) {
+      const i = main.clips.findIndex((c) => c.id === s.selection[0]);
+      if (i >= 0 && i < main.clips.length - 1) return { id: s.selection[0], auto: false };
+    }
+  }
+  const t = at ?? s.playhead;
+  let id: string | null = null;
+  let best = Infinity;
+  for (const c of main.clips.slice(0, -1)) {
+    const d = Math.abs(clipEnd(c) - t);
+    if (d < best) { best = d; id = c.id; }
+  }
+  return { id, auto: true };
+}
+
+/** Поставить переход на стык (см. transitionTarget); длительность — как у прежнего перехода на этом стыке. */
+export function applyTransition(type: TransitionType, at?: number, name?: string): boolean {
+  const s = getState();
+  const { id } = transitionTarget(at);
+  if (!id) { s.toast(tx('Переход ставится между двумя клипами — добавь на основную дорожку ещё одно видео или фото')); return false; }
+  const cur = (findClip(s.project, id)?.clip as MediaClip | undefined)?.transitionOut;
+  s.commit((p) => setTransition(p, id, { type, duration: cur?.duration ?? 0.5 }));
+  s.select([], id);
+  noteUsed('tr', type);
+  if (name) s.toast(tx('Переход «{0}» поставлен', name), 'ok');
+  return true;
 }

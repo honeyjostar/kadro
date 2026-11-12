@@ -19,15 +19,19 @@ import { PasteAttrsDialog } from './PasteAttrs';
 import { ShortcutsDialog } from './Shortcuts';
 import { ChromaPaintDialog } from './ChromaPaint';
 import { RefEditDialog } from './RefEdit';
+import { SearchDialog } from './Search';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
 import { Jobs, Toasts, IntroOffer } from './Overlays';
 import { Tour } from './Tour';
-import { Player } from './Player';
+import { Player, togglePlayerFullscreen } from './Player';
 import { Timeline } from './Timeline';
 import { TopBar } from './TopBar';
 import { projectDuration } from '../../shared/timeline';
 import { initFonts, reportFontInstall } from '../userFonts';
+
+/** Высота таймлайна в режиме «Большой плеер»: вертикальному видео нужна высота, а не ширина. */
+const WIDE_TL = 210;
 
 function isTyping(e: KeyboardEvent): boolean {
   const t = e.target as HTMLElement | null;
@@ -56,6 +60,8 @@ export function App() {
   const chromaPaintClip = useStore((s) => s.chromaPaintClip);
   const refOpen = useStore((s) => s.refOpen);
   const keysOpen = useStore((s) => s.keysOpen);
+  const searchOpen = useStore((s) => s.searchOpen);
+  const wide = useStore((s) => s.wide);
   const loaded = useRef(false);
 
   // восстановление последнего проекта, обновления файлов из главного процесса
@@ -105,9 +111,11 @@ export function App() {
       const s = getState();
       // окно со всеми клавишами — отовсюду, и с главного экрана, и из поля ввода (F1 и Ctrl+/ текст не печатают)
       if (e.key === 'F1' || ((e.ctrlKey || e.metaKey) && e.code === 'Slash')) { e.preventDefault(); s.setKeysOpen(!s.keysOpen); return; }
-      if (isTyping(e)) return;
-      if (s.home) return;
       const ctrl = e.ctrlKey || e.metaKey;
+      // поиск по всему — Ctrl+K в любой раскладке, и из поля ввода тоже
+      if (ctrl && !e.shiftKey && !e.altKey && e.code === 'KeyK' && !s.home) { e.preventDefault(); s.setSearchOpen(!s.searchOpen); return; }
+      if (isTyping(e)) return;
+      if (s.home || s.searchOpen) return;
       const fps = s.project.settings.fps;
       const k = e.key.toLowerCase();
       if (e.code === 'Space') { e.preventDefault(); s.setPlaying(!s.playing); return; }
@@ -118,6 +126,9 @@ export function App() {
         return;
       }
       if (!ctrl && e.shiftKey && e.code === 'KeyE') { e.preventDefault(); void saveFrame(); return; }
+      // F — плеер на весь экран, Ctrl+\\ — спрятать или показать боковые панели
+      if (!ctrl && !e.altKey && !e.shiftKey && e.code === 'KeyF') { e.preventDefault(); togglePlayerFullscreen(); return; }
+      if (ctrl && e.code === 'Backslash') { e.preventDefault(); s.setWide(!s.wide); return; }
       if (ctrl && (k === 'z' || k === 'я') && !e.shiftKey) { e.preventDefault(); s.undo(); return; }
       if (ctrl && ((k === 'z' || k === 'я') && e.shiftKey || k === 'y' || k === 'н')) { e.preventDefault(); s.redo(); return; }
       if (ctrl && (k === 's' || k === 'ы')) { e.preventDefault(); void saveProject(e.shiftKey); return; }
@@ -192,13 +203,13 @@ export function App() {
   };
 
   return (
-    <div className="app" style={{ ['--tl-h' as string]: `${tlHeight}px` }}>
+    <div className="app" style={{ ['--tl-h' as string]: `${wide ? Math.min(tlHeight, WIDE_TL) : tlHeight}px` }}>
       <TopBar />
-      <div className="workspace">
+      <div className={`workspace ${wide ? 'wide' : ''}`} data-testid="workspace">
         <Rail />
-        <LeftPanel />
+        {!wide && <LeftPanel />}
         <Player />
-        <Inspector />
+        {!wide && <Inspector />}
       </div>
       <div className="splitter" onMouseDown={onSplitter} title={tx('Потяни, чтобы изменить высоту таймлайна')} />
       <Timeline />
@@ -213,6 +224,7 @@ export function App() {
       {catalogOpen && <PluginCatalog />}
       {pasteOpen && copiedAttrs && <PasteAttrsDialog attrs={copiedAttrs} />}
       {keysOpen && <ShortcutsDialog />}
+      {searchOpen && <SearchDialog />}
       {chromaPaintClip && <ChromaPaintDialog key={chromaPaintClip} clipId={chromaPaintClip} />}
       {refOpen && <RefEditDialog />}
       {bugOpen && <BugDialog initial={bugOpen.what} onClose={() => getState().setBugOpen(null)} />}

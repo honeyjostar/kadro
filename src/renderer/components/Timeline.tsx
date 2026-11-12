@@ -11,6 +11,7 @@ import {
   setTrackFlag, trimClip,
 } from '../../shared/timeline';
 import type { Clip, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
+import { addEffectTo, applyTransition, setFilterOn } from '../actions';
 import { addMarkerAtPlayhead, alignToBeats, extractAudio, placeLibraryFiles, deleteSelection, duplicateSelection, freezeFrame, groupSelection, importPaths, ungroupSelection, removePauses, retimeClip, splitAtPlayhead, startRecording, stopRecording, checkRetention } from '../actions';
 import { useSelected } from '../hooks';
 import { recPrefs } from '../recorder';
@@ -663,7 +664,7 @@ export function Timeline() {
   // бросание файлов из медиатеки или из проводника
   const onRowDragOver = (e: React.DragEvent, row: Row | null) => {
     const types = e.dataTransfer.types;
-    if (!types.includes('application/x-kadro-asset') && !types.includes('application/x-kadro-paths') && !types.includes('Files')) return;
+    if (!types.includes('application/x-kadro-asset') && !types.includes('application/x-kadro-paths') && !types.includes('application/x-kadro-look') && !types.includes('Files')) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     setDropRow(row?.track.id ?? 'empty');
@@ -673,6 +674,17 @@ export function Timeline() {
     e.stopPropagation();
     setDropRow(null);
     const t = timeAt(e.clientX);
+    // эффект, фильтр или переход из левой панели: на клип под мышью (переход — на ближайший стык)
+    const look = e.dataTransfer.getData('application/x-kadro-look');
+    if (look) {
+      const { k, id, name } = JSON.parse(look) as { k: 'fx' | 'tr' | 'filter'; id: string; name: string };
+      if (k === 'tr') { void applyTransition(id as Parameters<typeof applyTransition>[0], t, name); return; }
+      const target = row?.track.clips.find((c) => t >= c.start && t < clipEnd(c));
+      if (!target) { getState().toast(k === 'fx' ? tx('Отпусти эффект на видео или фото на таймлайне') : tx('Отпусти фильтр на видео или фото на таймлайне')); return; }
+      const ok = k === 'fx' ? addEffectTo(target.id, id as Parameters<typeof addEffectTo>[1], name) : setFilterOn(target.id, id, name);
+      if (ok) getState().select([target.id]);
+      return;
+    }
     const assetId = e.dataTransfer.getData('application/x-kadro-asset');
     const kind = row?.track.kind;
     const libPaths = e.dataTransfer.getData('application/x-kadro-paths');

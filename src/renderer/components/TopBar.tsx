@@ -1,5 +1,5 @@
 import { tx } from '../../shared/i18n';
-import { FolderOpen, FilePlus2, House, Keyboard, Monitor, Moon, Package, Save, Settings, Sun, Upload } from 'lucide-react';
+import { FolderOpen, FilePlus2, House, Keyboard, Monitor, Moon, Package, Save, Search, Settings, Sun, Upload } from 'lucide-react';
 import type { ThemePref } from '../../shared/ipc';
 import type { ReactNode } from 'react';
 import { newProjectAction, openProject, packProjectAction, saveProject } from '../actions';
@@ -33,6 +33,7 @@ export function TopBar() {
       />
       <span className="saved-state">{dirty ? (path ? tx('Есть несохранённые изменения') : tx('Черновик сохраняется автоматически')) : path ? tx('Сохранено') : ''}</span>
       <div className="spacer" />
+      <button className="btn ghost small search-btn" title={tx('Поиск по всему: эффекты, переходы, фильтры, команды (Ctrl+K)')} onClick={() => getState().setSearchOpen(true)} data-testid="topbar-search"><Search size={14} />{tx('Поиск')}<kbd>Ctrl+K</kbd></button>
       <button className="btn ghost small" title={tx('{0}. Нажми, чтобы переключить: тёмная → светлая → как в Windows', th.label)}
         onClick={() => setThemePref(th.next)} data-testid="theme-btn">{th.icon}{th.short}</button>
       <button className="icon-btn" title={tx('Настройки: тема, цвет акцента, значок программы, размер интерфейса, своё оформление')} onClick={() => getState().setSettingsOpen(true)} data-testid="topbar-settings"><Settings size={16} /></button>
