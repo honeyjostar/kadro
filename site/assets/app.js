@@ -65,7 +65,7 @@
     video.poster = `${base}/${kind}/${id}.jpg`;
     video.innerHTML = `<source src="${base}/${kind}/${id}.webm" type="video/webm"><source src="${base}/${kind}/${id}.mp4" type="video/mp4">`;
     video.load();
-    if (visible) video.play().catch(() => undefined);
+    video.play().catch(() => undefined); // показ — по нажатию человека, ролик точно на экране
   };
   tabs.forEach((t) => t.addEventListener('click', () => {
     tabs.forEach((x) => x.setAttribute('aria-selected', String(x === t)));
