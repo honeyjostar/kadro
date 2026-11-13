@@ -17,11 +17,13 @@ const FFMPEG_ZIP = arg('ffmpeg');
 // (Kadro.exe уходит на подпись), --from-app — взять готовую (уже с подписанным Kadro.exe) и собрать установщик и zip
 const APP_ONLY = process.argv.includes('--app-only');
 const FROM_APP = process.argv.includes('--from-app');
-if (!FROM_APP && (!ELECTRON_ZIP || !FFMPEG_ZIP)) { console.error('нужны --electron и --ffmpeg'); process.exit(1); }
+// --preview: только посмотреть страницы установщика (wine64 на Linux) — 64-битный установщик с пустышкой вместо Kadro
+const PREVIEW = process.argv.includes('--preview');
+if (!FROM_APP && !PREVIEW && (!ELECTRON_ZIP || !FFMPEG_ZIP)) { console.error('нужны --electron и --ffmpeg'); process.exit(1); }
 
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 const OUT = path.join(ROOT, 'release');
-const APP_DIR = path.join(OUT, 'win-unpacked');
+const APP_DIR = path.join(OUT, PREVIEW ? 'preview-app' : 'win-unpacked');
 const RES = path.join(APP_DIR, 'resources');
 const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { stdio: 'inherit', ...opts });
 const cp = (a, b) => fs.cpSync(a, b, { recursive: true, dereference: true });
@@ -190,7 +192,10 @@ async function buildApp() {
   }
 }
 
-if (FROM_APP) {
+if (PREVIEW) {
+  fs.mkdirSync(APP_DIR, { recursive: true });
+  fs.writeFileSync(path.join(APP_DIR, 'Kadro.exe'), 'preview');
+} else if (FROM_APP) {
   if (!fs.existsSync(path.join(APP_DIR, 'Kadro.exe'))) { console.error(`нет ${APP_DIR}\\Kadro.exe — сначала --app-only`); process.exit(1); }
   step('Папка программы — готовая (Kadro.exe мог быть подписан)');
 } else {
@@ -204,11 +209,11 @@ if (APP_ONLY) {
 step('Установщик NSIS');
 const sizeKb = Math.round(Number(execFileSync('du', ['-sk', APP_DIR], { encoding: 'utf8' }).split('\t')[0]));
 const nsi = path.join(OUT, 'kadro.nsi');
-const setup = path.join(OUT, `Kadro-Setup-${pkg.version}.exe`);
+const setup = path.join(OUT, PREVIEW ? 'Kadro-Setup-preview.exe' : `Kadro-Setup-${pkg.version}.exe`);
 fs.copyFileSync(path.join(ROOT, 'build/icon.ico'), path.join(OUT, 'icon.ico'));
 // оформление установщика: боковая картинка и шапка (scripts/make-installer-art.mjs)
 for (const f of ['wizard.bmp', 'header.bmp']) fs.copyFileSync(path.join(ROOT, 'resources/installer', f), path.join(OUT, f));
-fs.writeFileSync(nsi, `Unicode true
+fs.writeFileSync(nsi, `${PREVIEW ? 'Target amd64-unicode' : 'Unicode true'}
 ManifestDPIAware true
 SetCompressor /SOLID lzma
 SetCompressorDictSize 64
@@ -234,7 +239,9 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 !define MUI_ICON "icon.ico"
 !define MUI_UNICON "icon.ico"
 !define MUI_ABORTWARNING
-; оформление: тёмная панель с таймлайном Kadro слева, знак Kadro в шапке
+; оформление: тёмные приветствие, завершение и шапка, маскот Kadro машет слева и выглядывает в шапке
+!define MUI_BGCOLOR "08070A"
+!define MUI_TEXTCOLOR "ECE8F2"
 !define MUI_WELCOMEFINISHPAGE_BITMAP "wizard.bmp"
 !define MUI_UNWELCOMEFINISHPAGE_BITMAP "wizard.bmp"
 !define MUI_HEADERIMAGE
@@ -250,7 +257,7 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 !define MUI_FINISHPAGE_RUN_TEXT "$(RunText)"
 !define MUI_FINISHPAGE_LINK "$(GuideText)"
 !define MUI_FINISHPAGE_LINK_LOCATION "$(GuideUrl)"
-!define MUI_FINISHPAGE_LINK_COLOR "D81B60"
+!define MUI_FINISHPAGE_LINK_COLOR "FF3D7F"
 ; обновление из самого Kadro (ключ /UPDATE): без приветствия и выбора папки — только полоска установки,
 ; потом сразу открывается новый Kadro
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipOnUpdate

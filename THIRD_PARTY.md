@@ -17,8 +17,8 @@ Kadro распространяется под GNU GPL v3 или новее. В �
 | GigaAM v2 (через sherpa-onnx) | MIT | модель распознавания русской речи, скачивается по кнопке |
 | Модели перевода [OPUS-MT](https://github.com/Helsinki-NLP/Opus-MT) (Helsinki-NLP; Tiedemann, Thottingal, 2020) в формате ONNX ([Xenova](https://huggingface.co/Xenova)) | CC-BY-4.0 | перевод субтитров без интернета: русский ⇄ английский — в установщике, остальные языки скачиваются при первом переводе |
 | Голоса [Piper](https://github.com/rhasspy/piper) (ru_RU irina, dmitri, denis, ruslan; en_US amy, ryan) | лицензии авторов голосов (см. `MODEL_CARD` в архиве голоса) | озвучка текста, скачиваются по кнопке |
-| 122 шрифта с кириллицей через [Fontsource](https://fontsource.org/) (Google Fonts): полный список — `FONTS` в `src/shared/defaults.ts` | SIL Open Font License 1.1; Roboto Slab — Apache-2.0; Ubuntu и Ubuntu Mono — Ubuntu Font Licence 1.0 | интерфейс и текст в видео |
-| [React](https://react.dev/), [zustand](https://github.com/pmndrs/zustand), [lucide](https://lucide.dev/) | MIT / ISC | интерфейс |
+| 122 шрифта с кириллицей через [Fontsource](https://fontsource.org/) (Google Fonts): полный список — `FONTS` в `src/shared/defaults.ts` | SIL Open Font License 1.1; Roboto Slab — Apache-2.0; Ubuntu и Ubuntu Mono — Ubuntu Font Licence 1.0 | интерфейс и текст в видео; Onest и Unbounded — ещё и в окне веб-установщика |
+| [React](https://react.dev/), [zustand](https://github.com/pmndrs/zustand), [lucide](https://lucide.dev/) | MIT / ISC | интерфейс; значки lucide — и в веб-установщике |
 | [three.js](https://threejs.org/) (вместе с загрузчиками GLTF, OBJ, STL, FBX и RoomEnvironment) | MIT | 3D-объекты |
 | [gl-transitions](https://github.com/gl-transitions/gl-transitions) — 123 перехода (npm `gl-transitions` 2.0.0) | MIT; InvertedPageCurl — BSD-3-Clause (Hewlett-Packard), StereoViewer — BSD-2-Clause (Theodore K Schundler); авторы и лицензии всех переходов — [docs/licenses/gl-transitions.md](docs/licenses/gl-transitions.md), тексты BSD — в коде этих переходов | переходы-шейдеры |
 
