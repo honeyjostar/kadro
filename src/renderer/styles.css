@@ -1413,3 +1413,13 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .versions-modal { width: min(520px, 92vw); }
 .versions-list { list-style: none; margin: 8px 0 0; padding: 0; max-height: 56vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
 .version-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: var(--radius-s); background: var(--bg); }
+
+/* ---------- простой режим и «Про» ---------- */
+.mode-switch { margin-right: 6px; }
+.mode-switch .seg { padding: 2px; }
+.mode-switch .seg button { padding: 3px 10px; font-size: 12px; }
+.welcome-levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 8px 0 6px; }
+.welcome-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; }
+.welcome-chips .chip { border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 999px; padding: 5px 12px; font-size: 12.5px; }
+.welcome-chips .chip:hover { border-color: var(--accent); }
+.welcome-chips .chip.on { background: var(--accent-soft); border-color: var(--accent); }

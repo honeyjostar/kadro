@@ -6,6 +6,7 @@ import { newProjectAction, openProject, packProjectAction, saveProject } from '.
 import { renameProject } from '../../shared/timeline';
 import { getState, useStore } from '../store';
 import { LogoMark } from './Home';
+import { Seg } from './controls';
 
 export const THEMES: Record<ThemePref, { label: string; short: string; icon: ReactNode; next: ThemePref }> = {
   dark: { label: tx('Тёмная тема'), short: tx('Тёмная'), icon: <Moon size={15} />, next: 'light' },
@@ -23,6 +24,7 @@ export function TopBar() {
   const themePref = useStore((s) => s.themePref);
   const setThemePref = useStore((s) => s.setThemePref);
   const th = THEMES[themePref];
+  const uiMode = useStore((s) => s.uiMode);
   return (
     <header className="topbar">
       <button className="logo logo-btn" onClick={() => setHome(true)} title={tx('Главный экран: новый проект, мои проекты, демо, шаблоны')}><LogoMark />Kadro</button>
@@ -33,6 +35,10 @@ export function TopBar() {
       />
       <span className="saved-state">{dirty ? (path ? tx('Есть несохранённые изменения') : tx('Черновик сохраняется автоматически')) : path ? tx('Сохранено') : ''}</span>
       <div className="spacer" />
+      <div className="mode-switch" title={tx('Простой режим — только главное. «Про» — все инструменты: ключевые кадры, маски, кривые, группы, маркеры')}>
+        <Seg value={uiMode} onChange={(v) => getState().setUiMode(v)} testId="ui-mode"
+          options={[{ value: 'simple', label: tx('Простой') }, { value: 'pro', label: tx('Про') }]} />
+      </div>
       <button className="btn ghost small search-btn" title={tx('Поиск по всему: эффекты, переходы, фильтры, команды (Ctrl+K)')} onClick={() => getState().setSearchOpen(true)} data-testid="topbar-search"><Search size={14} />{tx('Поиск')}<kbd>Ctrl+K</kbd></button>
       <button className="btn ghost small" title={tx('{0}. Нажми, чтобы переключить: тёмная → светлая → как в Windows', th.label)}
         onClick={() => setThemePref(th.next)} data-testid="theme-btn">{th.icon}{th.short}</button>

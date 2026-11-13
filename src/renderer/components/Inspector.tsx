@@ -26,6 +26,7 @@ import { ColorField, Field, FontPicker, KeyButton, Seg, Slider, Toggle } from '.
 import { AiTools, textPreviewStyle } from './LeftPanel';
 import { CurvesPanel, HslPanel, LutPanel, MatchColor } from './GradeTab';
 import { HideTab } from './HideTab';
+import { showsInMode } from '../../shared/uiMode';
 import { Photo3dTab } from './Photo3dTab';
 
 export function Inspector() {
@@ -218,7 +219,8 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   const commit = useStore((s) => s.commit);
   const isAudio = asset?.kind === 'audio';
   const isImage = asset?.kind === 'image';
-  const tabs: { id: MTab; label: string }[] = isAudio
+  const uiMode = useStore((s) => s.uiMode);
+  const allTabs: { id: MTab; label: string }[] = isAudio
     ? [{ id: 'audio', label: tx('Звук') }, { id: 'speed', label: tx('Скорость') }]
     : [
       { id: 'basic', label: tx('Кадр') }, { id: 'anim', label: tx('Анимация') }, { id: 'color', label: tx('Цвет') }, { id: 'mask', label: tx('Маска') },
@@ -229,6 +231,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
       ...(asset?.hasAudio ? [{ id: 'audio' as MTab, label: tx('Звук') }] : []),
       ...(!isImage ? [{ id: 'ai' as MTab, label: tx('ИИ') }] : []),
     ];
+  const tabs = allTabs.filter((t) => showsInMode(uiMode, 'inspector', t.id));
   const [tab, setTab] = useState<MTab>(() => (lastMediaTab && tabs.some((t) => t.id === lastMediaTab) ? lastMediaTab : tabs[0].id));
   useEffect(() => { lastMediaTab = tab; }, [tab]);
   const [colorSub, setColorSub] = useState<ColorSub>(lastColorSub);
@@ -312,17 +315,17 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
             <p className="hint small">{tx('Новые эффекты — в разделе «Эффекты» слева, наведи мышь, чтобы посмотреть. Шейдеры и свои плагины — там же, «Шейдеры» и «Плагины».')}</p>
           </>
         )}
-        {cur === 'color' && (
+        {cur === 'color' && uiMode === 'pro' && (
           <div style={{ marginBottom: 6 }}>
             <Seg value={colorSub} onChange={setColorSub} options={[
               { value: 'basic', label: tx('Основное') }, { value: 'curves', label: tx('Кривые') }, { value: 'hsl', label: 'HSL' }, { value: 'lut', label: 'LUT' },
             ]} />
           </div>
         )}
-        {cur === 'color' && colorSub === 'curves' && <CurvesPanel clip={clip} />}
-        {cur === 'color' && colorSub === 'hsl' && <HslPanel clip={clip} />}
-        {cur === 'color' && colorSub === 'lut' && <LutPanel clip={clip} />}
-        {cur === 'color' && colorSub === 'basic' && (
+        {cur === 'color' && uiMode === 'pro' && colorSub === 'curves' && <CurvesPanel clip={clip} />}
+        {cur === 'color' && uiMode === 'pro' && colorSub === 'hsl' && <HslPanel clip={clip} />}
+        {cur === 'color' && uiMode === 'pro' && colorSub === 'lut' && <LutPanel clip={clip} />}
+        {cur === 'color' && (colorSub === 'basic' || uiMode === 'simple') && (
           <>
             <Field label={tx('Фильтр')}>
               <select className="input" value={c.preset} onChange={(e) => up({ color: { ...c, preset: e.target.value, presetAmount: 1 } }, 'preset')}>

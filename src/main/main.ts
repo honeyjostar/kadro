@@ -45,6 +45,8 @@ import { stabilize } from './ai/stab';
 import { freezeFrame, retime } from './retime';
 import { beautify } from './ai/beauty';
 import { listVersions, readVersion, snapshot } from './versions';
+import { SURVEY_COUNTER } from '../shared/survey';
+import { netFetch } from './ai/download';
 import { fastEnhance } from './ai/enhance';
 import { enhanceTarget } from '../shared/enhance';
 import { ffmpegToBuffer, runFfmpeg } from './ffrun';
@@ -772,6 +774,11 @@ function registerIpc(): void {
     return r.canceled ? [] : r.filePaths;
   });
   ipcMain.handle('media:import', (_e, paths: string[]) => importMedia(paths));
+  ipcMain.handle('survey:hit', async (_e, url: string) => {
+    // только счётчик Kadro на GoatCounter — никаких других адресов
+    if (!SURVEY_COUNTER || !url.startsWith(`https://${SURVEY_COUNTER}.goatcounter.com/count?`)) return;
+    try { await netFetch()(url, {}); } catch (e) { log('survey hit failed', e); }
+  });
   ipcMain.handle('version:snapshot', (_e, project: Project) => { try { return snapshot(project); } catch (e) { log('snapshot failed', e); return false; } });
   ipcMain.handle('version:list', (_e, p: { createdAt: number }) => listVersions(p));
   ipcMain.handle('version:read', (_e, file: string) => readVersion(file));

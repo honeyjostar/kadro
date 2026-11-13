@@ -1,5 +1,6 @@
-// Приветствие при первом запуске, три шага:
+// Приветствие при первом запуске, четыре шага:
 // 1) язык и тема — язык угадан по Windows; другой язык — перезапуск уже на нём, окно покажется снова;
+// 1½) о тебе — уровень (новичку — простой режим), что монтируешь (подсказывает формат), откуда узнал; всё необязательно;
 // 2) основной формат роликов — подсвечен на главном экране и по умолчанию в авто-ролике и ролике по сценарию;
 // 3) компьютер и ИИ — видеокарта кодирует или нет (кнопка драйвера), модели ИИ скачать заранее.
 // «Начать» (или «Пропустить») — больше не показывается; модели качаются в фоне, прогресс — в правом нижнем углу.
@@ -14,6 +15,8 @@ import { api, getState, useStore } from '../store';
 import { Seg } from './controls';
 import { LogoMark } from './Home';
 import { HardwareSection } from './Settings';
+import { formatFor, SURVEY_COUNTER, surveyHits, type About, type EditKind, type Source } from '../../shared/survey';
+import { modeForLevel, type Level } from '../../shared/uiMode';
 
 /** Подписи первого шага — на обоих языках сразу: понятны до выбора. */
 const BOTH = { title: 'Добро пожаловать в Kadro · Welcome to Kadro', pick: 'Выбери язык · Choose your language' }; // i18n-data: на обоих языках сразу
@@ -23,6 +26,22 @@ const FORMATS: { aspect: AspectKey; title: string; where: string }[] = [
   { aspect: '1:1', title: tx('Квадрат'), where: tx('пост в ленту') },
   { aspect: '4:5', title: tx('Портрет'), where: 'Instagram, Telegram' },
 ];
+const LEVELS: { id: Level; title: string; hint: string }[] = [
+  { id: 'new', title: tx('Впервые'), hint: tx('Только начинаю — покажи главное') },
+  { id: 'some', title: tx('Уже монтировал'), hint: tx('В CapCut, InShot или похожих') },
+  { id: 'pro', title: tx('Профи'), hint: tx('Premiere, DaVinci, After Effects') },
+];
+const EDITS: { id: EditKind; label: string }[] = [
+  { id: 'shorts', label: tx('Шортсы, TikTok, Reels') }, { id: 'youtube', label: tx('Видео для YouTube') }, { id: 'games', label: tx('Игры и стримы') },
+  { id: 'family', label: tx('Семья и путешествия') }, { id: 'work', label: tx('Работа и бизнес') }, { id: 'study', label: tx('Учёба') }, { id: 'other', label: tx('Другое') },
+];
+const SOURCES: { id: Source; label: string }[] = [
+  { id: 'tiktok', label: 'TikTok' }, { id: 'youtube', label: 'YouTube' }, { id: 'telegram', label: 'Telegram' }, { id: 'vk', label: tx('ВКонтакте') },
+  { id: 'friends', label: tx('Друзья') }, { id: 'search', label: tx('Поиск') }, { id: 'github', label: 'GitHub' }, { id: 'other', label: tx('Другое') },
+];
+const ABOUT_KEY = 'kadro.about';
+function readAbout(): About { try { return { edit: [], ...(JSON.parse(localStorage.getItem(ABOUT_KEY) ?? '{}') as Partial<About>) }; } catch { return { edit: [] }; } }
+function writeAbout(a: About): void { try { localStorage.setItem(ABOUT_KEY, JSON.stringify(a)); } catch { /* не страшно */ } }
 const shape = (a: AspectKey) => { const { w, h } = ASPECTS[a]; const k = 40 / Math.max(w, h); return { width: w * k, height: h * k }; };
 
 export function Welcome({ onDone }: { onDone: () => void }) {
@@ -48,6 +67,7 @@ export function Welcome({ onDone }: { onDone: () => void }) {
   };
   const finish = (withModels: boolean) => {
     void api.welcomeDone().then(onDone);
+    for (const url of surveyHits(about)) void api.surveyHit(url).catch(() => undefined);
     // новичку — «Первый ролик за 3 шага» (скрыть можно крестиком, вернуть — в настройках)
     if (!getState().coach) getState().setCoach('active');
     if (!withModels) return;
@@ -57,7 +77,17 @@ export function Welcome({ onDone }: { onDone: () => void }) {
       if (wantVoice && voice && !voice.ready) await ensureVoice(voice.id);
     })();
   };
-  const steps = [tx('Язык и тема'), tx('Формат'), tx('Компьютер и ИИ')];
+  const steps = [tx('Язык и тема'), tx('О тебе'), tx('Формат'), tx('Компьютер и ИИ')];
+  const [about, setAbout] = useState<About>(() => readAbout());
+  const uiMode = useStore((s) => s.uiMode);
+  const saveAbout = (a: About) => { setAbout(a); writeAbout(a); };
+  const next = () => {
+    if (step === 1) {
+      const f = formatFor(about.edit);
+      if (f) getState().setDefaultFormat(f);
+    }
+    setStep(step + 1);
+  };
   return (
     <div className="modal-back welcome-back">
       <div className="modal welcome-modal" role="dialog" aria-label={BOTH.title} data-testid="welcome" data-step={step}>
@@ -92,6 +122,45 @@ export function Welcome({ onDone }: { onDone: () => void }) {
 
         {step === 1 && (
           <>
+            <h3>{tx('Немного о тебе')}</h3>
+            <p className="hint">{tx('Можно ничего не выбирать. Ответы остаются на этом компьютере — по ним Kadro подстроится под тебя.')}</p>
+            <div className="section-title">{tx('Ты монтируешь…')}</div>
+            <div className="welcome-levels" data-testid="welcome-level">
+              {LEVELS.map((l) => (
+                <button key={l.id} className={`welcome-card ${about.level === l.id ? 'active' : ''}`} data-testid={`welcome-level-${l.id}`}
+                  onClick={() => { saveAbout({ ...about, level: l.id }); getState().setUiMode(modeForLevel(l.id)); }}>
+                  <span className="welcome-card-name">{l.title}</span>
+                  <span className="hint small">{l.hint}</span>
+                </button>
+              ))}
+            </div>
+            {about.level && <p className="hint small" data-testid="welcome-mode">{uiMode === 'simple' ? tx('Включён простой режим: только главное. «Про» — переключатель вверху окна.') : tx('Включён режим «Про»: все инструменты.')}</p>}
+            <div className="section-title">{tx('Что будешь монтировать')}</div>
+            <div className="welcome-chips" data-testid="welcome-edit">
+              {EDITS.map((e) => {
+                const on = about.edit.includes(e.id);
+                return <button key={e.id} className={`chip ${on ? 'on' : ''}`} aria-pressed={on} data-testid={`welcome-edit-${e.id}`}
+                  onClick={() => saveAbout({ ...about, edit: on ? about.edit.filter((x) => x !== e.id) : [...about.edit, e.id] })}>{e.label}</button>;
+              })}
+            </div>
+            <div className="section-title">{tx('Откуда узнал о Kadro')}</div>
+            <div className="welcome-chips" data-testid="welcome-source">
+              {SOURCES.map((x) => (
+                <button key={x.id} className={`chip ${about.source === x.id ? 'on' : ''}`} aria-pressed={about.source === x.id} data-testid={`welcome-source-${x.id}`}
+                  onClick={() => saveAbout({ ...about, source: about.source === x.id ? undefined : x.id })}>{x.label}</button>
+              ))}
+            </div>
+            {SURVEY_COUNTER && (
+              <label className="welcome-check" data-testid="welcome-consent">
+                <input type="checkbox" checked={!!about.consent} onChange={(e) => saveAbout({ ...about, consent: e.target.checked })} />
+                <span>{tx('Отправить эти ответы анонимно, чтобы Kadro понимал, кому он нужен (без имени, почты и cookies)')}</span>
+              </label>
+            )}
+          </>
+        )}
+
+        {step === 2 && (
+          <>
             <h3>{tx('Что чаще монтируешь?')}</h3>
             <p className="hint">{tx('Этот формат будет подсвечен на главном экране и выбран сразу в авто-ролике и ролике по сценарию. Любой проект можно сделать в любом формате.')}</p>
             <div className="welcome-formats">
@@ -108,7 +177,7 @@ export function Welcome({ onDone }: { onDone: () => void }) {
           </>
         )}
 
-        {step === 2 && (
+        {step === 3 && (
           <>
             <h3>{tx('Твой компьютер и ИИ')}</h3>
             <div className="welcome-hw"><HardwareSection /></div>
@@ -137,7 +206,7 @@ export function Welcome({ onDone }: { onDone: () => void }) {
             : <button className="btn ghost" onClick={() => setStep(step - 1)} data-testid="welcome-back">{tx('Назад')}</button>}
           <span className="hint small welcome-later">{tx('Всё это можно поменять потом в «Настройки».')}</span>
           {step < steps.length - 1
-            ? <button className="btn primary" onClick={() => setStep(step + 1)} disabled={!!switching} data-testid="welcome-next">{tx('Далее')}</button>
+            ? <button className="btn primary" onClick={next} disabled={!!switching} data-testid="welcome-next">{tx('Далее')}</button>
             : <button className="btn primary" onClick={() => finish(true)} data-testid="welcome-go">{tx('Начать')}</button>}
         </div>
       </div>

@@ -134,9 +134,13 @@ function Ruler({ pps, view, width, onScrub, timeAt }: { pps: number; view: View;
 }
 
 // ---------- кнопка панели: значок и подпись ----------
-function Tool({ icon, label, title, onClick, disabled, on, testId, className }: {
+function Tool({ icon, label, title, onClick, disabled, on, testId, className, pro }: {
   icon: ReactNode; label: string; title: string; onClick: () => void; disabled?: boolean; on?: boolean; testId?: string; className?: string;
+  /** только в режиме «Про» */
+  pro?: boolean;
 }) {
+  const simple = useStore((s) => s.uiMode === 'simple');
+  if (pro && simple) return null;
   return (
     <button className={`tool ${on ? 'on' : ''} ${className ?? ''}`} title={title} onClick={onClick} disabled={disabled} data-testid={testId}>
       {icon}<span>{label}</span>
@@ -752,22 +756,22 @@ export function Timeline() {
         <Tool icon={<Trash2 size={17} />} label={tx('Удалить')} title={tx('Удалить выделенное (Delete)')} onClick={deleteSelection} disabled={!selection.length} testId="delete" />
         <Tool icon={<Copy size={17} />} label={tx('Копия')} title={tx('Сделать копию выделенного клипа (Ctrl+D)')} onClick={duplicateSelection} disabled={selection.length !== 1} testId="duplicate" />
         {selClip?.group && selection.length === 1
-          ? <Tool icon={<Ungroup size={17} />} label={tx('Разгруппировать')} title={tx('Разобрать группу обратно на клипы (Ctrl+Shift+G)')} onClick={ungroupSelection} testId="tl-ungroup" />
-          : <Tool icon={<Group size={17} />} label={tx('Группа')} title={tx('Склеить выделенные клипы в одну группу — выдели несколько с Ctrl (Ctrl+G)')} onClick={() => void groupSelection()} disabled={selection.length < 2} testId="tl-group" />}
+          ? <Tool icon={<Ungroup size={17} />} label={tx('Разгруппировать')} title={tx('Разобрать группу обратно на клипы (Ctrl+Shift+G)')} onClick={ungroupSelection} testId="tl-ungroup" pro />
+          : <Tool icon={<Group size={17} />} label={tx('Группа')} title={tx('Склеить выделенные клипы в одну группу — выдели несколько с Ctrl (Ctrl+G)')} onClick={() => void groupSelection()} disabled={selection.length < 2} testId="tl-group" pro />}
         <Tool icon={<Bookmark size={17} />} label={tx('Маркер')} title={tx('Поставить маркер там, где линия времени (M). Shift+M — к следующему, Ctrl+Shift+M — к предыдущему. Из маркеров получаются главы для YouTube')}
-          onClick={() => addMarkerAtPlayhead()} testId="tl-marker" />
-        <Tool icon={<Snowflake size={17} />} label={tx('Стоп-кадр')} title={tx('Остановить кадр там, где розовая линия времени')} onClick={() => void freezeFrame()} disabled={noClips} testId="tl-freeze" />
+          onClick={() => addMarkerAtPlayhead()} testId="tl-marker" pro />
+        <Tool icon={<Snowflake size={17} />} label={tx('Стоп-кадр')} title={tx('Остановить кадр там, где розовая линия времени')} onClick={() => void freezeFrame()} disabled={noClips} testId="tl-freeze" pro />
         <Tool icon={<Rewind size={17} />} label={tx('Реверс')} title={tx('Проиграть выделенный клип задом наперёд')} on={!!selClip?.retime?.reverse} disabled={!selClip || sel?.asset?.kind === 'image'}
-          onClick={() => selClip && void retimeClip(selClip.id, { reverse: !selClip.retime?.reverse })} testId="tl-reverse" />
+          onClick={() => selClip && void retimeClip(selClip.id, { reverse: !selClip.retime?.reverse })} testId="tl-reverse" pro />
         <Tool icon={<AudioLines size={17} />} label={tx('Звук отдельно')} title={tx('Извлечь звук видео на отдельную аудиодорожку (у видео звук выключится)')}
-          disabled={!selClip || !sel?.asset?.hasAudio || sel.asset.kind === 'audio'} onClick={() => selClip && void extractAudio(selClip.id)} testId="tl-extract" />
+          disabled={!selClip || !sel?.asset?.hasAudio || sel.asset.kind === 'audio'} onClick={() => selClip && void extractAudio(selClip.id)} testId="tl-extract" pro />
         <Tool icon={<Mic size={17} />} label={recording ? tx('Стоп') : tx('Голос')} title={recording ? tx('Остановить запись голоса') : tx('Записать голос с микрофона от розовой линии времени')} className={recording ? 'rec-on' : ''} testId="tl-rec"
           onClick={() => { if (recording) void stopRecording(); else { getState().setLeftTab('audio'); void startRecording(recPrefs.mic, recPrefs.mute); } }} />
         <span className="sep" />
         <Tool icon={<Wand2 size={17} />} label={tx('Убрать паузы')} title={tx('Вырезать тишину между фразами в выделенном клипе')} disabled={!canPauses}
           onClick={() => selClip && void removePauses(selClip.id)} />
         <Tool icon={<Activity size={17} />} label={tx('Под бит')} title={tx('Подогнать склейки основной дорожки под доли такта музыки (сначала найди ритм во вкладке «Аудио»)')} disabled={!hasBeats}
-          onClick={() => alignToBeats()} testId="tl-beats" />
+          onClick={() => alignToBeats()} testId="tl-beats" pro />
         <Tool icon={<ScanEye size={17} />} label={tx('Где пролистнут')} title={tx('Посмотреть ролик глазами TikTok: где зритель скорее всего смахнёт дальше — и как это исправить')}
           disabled={noClips || retBusy} onClick={() => { setRetBusy(true); void checkRetention().finally(() => setRetBusy(false)); }} testId="tl-retention" />
         <Tool icon={<Blend size={17} />} label={tx('Переход')} title={tx('Выбрать переход для стыка двух клипов')} disabled={!junction && !(selClip && sel?.track.kind === 'main')}

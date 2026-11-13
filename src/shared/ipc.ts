@@ -121,6 +121,8 @@ export interface KadroApi {
   saveProject(project: Project, path?: string | null): Promise<string | null>;
   /** Версии проекта: снять (если изменился), список, прочитать. */
   versionSnapshot(project: Project): Promise<boolean>;
+  /** Анонимный счётчик ответов знакомства (только с согласия, адрес — из surveyHits). */
+  surveyHit(url: string): Promise<void>;
   versionList(project: Project): Promise<import('./versions').VersionInfo[]>;
   versionRead(file: string): Promise<Project>;
   /** Открыть проект или видео: { media } — выбрали видео, фото, звук (не проект). */

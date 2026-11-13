@@ -2,7 +2,7 @@ import { tx } from '../../shared/i18n';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FONT_CATS, FONTS, type FontCat } from '../../shared/defaults';
 import { FileUp, FolderOpen, Trash2, TriangleAlert } from 'lucide-react';
-import { api, getState } from '../store';
+import { api, getState, useStore } from '../store';
 import { ensureFamily, findFamily, loadSystemFonts, reportFontInstall, useFonts, type FontFamily } from '../userFonts';
 
 export function Slider(props: {
@@ -78,6 +78,8 @@ export function useLocal<T>(initial: T): [T, (v: T) => void] {
 
 /** Ромбик ключевого кадра: пустой — свойство не анимировано, контур — анимировано, залитый — ключ в этом моменте. */
 export function KeyButton({ state, onClick, testId }: { state: 'none' | 'animated' | 'here'; onClick: () => void; testId?: string }) {
+  const simple = useStore((s) => s.uiMode === 'simple');
+  if (simple && state === 'none') return null; // ключевые кадры — в режиме «Про» (уже анимированное видно всегда)
   const title = state === 'here' ? tx('Убрать ключ в этом моменте') : tx('Поставить ключ — свойство начнёт меняться во времени');
   return (
     <button className={`key-btn ${state}`} onClick={onClick} title={title} data-testid={testId} aria-label={title}>

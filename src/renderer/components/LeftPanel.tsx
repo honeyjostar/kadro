@@ -1,4 +1,5 @@
 import { tx } from '../../shared/i18n';
+import { showsInMode } from '../../shared/uiMode';
 import { txj } from '../txj';
 import {
   Clapperboard,
@@ -72,9 +73,10 @@ export function Rail() {
   const wide = useStore((s) => s.wide);
   const setWide = useStore((s) => s.setWide);
   const textEdit = useStore((s) => s.textEditOpen);
+  const uiMode = useStore((s) => s.uiMode);
   return (
     <nav className="rail" aria-label={tx('Разделы')}>
-      {TABS.map((t) => (
+      {TABS.filter((t) => showsInMode(uiMode, 'rail', t.id)).map((t) => (
         <button key={t.id} className={tab === t.id && !wide && !textEdit ? 'active' : ''} onClick={() => { setTab(t.id); if (wide) setWide(false); if (textEdit) getState().setTextEditOpen(false); }} data-testid={`tab-${t.id}`}>
           {t.icon}<span>{t.label}</span>
         </button>

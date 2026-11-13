@@ -23,6 +23,7 @@ const api: KadroApi = {
   pathForFile: (f) => webUtils.getPathForFile(f),
   saveProject: (project, path) => ipcRenderer.invoke('project:save', project, path ?? null),
   versionSnapshot: (project) => ipcRenderer.invoke('version:snapshot', project),
+  surveyHit: (url) => ipcRenderer.invoke('survey:hit', url),
   versionList: (project) => ipcRenderer.invoke('version:list', { createdAt: project.createdAt }),
   versionRead: (file) => ipcRenderer.invoke('version:read', file),
   openProject: () => ipcRenderer.invoke('project:open'),

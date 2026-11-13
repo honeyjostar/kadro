@@ -1,4 +1,5 @@
-// Первый запуск: приветствие в три шага — язык и тема, основной формат, компьютер и модели ИИ.
+// Первый запуск: приветствие в четыре шага — язык и тема, о тебе (уровень, что монтируешь, откуда узнал), основной формат,
+// компьютер и модели ИИ.
 // Язык угадан по системе и запоминается сразу; выбранное сохраняется; после «Начать» окно больше не показывается;
 // у тех, кто уже пользовался Kadro, его нет.
 import fs from 'node:fs';
@@ -41,7 +42,19 @@ test('тема, формат, компьютер и модели ИИ — и б�
   await win.getByTestId('welcome-theme').locator('[data-value=light]').click();
   await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
   await win.getByTestId('welcome-next').click();
-  // шаг 2: формат — подсвечен на главном экране
+  // шаг 2: о тебе — новичку простой режим; «Видео для YouTube» подсказывает формат 16:9; согласия на отправку нет (счётчик не задан)
+  await expect(win.getByTestId('welcome')).toHaveAttribute('data-step', '1');
+  await win.getByTestId('welcome-level-new').click();
+  await expect(win.getByTestId('welcome-mode')).toContainText('простой режим');
+  await win.getByTestId('welcome-edit-youtube').click();
+  await win.getByTestId('welcome-edit-games').click();
+  await win.getByTestId('welcome-edit-games').click();
+  await expect(win.getByTestId('welcome-edit-games')).not.toHaveClass(/on/);
+  await win.getByTestId('welcome-source-tiktok').click();
+  await expect(win.getByTestId('welcome-consent')).toHaveCount(0);
+  await win.getByTestId('welcome-next').click();
+  // шаг 3: формат — уже 16:9 (по ответу), подсвечен на главном экране
+  await expect(win.getByTestId('welcome-format-16-9')).toHaveClass(/active/);
   await win.getByTestId('welcome-format-16-9').click();
   await expect(win.getByTestId('welcome-format-16-9')).toHaveClass(/active/);
   await expect(win.getByTestId('home-new-16-9')).toHaveClass(/preferred/);
@@ -51,11 +64,14 @@ test('тема, формат, компьютер и модели ИИ — и б�
   await expect(win.getByTestId('hw-enc-nvenc')).toHaveClass(/ok/);
   await expect(win.getByTestId('welcome-asr')).toBeVisible();
   await win.getByTestId('welcome-back').click();
-  await expect(win.getByTestId('welcome')).toHaveAttribute('data-step', '1');
+  await expect(win.getByTestId('welcome')).toHaveAttribute('data-step', '2');
   await win.getByTestId('welcome-next').click();
   await win.getByTestId('welcome-go').click();
   await expect(win.getByTestId('welcome')).toHaveCount(0);
   expect(settings(data)).toMatchObject({ welcome: 'done', format: '16:9', theme: 'light' });
+  const about = await win.evaluate(() => JSON.parse(localStorage.getItem('kadro.about') ?? '{}'));
+  expect(about).toEqual({ edit: ['youtube'], level: 'new', source: 'tiktok' });
+  await expect(win.getByTestId('ui-mode').locator('[data-value=simple]')).toHaveClass(/active/);
   await K.app.close();
   // повторный запуск: окна нет, новый проект — сразу 16:9, ролик по сценарию — 16:9
   K = await launch({ data, env: { KADRO_SKIP_WELCOME: '' } });

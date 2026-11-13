@@ -1,4 +1,5 @@
 // Состояние редактора: проект, история (отмена/повтор), выделение, плейхед, задачи ИИ, уведомления.
+import type { UiMode } from '../shared/uiMode';
 import { create } from 'zustand';
 import { newProject } from '../shared/defaults';
 import type { DemoFiles, KadroApi, ThemePref } from '../shared/ipc';
@@ -51,6 +52,9 @@ interface State {
   toasts: Toast[];
   exportOpen: boolean;
   tlHeight: number;
+  /** простой режим (новичку — только главное) или «Про» (все инструменты) */
+  uiMode: UiMode;
+  setUiMode: (m: UiMode) => void;
   /** Боковые панели спрятаны — плеер шире (Ctrl+\\). */
   wide: boolean;
   /** Открыт поиск по всему (Ctrl+K). */
@@ -228,6 +232,8 @@ export const useStore = create<State>((set, get) => ({
   toasts: [],
   exportOpen: false,
   tlHeight: readPref<number>('kadro.tlHeight', 300),
+  uiMode: readPref<UiMode>('kadro.uiMode', 'pro'),
+  setUiMode: (uiMode) => { writePref('kadro.uiMode', uiMode); set({ uiMode }); },
   wide: readPref<boolean>('kadro.wide', false),
   searchOpen: false,
   coverOpen: false,
