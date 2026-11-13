@@ -129,6 +129,7 @@ Var Logo
 Var Bar
 Var Status
 Var Started
+Var Ticks
 
 Function .onInit
   InitPluginsDir
@@ -136,6 +137,7 @@ Function .onInit
   File "/oname=$PLUGINSDIR\\logo.bmp" "logo.bmp"
   StrCpy $KLang "en"
   StrCpy $Started "0"
+  StrCpy $Ticks "0"
   ; русский, украинский, белорусский, казахский Windows — по-русски
   System::Call 'kernel32::GetUserDefaultUILanguage() i .r9'
   \${If} $9 == 1049
@@ -214,6 +216,15 @@ FunctionEnd
 
 Function OnTick
   IfFileExists "$PLUGINSDIR\\done.txt" finished
+  ; PowerShell не запустился (запрещён политикой и т. п.) — через минуту без ответа сдаёмся
+  IntOp $Ticks $Ticks + 1
+  \${If} $Ticks > 200
+  \${AndIfNot} \${FileExists} "$PLUGINSDIR\\size.txt"
+    FileOpen $0 "$PLUGINSDIR\\done.txt" w
+    FileWrite $0 "error: PowerShell did not start"
+    FileClose $0
+    Goto finished
+  \${EndIf}
   ClearErrors
   FileOpen $0 "$PLUGINSDIR\\size.txt" r
   IfErrors tickEnd
