@@ -84,6 +84,23 @@ test('тема, формат, компьютер и модели ИИ — и б�
   await K.app.close();
 });
 
+test('ответы из установщика: «О тебе» второй раз не спрашивается, новичку — простой режим, шортсам — 9:16', async () => {
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-welcome-inst-'));
+  // так пишет установщик (scripts/installer-about.mjs)
+  fs.writeFileSync(path.join(data, 'settings.json'), '{"lang": "ru", "welcome": "pending", "about": {"edit": ["shorts", "games", "bogus"], "level": "new", "source": "telegram", "from": "installer"}}');
+  const K = await launch({ data, env: { KADRO_SKIP_WELCOME: '', KADRO_LANG: '' } });
+  const win = K.win;
+  await expect(win.getByTestId('welcome')).toBeVisible();
+  await expect(win.locator('.welcome-steps span')).toHaveCount(3);
+  await win.getByTestId('welcome-next').click();
+  await expect(win.getByTestId('welcome-level')).toHaveCount(0);
+  await expect(win.getByTestId('welcome-format-9-16')).toHaveClass(/active/);
+  await expect(win.getByTestId('ui-mode').locator('[data-value=simple]')).toHaveClass(/active/);
+  const about = await win.evaluate(() => JSON.parse(localStorage.getItem('kadro.about') ?? '{}'));
+  expect(about).toEqual({ edit: ['shorts', 'games'], level: 'new', source: 'telegram', from: 'installer' });
+  await K.app.close();
+});
+
 test('уже пользовались Kadro (настройки есть) — приветствия нет', async () => {
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-welcome-old-'));
   fs.writeFileSync(path.join(data, 'settings.json'), JSON.stringify({ lang: 'ru', recent: [] }));

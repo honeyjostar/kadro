@@ -17,6 +17,7 @@ import { LogoMark } from './Home';
 import { HardwareSection } from './Settings';
 import { formatFor, SURVEY_COUNTER, surveyHits, type About, type EditKind, type Source } from '../../shared/survey';
 import { modeForLevel, type Level } from '../../shared/uiMode';
+import { readAbout, writeAbout } from '../about';
 
 /** Подписи первого шага — на обоих языках сразу: понятны до выбора. */
 const BOTH = { title: 'Добро пожаловать в Kadro · Welcome to Kadro', pick: 'Выбери язык · Choose your language' }; // i18n-data: на обоих языках сразу
@@ -39,9 +40,6 @@ const SOURCES: { id: Source; label: string }[] = [
   { id: 'tiktok', label: 'TikTok' }, { id: 'youtube', label: 'YouTube' }, { id: 'telegram', label: 'Telegram' }, { id: 'vk', label: tx('ВКонтакте') },
   { id: 'friends', label: tx('Друзья') }, { id: 'search', label: tx('Поиск') }, { id: 'github', label: 'GitHub' }, { id: 'other', label: tx('Другое') },
 ];
-const ABOUT_KEY = 'kadro.about';
-function readAbout(): About { try { return { edit: [], ...(JSON.parse(localStorage.getItem(ABOUT_KEY) ?? '{}') as Partial<About>) }; } catch { return { edit: [] }; } }
-function writeAbout(a: About): void { try { localStorage.setItem(ABOUT_KEY, JSON.stringify(a)); } catch { /* не страшно */ } }
 const shape = (a: AspectKey) => { const { w, h } = ASPECTS[a]; const k = 40 / Math.max(w, h); return { width: w * k, height: h * k }; };
 
 export function Welcome({ onDone }: { onDone: () => void }) {
@@ -77,12 +75,16 @@ export function Welcome({ onDone }: { onDone: () => void }) {
       if (wantVoice && voice && !voice.ready) await ensureVoice(voice.id);
     })();
   };
-  const steps = [tx('Язык и тема'), tx('О тебе'), tx('Формат'), tx('Компьютер и ИИ')];
+  // «О тебе» уже спросил установщик — второй раз не спрашиваем
+  const askAbout = !api.aboutFromInstaller;
+  const order = askAbout ? (['lang', 'about', 'format', 'hw'] as const) : (['lang', 'format', 'hw'] as const);
+  const page: (typeof order)[number] = order[step];
+  const steps = order.map((k) => ({ lang: tx('Язык и тема'), about: tx('О тебе'), format: tx('Формат'), hw: tx('Компьютер и ИИ') })[k]);
   const [about, setAbout] = useState<About>(() => readAbout());
   const uiMode = useStore((s) => s.uiMode);
   const saveAbout = (a: About) => { setAbout(a); writeAbout(a); };
   const next = () => {
-    if (step === 1) {
+    if (page === 'about') {
       const f = formatFor(about.edit);
       if (f) getState().setDefaultFormat(f);
     }
@@ -98,7 +100,7 @@ export function Welcome({ onDone }: { onDone: () => void }) {
           </div>
         </div>
 
-        {step === 0 && (
+        {page === 'lang' && (
           <>
             <h3>{BOTH.title}</h3>
             <p className="hint">{tx('Бесплатный видеоредактор для Windows: без подписок, водяных знаков и регистрации.')}</p>
@@ -120,7 +122,7 @@ export function Welcome({ onDone }: { onDone: () => void }) {
           </>
         )}
 
-        {step === 1 && (
+        {page === 'about' && (
           <>
             <h3>{tx('Немного о тебе')}</h3>
             <p className="hint">{tx('Можно ничего не выбирать. Ответы остаются на этом компьютере — по ним Kadro подстроится под тебя.')}</p>
@@ -159,7 +161,7 @@ export function Welcome({ onDone }: { onDone: () => void }) {
           </>
         )}
 
-        {step === 2 && (
+        {page === 'format' && (
           <>
             <h3>{tx('Что чаще монтируешь?')}</h3>
             <p className="hint">{tx('Этот формат будет подсвечен на главном экране и выбран сразу в авто-ролике и ролике по сценарию. Любой проект можно сделать в любом формате.')}</p>
@@ -177,7 +179,7 @@ export function Welcome({ onDone }: { onDone: () => void }) {
           </>
         )}
 
-        {step === 3 && (
+        {page === 'hw' && (
           <>
             <h3>{tx('Твой компьютер и ИИ')}</h3>
             <div className="welcome-hw"><HardwareSection /></div>

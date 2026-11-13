@@ -149,7 +149,8 @@ FFmpeg — стабильная ветка 8.1, а не `master`: в сборк�
 ## Веб-установщик
 
 `node scripts/pack-web-setup.mjs` (нужен `makensis` с 64-битными заготовками — пакет `nsis` в Ubuntu) собирает
-`release/Kadro-Web-Setup.exe` (~150 КБ). Он показывает выбор языка Kadro, скачивает последний `Kadro-Setup-*.exe`
+`release/Kadro-Web-Setup.exe` (~150 КБ). Он показывает выбор языка Kadro, страницу «О тебе» (уровень, что монтируешь,
+откуда узнал — `scripts/installer-about.mjs`, та же страница есть и в полном установщике), скачивает последний `Kadro-Setup-*.exe`
 из релизов GitHub, сверяет SHA-256 по `SHA256SUMS.txt` того же релиза и запускает его с `/UPDATE` (только полоска
 установки, потом Kadro открывается сам). Язык записывается в `%USERPROFILE%\.kadro\settings.json`, только если Kadro
 тут ещё не запускали. Скачивание — PowerShell (есть в любой Windows 10/11). Всегда берёт последний релиз, поэтому

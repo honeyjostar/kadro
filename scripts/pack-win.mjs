@@ -1,6 +1,7 @@
 // Сборка Kadro под Windows x64 на Linux: папка программы + установщик NSIS.
 // Нужны: dist/ (npm run build), zip Electron для win32-x64, zip FFmpeg (BtbN, win64-gpl-shared), makensis.
 //   node scripts/pack-win.mjs --electron <electron-win32-x64.zip> --ffmpeg <ffmpeg-win64-gpl-shared.zip> [--portable]
+import { aboutNsh } from './installer-about.mjs';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -210,6 +211,7 @@ SetCompressorDictSize 64
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
 !include "LogicLib.nsh"
+!include "nsDialogs.nsh"
 !define APP "Kadro"
 !define VER "${pkg.version}"
 !define UNINST "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Kadro"
@@ -249,6 +251,8 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 ; потом сразу открывается новый Kadro
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipOnUpdate
 !insertmacro MUI_PAGE_WELCOME
+; «О тебе»: язык Kadro, уровень, что монтируешь, откуда узнал (только новым — где Kadro ещё не запускали)
+Page custom AboutShow AboutLeave
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipOnUpdate
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE DirLeave
 !insertmacro MUI_PAGE_DIRECTORY
@@ -283,6 +287,8 @@ LangString ProjType \${LANG_RUSSIAN} "Проект Kadro"
 LangString MediaType \${LANG_ENGLISH} "Media file"
 LangString MediaType \${LANG_RUSSIAN} "Медиафайл"
 
+${aboutNsh({ withLang: true })}
+
 Var UPDATE
 Function .onInit
   ; украинский, белорусский, казахский Windows — установщик по-русски (английский — для остальных не-русских)
@@ -299,6 +305,7 @@ Function .onInit
   \${IfNot} \${Errors}
     StrCpy $UPDATE "1"
   \${EndIf}
+  !insertmacro KadroAboutInit
 FunctionEnd
 
 Function SkipOnUpdate
@@ -352,6 +359,8 @@ Section "Kadro" SecMain
   WriteRegStr HKCU "Software\\Classes\\Applications\\Kadro.exe\\shell\\open\\command" "" '"$INSTDIR\\Kadro.exe" "%1"'
 ${regOpenWith}
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, p 0, p 0)'
+  ; язык и ответы «О тебе» — для первого запуска Kadro
+  Call WriteKadroSettings
 SectionEnd
 
 Section "Uninstall"

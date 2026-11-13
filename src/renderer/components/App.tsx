@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection, saveFrame, shuttle, snapshotNow } from '../actions';
 import { SNAPSHOT_EVERY_MS } from '../../shared/versions';
 import { VersionsDialog } from './History';
+import { applyInstallerAbout } from '../about';
 import { api, getState, useStore } from '../store';
 import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
@@ -50,6 +51,8 @@ export function App() {
   const exportOpen = useStore((s) => s.exportOpen);
   const home = useStore((s) => s.home);
   const [welcome, setWelcome] = useState(() => !!api.welcome);
+  // ответы «О тебе» из установщика — один раз: новичку простой режим, формат по тому, что монтирует
+  useState(() => { applyInstallerAbout(); return 0; });
   const m3d = useStore((s) => s.model3dEdit);
   const autoOpen = useStore((s) => s.autoOpen);
   const settingsOpen = useStore((s) => s.settingsOpen);

@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { aboutNsh } from './installer-about.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'release');
@@ -88,6 +89,7 @@ VIAddVersionKey "LegalCopyright" "GPL-3.0-or-later"
 !define MUI_HEADERIMAGE_BITMAP "header.bmp"
 !define MUI_CUSTOMFUNCTION_ABORT OnAbort
 Page custom HelloShow HelloLeave
+Page custom AboutShow AboutLeave
 Page custom LoadShow LoadLeave
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "Russian"
@@ -122,7 +124,8 @@ LangString Failed \${LANG_RUSSIAN} "Не получилось скачать Kad
 LangString Manual \${LANG_ENGLISH} "Open the download page"
 LangString Manual \${LANG_RUSSIAN} "Открыть страницу загрузки"
 
-Var KLang
+${aboutNsh({ withLang: false, installBtn: true })}
+
 Var RuRadio
 Var EnRadio
 Var Logo
@@ -147,6 +150,7 @@ Function .onInit
     StrCpy $LANGUAGE \${LANG_RUSSIAN}
     StrCpy $KLang "ru"
   \${EndIf}
+  !insertmacro KadroAboutInit
 FunctionEnd
 
 Function HelloShow
@@ -175,8 +179,11 @@ Function HelloShow
   \${EndIf}
   \${NSD_CreateLabel} 0 110u 100% 30u "$(Note)"
   Pop $0
-  GetDlgItem $0 $HWNDPARENT 1
-  SendMessage $0 \${WM_SETTEXT} 0 "STR:$(InstallBtn)"
+  ; Kadro тут уже запускали — страницы «О тебе» не будет, отсюда сразу установка
+  \${If} \${FileExists} "$PROFILE\\.kadro\\settings.json"
+    GetDlgItem $0 $HWNDPARENT 1
+    SendMessage $0 \${WM_SETTEXT} 0 "STR:$(InstallBtn)"
+  \${EndIf}
   nsDialogs::Show
   \${NSD_FreeImage} $Logo
 FunctionEnd
@@ -256,13 +263,8 @@ Function OnTick
   \${If} $2 == "ok"
     SendMessage $Bar \${PBM_SETPOS} 1000 0
     \${NSD_SetText} $Status "$(Installing)"
-    ; язык Kadro для первого запуска (если Kadro тут ещё не запускали — иначе настройки не трогаем)
-    \${IfNot} \${FileExists} "$PROFILE\\.kadro\\settings.json"
-      CreateDirectory "$PROFILE\\.kadro"
-      FileOpen $3 "$PROFILE\\.kadro\\settings.json" w
-      FileWrite $3 '{"lang": "$KLang", "welcome": "pending"}'
-      FileClose $3
-    \${EndIf}
+    ; язык и ответы «О тебе» — для первого запуска Kadro
+    Call WriteKadroSettings
     FileOpen $0 "$PLUGINSDIR\\file.txt" r
     FileRead $0 $4
     FileClose $0

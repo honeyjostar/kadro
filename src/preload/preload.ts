@@ -60,6 +60,7 @@ const api: KadroApi = {
   lang: ipcRenderer.sendSync('lang:get'),
   setLang: (l) => ipcRenderer.invoke('lang:set', l),
   welcome: ipcRenderer.sendSync('app:welcome'),
+  aboutFromInstaller: ipcRenderer.sendSync('app:about'),
   welcomeDone: () => ipcRenderer.invoke('app:welcomeDone'),
   asrDeviceInfo: () => ipcRenderer.invoke('asr:deviceInfo'),
   setAsrDevice: (d) => ipcRenderer.invoke('asr:setDevice', d),

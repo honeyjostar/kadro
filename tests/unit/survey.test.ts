@@ -27,3 +27,26 @@ describe('знакомство', () => {
     expect(showsInMode('pro', 'rail', '3d')).toBe(true);
   });
 });
+
+describe('ответы из установщика', () => {
+  it('из настроек — только известные значения; мусор отбрасывается', async () => {
+    const { cleanAbout } = await import('../../src/shared/survey');
+    expect(cleanAbout(null)).toBeNull();
+    expect(cleanAbout({ edit: ['shorts', 'x', 'shorts'], level: 'god', source: 'telegram', from: 'installer' }))
+      .toEqual({ edit: ['shorts'], source: 'telegram', from: 'installer' });
+  });
+  it('страница установщика: язык (у полного), уровень, что монтирует, откуда узнал; запись ответов', async () => {
+    // @ts-expect-error — модуль сборочного скрипта без типов
+    const { aboutNsh } = await import('../../scripts/installer-about.mjs');
+    const full: string = aboutNsh({ withLang: true }), web: string = aboutNsh({ withLang: false, installBtn: true });
+    for (const s of [full, web]) {
+      expect(s).toContain('Function AboutShow');
+      expect(s).toContain('Function WriteKadroSettings');
+      expect(s).toContain('"from": "installer"');
+      expect(s).toMatch(/Edit_shorts[\s\S]*Edit_other/);
+    }
+    expect(full).toContain('$hLangRu');
+    expect(web).not.toContain('$hLangRu');
+    expect(web).toContain('STR:$(InstallBtn)');
+  });
+});

@@ -134,6 +134,8 @@ export interface KadroApi {
   setLang(l: 'ru' | 'en'): Promise<boolean>;
   /** Первый запуск: показать приветствие с выбором языка. */
   welcome: boolean;
+  /** Ответы «О тебе» из установщика (если Kadro ставили новым установщиком), иначе null. */
+  aboutFromInstaller: import('./survey').About | null;
   welcomeDone(): Promise<boolean>;
   /** Основной формат роликов (выбран при первом запуске): новые проекты сразу в нём; null — не выбран. */
   /** распознавание речи: на видеокарте или на процессоре */

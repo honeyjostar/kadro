@@ -45,7 +45,7 @@ import { stabilize } from './ai/stab';
 import { freezeFrame, retime } from './retime';
 import { beautify } from './ai/beauty';
 import { listVersions, readVersion, snapshot } from './versions';
-import { SURVEY_COUNTER } from '../shared/survey';
+import { cleanAbout, SURVEY_COUNTER } from '../shared/survey';
 import { netFetch } from './ai/download';
 import { fastEnhance } from './ai/enhance';
 import { enhanceTarget } from '../shared/enhance';
@@ -609,7 +609,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; duck?: Partial<DuckSettings>; coach?: CoachState }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; about?: unknown; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; duck?: Partial<DuckSettings>; coach?: CoachState }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -1245,6 +1245,8 @@ function registerIpc(): void {
   ipcMain.on('lang:get', (e) => { e.returnValue = uiLang(); });
   // приветствие при первом запуске (выбор языка): показать ли, и «больше не показывать»
   ipcMain.on('app:welcome', (e) => { e.returnValue = readSettings().welcome === 'pending'; });
+  // ответы «О тебе» из установщика — только понятные значения
+  ipcMain.on('app:about', (e) => { e.returnValue = cleanAbout(readSettings().about); });
   ipcMain.handle('app:welcomeDone', () => { writeSettings({ ...readSettings(), welcome: 'done' }); return true; });
   // основной формат роликов: новые проекты сразу в нём
   ipcMain.on('prefs:format', (e) => { e.returnValue = readSettings().format ?? null; });
