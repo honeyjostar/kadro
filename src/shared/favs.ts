@@ -1,8 +1,8 @@
-// Избранное и недавние: эффекты, переходы и фильтры, которыми человек пользуется чаще, — под рукой.
+// Избранное и недавние: эффекты, переходы, фильтры и шрифты, которыми человек пользуется чаще, — под рукой.
 // Хранится в настройках окна (не в проекте): у каждого свои любимые.
 
-export type FavKind = 'fx' | 'tr' | 'filter';
-export const FAV_KINDS: FavKind[] = ['fx', 'tr', 'filter'];
+export type FavKind = 'fx' | 'tr' | 'filter' | 'font';
+export const FAV_KINDS: FavKind[] = ['fx', 'tr', 'filter', 'font'];
 export interface FavState { fav: Record<FavKind, string[]>; recent: Record<FavKind, string[]> }
 
 /** Сколько недавних помним в каждом списке. */
@@ -10,7 +10,7 @@ export const RECENT_MAX = 8;
 /** Больше избранного не держим — список должен оставаться коротким. */
 export const FAV_MAX = 60;
 
-export const emptyFavs = (): FavState => ({ fav: { fx: [], tr: [], filter: [] }, recent: { fx: [], tr: [], filter: [] } });
+export const emptyFavs = (): FavState => ({ fav: { fx: [], tr: [], filter: [], font: [] }, recent: { fx: [], tr: [], filter: [], font: [] } });
 
 /** В избранное или из избранного; новое — в начало. */
 export function toggleFav(s: FavState, k: FavKind, id: string): FavState {

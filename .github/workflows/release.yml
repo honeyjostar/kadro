@@ -153,6 +153,11 @@ jobs:
         if: steps.ver.outputs.skip != 'true'
         run: node scripts/pack-win.mjs --from-app --portable
 
+      # маленький веб-установщик (~150 КБ): выбор языка, скачивает последний Kadro-Setup и ставит его
+      - name: Веб-установщик
+        if: steps.ver.outputs.skip != 'true'
+        run: node scripts/pack-web-setup.mjs
+
       - name: Установщик на подпись
         id: up-setup
         if: steps.sign.outputs.on == 'true'
@@ -189,7 +194,7 @@ jobs:
         if: steps.ver.outputs.skip != 'true'
         run: |
           cd release
-          sha256sum Kadro-Setup-*.exe Kadro-*-portable.zip > SHA256SUMS.txt
+          sha256sum Kadro-Setup-*.exe Kadro-*-portable.zip Kadro-Web-Setup.exe > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Файлы в артефакты сборки
@@ -200,6 +205,7 @@ jobs:
           path: |
             release/Kadro-Setup-*.exe
             release/Kadro-*-portable.zip
+            release/Kadro-Web-Setup.exe
             release/SHA256SUMS.txt
           retention-days: 14
 
@@ -214,4 +220,5 @@ jobs:
           files: |
             release/Kadro-Setup-*.exe
             release/Kadro-*-portable.zip
+            release/Kadro-Web-Setup.exe
             release/SHA256SUMS.txt

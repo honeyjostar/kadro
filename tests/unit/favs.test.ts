@@ -42,3 +42,18 @@ describe('избранное и недавние', () => {
     expect(pickInOrder(list, ['c', 'gone', 'a'], (x) => x.id).map((x) => x.id)).toEqual(['c', 'a']);
   });
 });
+
+describe('избранные шрифты', () => {
+  it('шрифты — свой список: в избранное, недавние, чистка из хранилища', async () => {
+    const { cleanFavs, emptyFavs, noteRecent, toggleFav } = await import('../../src/shared/favs');
+    let s = toggleFav(emptyFavs(), 'font', 'Russo One');
+    s = noteRecent(s, 'font', 'Onest');
+    expect(s.fav.font).toEqual(['Russo One']);
+    expect(s.recent.font).toEqual(['Onest']);
+    expect(s.fav.fx).toEqual([]);
+    // старое хранилище без шрифтов читается, шрифты — пустые
+    const old = cleanFavs({ fav: { fx: ['glow'] }, recent: {} });
+    expect(old.fav.font).toEqual([]);
+    expect(cleanFavs(JSON.parse(JSON.stringify(s))).fav.font).toEqual(['Russo One']);
+  });
+});

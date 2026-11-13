@@ -1429,3 +1429,10 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 /* ---------- корректирующий слой ---------- */
 .clip.adjust { background: linear-gradient(135deg, rgba(120, 90, 255, 0.55), rgba(255, 61, 127, 0.45)); }
 .adjust-strip { position: absolute; left: 0; right: 0; bottom: 4px; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 14px); }
+
+/* ---------- избранные шрифты ---------- */
+.font-row-fav { display: flex; align-items: center; }
+.font-row-fav .font-row { flex: 1; min-width: 0; }
+.font-star { width: 24px; height: 24px; flex-shrink: 0; opacity: 0; color: var(--muted); }
+.font-row-fav:hover .font-star, .font-star:focus-visible { opacity: 1; }
+.font-star.on { opacity: 1; color: #ffc940; }

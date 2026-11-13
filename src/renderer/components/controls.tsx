@@ -1,7 +1,8 @@
 import { tx } from '../../shared/i18n';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FONT_CATS, FONTS, type FontCat } from '../../shared/defaults';
-import { FileUp, FolderOpen, Trash2, TriangleAlert } from 'lucide-react';
+import { FileUp, FolderOpen, Star, Trash2, TriangleAlert } from 'lucide-react';
+import { noteUsed, useFavs } from '../favs';
 import { api, getState, useStore } from '../store';
 import { ensureFamily, findFamily, loadSystemFonts, reportFontInstall, useFonts, type FontFamily } from '../userFonts';
 
@@ -90,7 +91,7 @@ export function KeyButton({ state, onClick, testId }: { state: 'none' | 'animate
 
 /** Выбор шрифта: поиск, группы, каждый шрифт показан самим собой. Свои шрифты (установлены в Kadro) — сверху,
  *  шрифты Windows — внизу; поставить новый — кнопкой или перетащив файл в окно. */
-type PickCat = FontCat | 'all' | 'mine' | 'system';
+type PickCat = FontCat | 'all' | 'mine' | 'system' | 'fav';
 const BUILTIN_NAMES = new Set(FONTS.map((f) => f.family.toLowerCase()));
 export const systemFontsLabel = () => (navigator.userAgent.includes('Windows') ? tx('Шрифты Windows') : tx('Шрифты системы'));
 
@@ -117,21 +118,35 @@ export function FontPicker({ value, onChange, testId }: { value: string; onChang
   const mine = cat === 'all' || cat === 'mine' ? user.filter((f) => match(f.family)) : [];
   const sys = cat === 'all' || cat === 'system'
     ? (system ?? []).filter((f) => !BUILTIN_NAMES.has(f.family.toLowerCase()) && !userNames.has(f.family.toLowerCase()) && match(f.family)) : [];
-  const builtin = cat === 'mine' || cat === 'system' ? [] : FONTS.filter((f) => (cat === 'all' || f.cat === cat) && match(f.label));
+  const builtin = cat === 'mine' || cat === 'system' || cat === 'fav' ? [] : FONTS.filter((f) => (cat === 'all' || f.cat === cat) && match(f.label));
   const groups = FONT_CATS.map((c) => ({ ...c, fonts: builtin.filter((f) => f.cat === c.id) })).filter((g) => g.fonts.length);
   const label = FONTS.find((f) => f.family === value)?.label ?? value;
   const missing = !BUILTIN_NAMES.has(value.toLowerCase()) && !findFamily(value) && system !== null;
   const total = FONTS.length + user.length + (system?.filter((f) => !BUILTIN_NAMES.has(f.family.toLowerCase())).length ?? 0);
-  const pick = (family: string) => { onChange(family); setOpen(false); void ensureFamily(family); };
+  const pick = (family: string) => { onChange(family); setOpen(false); void ensureFamily(family); noteUsed('font', family); };
+  const favIds = useFavs((f) => f.s.fav.font);
+  const recentIds = useFavs((f) => f.s.recent.font);
+  const nameOf = (family: string) => FONTS.find((f) => f.family === family)?.label ?? family;
+  // избранные и недавние — сверху (когда не ищут и смотрят все); «★» — только избранные
+  const favs = (cat === 'all' || cat === 'fav') ? favIds.filter((f) => match(nameOf(f))) : [];
+  const recent = cat === 'all' && !needle ? recentIds.filter((f) => !favIds.includes(f)).slice(0, 5) : [];
   const remove = async (fam: FontFamily) => {
     if (await api.removeFonts(fam.files.map((f) => f.file))) getState().toast(tx('Шрифт «{0}» удалён', fam.family), 'info');
   };
-  const row = (family: string, text: string, extra?: string) => (
-    <button key={family} role="option" aria-selected={family === value} className={`font-row ${extra ?? ''} ${family === value ? 'active' : ''}`}
-      style={{ fontFamily: `'${family}', 'Onest'` }} onClick={() => pick(family)} data-font={family}>
-      {text} <span>{tx('Привет, мир')}</span>
-    </button>
-  );
+  const row = (family: string, text: string, extra?: string) => {
+    const fav = favIds.includes(family);
+    const star = fav ? tx('Убрать из избранного') : tx('В избранное');
+    return (
+      <div key={family} className="font-row-fav">
+        <button role="option" aria-selected={family === value} className={`font-row ${extra ?? ''} ${family === value ? 'active' : ''}`}
+          style={{ fontFamily: `'${family}', 'Onest'` }} onClick={() => pick(family)} data-font={family}>
+          {text} <span>{tx('Привет, мир')}</span>
+        </button>
+        <button className={`icon-btn font-star ${fav ? 'on' : ''}`} title={star} aria-label={star} aria-pressed={fav} data-testid="font-fav"
+          onClick={(e) => { e.stopPropagation(); useFavs.getState().toggle('font', family); }}><Star size={13} fill={fav ? 'currentColor' : 'none'} /></button>
+      </div>
+    );
+  };
   return (
     <div className="font-picker" ref={box}>
       <button type="button" className={`input font-picker-btn ${missing ? 'missing' : ''}`} onClick={() => setOpen(!open)} data-testid={testId} style={{ fontFamily: `'${value}', 'Onest'` }}
@@ -143,11 +158,25 @@ export function FontPicker({ value, onChange, testId }: { value: string; onChang
           <input className="input" autoFocus placeholder={tx('Поиск среди {0} шрифтов', total)} value={q} onChange={(e) => setQ(e.target.value)} data-testid="font-search" />
           <div className="chips">
             <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>
+            <button className={cat === 'fav' ? 'active' : ''} onClick={() => setCat('fav')} data-testid="font-cat-fav" title={tx('Избранные шрифты')}>★{favIds.length ? ` ${favIds.length}` : ''}</button>
             <button className={cat === 'mine' ? 'active' : ''} onClick={() => setCat('mine')} data-testid="font-cat-mine">{tx('Мои шрифты')}{user.length ? ` ${user.length}` : ''}</button>
             {FONT_CATS.map((c) => <button key={c.id} className={cat === c.id ? 'active' : ''} onClick={() => setCat(c.id)}>{c.label}</button>)}
             <button className={cat === 'system' ? 'active' : ''} onClick={() => setCat('system')} data-testid="font-cat-system">{systemFontsLabel()}</button>
           </div>
           <div className="font-pop-list">
+            {favs.length > 0 && (
+              <div data-testid="font-group-fav">
+                <div className="font-pop-cat">{tx('Избранные')}</div>
+                {favs.map((f) => row(f, nameOf(f), 'fav'))}
+              </div>
+            )}
+            {cat === 'fav' && !favIds.length && <div className="hint small font-empty">{tx('Нажми ★ у шрифта — он появится здесь и сверху списка.')}</div>}
+            {recent.length > 0 && (
+              <div data-testid="font-group-recent">
+                <div className="font-pop-cat">{tx('Недавние')}</div>
+                {recent.map((f) => row(f, nameOf(f), 'recent'))}
+              </div>
+            )}
             {mine.length > 0 && (
               <div data-testid="font-group-mine">
                 <div className="font-pop-cat">{tx('Мои шрифты')}</div>
@@ -173,7 +202,7 @@ export function FontPicker({ value, onChange, testId }: { value: string; onChang
                 {sys.map((f) => row(f.family, f.family, 'sys'))}
               </div>
             )}
-            {!mine.length && !groups.length && !sys.length && !sysLoading && !(cat === 'mine' && !user.length) && <div className="hint small">{tx('Ничего не нашлось')}</div>}
+            {!favs.length && !mine.length && !groups.length && !sys.length && !sysLoading && !(cat === 'mine' && !user.length) && !(cat === 'fav' && !favIds.length) && <div className="hint small">{tx('Ничего не нашлось')}</div>}
           </div>
           <div className="font-pop-foot">
             <button className="btn small" onClick={() => void api.pickFonts().then(reportFontInstall)} data-testid="font-install"><FileUp size={13} />{tx('Установить шрифт…')}</button>
