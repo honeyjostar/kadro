@@ -41,12 +41,12 @@ export function TopBar() {
       </div>
       <button className="btn ghost small search-btn" title={tx('Поиск по всему: эффекты, переходы, фильтры, команды (Ctrl+K)')} onClick={() => getState().setSearchOpen(true)} data-testid="topbar-search"><Search size={14} />{tx('Поиск')}<kbd>Ctrl+K</kbd></button>
       <button className="btn ghost small" title={tx('{0}. Нажми, чтобы переключить: тёмная → светлая → как в Windows', th.label)}
-        onClick={() => setThemePref(th.next)} data-testid="theme-btn">{th.icon}{th.short}</button>
+        onClick={() => setThemePref(th.next)} data-testid="theme-btn">{th.icon}<span className="tb-label">{th.short}</span></button>
       <button className="icon-btn" title={tx('Настройки: тема, цвет акцента, значок программы, размер интерфейса, своё оформление')} onClick={() => getState().setSettingsOpen(true)} data-testid="topbar-settings"><Settings size={16} /></button>
       <button className="icon-btn" title={tx('Горячие клавиши (F1)')} onClick={() => getState().setKeysOpen(true)} data-testid="topbar-keys"><Keyboard size={16} /></button>
-      <button className="btn ghost small" title={tx('Новый пустой проект. Текущий не пропадёт — он останется в «Моих проектах»')} onClick={() => void newProjectAction()}><FilePlus2 size={15} />{tx('Новый')}</button>
-      <button className="btn ghost small" title={tx('Открыть проект .kadro или добавить видео, фото, звук')} onClick={() => void openProject()}><FolderOpen size={15} />{tx('Открыть')}</button>
-      <button className="btn ghost small" title={tx('Сохранить проект (Ctrl+S)')} onClick={() => void saveProject()}><Save size={15} />{tx('Сохранить')}</button>
+      <button className="btn ghost small" title={tx('Новый пустой проект. Текущий не пропадёт — он останется в «Моих проектах»')} onClick={() => void newProjectAction()}><FilePlus2 size={15} /><span className="tb-label">{tx('Новый')}</span></button>
+      <button className="btn ghost small" title={tx('Открыть проект .kadro или добавить видео, фото, звук')} onClick={() => void openProject()}><FolderOpen size={15} /><span className="tb-label">{tx('Открыть')}</span></button>
+      <button className="btn ghost small" title={tx('Сохранить проект (Ctrl+S)')} onClick={() => void saveProject()}><Save size={15} /><span className="tb-label">{tx('Сохранить')}</span></button>
       <button className="icon-btn" title={tx('Собрать проект в папку: проект, видео, музыка, шрифты и плагины вместе — чтобы открыть на другом компьютере')} onClick={() => void packProjectAction()} data-testid="topbar-pack"><Package size={16} /></button>
       <button className="btn primary" data-testid="export-open" onClick={() => setExportOpen(true)}><Upload size={15} />{tx('Экспорт')}</button>
     </header>
