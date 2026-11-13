@@ -3,7 +3,7 @@ import { tx } from '../shared/i18n';
 import { aiCovers, aiSource, aiStale, videoInputFor, videoSource } from '../shared/ai';
 import { normalizeRamp, originalRange } from '../shared/retime';
 import { reframeKeyframes } from '../shared/reframe';
-import { CAPTION_STYLE, newProject, shortSideOf, sizeFor } from '../shared/defaults';
+import { CAPTION_STYLE, newProject, shortSideOf, sizeFor, uid } from '../shared/defaults';
 import { exportSize } from '../shared/geometry';
 import type { AiJob, AiOutput, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
 import {
@@ -46,6 +46,7 @@ import { parseCommands, type Command } from '../shared/commands';
 import { applyAutoZoom, clearAutoZoom, zoomMoments, ZOOM, type ZoomStrength } from '../shared/autoZoom';
 import { BLUR_HOLD, linkTracks, newRegion, padFace, regionSpan } from '../shared/blur';
 import { mediaKeyTime } from '../shared/anim';
+import { addAdjustLayer } from '../shared/adjust';
 import { canvasToSource, followKeys, objectPath } from '../shared/follow';
 import { aiAllowed, type EnhanceMode } from '../shared/enhance';
 import type { Photo3d, Photo3dMotion } from '../shared/photo3d';
@@ -2556,4 +2557,21 @@ export function unfollow(clipId: string): void {
     if (c.follow.scale) delete k.scale;
     return updateClip(p, clipId, { keyframes: k, follow: undefined } as Partial<Clip>);
   });
+}
+
+// ---------- корректирующий слой ----------
+/** Корректирующий слой с бегунка: на длину клипа под ним (или 5 с), выделяется — дальше цвет, фильтр, эффекты. */
+export function addAdjustmentLayer(): string | null {
+  const s = getState();
+  const p = s.project;
+  const at = Math.max(0, s.playhead);
+  const under = mainTrack(p).clips.find((c) => at >= c.start - 1e-6 && at < clipEnd(c) - 1e-6);
+  const dur = under ? Math.max(0.5, clipEnd(under) - at) : 5;
+  let id: string | null = null;
+  s.commit((q) => { const r = addAdjustLayer(q, uid('adj'), at, dur); id = r.clipId; return r.project; });
+  if (id) {
+    getState().select([id]);
+    getState().toast(tx('Корректирующий слой: фильтр, цвет и эффекты на нём меняют всё, что под ним. Прозрачность — сила'), 'ok');
+  }
+  return id;
 }

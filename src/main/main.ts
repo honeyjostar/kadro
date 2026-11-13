@@ -579,6 +579,7 @@ async function postImportNow(asset: MediaAsset, plan: 'none' | 'audio' | 'video'
 async function refreshProject(project: Project): Promise<Project> {
   const later: (() => void)[] = [];
   for (const a of project.assets) {
+    if (a.adjust) { a.missing = false; continue; } // корректирующий слой — без файла
     a.missing = !fs.existsSync(a.path);
     if (a.missing) continue;
     const previewOk = !!a.previewPath && fs.existsSync(a.previewPath);

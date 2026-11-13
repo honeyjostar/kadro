@@ -1425,3 +1425,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .welcome-chips .chip.on { background: var(--accent-soft); border-color: var(--accent); }
 .follow-box { margin: 6px 0 12px; }
 .follow-box .btn.on { border-color: var(--accent); background: var(--accent-soft); }
+
+/* ---------- корректирующий слой ---------- */
+.clip.adjust { background: linear-gradient(135deg, rgba(120, 90, 255, 0.55), rgba(255, 61, 127, 0.45)); }
+.adjust-strip { position: absolute; left: 0; right: 0; bottom: 4px; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 14px); }

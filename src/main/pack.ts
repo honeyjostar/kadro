@@ -58,6 +58,7 @@ export async function packProject(project: Project, parent: string): Promise<Pac
   const res: PackResult = { ok: true, dir, media: 0, fonts: 0, plugins: 0, luts: 0, missing: [] };
 
   for (const a of p.assets) {
+    if (a.adjust) continue;
     if (!a.path || !fs.existsSync(a.path)) { res.missing!.push(a.name || baseOf(a.path)); continue; }
     const wasPreview = a.previewPath === a.path;
     const rel = await copy(a.path, 'media');

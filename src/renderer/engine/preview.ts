@@ -6,6 +6,7 @@ import { mediaKeyTime, mediaPropsAt } from '../../shared/anim';
 import { maskBytes } from '../../shared/mask';
 import { blurGroups, blurMaskBytes, blurRadius, maskSize, mosaicBlock } from '../../shared/blur';
 import { displaceRgba, MAX_SHIFT, motionAt, type Photo3d } from '../../shared/photo3d';
+import { adjustClipForRender } from '../../shared/adjust';
 import { fxGeometry, particleEffects, sortedEffects } from '../../shared/effects';
 import { clipAnimAt } from '../../shared/clipAnim';
 import { hasTilt, layerQuad, pinQuad, quadSize } from '../../shared/perspective';
@@ -128,7 +129,8 @@ export class PreviewEngine {
       if (track.hidden || track.kind === 'audio' || track.kind === 'text') continue;
       for (const c of track.clips) {
         if (c.type !== 'media' || t < c.start - EPS || t >= clipEnd(c) - EPS) continue;
-        if (p.assets.find((a) => a.id === c.assetId)?.kind !== 'audio') out.push(c.id);
+        const a = p.assets.find((x) => x.id === c.assetId);
+        if (a && a.kind !== 'audio' && !a.adjust) out.push(c.id);
       }
     }
     return out;
@@ -395,7 +397,7 @@ export class PreviewEngine {
         if (c.type !== 'media') continue;
         if (c.start > t + ahead || clipEnd(c) < t - PreviewEngine.BEHIND) continue;
         const a = p.assets.find((x) => x.id === c.assetId);
-        if (!a) continue;
+        if (!a || a.adjust) continue; // корректирующему слою грузить нечего
         if (a.kind === 'image') { want.set(`${c.id}:v`, { kind: 'image', path: a.previewPath || a.path, offset: 0 }); continue; }
         if (a.kind === 'audio') {
           if (this.offline) continue;
@@ -691,6 +693,43 @@ export class PreviewEngine {
     if (isMain) drawMainBars(c2d, c, W, H);
   }
 
+  /** Корректирующий слой: всё, что уже нарисовано, — через цвет, кривые, эффекты и маску слоя; прозрачность — сила. */
+  private drawAdjust(ctx: CanvasRenderingContext2D, c0: MediaClip, t: number): void {
+    const c = adjustClipForRender(c0);
+    const { W, H } = this;
+    const local = t - c.start;
+    const D = clipDuration(c);
+    const ga = clipAnimAt(c, local, D);
+    const alpha = Math.min(1, mediaPropsAt(c, t).opacity * ga.opacity);
+    if (alpha <= 0.001) return;
+    const layer = this.canvasFor(`${c.id}:adj`, W, H);
+    const lc = layer.getContext('2d', { willReadFrequently: true })!;
+    lc.save();
+    lc.setTransform(1, 0, 0, 1, 0, 0);
+    lc.globalCompositeOperation = 'copy';
+    lc.filter = isIdentity(effectiveColor(c.color)) ? 'none' : `url(#kf-${c.id})`;
+    lc.drawImage(ctx.canvas, 0, 0, W, H);
+    lc.restore();
+    const cube = lutFor(c.grade?.lut?.path, this.readLut);
+    if (gradeActive(c.grade, !!cube, c.color)) this.grader().apply(layer, c.grade ?? {}, cube, c.color);
+    if (sortedEffects(c.effects).length) applyPixelEffects(layer, c, local, (l, key, tb) => this.grader().applyTable(l, key, tb), false);
+    if (glEffectsOf(c.effects).length) applyGlEffects(layer, c, local, D);
+    if (c.mask) {
+      lc.save();
+      lc.globalCompositeOperation = 'destination-in';
+      lc.drawImage(this.maskCanvas(c.id, c.mask, W, H), 0, 0, W, H);
+      lc.restore();
+    }
+    const g = fxGeometry(c.effects, local, D);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(W / 2 + g.dx * W, H / 2 + g.dy * H);
+    if (g.drot) ctx.rotate((g.drot * Math.PI) / 180);
+    if (g.scale !== 1) ctx.scale(g.scale, g.scale);
+    ctx.drawImage(layer, -W / 2, -H / 2, W, H);
+    ctx.restore();
+  }
+
   /** 3D-фото: точки сдвигаются по глубине — та же функция, что даёт карты сдвига для экспорта. */
   private depthCache = new Map<string, Uint8Array>();
   private apply3d(layer: HTMLCanvasElement, p: Photo3d, u: number): void {
@@ -873,7 +912,8 @@ export class PreviewEngine {
       if (track.hidden || track.kind === 'audio' || track.kind === 'text') continue;
       for (const c of track.clips) {
         if (c.type !== 'media' || t < c.start - EPS || t >= clipEnd(c) - EPS) continue;
-        if (p.assets.find((a) => a.id === c.assetId)?.kind !== 'audio') visible.push(c.id);
+        const a = p.assets.find((x) => x.id === c.assetId);
+        if (a && a.kind !== 'audio' && !a.adjust) visible.push(c.id);
       }
     }
     if (this.drewOnce && !visible.every((id) => this.frameReady(id))) {
@@ -906,7 +946,8 @@ export class PreviewEngine {
       } else if (act.length === 1) {
         const c = main.clips[act[0]] as MediaClip;
         const a = assetOf(c);
-        if (a) this.drawLayer(ctx, c, a, true, t);
+        if (a?.adjust) this.drawAdjust(ctx, c, t);
+        else if (a) this.drawLayer(ctx, c, a, true, t);
       }
     }
     for (const track of p.tracks) {
@@ -916,7 +957,8 @@ export class PreviewEngine {
         if (c.type === 'text') drawText(ctx, c, W, H, t - c.start);
         else {
           const a = assetOf(c);
-          if (a && a.kind !== 'audio') this.drawLayer(ctx, c, a, false, t);
+          if (a?.adjust) this.drawAdjust(ctx, c, t);
+          else if (a && a.kind !== 'audio') this.drawLayer(ctx, c, a, false, t);
         }
       }
     }

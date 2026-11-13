@@ -1,7 +1,7 @@
 import { tx } from '../../shared/i18n';
 import { HistoryButton } from './History';
 import {
-  Activity, AudioLines, Blend, Bookmark, Copy, Eye, EyeOff, Film, Group, Layers, Maximize2, Mic, Plus, Ungroup, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
+  Activity, AudioLines, SlidersHorizontal, Blend, Bookmark, Copy, Eye, EyeOff, Film, Group, Layers, Maximize2, Mic, Plus, Ungroup, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
   ScanEye,
 } from 'lucide-react';
@@ -205,6 +205,7 @@ const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selecte
   } else {
     const isAudio = asset?.kind === 'audio';
     cls += isAudio ? ' audio' : track.kind === 'main' ? ' video' : ' overlay';
+    if (asset?.adjust) cls += ' adjust';
     const tags: string[] = [];
     if (clip.speed !== 1) tags.push(`${+clip.speed.toFixed(2)}×`);
     if (clip.muted) tags.push(tx('без звука'));
@@ -218,7 +219,10 @@ const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selecte
         {width > 80 && tags.map((t) => <span key={t} className="tag">{t}</span>)}
       </>
     );
-    if (asset && !isAudio) {
+    if (asset?.adjust) {
+      content = <div className="adjust-strip" style={{ height: rowH - 8 }} />;
+      label = <><SlidersHorizontal size={11} className="clip-icon" />{label}</>;
+    } else if (asset && !isAudio) {
       const showWave = track.kind === 'main' && asset.hasAudio && !!asset.peaks?.length;
       const stripH = showWave ? rowH - 8 - 18 : rowH - 8;
       const thumbs = asset.thumbs ?? [];

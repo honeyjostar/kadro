@@ -4,7 +4,7 @@ import { txj } from '../txj';
 import {
   Clapperboard,
   Zap, AudioLines, BellRing, Blend, Volume2, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
-  LayoutTemplate, Smile, Sparkles, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users, ZoomIn, ArrowLeftCircle, Speaker, Timer, Star, History, MonitorPlay,
+  LayoutTemplate, Smile, Sparkles, SlidersHorizontal, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users, ZoomIn, ArrowLeftCircle, Speaker, Timer, Star, History, MonitorPlay,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_CATS, FILTER_PRESETS, applyColorToPixel, effectiveColor, type FilterCat } from '../../shared/color';
@@ -33,7 +33,7 @@ import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
   loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme, addSticker,
-  enhanceClip, disableEnhance,
+  enhanceClip, disableEnhance, addAdjustmentLayer,
 } from '../actions';
 import { aiAllowed, enhanceTarget } from '../../shared/enhance';
 import { useMenu, type MenuEntry } from './Menu';
@@ -1070,6 +1070,15 @@ function useFavView<T>(kind: FavKind, cat: string, all: T[], idOf: (x: T) => str
 
 const FavHint = () => <p className="hint small" style={{ marginTop: 10 }}>{tx('★ — в избранное. Плитку можно перетащить прямо на клип на таймлайне.')}</p>;
 
+/** «Корректирующий слой»: фильтр и эффекты сразу на всё, что под ним. */
+function AdjustButton() {
+  return (
+    <button className="btn block adjust-add" onClick={() => addAdjustmentLayer()} data-testid="add-adjust"
+      title={tx('Слой без картинки: его фильтр, цвет, кривые, эффекты и маска действуют на всё, что под ним, пока он идёт')}>
+      <SlidersHorizontal size={14} />{tx('Корректирующий слой — на всё сразу')}</button>
+  );
+}
+
 function EffectsPanel() {
   const sel = useSelected();
   const commit = useStore((s) => s.commit);
@@ -1093,6 +1102,7 @@ function EffectsPanel() {
     <>
       <div className="panel-head">{txj('Эффекты · {0}', all.length)}</div>
       <div className="panel-body">
+        <AdjustButton />
         <MemeButtons />
         <p className="hint">{clip ? tx('Нажми — эффект добавится, ещё раз — уберётся. Наведи мышь, чтобы посмотреть. Сила — справа, во вкладке «Эффекты».') : tx('Выдели клип на таймлайне — эффекты применяются к нему. Наведи мышь на эффект, чтобы посмотреть.')}</p>
         <div className="chips" style={{ margin: '10px 0 8px' }}>
@@ -1334,6 +1344,7 @@ function FiltersPanel() {
     <>
       <div className="panel-head">{txj('Фильтры · {0}', FILTER_PRESETS.length - 1)}</div>
       <div className="panel-body">
+        <AdjustButton />
         <p className="hint">{clip ? tx('Миниатюры показывают твой кадр. Нажми, чтобы применить.') : tx('Выдели видео или фото на таймлайне — фильтр применится к нему, а миниатюры покажут твой кадр.')}</p>
         {clip && clip.color.preset !== 'none' && (
           <Slider label={tx('Сила фильтра')} min={0} max={1} step={0.01} value={clip.color.presetAmount} format={(v) => `${Math.round(v * 100)}%`}

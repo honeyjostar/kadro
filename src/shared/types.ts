@@ -47,6 +47,8 @@ export interface MediaAsset {
   thumbs?: string[];         // пути к кадрам-миниатюрам (равномерно по длительности)
   peaks?: number[];          // форма волны 0..1 (до ~2000 точек)
   voice?: boolean;           // голос (запись с микрофона, озвучка, дубляж) — под ним музыка тише
+  /** корректирующий слой: картинки нет, клип меняет то, что под ним */
+  adjust?: boolean;
 }
 
 export type TrackKind = 'main' | 'video' | 'audio' | 'text';

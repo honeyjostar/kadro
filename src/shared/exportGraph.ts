@@ -13,6 +13,7 @@ import { beatTimes, clipDuration, mainTrack, projectDuration } from './timeline'
 import type { BlendMode, MediaAsset, MediaClip, Project } from './types';
 import { maskBytes } from './mask';
 import { blurGroups, blurRadius, mosaicBlock } from './blur';
+import { adjustClipForRender } from './adjust';
 import { logoBox, progressBox } from './logo';
 import {
   LEAK_PERIOD, SPLIT_EFFECTS, blurSigma, flashDuration, fxGeometryExpr, fxMatrixAt, fxMaxScale, fxMoves, glowOpacity, glowSigma, hueMatrix, leakBytes,
@@ -120,7 +121,7 @@ export function groupMain(p: Project): Group[] {
   for (const c of t.clips) {
     if (c.type !== 'media') continue;
     const asset = p.assets.find((a) => a.id === c.assetId);
-    if (!asset) continue;
+    if (!asset || asset.adjust) continue; // корректирующий слой на основной дорожке не рисуется
     const g = groups[groups.length - 1];
     const prev = g?.clips[g.clips.length - 1];
     const canMerge = g && prev && !prev.transitionOut && asset.kind === 'video' && g.asset.kind === 'video' &&
@@ -695,6 +696,20 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
         if (c.type !== 'media') continue;
         const asset = assetOf(c);
         if (!asset || asset.kind === 'audio') continue;
+        if (asset.adjust) {
+          // корректирующий слой: кусок уже собранного кадра → цвет, кривые, эффекты, маска слоя → поверх
+          const ac = adjustClipForRender(c);
+          const D = clipDuration(ac);
+          if (c.start >= total) continue;
+          const [keep, raw, src, sh, nv] = [L('aj'), L('aj'), L('aj'), L('aj'), L('v')];
+          chains.push(`[${v}]split=2[${keep}][${raw}]`);
+          chains.push(`[${raw}]trim=start=${fmt(c.start)}:duration=${fmt(D)},setpts=PTS-STARTPTS,format=rgba[${src}]`);
+          const fg = visualChain(src, ac, { ...asset, width: W, height: H, kind: 'image' }, true);
+          chains.push(`[${fg.label}]setpts=PTS-STARTPTS+${fmt(c.start)}/TB[${sh}]`);
+          chains.push(`[${keep}][${sh}]overlay=x=${fg.x}:y=${fg.y}:eof_action=pass${ovf}[${nv}]`);
+          v = nv;
+          continue;
+        }
         const D = clipDuration(c);
         let src: string;
         if (asset.kind === 'image') {

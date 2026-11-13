@@ -221,7 +221,10 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
   const isAudio = asset?.kind === 'audio';
   const isImage = asset?.kind === 'image';
   const uiMode = useStore((s) => s.uiMode);
-  const allTabs: { id: MTab; label: string }[] = isAudio
+  const isAdjust = !!asset?.adjust;
+  const allTabs: { id: MTab; label: string }[] = isAdjust
+    ? [{ id: 'basic', label: tx('Слой') }, { id: 'color', label: tx('Цвет') }, ...(clip.effects?.length ? [{ id: 'fx' as MTab, label: tx('Эффекты') }] : []), { id: 'mask', label: tx('Маска') }]
+    : isAudio
     ? [{ id: 'audio', label: tx('Звук') }, { id: 'speed', label: tx('Скорость') }]
     : [
       { id: 'basic', label: tx('Кадр') }, { id: 'anim', label: tx('Анимация') }, { id: 'color', label: tx('Цвет') }, { id: 'mask', label: tx('Маска') },
@@ -253,7 +256,17 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
       )}
       <Tabs value={cur} tabs={tabs} onChange={setTab} />
       <div className="panel-body">
-        {cur === 'basic' && (
+        {cur === 'basic' && isAdjust && (
+          <div data-testid="adjust-basic">
+            <p className="hint">{tx('Корректирующий слой: фильтр, цвет, кривые, эффекты и маска этого слоя меняют всё, что под ним, пока он идёт. Длину и место — мышью на таймлайне.')}</p>
+            <Slider label={tx('Сила')} min={0} max={1} step={0.01} value={clip.opacity ?? 1} format={pct} testId="adjust-strength"
+              onChange={(v) => up({ opacity: Math.round(v * 100) / 100 }, 'adjop')} onReset={() => up({ opacity: 1 }, 'adjop')} />
+            <Slider label={tx('Длительность')} min={0.5} max={Math.max(60, dur)} step={0.1} value={dur} format={(v) => tx('{0} с', v.toFixed(1))}
+              onChange={(v) => up({ out: clip.in + v * clip.speed }, 'idur')} />
+            <p className="hint small">{tx('Фильтры и эффекты — в разделах слева, как для обычного клипа: выдели слой и нажми.')}</p>
+          </div>
+        )}
+        {cur === 'basic' && !isAdjust && (
           <>
             {clip.model3d && (
               <div className="m3d-bar" data-testid="m3d-bar">
@@ -347,7 +360,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
               onChange={(v) => up({ color: { ...c, brightness: v } }, 'br')} onReset={() => up({ color: { ...c, brightness: 1 } }, 'br')} />
             <Slider label={tx('Контраст')} min={0.3} max={1.7} value={c.contrast} format={(v) => signedPct(v - 1)}
               onChange={(v) => up({ color: { ...c, contrast: v } }, 'ct')} onReset={() => up({ color: { ...c, contrast: 1 } }, 'ct')} />
-            <Slider label={tx('Насыщенность')} min={0} max={2} value={c.saturation} format={(v) => signedPct(v - 1)}
+            <Slider label={tx('Насыщенность')} min={0} max={2} value={c.saturation} format={(v) => signedPct(v - 1)} testId="saturation"
               onChange={(v) => up({ color: { ...c, saturation: v } }, 'sat')} onReset={() => up({ color: { ...c, saturation: 1 } }, 'sat')} />
             <Slider label={tx('Теплота')} min={-1} max={1} value={c.warmth} format={signedPct}
               onChange={(v) => up({ color: { ...c, warmth: v } }, 'warm')} onReset={() => up({ color: { ...c, warmth: 0 } }, 'warm')} />

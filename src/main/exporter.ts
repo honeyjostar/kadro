@@ -124,7 +124,7 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
   const total = projectDuration(project);
   if (total <= 0) return { ok: false, error: tx('Проект пустой — добавь видео или фото на таймлайн.') };
   const used = new Set(project.tracks.flatMap((t) => t.clips.map((c) => (c.type === 'media' ? c.assetId : ''))));
-  const lost = project.assets.filter((a) => used.has(a.id) && !fs.existsSync(a.path));
+  const lost = project.assets.filter((a) => used.has(a.id) && !a.adjust && !fs.existsSync(a.path));
   if (lost.length) return { ok: false, error: tx('Не найден файл: {0}. Верни его на место или убери клип с таймлайна.', lost.map((a) => `«${a.name}»`).join(', ')) };
   if (opts.format === 'mp3') return exportMp3(req, onProgress, signal);
   const size = opts.format === 'sticker' ? stickerSize(project.settings.width, project.settings.height) : exportSize(project.settings.width, project.settings.height, opts.height);
