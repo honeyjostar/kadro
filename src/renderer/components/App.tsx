@@ -1,30 +1,17 @@
 import { tx } from '../../shared/i18n';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection, saveFrame, shuttle, snapshotNow } from '../actions';
 import { SNAPSHOT_EVERY_MS } from '../../shared/versions';
 import { VersionsDialog } from './History';
 import { applyInstallerAbout } from '../about';
 import { api, getState, useStore } from '../store';
-import { ExportDialog } from './ExportDialog';
 import { Home } from './Home';
-import { Welcome } from './Welcome';
 import { Model3DDialog } from './Objects3D';
-import { AutoEditDialog } from './AutoEdit';
-import { SettingsDialog } from './Settings';
 import { SourceView } from './SourceView';
-import { ScriptDialog } from './ScriptDialog';
-import { ShortsDialog } from './ShortsDialog';
 import { setSfxFiles } from '../../shared/sfx';
 import { BugDialog } from './BugDialog';
 import { PluginCatalog, reportInstall } from './PluginCatalog';
 import { UpdateCard, useUpdateFeed } from './Update';
-import { PasteAttrsDialog } from './PasteAttrs';
-import { ShortcutsDialog } from './Shortcuts';
-import { ChromaPaintDialog } from './ChromaPaint';
-import { RefEditDialog } from './RefEdit';
-import { SearchDialog } from './Search';
-import { CoverDialog } from './CoverDialog';
-import { ScreenRecDialog } from './ScreenRecDialog';
 import { TextEditPanel } from './TextEditPanel';
 import { Inspector } from './Inspector';
 import { LeftPanel, Rail } from './LeftPanel';
@@ -35,6 +22,38 @@ import { Timeline } from './Timeline';
 import { TopBar } from './TopBar';
 import { projectDuration } from '../../shared/timeline';
 import { initFonts, reportFontInstall } from '../userFonts';
+
+// Окна, которые открывают не каждый раз, грузятся отдельно от главного экрана: Kadro показывает таймлайн раньше,
+// а сами окна подтягиваются в свободную минуту после запуска (к первому щелчку уже готовы). У каждого окна свой
+// Suspense: пока одно грузится, уже открытые (главный экран, настройки) не мигают.
+const LAZY = {
+  ExportDialog: () => import('./ExportDialog').then((m) => ({ default: m.ExportDialog })),
+  Welcome: () => import('./Welcome').then((m) => ({ default: m.Welcome })),
+  AutoEditDialog: () => import('./AutoEdit').then((m) => ({ default: m.AutoEditDialog })),
+  SettingsDialog: () => import('./Settings').then((m) => ({ default: m.SettingsDialog })),
+  ScriptDialog: () => import('./ScriptDialog').then((m) => ({ default: m.ScriptDialog })),
+  ShortsDialog: () => import('./ShortsDialog').then((m) => ({ default: m.ShortsDialog })),
+  PasteAttrsDialog: () => import('./PasteAttrs').then((m) => ({ default: m.PasteAttrsDialog })),
+  ShortcutsDialog: () => import('./Shortcuts').then((m) => ({ default: m.ShortcutsDialog })),
+  ChromaPaintDialog: () => import('./ChromaPaint').then((m) => ({ default: m.ChromaPaintDialog })),
+  RefEditDialog: () => import('./RefEdit').then((m) => ({ default: m.RefEditDialog })),
+  SearchDialog: () => import('./Search').then((m) => ({ default: m.SearchDialog })),
+  CoverDialog: () => import('./CoverDialog').then((m) => ({ default: m.CoverDialog })),
+  ScreenRecDialog: () => import('./ScreenRecDialog').then((m) => ({ default: m.ScreenRecDialog })),
+};
+const ExportDialog = lazy(LAZY.ExportDialog);
+const Welcome = lazy(LAZY.Welcome);
+const AutoEditDialog = lazy(LAZY.AutoEditDialog);
+const SettingsDialog = lazy(LAZY.SettingsDialog);
+const ScriptDialog = lazy(LAZY.ScriptDialog);
+const ShortsDialog = lazy(LAZY.ShortsDialog);
+const PasteAttrsDialog = lazy(LAZY.PasteAttrsDialog);
+const ShortcutsDialog = lazy(LAZY.ShortcutsDialog);
+const ChromaPaintDialog = lazy(LAZY.ChromaPaintDialog);
+const RefEditDialog = lazy(LAZY.RefEditDialog);
+const SearchDialog = lazy(LAZY.SearchDialog);
+const CoverDialog = lazy(LAZY.CoverDialog);
+const ScreenRecDialog = lazy(LAZY.ScreenRecDialog);
 
 /** Высота таймлайна в режиме «Большой плеер»: вертикальному видео нужна высота, а не ширина. */
 const WIDE_TL = 210;
@@ -62,6 +81,11 @@ export function App() {
   const bugOpen = useStore((s) => s.bugOpen);
   const catalogOpen = useStore((s) => s.pluginCatalogOpen);
   useUpdateFeed();
+  // окна — заранее, когда главный экран уже показан и Kadro свободен
+  useEffect(() => {
+    const id = window.setTimeout(() => { for (const load of Object.values(LAZY)) void load().catch(() => undefined); }, 1500);
+    return () => window.clearTimeout(id);
+  }, []);
   useEffect(initFonts, []);
   const pasteOpen = useStore((s) => s.pasteOpen);
   const copiedAttrs = useStore((s) => s.copiedAttrs);
@@ -231,25 +255,25 @@ export function App() {
       </div>
       <div className="splitter" onMouseDown={onSplitter} title={tx('Потяни, чтобы изменить высоту таймлайна')} />
       <Timeline />
-      {exportOpen && <ExportDialog />}
+      {exportOpen && <Suspense fallback={null}><ExportDialog /></Suspense>}
       {home && <Home />}
       {m3d && <Model3DDialog key={`${m3d.init.source}-${m3d.clipId ?? ''}`} />}
-      {autoOpen && <AutoEditDialog />}
-      {settingsOpen && <SettingsDialog />}
+      {autoOpen && <Suspense fallback={null}><AutoEditDialog /></Suspense>}
+      {settingsOpen && <Suspense fallback={null}><SettingsDialog /></Suspense>}
       {sourceView && <SourceView />}
-      {scriptOpen && <ScriptDialog />}
-      {shortsOpen && <ShortsDialog />}
+      {scriptOpen && <Suspense fallback={null}><ScriptDialog /></Suspense>}
+      {shortsOpen && <Suspense fallback={null}><ShortsDialog /></Suspense>}
       {catalogOpen && <PluginCatalog />}
-      {pasteOpen && copiedAttrs && <PasteAttrsDialog attrs={copiedAttrs} />}
-      {keysOpen && <ShortcutsDialog />}
-      {searchOpen && <SearchDialog />}
-      {coverOpen && <CoverDialog />}
+      {pasteOpen && copiedAttrs && <Suspense fallback={null}><PasteAttrsDialog attrs={copiedAttrs} /></Suspense>}
+      {keysOpen && <Suspense fallback={null}><ShortcutsDialog /></Suspense>}
+      {searchOpen && <Suspense fallback={null}><SearchDialog /></Suspense>}
+      {coverOpen && <Suspense fallback={null}><CoverDialog /></Suspense>}
       {versionsOpen && <VersionsDialog />}
-      {screenRecOpen && <ScreenRecDialog />}
-      {chromaPaintClip && <ChromaPaintDialog key={chromaPaintClip} clipId={chromaPaintClip} />}
-      {refOpen && <RefEditDialog />}
+      {screenRecOpen && <Suspense fallback={null}><ScreenRecDialog /></Suspense>}
+      {chromaPaintClip && <Suspense fallback={null}><ChromaPaintDialog key={chromaPaintClip} clipId={chromaPaintClip} /></Suspense>}
+      {refOpen && <Suspense fallback={null}><RefEditDialog /></Suspense>}
       {bugOpen && <BugDialog initial={bugOpen.what} onClose={() => getState().setBugOpen(null)} />}
-      {welcome && <Welcome onDone={() => setWelcome(false)} />}
+      {welcome && <Suspense fallback={null}><Welcome onDone={() => setWelcome(false)} /></Suspense>}
       <UpdateCard />
       <Jobs />
       <Toasts />

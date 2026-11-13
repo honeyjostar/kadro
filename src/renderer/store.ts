@@ -1,4 +1,5 @@
 // Состояние редактора: проект, история (отмена/повтор), выделение, плейхед, задачи ИИ, уведомления.
+import { shareEqual } from '../shared/share';
 import type { UiMode } from '../shared/uiMode';
 import { create } from 'zustand';
 import { newProject } from '../shared/defaults';
@@ -283,7 +284,8 @@ export const useStore = create<State>((set, get) => ({
     const s = get();
     let next: Project;
     try {
-      next = fn(s.project);
+      // неизменённые клипы, дорожки и файлы остаются теми же объектами — перерисовывается только то, что поменялось
+      next = shareEqual(s.project, fn(s.project));
     } catch (e) {
       get().toast(e instanceof Error ? e.message : String(e), 'err');
       return;

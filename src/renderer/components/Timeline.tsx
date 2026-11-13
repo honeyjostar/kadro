@@ -192,7 +192,24 @@ interface ClipProps {
   onDown: (e: React.PointerEvent, clip: Clip, track: Track, mode: 'body' | 'l' | 'r') => void;
 }
 
+/** Клип за краем экрана и до, и после прокрутки не перерисовываем: миниатюры и волна рисуются только в видимой части. */
+function sameClipProps(a: ClipProps, b: ClipProps): boolean {
+  // от дорожки клипу нужны только вид и «скрыта» — сама дорожка меняется при правке любого её клипа
+  if (a.track !== b.track && (a.track.id !== b.track.id || a.track.kind !== b.track.kind || a.track.hidden !== b.track.hidden)) return false;
+  if (a.clip !== b.clip || a.asset !== b.asset || a.pps !== b.pps || a.selected !== b.selected
+    || a.rowH !== b.rowH || a.ghost !== b.ghost || a.left !== b.left || a.onDown !== b.onDown) return false;
+  if (a.view === b.view || (a.view.left === b.view.left && a.view.width === b.view.width)) return true;
+  const left = b.left ?? xOf(b.clip.start, b.pps);
+  const right = left + Math.max(2, clipDuration(b.clip) * b.pps);
+  const far = (v: View) => right < v.left - VIEW_MARGIN || left > v.left + v.width + VIEW_MARGIN;
+  return far(a.view) && far(b.view);
+}
+const VIEW_MARGIN = 600;
+/** Сколько раз рисовались клипы таймлайна — для автотестов (лишние перерисовки больших проектов). */
+export const clipRenders = { n: 0 };
+
 const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selected, rowH, ghost, left: leftOverride, onDown }: ClipProps) {
+  clipRenders.n++;
   const dur = clipDuration(clip);
   const left = leftOverride ?? xOf(clip.start, pps);
   const width = Math.max(2, dur * pps);
@@ -273,7 +290,7 @@ const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selecte
       {!ghost && <div className="trim r" onPointerDown={(e) => onDown(e, clip, track, 'r')} />}
     </div>
   );
-});
+}, sameClipProps);
 
 // ---------- плейхед ----------
 function Playhead({ pps, height, scrollRef, view }: { pps: number; height: number; scrollRef: React.RefObject<HTMLDivElement | null>; view: View }) {
@@ -580,7 +597,7 @@ export function Timeline() {
   };
 
   // перетаскивание клипа и обрезка краёв
-  const onClipDown = useCallback((e: React.PointerEvent, clip: Clip, track: Track, mode: 'body' | 'l' | 'r') => {
+  const clipDown = (e: React.PointerEvent, clip: Clip, track: Track, mode: 'body' | 'l' | 'r') => {
     if (e.button !== 0) return;
     e.stopPropagation();
     e.preventDefault();
@@ -666,9 +683,16 @@ export function Timeline() {
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
-  // rows меняются вместе с проектом — пересоздаём обработчик
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows]);
+  };
+  // Клипам отдаём один и тот же обработчик на всё время (иначе любая правка перерисовывала бы каждый клип), а он
+  // вызывает свежий clipDown; клип и дорожку берёт из текущего проекта — у клипа, который не перерисовывался,
+  // в свойствах осталась дорожка до правки.
+  const clipDownRef = useRef(clipDown);
+  clipDownRef.current = clipDown;
+  const onClipDown = useCallback((e: React.PointerEvent, clip: Clip, track: Track, mode: 'body' | 'l' | 'r') => {
+    const live = getState().project.tracks.find((t) => t.id === track.id);
+    clipDownRef.current(e, live?.clips.find((c) => c.id === clip.id) ?? clip, live ?? track, mode);
+  }, []);
 
   // бросание файлов из медиатеки или из проводника
   const onRowDragOver = (e: React.DragEvent, row: Row | null) => {

@@ -19,13 +19,14 @@ import { warper } from './engine/warp';
 import * as glReg from './glRegistry';
 import { glRunner } from './engine/gl';
 import * as userFonts from './userFonts';
+import { clipRenders } from './components/Timeline';
 
 document.documentElement.lang = uiLang();
 // музыка тише под голос — настройка из главного процесса (плеер считает так же, как экспорт)
 duck.setDuck(api.initialDuck);
 
 // доступ для автотестов (window.__kadro) — в обычной работе не используется
-(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates, duck, textRender, gl: { ...glReg, runner: glRunner }, fonts: userFonts };
+(window as unknown as { __kadro: unknown }).__kadro = { useStore, actions, timeline, effects, color, preflight, templates, duck, textRender, gl: { ...glReg, runner: glRunner }, fonts: userFonts, clipRenders };
 // каталог шейдеров (переходы gl-transitions) — в фоне, не задерживая окно
 void glReg.loadGlCatalog();
 // плагины пользователя (папка %USERPROFILE%\\.kadro\\plugins) — при запуске и после каждой правки файла
