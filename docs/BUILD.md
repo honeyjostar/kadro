@@ -148,7 +148,7 @@ FFmpeg — стабильная ветка 8.1, а не `master`: в сборк�
 
 ## Веб-установщик
 
-`node scripts/pack-web-setup.mjs` собирает `release/Kadro-Web-Setup.exe` (~420 КБ) — своё тёмное окно с маскотом на
+`node scripts/pack-web-setup.mjs` собирает `release/Kadro-Web-Setup.exe` (~600 КБ) — своё тёмное окно с маскотом на
 .NET Framework 4, который есть в каждой Windows 10/11 (`installer/web/Setup.cs`; нужны `mcs` из пакета `mono-mcs` с
 `libmono-system-windows-forms4.0-cil` и `windres` из `binutils-mingw-w64-x86-64`). Всё окно рисуется само: шрифты Kadro
 (Onest и Unbounded — `resources/installer/fonts`, `scripts/make-installer-fonts.py`), позы маскота (`resources/mascot`,

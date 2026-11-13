@@ -9,7 +9,7 @@ import { autoZoomWords, cutWords, ensureTranscript, removeAutoZoom, runCommands 
 import { useJobRunning } from '../hooks';
 import { getState, useStore } from '../store';
 import { txj } from '../txj';
-import mascotPoint from '../assets/mascot/point.webp';
+import { Mascot, type MascotPose } from './Mascot';
 
 export function TextEditPanel() {
   const project = useStore((s) => s.project);
@@ -21,6 +21,8 @@ export function TextEditPanel() {
   const [cmd, setCmd] = useState('');
   const [busy, setBusy] = useState(false);
   const [help, setHelp] = useState(false);
+  // каждый раз маскот в новой позе
+  const helpPose = useMemo<MascotPose>(() => (['point', 'fingerup', 'you', 'present'] as const)[Math.floor(Math.random() * 4)], [help]); // eslint-disable-line react-hooks/exhaustive-deps
   const capRunning = useJobRunning('cap_');
   const silRunning = useJobRunning('sil_');
   const running = capRunning || silRunning;
@@ -93,7 +95,7 @@ export function TextEditPanel() {
         </div>
         {help && (
           <div className="cmd-help" data-testid="cmd-help-card">
-            <img src={mascotPoint} alt="" />
+            <Mascot pose={helpPose} size={176} bare />
             <div className="cmd-help-body">
               <b>{tx('Пиши как другу — Kadro поймёт')}</b>
               <p>{tx('Несколько дел сразу — через запятую или «и»: «убери паузы, музыку тише и добавь субтитры». Команды про картинку идут на выделенный клип, а если ничего не выделено — на весь ролик. Не понравилось — Ctrl+Z.')}</p>

@@ -1380,7 +1380,17 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 /* подсказка с маскотом: его рисунок рассчитан на тёмный фон, поэтому карточка тёмная в обеих темах */
 .cmd-help { position: relative; display: flex; gap: 4px; margin: 8px 0 12px; padding: 12px 14px 14px 0; border-radius: 14px; background: #08070a; color: #ece8f2;
   border: 1px solid #2c2634; overflow: hidden; }
-.cmd-help img { flex: none; width: 92px; align-self: flex-start; margin: 2px 0 0 4px; }
+.cmd-help .mascot { flex: none; width: 96px; align-self: flex-start; margin: 2px 0 0 2px; justify-content: center; }
+.cmd-help .mascot img { max-width: 96px; object-fit: contain; }
+.mascot { display: inline-flex; align-items: flex-end; padding: 8px 12px 0; border-radius: 16px; overflow: hidden; line-height: 0;
+  background: radial-gradient(120% 70% at 50% 108%, rgba(255, 61, 127, 0.34), rgba(255, 61, 127, 0) 70%), #08070a; }
+.mascot.bare { padding: 0; border-radius: 0; background: none; }
+.mascot img { display: block; width: auto; user-select: none; }
+/* маскот справа от заголовка шага: текст обтекает, карточки начинаются ниже */
+.welcome-mascot { float: right; margin: -4px 0 8px 16px; }
+.welcome-langs, .welcome-levels, .welcome-formats { clear: both; }
+.done-mascot { float: right; margin: 0 0 8px 12px; }
+.crash-mascot { float: right; margin: 0 0 8px 14px; }
 .cmd-help-body { min-width: 0; font-size: 12.5px; line-height: 1.45; }
 .cmd-help-body b { font-size: 14px; }
 .cmd-help-body p { margin: 4px 0 10px; color: #9a93a8; }

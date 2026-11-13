@@ -18,6 +18,7 @@ import { HardwareSection } from './Settings';
 import { formatFor, SURVEY_COUNTER, surveyHits, type About, type EditKind, type Source } from '../../shared/survey';
 import { modeForLevel, type Level } from '../../shared/uiMode';
 import { readAbout, writeAbout } from '../about';
+import { Mascot } from './Mascot';
 
 /** Подписи первого шага — на обоих языках сразу: понятны до выбора. */
 const BOTH = { title: 'Добро пожаловать в Kadro · Welcome to Kadro', pick: 'Выбери язык · Choose your language' }; // i18n-data: на обоих языках сразу
@@ -99,6 +100,7 @@ export function Welcome({ onDone }: { onDone: () => void }) {
             {steps.map((s, i) => <span key={s} className={i === step ? 'on' : i < step ? 'done' : ''} title={s} />)}
           </div>
         </div>
+        <div className="welcome-mascot"><Mascot pose={page === 'lang' ? 'hello' : page === 'about' ? 'think' : page === 'format' ? 'present' : 'thumbsup'} size={84} /></div>
 
         {page === 'lang' && (
           <>

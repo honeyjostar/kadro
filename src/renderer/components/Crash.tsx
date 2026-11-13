@@ -4,6 +4,7 @@ import { Bug } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { api } from '../store';
 import { BugDialog } from './BugDialog';
+import { Mascot } from './Mascot';
 
 interface State { error: Error | null; report: boolean }
 
@@ -24,6 +25,7 @@ export class CrashGuard extends Component<{ children: ReactNode }, State> {
     return (
       <div className="crash" role="alert" data-testid="crash">
         <div className="crash-card">
+          <div className="crash-mascot"><Mascot pose="sad" size={96} /></div>
           <h2>{tx('Что-то пошло не так')}</h2>
           <p>{tx('Kadro поймал ошибку в окне. Проект не потерян — черновик сохраняется автоматически.')}</p>
           <div className="row-btns">

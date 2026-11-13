@@ -109,7 +109,7 @@ execFileSync(windres, ['--preprocessor=./pp.sh', 'setup.rc', '-O', 'res', '-o', 
 // шрифты Kadro и позы маскота — внутрь exe
 const res = [];
 for (const f of fs.readdirSync(path.join(ROOT, 'resources', 'installer', 'fonts'))) if (f.endsWith('.ttf')) res.push(`-resource:${path.join(ROOT, 'resources', 'installer', 'fonts', f)},font.${f}`);
-for (const pose of ['stand', 'point', 'laptop', 'shrug', 'wave']) res.push(`-resource:${path.join(ROOT, 'resources', 'mascot', `${pose}.png`)},mascot.${pose}.png`);
+for (const pose of ['hello', 'pointleft', 'laptop', 'fingerup', 'present', 'clipboard', 'thumbsup', 'think', 'shrug', 'cheer']) res.push(`-resource:${path.join(ROOT, 'resources', 'mascot', `${pose}.png`)},mascot.${pose}.png`);
 
 const out = test ? path.join(WORK, 'Kadro-Web-Setup-test.exe') : path.join(OUT, 'Kadro-Web-Setup.exe');
 execFileSync('mcs', [

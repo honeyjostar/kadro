@@ -22,6 +22,7 @@ import { setSettings } from '../../shared/timeline';
 import { PLATFORMS, isVertical, type Platform } from '../../shared/safezones';
 import { ensureFonts, preflight, type Issue } from '../preflight';
 import { EXTRA_FORMATS, extraPath, sameAsProject, variantProject, type ExtraFormatId } from '../../shared/formats';
+import { Mascot } from './Mascot';
 
 type Phase = 'setup' | 'running' | 'done' | 'error';
 
@@ -329,6 +330,7 @@ export function ExportDialog() {
 
         {phase === 'done' && result?.path && (
           <>
+            <div className="done-mascot"><Mascot pose="cheer" size={110} /></div>
             <div className="done-line"><CheckCircle2 size={20} /><span>{`${format === 'gif' ? tx('GIF готов') : format === 'mp3' ? tx('Звук готов') : format === 'sticker' ? tx('Стикер готов') : tx('Видео готово')}${result.seconds ? tx(' за {0}', fmtDur(result.seconds)) : ''}${result.encoder ? ` (${encoderLabel(result.encoder)})` : ''}`}</span></div>
             <p className="hint path-line" title={result.path}>{result.path}</p>
             {extraDone.length > 0 && (

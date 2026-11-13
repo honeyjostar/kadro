@@ -153,7 +153,7 @@ jobs:
         if: steps.ver.outputs.skip != 'true'
         run: node scripts/pack-win.mjs --from-app --portable
 
-      # маленький веб-установщик (~400 КБ, тёмный, с маскотом): язык, «О тебе», скачивает последний Kadro-Setup и ставит его
+      # маленький веб-установщик (~600 КБ, тёмный, с маскотом): язык, «О тебе», скачивает последний Kadro-Setup и ставит его
       - name: Веб-установщик
         if: steps.ver.outputs.skip != 'true'
         run: node scripts/pack-web-setup.mjs

@@ -521,11 +521,13 @@ namespace Kadro.WebSetup
             return cy + 36;
         }
 
+        static readonly string[] TipPoses = { "laptop", "fingerup", "present", "clipboard", "thumbsup", "think" };
+
         // ---------- страницы ----------
         void Hello()
         {
             Glow(200, 480, 230, 120, 70);
-            Mascot("stand", 200, 496, 410);
+            Mascot("hello", 200, 496, 410);
             float x = 384, w = 352;
             Text("Kadro", Assets.Font("unbounded-700", 44), C.Text, x - 2, 78);
             var ty = 146 + Para(S.Get("tagline"), Assets.Font("onest-400", 16), C.Muted, x, 146, w);
@@ -549,7 +551,7 @@ namespace Kadro.WebSetup
         void About()
         {
             Glow(668, 506, 170, 90, 60);
-            Mascot("point", 664, 506, 372);
+            Mascot("pointleft", 668, 506, 372);
             float x = 44, w = 524;
             Text(S.Get("aboutTitle"), Assets.Font("unbounded-700", 26), C.Text, x - 1, 52);
             Text(S.Get("aboutSub"), Assets.Font("onest-400", 15), C.Muted, x, 92);
@@ -571,7 +573,8 @@ namespace Kadro.WebSetup
         void Load()
         {
             Glow(200, 488, 220, 110, 64);
-            Mascot("laptop", 196, 500, 392);
+            // с каждым советом — новая поза; пока ставится — за ноутбуком
+            Mascot(Phase == Phase.Install ? "laptop" : TipPoses[Tip % TipPoses.Length], 196, 500, 392);
             float x = 400, w = 336;
             bool inst = Phase == Phase.Install;
             Text(S.Get(inst ? "installTitle" : "loadTitle"), Assets.Font("unbounded-700", 26), C.Text, x - 1, 104);
@@ -645,8 +648,8 @@ namespace Kadro.WebSetup
 
         void Done()
         {
-            Glow(226, 520, 240, 120, 70);
-            Mascot("wave", 226, H, 350);
+            Glow(226, 488, 230, 115, 70);
+            Mascot("cheer", 226, 500, 392);
             float x = 430, w = 306;
             Text(S.Get("doneTitle"), Assets.Font("unbounded-700", 40), C.Text, x - 2, 168);
             Para(S.Get(Launched ? "doneText" : "doneNoExe"), Assets.Font("onest-400", 16), C.Muted, x, 232, w);
@@ -1070,7 +1073,7 @@ namespace Kadro.WebSetup
                 case "hello": break;
                 case "hello-known": ui.Known = true; break;
                 case "about": ui.Go(Page.About); ui.Level = "new"; ui.Edits.Add("shorts"); ui.Edits.Add("games"); ui.Source = "telegram"; ui.HoverId = "edit-youtube"; break;
-                case "load": ui.Go(Page.Load); ui.Phase = Phase.Download; ui.Total = 369098752; ui.Got = 148897792; ui.Speed = 4.2 * 1048576; ui.Tip = 0; break;
+                case "load": ui.Go(Page.Load); ui.Phase = Phase.Download; ui.Total = 369098752; ui.Got = 148897792; ui.Speed = 4.2 * 1048576; ui.Tip = a.Length > 5 ? int.Parse(a[5]) : 0; break;
                 case "connect": ui.Go(Page.Load); ui.Phase = Phase.Connect; ui.Tip = 1; break;
                 case "install": ui.Go(Page.Load); ui.Phase = Phase.Install; ui.Tip = 3; break;
                 case "error": ui.Go(Page.Error); ui.ErrorDetail = "The remote name could not be resolved: 'github.com'"; break;

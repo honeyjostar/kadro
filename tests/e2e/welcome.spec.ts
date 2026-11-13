@@ -38,12 +38,15 @@ test('тема, формат, компьютер и модели ИИ — и б�
   const data = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-welcome2-'));
   let K = await launch({ data, env: { KADRO_SKIP_WELCOME: '', KADRO_SKIP_HOME: '', KADRO_TEST_HW: HW } });
   const win = K.win;
+  // маскот здоровается, на каждом шаге — в новой позе
+  await expect(win.getByTestId('welcome').getByTestId('mascot')).toHaveAttribute('data-pose', 'hello');
   // шаг 1: тема меняется сразу
   await win.getByTestId('welcome-theme').locator('[data-value=light]').click();
   await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
   await win.getByTestId('welcome-next').click();
   // шаг 2: о тебе — новичку простой режим; «Видео для YouTube» подсказывает формат 16:9; согласия на отправку нет (счётчик не задан)
   await expect(win.getByTestId('welcome')).toHaveAttribute('data-step', '1');
+  await expect(win.getByTestId('welcome').getByTestId('mascot')).toHaveAttribute('data-pose', 'think');
   await win.getByTestId('welcome-level-new').click();
   await expect(win.getByTestId('welcome-mode')).toContainText('простой режим');
   await win.getByTestId('welcome-edit-youtube').click();
