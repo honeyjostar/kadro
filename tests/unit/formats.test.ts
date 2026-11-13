@@ -32,3 +32,16 @@ describe('ещё форматы при экспорте', () => {
     expect(extraPath('/home/u/a.b/clip', F('sq11'))).toBe('/home/u/a.b/clip · 1x1.mp4');
   });
 });
+
+describe('зоны интерфейса русских площадок', () => {
+  it('ВК Клипы, RUTUBE Shorts и Дзен: у каждой — кнопки справа и подпись внизу; длина — по правилам площадки', async () => {
+    const { PLATFORMS, SAFE_ZONES, zonesHit } = await import('../../src/shared/safezones');
+    for (const id of ['vk', 'rutube', 'dzen'] as const) {
+      expect(SAFE_ZONES[id].length).toBeGreaterThanOrEqual(3);
+      expect(zonesHit(id, { x: 0.05, y: 0.82, w: 0.6, h: 0.05 }).length).toBeGreaterThan(0); // подпись внизу
+      expect(zonesHit(id, { x: 0.2, y: 0.35, w: 0.5, h: 0.1 })).toEqual([]); // середина кадра свободна
+    }
+    expect(PLATFORMS.find((p) => p.id === 'dzen')!.maxSec).toBe(120);
+    expect(PLATFORMS.find((p) => p.id === 'vk')!.maxSec).toBe(180);
+  });
+});

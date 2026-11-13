@@ -246,8 +246,10 @@ export function ExportDialog() {
               {hwWhy && <p className="hint small bad" data-testid="export-hw-why">{hwWhy} {tx('Подробнее — в настройках, раздел «Компьютер».')}</p>}
             </Field>
             <Field label={tx('Куда выкладываешь')}>
-              <Seg value={platform} onChange={setPlatform}
-                options={[...PLATFORMS.map((x) => ({ value: x.id as Platform | 'other', label: x.label })), { value: 'other', label: tx('Другое') }]} />
+              <select className="input" value={platform} onChange={(e) => setPlatform(e.target.value as Platform | 'other')} data-testid="export-platform">
+                {PLATFORMS.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}
+                <option value="other">{tx('Другое')}</option>
+              </select>
             </Field>
             <Field label={tx('Ещё форматы — сразу, теми же настройками')}>
               <div className="chips" data-testid="export-extras">

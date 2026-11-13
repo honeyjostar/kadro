@@ -106,10 +106,10 @@ test('надписи встроенных шаблонов и демо не по
 test('проверка перед публикацией: демо чистое, надпись под кнопками TikTok находится и показывается', async () => {
   // демо-проект открыт предыдущим тестом
   await win.getByTestId('export-open').click();
-  await win.getByRole('button', { name: 'TikTok', exact: true }).click();
+  await win.getByTestId('export-platform').selectOption('tiktok');
   await expect(win.getByTestId('preflight-ok')).toBeVisible();
-  for (const name of ['Reels', 'Shorts']) {
-    await win.getByRole('button', { name, exact: true }).click();
+  for (const name of ['reels', 'shorts', 'vk', 'rutube', 'dzen']) {
+    await win.getByTestId('export-platform').selectOption(name);
     await expect(win.getByTestId('preflight-ok'), name).toBeVisible();
   }
   await win.getByRole('button', { name: 'Закрыть' }).first().click();
@@ -121,7 +121,7 @@ test('проверка перед публикацией: демо чистое,
     return id;
   });
   await win.getByTestId('export-open').click();
-  await win.getByRole('button', { name: 'TikTok', exact: true }).click();
+  await win.getByTestId('export-platform').selectOption('tiktok');
   const issue = win.getByTestId('preflight-issue').filter({ hasText: 'ПОДПИСЬ ВНИЗУ' });
   await expect(issue).toContainText('ник, подпись и музыка');
   await issue.getByRole('button', { name: 'Показать' }).click();
@@ -131,7 +131,7 @@ test('проверка перед публикацией: демо чистое,
   // горизонтальный проект для TikTok — подсказка и починка одной кнопкой
   await win.evaluate(() => { const k = (window as any).__kadro; k.useStore.getState().commit((p: any) => k.timeline.setSettings(p, { aspect: '16:9', width: 1920, height: 1080 })); });
   await win.getByTestId('export-open').click();
-  await win.getByRole('button', { name: 'TikTok', exact: true }).click();
+  await win.getByTestId('export-platform').selectOption('tiktok');
   await win.getByRole('button', { name: 'Сделать 9:16' }).click();
   expect((await project(win)).settings.aspect).toBe('9:16');
   await win.getByRole('button', { name: 'Закрыть' }).first().click();

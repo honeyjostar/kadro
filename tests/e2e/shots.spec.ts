@@ -102,7 +102,7 @@ test('снимки', async () => {
       await seekAndSettle(win, 3);
       await shot('zones');
       await win.getByTestId('export-open').click();
-      await win.getByRole('button', { name: 'TikTok', exact: true }).click();
+      await win.getByTestId('export-platform').selectOption('tiktok');
       await win.waitForTimeout(600);
       await shot('export-check');
       await win.keyboard.press('Escape');

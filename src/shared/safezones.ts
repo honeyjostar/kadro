@@ -1,7 +1,7 @@
-// Где интерфейс TikTok, Reels и Shorts закрывает вертикальное видео 9:16 (доли кадра).
+// Где интерфейс TikTok, Reels, Shorts, ВК Клипов, RUTUBE Shorts и роликов Дзена закрывает вертикальное видео 9:16 (доли кадра).
 // Размеры примерные — по рекомендациям площадок и замерам на телефонах; в разных версиях приложений немного отличаются.
 import { tx } from './i18n';
-export type Platform = 'tiktok' | 'reels' | 'shorts';
+export type Platform = 'tiktok' | 'reels' | 'shorts' | 'vk' | 'rutube' | 'dzen';
 
 export interface Zone { x: number; y: number; w: number; h: number; label: string; short: string }
 
@@ -9,6 +9,9 @@ export const PLATFORMS: { id: Platform; label: string; maxSec: number; maxNote: 
   { id: 'tiktok', label: 'TikTok', maxSec: 600, maxNote: tx('TikTok принимает ролики до 10 минут') },
   { id: 'reels', label: 'Reels', maxSec: 180, maxNote: tx('Reels длиннее 3 минут Instagram почти не показывает новым зрителям') },
   { id: 'shorts', label: 'Shorts', maxSec: 180, maxNote: tx('Shorts — до 3 минут, длиннее YouTube выложит как обычное видео') },
+  { id: 'vk', label: tx('ВК Клипы'), maxSec: 180, maxNote: tx('ВК Клипы — от 3 секунд до 3 минут') },
+  { id: 'rutube', label: 'RUTUBE Shorts', maxSec: 180, maxNote: tx('RUTUBE Shorts — от 2 секунд до 3 минут') },
+  { id: 'dzen', label: tx('Дзен Ролики'), maxSec: 120, maxNote: tx('Ролики в Дзене — от 5 секунд до 2 минут') },
 ];
 
 export const SAFE_ZONES: Record<Platform, Zone[]> = {
@@ -23,6 +26,25 @@ export const SAFE_ZONES: Record<Platform, Zone[]> = {
     { x: 0.84, y: 0.55, w: 0.16, h: 0.38, label: tx('Лайк, комментарии, репост, звук'), short: tx('Кнопки') },
     { x: 0, y: 0.7, w: 0.84, h: 0.23, label: tx('Ник, подпись и аудио'), short: tx('Ник и подпись') },
     { x: 0, y: 0.93, w: 1, h: 0.07, label: tx('Нижнее меню'), short: tx('Меню') },
+  ],
+  // ВК Клипы, RUTUBE и Дзен: сверху — вкладки и поиск, справа — лайк, комментарии, репост, внизу — автор и подпись
+  vk: [
+    { x: 0, y: 0, w: 1, h: 0.09, label: tx('Вкладки и камера'), short: tx('Вкладки') },
+    { x: 0.84, y: 0.45, w: 0.16, h: 0.42, label: tx('Лайк, комментарии, репост'), short: tx('Кнопки') },
+    { x: 0, y: 0.76, w: 0.84, h: 0.16, label: tx('Автор, описание и музыка'), short: tx('Автор и подпись') },
+    { x: 0, y: 0.92, w: 1, h: 0.08, label: tx('Нижнее меню'), short: tx('Меню') },
+  ],
+  rutube: [
+    { x: 0, y: 0, w: 1, h: 0.08, label: tx('Заголовок и поиск'), short: tx('Заголовок') },
+    { x: 0.85, y: 0.5, w: 0.15, h: 0.38, label: tx('Лайк, комментарии, репост'), short: tx('Кнопки') },
+    { x: 0, y: 0.78, w: 0.85, h: 0.14, label: tx('Канал, описание и «Подписаться»'), short: tx('Канал и описание') },
+    { x: 0, y: 0.92, w: 1, h: 0.08, label: tx('Нижнее меню'), short: tx('Меню') },
+  ],
+  dzen: [
+    { x: 0, y: 0, w: 1, h: 0.08, label: tx('Заголовок и меню'), short: tx('Заголовок') },
+    { x: 0.85, y: 0.48, w: 0.15, h: 0.4, label: tx('Лайк, комментарии, репост'), short: tx('Кнопки') },
+    { x: 0, y: 0.77, w: 0.85, h: 0.15, label: tx('Канал, подпись и «Подписаться»'), short: tx('Канал и подпись') },
+    { x: 0, y: 0.92, w: 1, h: 0.08, label: tx('Нижнее меню'), short: tx('Меню') },
   ],
   shorts: [
     { x: 0, y: 0, w: 1, h: 0.07, label: tx('Поиск и меню'), short: tx('Поиск') },
