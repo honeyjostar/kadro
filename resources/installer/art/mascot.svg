@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 520" width="400" height="520">
+  <!-- Маскот Kadro: голова — знак Kadro, оверсайз-худи и широкие штаны -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="45%" r="50%">
+      <stop offset="0" stop-color="#ff3d7f" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#ff3d7f" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#ff3d7f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff5a93"/>
+      <stop offset="1" stop-color="#e8306f"/>
+    </linearGradient>
+    <linearGradient id="pants" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34303f"/>
+      <stop offset="1" stop-color="#26232f"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b1922"/>
+      <stop offset="1" stop-color="#08070b"/>
+    </linearGradient>
+  </defs>
+  <circle cx="200" cy="250" r="185" fill="url(#glow)"/>
+  <ellipse cx="200" cy="500" rx="125" ry="13" fill="#000" opacity="0.45"/>
+
+  <!-- штаны: широкие, складками ложатся на кроссовки -->
+  <path d="M136 318 L204 318 L200 388 L190 470 Q146 482 100 470 L126 390 Z" fill="url(#pants)"/>
+  <path d="M196 318 L264 318 L274 390 L300 470 Q254 482 210 470 L200 388 Z" fill="url(#pants)"/>
+  <path d="M200 388 L190 470 L210 470 Z" fill="#15131a"/>
+  <path d="M150 360 Q162 400 142 440 M174 372 Q168 420 178 460 M228 366 Q240 410 226 458 M254 380 Q268 420 262 452" stroke="#1d1b25" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.85"/>
+  <path d="M102 456 Q146 468 191 456 L190 471 Q146 483 100 471 Z M209 456 Q254 468 298 456 L300 471 Q254 483 210 471 Z" fill="#1d1b25"/>
+  <path d="M112 446 Q146 454 186 444 M214 444 Q254 454 290 446" stroke="#1d1b25" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- кроссовки -->
+  <g>
+    <path d="M92 478 Q96 462 128 462 L176 464 Q196 466 198 482 L198 494 L90 494 Z" fill="#f4f2f8"/>
+    <rect x="88" y="490" width="112" height="8" rx="4" fill="#cfcbd9"/>
+    <path d="M112 474 Q140 468 168 476" stroke="#ff3d7f" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <path d="M308 478 Q304 462 272 462 L224 464 Q204 466 202 482 L202 494 L310 494 Z" fill="#f4f2f8"/>
+    <rect x="200" y="490" width="112" height="8" rx="4" fill="#cfcbd9"/>
+    <path d="M288 474 Q260 468 232 476" stroke="#ff3d7f" stroke-width="5" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- рукава (опущенные плечи, длинные) -->
+  <path d="M112 214 Q86 230 84 290 L88 344 L124 344 L128 280 Z" fill="#e8306f"/>
+  <path d="M288 214 Q314 230 316 290 L312 344 L276 344 L272 280 Z" fill="#e8306f"/>
+  <rect x="86" y="334" width="40" height="16" rx="7" fill="#c9245e"/>
+  <rect x="274" y="334" width="40" height="16" rx="7" fill="#c9245e"/>
+  <!-- кисти — как голова, тёмные -->
+  <circle cx="106" cy="360" r="15" fill="url(#head)"/>
+  <circle cx="294" cy="360" r="15" fill="url(#head)"/>
+
+  <!-- худи: оверсайз -->
+  <path d="M120 206 Q200 186 280 206 Q300 216 296 260 L290 336 Q200 350 110 336 L104 260 Q100 216 120 206 Z" fill="url(#hood)"/>
+  <rect x="110" y="328" width="180" height="22" rx="9" fill="#c9245e"/>
+  <!-- карман-кенгуру -->
+  <path d="M146 276 L254 276 L264 318 Q200 326 136 318 Z" fill="#d92a66"/>
+  <path d="M146 276 L136 318 M254 276 L264 318" stroke="#c9245e" stroke-width="3"/>
+  <!-- капюшон за головой и завязки -->
+  <path d="M146 204 Q200 232 254 204 Q244 186 200 184 Q156 186 146 204 Z" fill="#c9245e"/>
+  <path d="M184 214 L180 262 M216 214 L220 262" stroke="#f4f2f8" stroke-width="4" stroke-linecap="round"/>
+  <rect x="176" y="258" width="8" height="12" rx="3" fill="#f4f2f8"/>
+  <rect x="216" y="258" width="8" height="12" rx="3" fill="#f4f2f8"/>
+  <!-- принт на груди: маленький «плей» -->
+  <path d="M236 230 L236 252 L254 241 Z" fill="#fff" opacity="0.9"/>
+
+  <!-- голова — знак Kadro -->
+  <g transform="rotate(-7 200 132)">
+    <rect x="136" y="66" width="128" height="128" rx="30" fill="url(#head)" stroke="#3b3747" stroke-width="3"/>
+    <rect x="156" y="88" width="88" height="12" rx="6" fill="#fff"/>
+    <rect x="156" y="160" width="88" height="12" rx="6" fill="#fff"/>
+    <path d="M188 112 L188 148 L220 130 Z" fill="#fff"/>
+    <path d="M148 80 Q170 70 196 72" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.25"/>
+  </g>
+</svg>

@@ -44,6 +44,10 @@ async function buildApp() {
   run('unzip', ['-q', ELECTRON_ZIP, '-d', APP_DIR]);
   fs.renameSync(path.join(APP_DIR, 'electron.exe'), path.join(APP_DIR, 'Kadro.exe'));
   fs.rmSync(path.join(RES, 'default_app.asar'), { force: true });
+  // переводы Chromium: Kadro — по-русски и по-английски, остальные 50+ языков (~45 МБ) не нужны
+  // (для остального Chromium берёт en-US)
+  const loc = path.join(APP_DIR, 'locales');
+  for (const f of fs.readdirSync(loc)) if (!['en-US.pak', 'ru.pak'].includes(f)) fs.rmSync(path.join(loc, f));
 
   step('Код приложения');
   const app = path.join(RES, 'app');
