@@ -1021,7 +1021,7 @@ function registerIpc(): void {
   ipcMain.handle('ai:models', async (): Promise<ModelInfo[]> =>
     Object.values(ASR_MODELS).map((m) => ({ id: m.id, label: m.label, note: m.note, sizeMb: m.sizeMb, ready: asrModelReady(m.id) })));
   ipcMain.handle('ai:voices', async (): Promise<VoiceInfo[]> =>
-    Object.values(TTS_VOICES).map((v) => ({ id: v.id, label: v.label, sizeMb: v.sizeMb, ready: ttsVoiceReady(v.id) })));
+    Object.values(TTS_VOICES).map((v) => ({ id: v.id, label: v.label, sizeMb: v.sizeMb, ready: ttsVoiceReady(v.id), lang: v.lang, gender: v.gender, hq: !!v.hq, pack: v.pack })));
   ipcMain.handle('ai:run', (_e, job: AiJob) => runAi(job));
   // модели вручную: архив, скачанный в браузере (если Kadro сам скачать не смог)
   // готовые субтитры: выбрать .srt/.vtt, прочитать (с определением кодировки), сохранить .srt

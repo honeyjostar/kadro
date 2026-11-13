@@ -1,4 +1,5 @@
 // Контракт между интерфейсом (renderer) и главным процессом.
+import type { TtsVoiceId } from './voices';
 import type { Cue } from './timeline';
 import type { Template } from './templates';
 import type { Highlights } from './autoEdit';
@@ -17,8 +18,9 @@ export interface AppearanceResult { appearance?: Appearance; shortcuts?: number;
 export interface CustomStatus { on: boolean; dir: string; error?: string; skipped?: string[] }
 import type { ExportOptions, MediaAsset, Project, RampPoint, VoiceEffect } from './types';
 
-export type TtsVoiceId = 'irina' | 'dmitri' | 'denis' | 'ruslan' | 'amy' | 'ryan';
-export interface VoiceInfo { id: TtsVoiceId; label: string; sizeMb: number; ready: boolean }
+export type { TtsVoiceId } from './voices';
+/** pack — архив голоса: у студийных английских он один на всех. */
+export interface VoiceInfo { id: TtsVoiceId; label: string; sizeMb: number; ready: boolean; lang: string; gender: 'f' | 'm'; hq: boolean; pack: string }
 
 export interface TextLayerReq {
   trackId: string;

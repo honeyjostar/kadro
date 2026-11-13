@@ -11,6 +11,7 @@ import { buildScriptVideo, cancelAutoEdit, loadDemoFiles, type AutoStage } from 
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
 import { Progress, Toggle } from './controls';
+import { guessLang } from '../../shared/translate';
 
 const AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|opus|flac|wma)$/i;
 const IMAGE_EXT = /\.(png|jpe?g|webp|bmp|heic)$/i;
@@ -70,6 +71,9 @@ export function ScriptDialog() {
   const busy = !!stage;
   const progress = stage ? Math.min(1, (stage.step + (job?.progress ?? 0)) / Math.max(1, stage.steps)) : 0;
   const nameOf = (p: string) => (p === demo?.beat ? tx('Демо-бит Kadro') : assets.find((a) => a.path === p)?.name ?? base(p));
+  // голоса — того языка, на котором написан сценарий (нет таких — русские)
+  const guessed = text.trim() ? guessLang(text.slice(0, 400)) : 'ru';
+  const scriptLang = voices.some((v) => v.lang === guessed) ? guessed : 'ru';
   const voiceLabel = (v: VoiceInfo) => `${v.label}${v.ready ? '' : tx(' · скачать {0} МБ', v.sizeMb)}`;
 
   return (
@@ -93,13 +97,13 @@ export function ScriptDialog() {
 
             <div className="section-title">{tx('Голос')}</div>
             <div className="chips">
-              {voices.map((v) => (
+              {voices.filter((v) => v.lang === scriptLang || v.id === voice).map((v) => (
                 <button key={v.id} className={voice === v.id ? 'active' : ''} disabled={busy} onClick={() => setVoice(v.id)} title={voiceLabel(v)} data-testid={`script-voice-${v.id}`}>{v.label.split(' ')[0]}</button>
               ))}
               <button className={voice === null ? 'active' : ''} disabled={busy} onClick={() => setVoice(null)} data-testid="script-voice-none">{tx('Без голоса')}</button>
             </div>
             <div className="chips">{SPEEDS.map((x) => <button key={x.value} className={speed === x.value ? 'active' : ''} disabled={busy} onClick={() => setSpeed(x.value)}>{x.label}</button>)}</div>
-            {voice && !voices.find((v) => v.id === voice)?.ready && <p className="hint small">{tx('Голос скачается один раз (~64 МБ), дальше работает без интернета.')}</p>}
+            {voice && !voices.find((v) => v.id === voice)?.ready && <p className="hint small">{tx('Голос скачается один раз (~{0} МБ), дальше работает без интернета.', voices.find((v) => v.id === voice)?.sizeMb ?? 64)}</p>}
             {!voice && <p className="hint small">{tx('Без голоса сцена длится столько, сколько её читать глазами, — для роликов с музыкой и субтитрами.')}</p>}
           </div>
 

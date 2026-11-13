@@ -1,4 +1,5 @@
 // Реестр моделей ИИ: что качать, откуда и как проверить, что модель на месте.
+import { VOICES, voiceLabel, type TtsVoiceId, type VoiceDef } from '../../shared/voices';
 import { tx } from '../../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -125,29 +126,26 @@ export const asrManualUrls = (id: AsrModelId): string[] => manualUrls(ASR_MODELS
 export const installAsrFromFile = (id: AsrModelId, file: string, onProgress: (p: number) => void): Promise<void> =>
   installFromArchive(file, ASR_MODELS[id].dir, () => asrModelReady(id), onProgress);
 
-// ---------- голоса для озвучки текста (Piper) ----------
-export type TtsVoiceId = 'irina' | 'dmitri' | 'denis' | 'ruslan' | 'amy' | 'ryan';
-export interface TtsVoice { id: TtsVoiceId; label: string; name: string; sizeMb: number }
-export const TTS_VOICES: Record<TtsVoiceId, TtsVoice> = {
-  irina: { id: 'irina', label: tx('Ирина — русский, женский'), name: 'ru_RU-irina-medium', sizeMb: 64 },
-  dmitri: { id: 'dmitri', label: tx('Дмитрий — русский, мужской'), name: 'ru_RU-dmitri-medium', sizeMb: 64 },
-  denis: { id: 'denis', label: tx('Денис — русский, мужской'), name: 'ru_RU-denis-medium', sizeMb: 64 },
-  ruslan: { id: 'ruslan', label: tx('Руслан — русский, мужской'), name: 'ru_RU-ruslan-medium', sizeMb: 64 },
-  amy: { id: 'amy', label: tx('Amy — английский, женский'), name: 'en_US-amy-low', sizeMb: 64 },
-  ryan: { id: 'ryan', label: tx('Ryan — английский, мужской'), name: 'en_US-ryan-medium', sizeMb: 64 },
-};
+// ---------- голоса для озвучки текста (Piper и Kokoro; таблица — src/shared/voices.ts) ----------
+export type { TtsVoiceId } from '../../shared/voices';
+export type TtsVoice = VoiceDef & { label: string };
+export const TTS_VOICES: Record<TtsVoiceId, TtsVoice> = Object.fromEntries(VOICES.map((v) => [v.id, { ...v, label: voiceLabel(v) }]));
 const TTS_GH = 'https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models';
 export function ttsVoiceDir(id: TtsVoiceId): string {
-  return path.join(modelsDir(), `vits-piper-${TTS_VOICES[id].name}`);
+  return path.join(modelsDir(), TTS_VOICES[id].pack);
 }
+/** Файл модели голоса внутри его папки. */
+export const ttsModelFile = (v: VoiceDef): string => (v.engine === 'kokoro' ? 'model.int8.onnx' : `${v.model}.onnx`);
 export function ttsVoiceReady(id: TtsVoiceId): boolean {
+  const v = TTS_VOICES[id];
   const d = ttsVoiceDir(id);
-  return fs.existsSync(path.join(d, `${TTS_VOICES[id].name}.onnx`)) && fs.existsSync(path.join(d, 'tokens.txt')) && fs.existsSync(path.join(d, 'espeak-ng-data'));
+  const need = v.engine === 'kokoro' ? [ttsModelFile(v), 'voices.bin', 'tokens.txt', 'espeak-ng-data', 'lexicon-us-en.txt'] : [ttsModelFile(v), 'tokens.txt', 'espeak-ng-data'];
+  return need.every((f) => fs.existsSync(path.join(d, f)));
 }
 export async function downloadTtsVoice(id: TtsVoiceId, onProgress: (p: number, stage: 'download' | 'unpack') => void, signal?: AbortSignal): Promise<void> {
   const v = TTS_VOICES[id];
-  await downloadArchive(`${TTS_GH}/vits-piper-${v.name}.tar.bz2`, `vits-piper-${v.name}`, v.sizeMb, () => ttsVoiceReady(id), onProgress, signal);
+  await downloadArchive(`${TTS_GH}/${v.pack}.tar.bz2`, v.pack, v.sizeMb, () => ttsVoiceReady(id), onProgress, signal);
 }
-export const ttsManualUrls = (id: TtsVoiceId): string[] => manualUrls(`vits-piper-${TTS_VOICES[id].name}`, `${TTS_GH}/vits-piper-${TTS_VOICES[id].name}.tar.bz2`);
+export const ttsManualUrls = (id: TtsVoiceId): string[] => manualUrls(TTS_VOICES[id].pack, `${TTS_GH}/${TTS_VOICES[id].pack}.tar.bz2`);
 export const installTtsFromFile = (id: TtsVoiceId, file: string, onProgress: (p: number) => void): Promise<void> =>
-  installFromArchive(file, `vits-piper-${TTS_VOICES[id].name}`, () => ttsVoiceReady(id), onProgress);
+  installFromArchive(file, TTS_VOICES[id].pack, () => ttsVoiceReady(id), onProgress);

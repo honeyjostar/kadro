@@ -53,6 +53,7 @@ import { SUBSCRIBE_COLORS } from '../../shared/subscribe';
 import { SFX, SFX_IDS, sfxFile, type SfxId } from '../../shared/sfx';
 import { pickInOrder, type FavKind } from '../../shared/favs';
 import { noteUsed, useFavs } from '../favs';
+import { defaultVoice, VOICES } from '../../shared/voices';
 
 export const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'media', label: tx('Медиа'), icon: <Film size={19} /> },
@@ -741,7 +742,6 @@ function playSfx(id: SfxId): void {
   try { const a = new Audio(api.mediaUrl(f)); a.volume = SFX[id].vol; void a.play().catch(() => undefined); } catch { /* без звука */ }
 }
 
-const DUB_VOICES: Record<'ru' | 'en', TtsVoiceId[]> = { en: ['amy', 'ryan'], ru: ['irina', 'dmitri', 'denis', 'ruslan'] };
 
 /** Дубляж: речь ролика → перевод → озвучка другим голосом по тем же таймингам. */
 function DubCard({ captions }: { captions: TextClip[] }) {
@@ -755,8 +755,8 @@ function DubCard({ captions }: { captions: TextClip[] }) {
   const [subs, setSubs] = useState(true);
   const [stage, setStage] = useState<string | null>(null);
   useEffect(() => { void api.ttsVoices().then(setVoices).catch(() => undefined); }, [stage]);
-  const list = DUB_VOICES[to as 'ru' | 'en'];
-  const v = voice && list.includes(voice) ? voice : list[0];
+  const list = VOICES.filter((x) => x.lang === to).map((x) => x.id);
+  const v = voice && list.includes(voice) ? voice : defaultVoice(to);
   const info = voices.find((x) => x.id === v);
   const run = async () => {
     setStage(tx('Готовлю'));

@@ -302,7 +302,11 @@ function ModelsSection() {
       <div className="model-group">{tx('Субтитры (распознавание речи)')}</div>
       {asr.map((m) => row('asr', m.id, m.label, m.sizeMb, m.ready))}
       <div className="model-group">{tx('Озвучка текста')}</div>
-      {voices.map((v) => row('tts', v.id, v.label, v.sizeMb, v.ready))}
+      {voices.filter((v, i) => voices.findIndex((x) => x.pack === v.pack) === i).map((v) => {
+        // студийные английские голоса лежат одним архивом
+        const same = voices.filter((x) => x.pack === v.pack);
+        return row('tts', v.id, same.length > 1 ? tx('Студийные английские голоса ({0}): {1}', same.length, same.map((x) => x.label.split(' ')[0]).join(', ')) : v.label, v.sizeMb, v.ready);
+      })}
       <p className="hint" data-testid="models-mt">{mt.length
         ? txj('Перевод субтитров: есть {0}. Другие языки скачаются сами при первом переводе.', mt.join(', '))
         : tx('Перевод субтитров: модели скачаются сами при первом переводе.')}</p>

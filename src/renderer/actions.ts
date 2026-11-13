@@ -1110,7 +1110,7 @@ export async function ensureVoice(voice: TtsVoiceId): Promise<boolean> {
   if (!r.ok) { if (r.error !== tx('Отменено')) getState().toast(tx('Голос не скачался: {0}', r.error), 'err'); return false; }
   return true;
 }
-export async function speakText(clipId: string, voice: TtsVoiceId, speed: number): Promise<void> {
+export async function speakText(clipId: string, voice: TtsVoiceId, speed: number, effect: VoiceEffect = 'none'): Promise<void> {
   const f = findClip(getState().project, clipId);
   if (!f || f.clip.type !== 'text' || !f.clip.text.trim()) { getState().toast(tx('Сначала напиши текст')); return; }
   const text = f.clip.text;
@@ -1124,13 +1124,18 @@ export async function speakText(clipId: string, voice: TtsVoiceId, speed: number
   const start = (findClip(getState().project, clipId)?.clip.start) ?? 0;
   asset.name = tx('Озвучка: {0}{1}', text.slice(0, 24), text.length > 24 ? '…' : '');
   asset.voice = true;
+  let spoken = '';
   getState().commit((p) => {
     let q = addAsset(p, asset);
-    q = addFree(q, asset.id, start).project;
+    const added = addFree(q, asset.id, start);
+    q = added.project;
+    spoken = added.clipId;
     return updateClip(q, clipId, { duration: Math.max(0.5, Math.round(out.duration * 100) / 100 + 0.2) });
   });
   takeEarlyPatches([asset.id]);
   getState().toast(tx('Текст озвучен — звук на аудиодорожке'), 'ok');
+  // характер (робот, великан…) — эффект голоса на готовой озвучке; поменять или снять можно у клипа в «Звуке»
+  if (effect !== 'none' && spoken) await setVoiceEffect(spoken, effect);
 }
 
 export async function removePauses(clipId: string): Promise<void> {

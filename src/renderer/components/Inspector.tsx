@@ -29,6 +29,9 @@ import { HideTab } from './HideTab';
 import { FollowBox } from './FollowBox';
 import { showsInMode } from '../../shared/uiMode';
 import { Photo3dTab } from './Photo3dTab';
+import { VOICE_FX } from '../../shared/defaults';
+import type { VoiceEffect } from '../../shared/types';
+import { langLabel } from '../../shared/translate';
 
 export function Inspector() {
   const sel = useSelected();
@@ -753,26 +756,39 @@ function MaskIcon({ shape }: { shape: Mask['shape'] | 'none' }) {
 let lastTextTab: 'text' | 'style' | 'anim' = 'text';
 let lastVoice: TtsVoiceId = 'irina';
 let lastSpeed = 1;
+let lastFx: VoiceEffect = 'none';
 
 function SpeakBox({ clip }: { clip: TextClip }) {
   const [voices, setVoices] = useState<VoiceInfo[]>([]);
   const [voice, setVoice] = useState<TtsVoiceId>(lastVoice);
   const [speed, setSpeed] = useState(lastSpeed);
+  const [fx, setFx] = useState<VoiceEffect>(lastFx);
   const ttsRunning = useJobRunning('tts');
   const dlRunning = useJobRunning('tdl_');
   const busy = ttsRunning || dlRunning;
   useEffect(() => { void api.ttsVoices().then(setVoices); }, [busy]);
-  useEffect(() => { lastVoice = voice; lastSpeed = speed; }, [voice, speed]);
+  useEffect(() => { lastVoice = voice; lastSpeed = speed; lastFx = fx; }, [voice, speed, fx]);
   const v = voices.find((x) => x.id === voice);
   return (
     <div className="ai-card" style={{ marginTop: 14 }}>
       <h4><Volume2 size={15} />{tx('Озвучить текст')}</h4>
       <p className="hint">{tx('Голос прочитает текст — звук ляжет на аудиодорожку, длина текста подстроится.')}</p>
       <select className="input" value={voice} onChange={(e) => setVoice(e.target.value as TtsVoiceId)} data-testid="tts-voice">
-        {voices.map((x) => <option key={x.id} value={x.id}>{x.label}{x.ready ? '' : tx(' · скачается {0} МБ', x.sizeMb)}</option>)}
+        {[...new Set(voices.map((x) => x.lang))].map((lang) => (
+          <optgroup key={lang} label={langLabel(lang)}>
+            {voices.filter((x) => x.lang === lang).map((x) => <option key={x.id} value={x.id}>{x.label}{x.ready ? '' : tx(' · скачается {0} МБ', x.sizeMb)}</option>)}
+          </optgroup>
+        ))}
       </select>
+      {v?.hq && <p className="hint small">{tx('Студийный голос звучит живее, но считается дольше обычного — на слабом компьютере примерно со скоростью речи.')}</p>}
+      <div className="field">
+        <div className="field-row"><label>{tx('Характер')}</label></div>
+        <select className="input" value={fx} onChange={(e) => setFx(e.target.value as VoiceEffect)} data-testid="tts-fx">
+          {VOICE_FX.map((x) => <option key={x.id} value={x.id}>{x.id === 'none' ? tx('Обычный голос') : x.label}</option>)}
+        </select>
+      </div>
       <Slider label={tx('Темп')} min={0.6} max={1.6} step={0.05} value={speed} format={(x) => `${x.toFixed(2)}×`} onChange={setSpeed} onReset={() => setSpeed(1)} />
-      <button className="btn block" disabled={busy || !clip.text.trim()} onClick={() => void speakText(clip.id, voice, speed)} data-testid="tts-run">
+      <button className="btn block" disabled={busy || !clip.text.trim()} onClick={() => void speakText(clip.id, voice, speed, fx)} data-testid="tts-run">
         {busy ? tx('Озвучиваю…') : v && !v.ready ? tx('Скачать голос и озвучить') : tx('Озвучить')}
       </button>
     </div>
