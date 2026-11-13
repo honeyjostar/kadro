@@ -217,7 +217,12 @@ export interface MediaClip {
   photo3d?: import('./photo3d').Photo3d;
   /** Скрытые лица и номера: области размытия, которые едут за объектом. */
   blurs?: BlurRegion[];
+  /** Едет за объектом в другом клипе (ключи x, y, может быть scale — от трекера). */
+  follow?: Follow;
 }
+
+/** Слежение: за каким клипом и с размером или без. */
+export interface Follow { target: Id; scale: boolean }
 
 /** Рамка скрываемого объекта: t — время исходника, центр и размер — доли кадра исходника. */
 export interface BlurBox { t: number; x: number; y: number; w: number; h: number }
@@ -346,6 +351,7 @@ export interface TextClip {
   rotation?: number;   // градусы
   opacity?: number;
   keyframes?: Keyframes;
+  follow?: Follow;            // едет за объектом в видео
   anim?: { in?: TextAnim; out?: TextAnim };
   words?: Word[];      // слова со временем от начала клипа (для подсветки)
   tilt?: { x: number; y: number }; // наклон в перспективе, градусы

@@ -1423,3 +1423,5 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .welcome-chips .chip { border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 999px; padding: 5px 12px; font-size: 12.5px; }
 .welcome-chips .chip:hover { border-color: var(--accent); }
 .welcome-chips .chip.on { background: var(--accent-soft); border-color: var(--accent); }
+.follow-box { margin: 6px 0 12px; }
+.follow-box .btn.on { border-color: var(--accent); background: var(--accent-soft); }

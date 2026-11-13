@@ -46,6 +46,7 @@ import { parseCommands, type Command } from '../shared/commands';
 import { applyAutoZoom, clearAutoZoom, zoomMoments, ZOOM, type ZoomStrength } from '../shared/autoZoom';
 import { BLUR_HOLD, linkTracks, newRegion, padFace, regionSpan } from '../shared/blur';
 import { mediaKeyTime } from '../shared/anim';
+import { canvasToSource, followKeys, objectPath } from '../shared/follow';
 import { aiAllowed, type EnhanceMode } from '../shared/enhance';
 import type { Photo3d, Photo3dMotion } from '../shared/photo3d';
 
@@ -2504,4 +2505,55 @@ export function set3dPhoto(clipId: string, patch: Partial<Photo3d> | null, key?:
     if (!c || c.type !== 'media' || !c.photo3d) return p;
     return updateClip(p, clipId, { photo3d: patch ? { ...c.photo3d, ...patch } : undefined });
   }, key);
+}
+
+// ---------- текст и стикер за объектом ----------
+/**
+ * Привязать клип (текст, стикер, видео поверх) к объекту: box — рамка объекта на холсте (доли) в момент бегунка,
+ * underId — видео, в котором объект. Трекер ведёт объект, клип получает ключи положения (и размера).
+ */
+export async function followObject(followerId: string, underId: string, box: { x: number; y: number; w: number; h: number }, withScale: boolean): Promise<boolean> {
+  const s = getState();
+  const p = s.project;
+  const fol = findClip(p, followerId)?.clip;
+  const under = findClip(p, underId)?.clip;
+  if (!fol || !under || under.type !== 'media') return false;
+  const a = p.assets.find((x) => x.id === under.assetId);
+  if (!a || a.kind !== 'video') { s.toast(tx('Объект нужно обвести на видео')); return false; }
+  const { width: W, height: H } = p.settings;
+  const T0 = s.playhead;
+  const src = canvasToSource(under, a, W, H, T0, box);
+  const sb = { x: Math.min(1, Math.max(0, src.x)), y: Math.min(1, Math.max(0, src.y)), w: Math.min(1, Math.max(0.01, src.w)), h: Math.min(1, Math.max(0.01, src.h)) };
+  const vin = blurInput(under, a);
+  const at = Math.min(under.out - 0.05, Math.max(under.in, mediaKeyTime(under, T0)));
+  // следить нужно только там, где клип и видео идут вместе
+  const from = Math.max(under.in, mediaKeyTime(under, fol.start)), to = Math.min(under.out, mediaKeyTime(under, clipEnd(fol)));
+  const r = await runJob(tx('Слежу за объектом'), {
+    kind: 'trackBox', jobId: `tb_${uidShort()}`, path: vin.path, in: Math.min(from, at) - vin.off, out: Math.max(to, at + 0.05) - vin.off, at: at - vin.off, box: sb, width: a.width, height: a.height,
+  }, followerId);
+  if (!r.ok || r.output?.kind !== 'trackBox') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return false; }
+  const boxes = r.output.boxes.map((x) => ({ ...x, t: x.t + vin.off }));
+  if (boxes.length < 2) { getState().toast(tx('Не получилось проследить объект — обведи его там, где он хорошо виден')); return false; }
+  const cur = findClip(getState().project, followerId)?.clip;
+  if (!cur) return false;
+  const keys = followKeys(cur, objectPath(under, a, boxes, W, H), T0, withScale);
+  getState().commit((q) => updateClip(q, followerId, {
+    keyframes: { ...cur.keyframes, ...keys, ...(withScale ? {} : { scale: cur.follow?.scale ? undefined : cur.keyframes?.scale }) },
+    follow: { target: underId, scale: withScale },
+  } as Partial<Clip>));
+  const span = boxes[boxes.length - 1].t - boxes[0].t;
+  getState().toast(tx('Едет за объектом: {0} с. Отвязать — «Отвязать» или Ctrl+Z', Math.round(span * 10) / 10), 'ok');
+  return true;
+}
+
+/** Отвязать: убрать ключи положения (и размера), которые поставило слежение. */
+export function unfollow(clipId: string): void {
+  getState().commit((p) => {
+    const c = findClip(p, clipId)?.clip;
+    if (!c || !c.follow) return p;
+    const k = { ...c.keyframes };
+    delete k.x; delete k.y;
+    if (c.follow.scale) delete k.scale;
+    return updateClip(p, clipId, { keyframes: k, follow: undefined } as Partial<Clip>);
+  });
 }

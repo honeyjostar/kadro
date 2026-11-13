@@ -26,6 +26,7 @@ import { ColorField, Field, FontPicker, KeyButton, Seg, Slider, Toggle } from '.
 import { AiTools, textPreviewStyle } from './LeftPanel';
 import { CurvesPanel, HslPanel, LutPanel, MatchColor } from './GradeTab';
 import { HideTab } from './HideTab';
+import { FollowBox } from './FollowBox';
 import { showsInMode } from '../../shared/uiMode';
 import { Photo3dTab } from './Photo3dTab';
 
@@ -277,6 +278,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
                 onChange={(v) => up({ out: clip.in + v * clip.speed }, 'idur')} />
             )}
             <MediaPerspective clip={clip} asset={asset} />
+            {trackKind === 'video' && <FollowBox clip={clip} />}
             <button className="btn block" onClick={() => commit((p) => clearKeyframes(updateClip(p, clip.id, { transform: { ...DEFAULT_TRANSFORM, scale: trackKind === 'main' ? 1 : 0.6 }, opacity: 1 }), clip.id), `reset-${clip.id}`)}>
               <RotateCcw size={14} />{tx('Сбросить положение и анимацию')}</button>
           </>
@@ -960,6 +962,7 @@ function TextInspector({ clip }: { clip: TextClip }) {
         )}
         {tab === 'anim' && (
           <>
+            {!isCaption && <FollowBox clip={clip} />}
             <AnimPick label={tx('Появление')} kind="in" clip={clip} />
             <AnimPick label={tx('Исчезновение')} kind="out" clip={clip} />
             {isCaption && <HighlightPick clip={clip} />}

@@ -8,7 +8,7 @@ import { textBounds } from '../../shared/textRender';
 import { propValue, writeProps } from '../animEdit';
 import { activeClipsAt, projectDuration, updateClip } from '../../shared/timeline';
 import type { Clip, MediaClip, Project, TextClip } from '../../shared/types';
-import { hideObject, pickAndImport, saveFrame } from '../actions';
+import { followObject, hideObject, pickAndImport, saveFrame } from '../actions';
 import { boxAt } from '../../shared/blur';
 import { mediaKeyTime } from '../../shared/anim';
 import { PreviewEngine } from '../engine/preview';
@@ -148,6 +148,7 @@ export function Player() {
   // «Скрыть»: рамки областей и обводка предмета мышью
   const blurShow = useStore((s) => s.blurShow);
   const blurDraw = useStore((s) => s.blurDraw);
+  const followDraw = useStore((s) => s.followDraw);
   const [drawRect, setDrawRect] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const hideAt = useMemo(() => {
     const id = blurDraw ?? blurShow;
@@ -162,6 +163,36 @@ export function Player() {
     const r = (-b.rot * Math.PI) / 180;
     const dx = x - b.cx, dy = y - b.cy;
     return { u: (dx * Math.cos(r) - dy * Math.sin(r)) / b.w + 0.5, v: (dx * Math.sin(r) + dy * Math.cos(r)) / b.h + 0.5 };
+  };
+  /** «Следовать за объектом»: рамка на холсте → видео под ней → трекер. */
+  const startFollowDraw = (e: React.PointerEvent) => {
+    if (e.button !== 0 || !followDraw) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = wrapRef.current!.getBoundingClientRect();
+    const x0 = e.clientX - rect.left, y0 = e.clientY - rect.top;
+    setDrawRect({ x0, y0, x1: x0, y1: y0 });
+    const fd = followDraw;
+    const move = (ev: PointerEvent) => setDrawRect({ x0, y0, x1: ev.clientX - rect.left, y1: ev.clientY - rect.top });
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      setDrawRect(null);
+      const x1 = ev.clientX - rect.left, y1 = ev.clientY - rect.top;
+      if (Math.abs(x1 - x0) < 6 || Math.abs(y1 - y0) < 6) return;
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+      const p = getState().project;
+      const T = getState().playhead;
+      const under = activeClipsAt(p, T)
+        .filter((a) => a.clip.id !== fd.id && a.clip.type === 'media' && a.track.kind !== 'audio' && !a.track.hidden && p.assets.find((x) => x.id === (a.clip as MediaClip).assetId)?.kind === 'video')
+        .sort((a, b) => p.tracks.indexOf(b.track) - p.tracks.indexOf(a.track))
+        .find((a) => { const b = boxOf(p, a.clip, dispW, dispH, T); return !!b && inside(b, cx, cy); });
+      getState().setFollowDraw(null);
+      if (!under) { getState().toast(tx('Под рамкой нет видео — обведи объект на видео')); return; }
+      void followObject(fd.id, under.clip.id, { x: cx / dispW, y: cy / dispH, w: Math.abs(x1 - x0) / dispW, h: Math.abs(y1 - y0) / dispH }, fd.scale);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
   };
   const startBlurDraw = (e: React.PointerEvent) => {
     if (e.button !== 0 || !hideAt) return;
@@ -343,7 +374,7 @@ export function Player() {
               ))}
             </>
           )}
-          {box && !box.pin && !blurDraw && (
+          {box && !box.pin && !blurDraw && !followDraw && (
             <div className="sel-box" style={{ left: box.cx - box.w / 2, top: box.cy - box.h / 2, width: box.w, height: box.h, transform: box.rot ? `rotate(${box.rot}deg)` : undefined }}
               onPointerDown={(e) => startDrag(e, 'move')} data-testid="sel-box">
               {(['nw', 'ne', 'sw', 'se'] as const).map((c) => (
@@ -367,9 +398,10 @@ export function Player() {
             return <div key={r.id} className={`blur-outline ${r.shape === 'rect' ? 'rect' : 'oval'} ${r.off ? 'off' : ''}`} data-testid="blur-outline"
               style={{ left: cx - w / 2, top: cy - h / 2, width: w, height: h, transform: b.rot ? `rotate(${b.rot}deg)` : undefined }} />;
           })}
-          {blurDraw && (
-            <div className="blur-draw" onPointerDown={startBlurDraw} data-testid="blur-draw">
-              {!hideAt && <span className="stage-chip">{tx('Поставь бегунок на этот клип, чтобы обвести предмет')}</span>}
+          {(blurDraw || followDraw) && (
+            <div className="blur-draw" onPointerDown={followDraw ? startFollowDraw : startBlurDraw} data-testid="blur-draw">
+              {blurDraw && !hideAt && <span className="stage-chip">{tx('Поставь бегунок на этот клип, чтобы обвести предмет')}</span>}
+              {followDraw && <span className="stage-chip">{tx('Обведи объект, за которым ехать. Esc — отмена')}</span>}
               {drawRect && (
                 <div className="blur-draw-rect" style={{ left: Math.min(drawRect.x0, drawRect.x1), top: Math.min(drawRect.y0, drawRect.y1), width: Math.abs(drawRect.x1 - drawRect.x0), height: Math.abs(drawRect.y1 - drawRect.y0) }} />
               )}

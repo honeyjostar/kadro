@@ -101,6 +101,9 @@ interface State {
   /** «Скрыть»: рамки областей на плеере (id клипа) и режим обводки предмета мышью. */
   blurShow: string | null;
   blurDraw: string | null;
+  /** «Следовать за объектом»: обводка объекта для клипа followDraw.id (scale — менять размер вместе с объектом). */
+  followDraw: { id: string; scale: boolean } | null;
+  setFollowDraw: (f: { id: string; scale: boolean } | null) => void;
   /** Окно «Повторить монтаж по ролику»: fresh — новым проектом; ref — сразу разобрать этот ролик. */
   refOpen: { fresh: boolean; ref?: string; files?: string[] } | null;
   keysOpen: boolean;
@@ -259,6 +262,8 @@ export const useStore = create<State>((set, get) => ({
   chromaPaintClip: null,
   blurShow: null,
   blurDraw: null,
+  followDraw: null,
+  setFollowDraw: (followDraw) => set({ followDraw, blurDraw: null }),
   refOpen: null,
   keysOpen: false,
   update: null,
