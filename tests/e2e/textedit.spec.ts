@@ -1,7 +1,7 @@
 // Монтаж текстом: Kadro распознаёт речь, слова видны текстом; выделил и Delete — кусок вырезан из видео,
 // Ctrl+Z — обратно; команды словами («убери паузы», непонятное — подсказка).
 import { expect, test, type Page } from '@playwright/test';
-import { act, importAt, launch, project, talkVideo, waitAssetsReady, type Kadro } from './kadro';
+import { act, importAt, launch, project, store, talkVideo, waitAssetsReady, type Kadro } from './kadro';
 import { projectDuration } from '../../src/shared/timeline';
 
 let K: Kadro;
@@ -96,4 +96,48 @@ test('автозум на важных словах: наезды по ключ�
   expect(Math.max(...c.keyframes.scale.map((k: any) => k.v))).toBeCloseTo(1.28, 2);
   await win.getByTestId('zoom-off').click();
   await expect.poll(async () => (await zoomed()).length).toBe(0);
+});
+
+test('подсказки ИИ: чипы под строкой, «Что умеет» с маскотом, новые команды — фильтр, яркость, звук, отмена', async () => {
+  // панель «Монтаж текстом» открыта предыдущим тестом
+  await expect(win.getByTestId('textedit')).toBeVisible();
+  const main = async () => (await project(win)).tracks.find((t) => t.kind === 'main')!.clips.filter((c: any) => c.type === 'media') as any[];
+  // ничего не выделено — команды про картинку идут на весь ролик
+  await store(win, 'select', []);
+  // чип под строкой выполняет команду сразу
+  await win.getByTestId('cmd-chips').getByText('сделай вертикально').click();
+  await expect.poll(async () => (await project(win)).settings.aspect).toBe('9:16');
+  // «Что умеет»: карточка с маскотом и примерами по группам; пример добавляется в строку
+  await win.getByTestId('cmd-help').click();
+  const card = win.getByTestId('cmd-help-card');
+  await expect(card).toContainText('Пиши как другу');
+  await expect(card).toContainText('Картинка');
+  expect(await card.locator('img').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 50)).toBe(true);
+  await card.getByText('чёрно-белое').click();
+  await card.getByText('сделай светлее').click();
+  await expect(win.getByTestId('textedit-cmd')).toHaveValue('чёрно-белое, сделай светлее');
+  await win.getByTestId('textedit-run').click();
+  await expect(win.locator('.toast').filter({ hasText: 'Сделано: фильтр «Ч/б», светлее' })).toBeVisible();
+  for (const c of await main()) { expect(c.color.preset).toBe('bw'); expect(c.color.brightness).toBeCloseTo(1.15, 2); }
+  // звук и отмена словами
+  await win.getByTestId('textedit-cmd').fill('убери звук');
+  await win.getByTestId('textedit-run').click();
+  await expect.poll(async () => (await main()).every((c) => c.muted)).toBe(true);
+  await win.getByTestId('textedit-cmd').fill('отмени');
+  await win.getByTestId('textedit-run').click();
+  await expect.poll(async () => (await main()).some((c) => c.muted)).toBe(false);
+  expect((await main())[0].color.preset).toBe('bw');
+  await win.getByTestId('textedit-cmd').fill('убери фильтр');
+  await win.getByTestId('textedit-run').click();
+  await expect.poll(async () => (await main())[0].color.preset).toBe('none');
+  await win.screenshot({ path: test.info().outputPath('ai-help.png') });
+});
+
+test('вкладка «ИИ»: «Скажи словами» открывает строку команд', async () => {
+  await win.getByTestId('textedit-close').click();
+  await win.getByTestId('tab-ai').click();
+  await expect(win.getByTestId('ai-words-card')).toContainText('Скажи словами');
+  await win.getByTestId('ai-open-words').click();
+  await expect(win.getByTestId('textedit-cmd')).toBeVisible();
+  await win.getByTestId('textedit-close').click();
 });

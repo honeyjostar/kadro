@@ -1370,6 +1370,25 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .textedit .panel-head .icon-btn { margin-right: -6px; }
 .textedit-cmd { display: flex; align-items: center; gap: 8px; color: var(--accent); }
 .textedit-cmd .input { flex: 1; min-width: 0; }
+.cmd-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.chip-btn { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 13px; border: 1px solid var(--line);
+  background: var(--raised); color: var(--text); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.chip-btn:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.chip-btn:disabled { opacity: 0.5; cursor: default; }
+.chip-btn.more { color: var(--muted); }
+.chip-btn.more.on { color: var(--accent); border-color: var(--accent); }
+/* подсказка с маскотом: его рисунок рассчитан на тёмный фон, поэтому карточка тёмная в обеих темах */
+.cmd-help { position: relative; display: flex; gap: 4px; margin: 8px 0 12px; padding: 12px 14px 14px 0; border-radius: 14px; background: #08070a; color: #ece8f2;
+  border: 1px solid #2c2634; overflow: hidden; }
+.cmd-help img { flex: none; width: 92px; align-self: flex-start; margin: 2px 0 0 4px; }
+.cmd-help-body { min-width: 0; font-size: 12.5px; line-height: 1.45; }
+.cmd-help-body b { font-size: 14px; }
+.cmd-help-body p { margin: 4px 0 10px; color: #9a93a8; }
+.cmd-help-group { margin-top: 8px; }
+.cmd-help-group > span { display: block; margin-bottom: 5px; color: #9a93a8; font-weight: 600; font-size: 11.5px; }
+.cmd-help-group > div { display: flex; flex-wrap: wrap; gap: 5px; }
+.cmd-help .chip-btn { border-color: #2c2634; background: #16131b; color: #ece8f2; }
+.cmd-help .chip-btn:hover { border-color: #ff3d7f; background: rgba(255, 61, 127, 0.16); }
 .textedit-tools { display: flex; align-items: center; gap: 8px; margin: 12px 0 8px; flex-wrap: wrap; }
 .textedit-text { font-size: 15px; line-height: 1.75; user-select: none; }
 .textedit-text p { margin: 0 0 10px; }

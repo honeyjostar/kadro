@@ -1,13 +1,15 @@
 // «Монтаж текстом»: расшифровка ролика словами. Выдели слова и нажми Delete — этот кусок вырезан из видео,
 // субтитры сдвинулись. Щелчок по слову — плеер на этом месте. Сверху — команды словами: «убери паузы, музыку тише».
-import { Scissors, Sparkles, Wand2, X } from 'lucide-react';
+import { HelpCircle, Scissors, Sparkles, Wand2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { COMMAND_CHIPS, COMMAND_HELP } from '../../shared/commands';
 import { tx } from '../../shared/i18n';
 import { cutLength, cutRanges, fillerIndices, transcriptWords } from '../../shared/textEdit';
 import { autoZoomWords, cutWords, ensureTranscript, removeAutoZoom, runCommands } from '../actions';
 import { useJobRunning } from '../hooks';
 import { getState, useStore } from '../store';
 import { txj } from '../txj';
+import mascotPoint from '../assets/mascot/point.webp';
 
 export function TextEditPanel() {
   const project = useStore((s) => s.project);
@@ -18,6 +20,7 @@ export function TextEditPanel() {
   const anchor = useRef<number | null>(null);
   const [cmd, setCmd] = useState('');
   const [busy, setBusy] = useState(false);
+  const [help, setHelp] = useState(false);
   const capRunning = useJobRunning('cap_');
   const silRunning = useJobRunning('sil_');
   const running = capRunning || silRunning;
@@ -53,10 +56,10 @@ export function TextEditPanel() {
     s.setPlaying(false);
     s.setPlayhead(words[i].start);
   };
-  const doCmd = async () => {
-    if (!cmd.trim()) return;
+  const doCmd = async (text = cmd) => {
+    if (!text.trim()) return;
     setBusy(true);
-    try { const r = await runCommands(cmd); if (!r.unknown.length) setCmd(''); } finally { setBusy(false); }
+    try { const r = await runCommands(text); if (!r.unknown.length && text === cmd) setCmd(''); } finally { setBusy(false); }
   };
   const recognize = async () => { setBusy(true); try { await ensureTranscript(); } finally { setBusy(false); } };
 
@@ -80,7 +83,29 @@ export function TextEditPanel() {
             placeholder={tx('Скажи, что сделать: «убери паузы, музыку тише»')} aria-label={tx('Команда словами')} />
           <button className="btn small primary" disabled={!cmd.trim() || busy || running} data-testid="textedit-run">{tx('Сделать')}</button>
         </form>
-        <p className="hint small">{tx('Понимает: убери паузы, убери слова-паразиты, добавь или спрячь субтитры, музыку тише / громче, голос громче, чистый голос, 9:16 / 16:9 / квадрат, ускорь в 2 раза, убери фон, скрой лица, автозум, обложка, экспорт.')}</p>
+        <div className="cmd-chips" data-testid="cmd-chips">
+          {COMMAND_CHIPS.map((ex) => (
+            <button key={ex} type="button" className="chip-btn" disabled={busy || running} onClick={() => void doCmd(ex)} title={tx('Выполнить эту команду')}>{ex}</button>
+          ))}
+          <button type="button" className={`chip-btn more ${help ? 'on' : ''}`} onClick={() => setHelp(!help)} aria-expanded={help} data-testid="cmd-help">
+            <HelpCircle size={13} />{tx('Что умеет')}
+          </button>
+        </div>
+        {help && (
+          <div className="cmd-help" data-testid="cmd-help-card">
+            <img src={mascotPoint} alt="" />
+            <div className="cmd-help-body">
+              <b>{tx('Пиши как другу — Kadro поймёт')}</b>
+              <p>{tx('Несколько дел сразу — через запятую или «и»: «убери паузы, музыку тише и добавь субтитры». Команды про картинку идут на выделенный клип, а если ничего не выделено — на весь ролик. Не понравилось — Ctrl+Z.')}</p>
+              {COMMAND_HELP.map((g) => (
+                <div key={g.group} className="cmd-help-group">
+                  <span>{g.group}</span>
+                  <div>{g.examples.map((ex) => <button key={ex} type="button" className="chip-btn" onClick={() => setCmd(cmd.trim() ? `${cmd.trim()}, ${ex}` : ex)} title={tx('Добавить в строку команды')}>{ex}</button>)}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {words.length === 0 ? (
           <div className="textedit-empty">

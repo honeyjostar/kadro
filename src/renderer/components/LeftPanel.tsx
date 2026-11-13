@@ -1596,7 +1596,14 @@ function AiPanel() {
   return (
     <>
       <div className="panel-head">{tx('ИИ-инструменты')}</div>
-      <div className="panel-body"><AiTools /></div>
+      <div className="panel-body">
+        <div className="ai-card" data-testid="ai-words-card">
+          <h4><Sparkles size={15} />{tx('Скажи словами')}</h4>
+          <p className="hint">{tx('Не знаешь, где кнопка? Напиши, что сделать: «убери паузы, музыку тише и добавь субтитры» — Kadro сделает сам.')}</p>
+          <button className="btn block" onClick={() => getState().setTextEditOpen(true)} data-testid="ai-open-words">{tx('Открыть команды словами')}</button>
+        </div>
+        <AiTools />
+      </div>
     </>
   );
 }

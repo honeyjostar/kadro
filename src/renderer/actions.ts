@@ -24,7 +24,8 @@ import { addStickerClip } from '../shared/stickers';
 import { applyBoomerang, boomerangPiece } from '../shared/boomerang';
 import { matchLut } from '../shared/colorMatch';
 import { bassBoost, dramaZoom, MEMES, slowMo, toBeContinued, type MemeId, type MemeSound } from '../shared/memes';
-import { groupCues, langInline, splitTranslation, type LangCode } from '../shared/translate';
+import { groupCues, guessLang, langInline, splitTranslation, type LangCode } from '../shared/translate';
+import { FILTER_PRESETS } from '../shared/color';
 import { api, getState, takeEarlyPatches, type AutoParams } from './store';
 import { fmtDur, fmtTime, plural, uidShort } from './util';
 import { VoiceRecorder } from './recorder';
@@ -42,7 +43,7 @@ import { noteUsed } from './favs';
 import { findLag, SYNC_MIN_CONFIDENCE, syncedPlacement } from '../shared/audioSync';
 import { frameStats, type FrameStats } from '../shared/cover';
 import { cutLength, cutRanges, cutTimeline, fillerIndices, transcriptWords } from '../shared/textEdit';
-import { parseCommands, type Command } from '../shared/commands';
+import { COMMAND_CHIPS, parseCommands, type Command } from '../shared/commands';
 import { applyAutoZoom, clearAutoZoom, zoomMoments, ZOOM, type ZoomStrength } from '../shared/autoZoom';
 import { BLUR_HOLD, linkTracks, newRegion, padFace, regionSpan } from '../shared/blur';
 import { mediaKeyTime } from '../shared/anim';
@@ -2287,13 +2288,22 @@ export function cutWords(indices: number[]): number {
 const mainMedia = () => mainTrack(getState().project).clips.filter((c): c is MediaClip => c.type === 'media');
 const withAudio = (c: MediaClip) => !!getState().project.assets.find((a) => a.id === c.assetId)?.hasAudio;
 
+const assetOf = (c: MediaClip) => getState().project.assets.find((a) => a.id === c.assetId);
+/** Для команды про картинку: выделенные клипы, а если ничего не выделено — всё видео и фото основной дорожки. */
+const cmdVideo = (withSound = false): MediaClip[] => {
+  const sel = selectedVisualClips();
+  if (sel.length) return sel;
+  return mainMedia().filter((x) => withSound || assetOf(x)?.kind !== 'audio');
+};
+
 /** Выполнить команды словами («убери паузы, музыку тише»). Что сделано — подписи для подсказки. */
 export async function runCommands(text: string): Promise<{ done: string[]; unknown: string[] }> {
   const { cmds, unknown } = parseCommands(text);
   const done: string[] = [];
   const s = () => getState();
   // экспорт и обложка — после всего остального
-  const ordered = [...cmds.filter((c) => c.kind !== 'export' && c.kind !== 'cover'), ...cmds.filter((c) => c.kind === 'export' || c.kind === 'cover')];
+  const last = (c: Command) => c.kind === 'export' || c.kind === 'cover' || c.kind === 'shorts';
+  const ordered = [...cmds.filter((c) => !last(c)), ...cmds.filter(last)];
   for (const c of ordered as Command[]) {
     switch (c.kind) {
       case 'pauses': {
@@ -2363,10 +2373,90 @@ export async function runCommands(text: string): Promise<{ done: string[]; unkno
         done.push(n ? tx('лица скрыты: {0}', n) : tx('лиц не нашлось'));
         break;
       }
+      case 'volume': {
+        const v = Math.min(2, Math.max(0, c.percent / 100));
+        s().commit((p) => ({
+          ...p,
+          tracks: p.tracks.map((t) => ((c.target === 'music' ? t.kind === 'audio' : t.kind === 'main')
+            ? { ...t, clips: t.clips.map((x) => (x.type === 'media' ? { ...x, volume: v } : x)) }
+            : t)),
+        }));
+        done.push(c.target === 'music' ? tx('музыка {0}%', c.percent) : tx('голос {0}%', c.percent));
+        break;
+      }
+      case 'mute': {
+        const targets = cmdVideo(true).filter(withAudio);
+        s().commit((p) => targets.reduce((acc, x) => updateClip(acc, x.id, { muted: c.on }), p));
+        done.push(c.on ? tx('звук выключен') : tx('звук включён'));
+        break;
+      }
+      case 'stabilize': {
+        const targets = cmdVideo().filter((x) => assetOf(x)?.kind === 'video');
+        if (!targets.length) { s().toast(tx('Стабилизация — для видео: выдели клип или положи видео на основную дорожку')); break; }
+        for (const x of targets) await stabilizeClip(x.id);
+        done.push(tx('стабилизация'));
+        break;
+      }
+      case 'enhance': {
+        let n = 0;
+        for (const x of cmdVideo()) if (await enhanceClip(x.id, 'fast')) n++;
+        if (n) done.push(tx('качество улучшено'));
+        break;
+      }
+      case 'filter': {
+        const name = FILTER_PRESETS.find((f) => f.id === c.preset)?.label ?? c.preset;
+        let n = 0;
+        for (const x of cmdVideo()) if (setFilterOn(x.id, c.preset)) n++;
+        if (n) done.push(c.preset === 'none' ? tx('фильтр убран') : tx('фильтр «{0}»', name));
+        break;
+      }
+      case 'brightness': {
+        const targets = cmdVideo();
+        s().commit((p) => targets.reduce((acc, x) => updateClip(acc, x.id, { color: { ...x.color, brightness: Math.round(Math.min(1.6, Math.max(0.5, x.color.brightness * c.factor)) * 100) / 100 } }), p));
+        if (targets.length) done.push(c.factor > 1 ? tx('светлее') : tx('темнее'));
+        break;
+      }
+      case 'translate': {
+        const caps = s().project.tracks.flatMap((t) => t.clips).filter((x): x is TextClip => x.type === 'text' && x.role === 'caption');
+        const from = guessLang(caps.slice(0, 30).map((x) => x.text.split('\n')[0]).join(' '));
+        const to = c.to ?? (from === 'en' ? 'ru' : 'en');
+        if (to === from) { s().toast(tx('Субтитры уже на этом языке')); break; }
+        if (await translateCaptions(from, to, 'replace')) done.push(tx('субтитры переведены'));
+        break;
+      }
+      case 'retouch': {
+        const x = cmdVideo()[0];
+        if (x) { await retouchClip(x.id, 0.5, 0.15); done.push(tx('ретушь')); }
+        break;
+      }
+      case 'reframe': {
+        const x = cmdVideo().find((v) => assetOf(v)?.kind === 'video');
+        if (x) { await autoReframe(x.id); done.push(tx('автокадрирование')); }
+        break;
+      }
+      case 'beats': {
+        // ритм у музыки ещё не искали — сначала найдём
+        for (const a of s().project.assets) if (a.kind === 'audio' && !a.beats?.length && s().project.tracks.some((t) => t.clips.some((x) => x.type === 'media' && x.assetId === a.id))) await findBeats(a.id);
+        alignToBeats();
+        break;
+      }
+      case 'freeze': await freezeFrame(); done.push(tx('стоп-кадр')); break;
+      case 'split': splitAtPlayhead(); done.push(tx('разрезано')); break;
+      case 'delete':
+        if (!s().selection.length) { s().toast(tx('Сначала выдели клип, который убрать')); break; }
+        deleteSelection();
+        done.push(tx('клип удалён'));
+        break;
+      case 'shorts': s().setShortsOpen(true); done.push(tx('шортсы')); break;
+      case 'undo': s().undo(); break;
+      case 'redo': s().redo(); break;
+      case 'help':
+        s().toast(tx('Умею: {0}. Весь список — «Что умеет» под строкой команды', COMMAND_CHIPS.map((x) => `«${x}»`).join(', ')));
+        break;
     }
   }
   if (done.length) s().toast(tx('Сделано: {0}', done.join(', ')), 'ok');
-  if (unknown.length) s().toast(tx('Не понял: «{0}». Попробуй: «убери паузы», «музыку тише», «добавь субтитры»', unknown.join('», «')));
+  if (unknown.length) s().toast(tx('Не понял: «{0}». Примеры — под строкой команды, весь список — «Что умеет»', unknown.join('», «')));
   return { done, unknown };
 }
 
