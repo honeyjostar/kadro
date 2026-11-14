@@ -1,5 +1,6 @@
 // Движок превью: синхронное воспроизведение всех дорожек и сборка кадра на canvas.
 // Геометрия, цвет, переходы и текст — те же функции/формулы, что и в экспорте.
+import { AdaptiveScale } from '../../shared/adaptive';
 import { duckGain, duckNow, isMusic, speechIntervals } from '../../shared/duck';
 import { aiSource, audioSource, videoSource } from '../../shared/ai';
 import { mediaKeyTime, mediaPropsAt } from '../../shared/anim';
@@ -139,7 +140,29 @@ export class PreviewEngine {
   get time(): number { return this.t; }
   get isPlaying(): boolean { return this.playing; }
 
+  /** «Превью: авто»: при воспроизведении размер холста сам подстраивается под скорость компьютера. */
+  private adapt: AdaptiveScale | null = null;
+  private baseW = 0;
+  private baseH = 0;
+  private lastFrameAt = 0;
+  setAdaptive(on: boolean): void {
+    this.adapt = on ? this.adapt ?? new AdaptiveScale() : null;
+    this.applySize();
+  }
+  /** Доля размера, с которой сейчас считается превью (1 — полный). */
+  get adaptFactor(): number { return this.adapt && this.playing ? this.adapt.factor : 1; }
+  private applySize(): void {
+    const k = this.adaptFactor;
+    this.resize(this.baseW * k, this.baseH * k);
+  }
+
   setSize(w: number, h: number): void {
+    this.baseW = w;
+    this.baseH = h;
+    this.applySize();
+  }
+
+  private resize(w: number, h: number): void {
     w = Math.max(2, Math.round(w));
     h = Math.max(2, Math.round(h));
     if (w === this.W && h === this.H) return;
@@ -184,6 +207,8 @@ export class PreviewEngine {
     this.ensureAudio();
     if (this.ac?.state === 'suspended') await this.ac.resume().catch(() => undefined);
     this.playing = true;
+    this.lastFrameAt = 0;
+    this.applySize();
     this.tStart = this.t;
     this.wallStart = performance.now();
     this.dirty = true;
@@ -201,6 +226,8 @@ export class PreviewEngine {
 
   pause(): void {
     this.playing = false;
+    this.lastFrameAt = 0;
+    this.applySize(); // на паузе — полный размер
     for (const e of this.media.values()) if (e.kind !== 'image') (e.el as HTMLMediaElement).pause();
     this.dirty = true;
   }
@@ -477,6 +504,9 @@ export class PreviewEngine {
     const p = this.project;
     if (!p) return;
     if (this.playing) {
+      const now = performance.now();
+      if (this.adapt && this.lastFrameAt && this.adapt.feed(now - this.lastFrameAt, now)) this.applySize();
+      this.lastFrameAt = now;
       const dur = projectDuration(p);
       this.t = this.tStart + (this.rate * (performance.now() - this.wallStart)) / 1000;
       if (this.rate < 0 && this.t <= 0) {

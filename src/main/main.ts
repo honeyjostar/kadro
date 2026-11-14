@@ -1,4 +1,6 @@
+import type { HwInfo } from '../shared/hw';
 // Главный процесс Kadro: окно, доступ к файлам, импорт, экспорт, ИИ-задачи.
+import { needsLightCopy, type LightCopyPref } from '../shared/lightCopy';
 import './lang'; // язык — раньше всего остального
 import { tx, uiLang } from '../shared/i18n';
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, shell, utilityProcess, type UtilityProcess } from 'electron';
@@ -58,7 +60,7 @@ import { bundledFile, cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir, she
 import { asrBenchKey, decideAsrDevice, DML_FALLBACK, gpuKey, type AsrBench, type AsrDevice, type AsrDeviceInfo, type AsrDevicePref } from '../shared/asrDevice';
 import { exportProject, exportSpeechAudio, glFrames } from './exporter';
 import { DRIVER_PAGES, hardwareInfo } from './hardware';
-import { MEDIA_EXT, analyze, coverIfReady, makeCover, makePeaks, makeProxy, makeThumbs } from './media';
+import { MEDIA_EXT, analyze, coverIfReady, makeCover, makePeaks, makeProxy, makeThumbs, setLightCopyRule } from './media';
 import { Queue, backgroundLimit } from '../shared/queue';
 
 void net;
@@ -609,7 +611,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; about?: unknown; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; duck?: Partial<DuckSettings>; coach?: CoachState }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; about?: unknown; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; lightCopy?: LightCopyPref; duck?: Partial<DuckSettings>; coach?: CoachState }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
@@ -1319,6 +1321,16 @@ function registerIpc(): void {
   // музыка тише под голос — во всех проектах (плеер и экспорт)
   setDuck(readSettings().duck);
   ipcMain.on('duck:get', (e) => { e.returnValue = duckNow(); });
+  // лёгкие копии для 2K/4K: настройка и правило для импорта
+  const lightPref = (): LightCopyPref => readSettings().lightCopy ?? 'auto';
+  setLightCopyRule(async (w, h, fps) => {
+    // маленькому видео и при «Нет» железо не нужно; иначе — ждём сведения о компьютере (обычно уже готовы)
+    if (!needsLightCopy(lightPref(), w, h, fps, null)) return false;
+    const hw: HwInfo | null = await hardwareInfo().catch(() => null);
+    return needsLightCopy(lightPref(), w, h, fps, hw);
+  });
+  ipcMain.on('lightCopy:get', (e) => { e.returnValue = lightPref(); });
+  ipcMain.handle('lightCopy:set', (_e, v: LightCopyPref) => { if (['auto', 'on', 'off'].includes(v)) writeSettings({ ...readSettings(), lightCopy: v }); return lightPref(); });
   // обучение «Первый ролик за 3 шага»
   // KADRO_NO_COACH — автотесты: обучение не предлагается (полоса над таймлайном сдвигала бы раскладку)
   ipcMain.on('coach:get', (e) => { e.returnValue = process.env.KADRO_NO_COACH ? 'off' : readSettings().coach ?? null; });

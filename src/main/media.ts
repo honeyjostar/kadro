@@ -101,6 +101,10 @@ export function proxyPlan(kind: MediaKind, pr: ProbeResult, file: string): 'none
   return vOk && aOk && containerOk ? 'none' : 'video';
 }
 
+/** Нужна ли лёгкая копия большому видео (2K/4K) — правило задаёт main.ts по настройке и железу. */
+let lightCopyRule: (w: number, h: number, fps: number) => boolean | Promise<boolean> = () => false;
+export function setLightCopyRule(fn: (w: number, h: number, fps: number) => boolean | Promise<boolean>): void { lightCopyRule = fn; }
+
 export async function analyze(file: string): Promise<{ asset: MediaAsset; plan: 'none' | 'audio' | 'video' }> {
   const pr = await probe(file);
   const isGif = path.extname(file).toLowerCase() === '.gif';
@@ -111,7 +115,10 @@ export async function analyze(file: string): Promise<{ asset: MediaAsset; plan: 
   let w = pr.video?.width ?? 0;
   let h = pr.video?.height ?? 0;
   if (rot === 90 || rot === 270) [w, h] = [h, w]; // ffmpeg и плеер поворачивают кадр сами
-  const plan = proxyPlan(kind, pr, file);
+  let plan = proxyPlan(kind, pr, file);
+  const fps0 = parseRate(pr.video?.avg_frame_rate) || parseRate(pr.video?.r_frame_rate) || 30;
+  // 2K/4K на слабом компьютере: плеер играет лёгкую копию 720p, экспорт — оригинал
+  if (plan === 'none' && kind === 'video' && !isGif && (await lightCopyRule(w, h, fps0))) plan = 'video';
   const asset: MediaAsset = {
     id: uid('asset'),
     kind,

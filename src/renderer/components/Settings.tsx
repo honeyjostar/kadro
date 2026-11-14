@@ -1,5 +1,6 @@
 // Окно «Настройки»: тема, цвет акцента, значок программы (окно и ярлыки Windows), размер интерфейса,
 // своё оформление (custom.css и theme.json в папке данных — подхватываются на лету), качество превью и кэш.
+import type { LightCopyPref } from '../../shared/lightCopy';
 import { LANGS_UI, pluralForm, tx, uiLang, uiLocale } from '../../shared/i18n';
 import { txj } from '../txj';
 import { AudioLines, BookOpen, Compass, GraduationCap, Brain, Bug, Send, CheckCircle2, Cpu, Download, Globe, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, RefreshCw, Settings as Gear, Trash2, TriangleAlert, X, XCircle } from 'lucide-react';
@@ -26,6 +27,7 @@ export function SettingsDialog() {
   const defaultFormat = useStore((s) => s.defaultFormat);
   const custom = useStore((s) => s.customStatus);
   const previewQuality = useStore((s) => s.previewQuality);
+  const [lightCopy, setLightCopy] = useState<LightCopyPref>(api.initialLightCopy ?? 'auto');
   const [note, setNote] = useState('');
   const [langNote, setLangNote] = useState(false);
   const [dir, setDir] = useState(custom?.dir ?? '');
@@ -134,8 +136,15 @@ export function SettingsDialog() {
         <section className="settings-sec">
           <b>{tx('Качество превью')}</b>
           <Seg value={previewQuality} onChange={(v) => getState().setPreviewQuality(v)}
-            options={[{ value: 'high', label: tx('Высокое') }, { value: 'medium', label: tx('Среднее') }, { value: 'low', label: tx('Быстрое') }]} />
-          <p className="hint">{tx('Картинка в плеере. «Быстрое» — плавнее на слабом компьютере и ноутбуке. На экспорт не влияет.')}</p>
+            options={[{ value: 'auto', label: tx('Авто') }, { value: 'high', label: tx('Высокое') }, { value: 'medium', label: tx('Среднее') }, { value: 'low', label: tx('Быстрое') }]} />
+          <p className="hint">{tx('Картинка в плеере. «Авто» — при воспроизведении Kadro сам уменьшает картинку, если компьютер не успевает, и возвращает, когда успевает; на паузе — всегда чёткая. На экспорт не влияет.')}</p>
+        </section>
+
+        <section className="settings-sec">
+          <b>{tx('Лёгкие копии для 2K и 4K')}</b>
+          <Seg value={lightCopy} onChange={(v) => { setLightCopy(v); void api.setLightCopy(v); }} testId="light-copy"
+            options={[{ value: 'auto', label: tx('Авто') }, { value: 'on', label: tx('Всегда') }, { value: 'off', label: tx('Нет') }]} />
+          <p className="hint">{tx('Плеер играет уменьшенную копию большого видео — монтаж плавный даже на старой видеокарте, а экспорт берёт оригинал в полном качестве. «Авто» — только если компьютеру тяжело. Для файлов, добавленных после смены.')}</p>
         </section>
 
         <ModelsSection />

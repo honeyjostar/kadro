@@ -174,3 +174,24 @@ test('качество превью: холст плеера меньше, вы�
   await win.getByTestId('preview-quality').selectOption('high');
   await expect.poll(size).toBe(hi);
 });
+
+test('превью «Авто»: не успевает при воспроизведении — картинка мельче, на паузе — снова полная', async () => {
+  const eng = () => win.evaluate(() => { const e = (window as any).__kadroEngine; return { w: e.W, h: e.H, k: e.adaptFactor, playing: e.isPlaying }; });
+  await win.getByTestId('preview-quality').selectOption('auto');
+  await expect.poll(async () => (await eng()).w).toBeGreaterThan(0);
+  const full = await eng();
+  // имитируем медленный компьютер: каждый кадр ~70 мс
+  await win.evaluate(() => {
+    const e = (window as any).__kadroEngine;
+    const orig = e.render.bind(e);
+    e.__slow = orig;
+    e.render = (t: number) => { const s = performance.now(); while (performance.now() - s < 70) { /* занят */ } return orig(t); };
+  });
+  await win.evaluate(() => (window as any).__kadroEngine.play(0));
+  await expect.poll(async () => (await eng()).k, { timeout: 20_000 }).toBeLessThan(1);
+  const small = await eng();
+  expect(small.w * small.h).toBeLessThan(full.w * full.h * 0.7);
+  await win.evaluate(() => { const e = (window as any).__kadroEngine; e.render = e.__slow; e.pause(); });
+  await expect.poll(async () => (await eng()).w).toBe(full.w);
+  await win.getByTestId('preview-quality').selectOption('high');
+});

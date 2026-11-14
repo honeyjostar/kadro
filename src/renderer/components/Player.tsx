@@ -14,8 +14,8 @@ import { mediaKeyTime } from '../../shared/anim';
 import { PreviewEngine } from '../engine/preview';
 import { api, getState, useStore, type PreviewQuality } from '../store';
 
-const PREVIEW_SCALE: Record<PreviewQuality, number> = { high: 1, medium: 0.6, low: 0.4 };
-const PREVIEW_CAP: Record<PreviewQuality, number> = { high: 1080, medium: 720, low: 480 };
+const PREVIEW_SCALE: Record<PreviewQuality, number> = { auto: 1, high: 1, medium: 0.6, low: 0.4 };
+const PREVIEW_CAP: Record<PreviewQuality, number> = { auto: 1080, high: 1080, medium: 720, low: 480 };
 import { fmtTime } from '../util';
 import { FormatMenu } from './FormatMenu';
 import { PLATFORMS, SAFE_ZONES, isVertical, type Platform } from '../../shared/safezones';
@@ -133,6 +133,7 @@ export function Player() {
     const short = Math.min(cw, ch);
     const cap = PREVIEW_CAP[quality];
     if (short > cap) { cw = (cw * cap) / short; ch = (ch * cap) / short; }
+    engineRef.current?.setAdaptive(quality === 'auto');
     engineRef.current?.setSize(cw, ch);
   }, [dispW, dispH, quality]);
 
@@ -426,8 +427,9 @@ export function Player() {
         <div className="transport-left">
           <div className="timecode" data-testid="timecode"><b>{fmtTime(playhead, fps, true)}</b> / {fmtTime(duration, fps, true)}</div>
           <select className="input aspect-select quality-select" value={quality} data-testid="preview-quality"
-            title={tx('Качество превью в плеере. «Быстрое» — плавнее на слабом компьютере; на экспорт не влияет')}
+            title={tx('Качество превью в плеере. «Авто» само уменьшает картинку при воспроизведении, если компьютер не успевает; на экспорт не влияет')}
             onChange={(e) => getState().setPreviewQuality(e.target.value as PreviewQuality)}>
+            <option value="auto">{tx('Превью: авто')}</option>
             <option value="high">{tx('Превью: высокое')}</option>
             <option value="medium">{tx('Превью: среднее')}</option>
             <option value="low">{tx('Превью: быстрое')}</option>

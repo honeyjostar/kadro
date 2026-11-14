@@ -15,7 +15,7 @@ export const api: KadroApi = (window as unknown as { kadro: KadroApi }).kadro;
 
 export type LeftTab = 'media' | 'audio' | 'text' | 'captions' | 'effects' | 'transitions' | 'filters' | 'templates' | 'ai' | '3d';
 export type AudioPlace = 'start' | 'cursor' | 'list';
-export type PreviewQuality = 'high' | 'medium' | 'low';
+export type PreviewQuality = 'auto' | 'high' | 'medium' | 'low';
 
 export interface Job { id: string; label: string; progress: number; stage?: string; clipId?: string; cancellable: boolean }
 export interface Toast { id: number; text: string; kind: 'info' | 'ok' | 'err' }
@@ -277,7 +277,7 @@ export const useStore = create<State>((set, get) => ({
   settingsOpen: false,
   audioPlace: readPref<AudioPlace>('kadro.audioPlace', 'start'),
   reveal: null,
-  previewQuality: readPref<PreviewQuality>('kadro.previewQuality', 'high'),
+  previewQuality: readPref<PreviewQuality>('kadro.previewQuality', 'auto'),
   sourceView: null,
 
   commit: (fn, key) => {

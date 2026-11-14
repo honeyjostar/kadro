@@ -159,6 +159,9 @@ export interface KadroApi {
   /** Музыка тише под голос (во всех проектах). */
   initialDuck: import('./duck').DuckSettings;
   setDuck(patch: Partial<import('./duck').DuckSettings>): Promise<import('./duck').DuckSettings>;
+  /** Лёгкие копии для 2K/4K: «auto» — только на слабом компьютере. */
+  initialLightCopy: import('./lightCopy').LightCopyPref;
+  setLightCopy(v: import('./lightCopy').LightCopyPref): Promise<import('./lightCopy').LightCopyPref>;
   /** Обучение «Первый ролик за 3 шага»: null — ещё не предлагали. */
   coach: import('./coach').CoachState | null;
   setCoach(c: import('./coach').CoachState): void;
