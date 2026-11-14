@@ -161,7 +161,10 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     // скрытые лица и номера: маска на каждый кадр клипа
     const blurMasks = await makeBlurMasks(project, job, opts.fps, signal);
     const photo3dMaps = await makePhoto3dMaps(project, job, opts.fps, signal); // 3D-фото: сдвиг по глубине на каждый кадр
-    const graph = buildGraph(project, { width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments, blurMasks, photo3dMaps,
+    // большие видео (2K/4K) декодирует видеокарта, если она есть (на Windows — D3D11/DXVA, у NVIDIA — и CUDA)
+    const hwInfo = await hardwareInfo().catch(() => null);
+    const hwDecode = process.platform === 'win32' && !!hwInfo?.gpus.length && process.env.KADRO_NO_HWDEC !== '1';
+    const graph = buildGraph(project, { hwDecode, width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments, blurMasks, photo3dMaps,
       duck: opts.alpha || sticker ? undefined : await duckFor(project), maxDuration: sticker ? TG_STICKER.maxSec : opts.maxSec });
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);

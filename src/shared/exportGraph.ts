@@ -23,6 +23,8 @@ import { isGlType } from './gl/glsl';
 import { saturateMatrix } from './color';
 
 export interface BuildOpts {
+  /** Декодировать большие видео (2K+, H.264/HEVC) видеокартой: «-hwaccel auto» (нет — ffmpeg сам перейдёт на процессор). */
+  hwDecode?: boolean;
   width: number;
   height: number;
   fps: number;
@@ -151,6 +153,13 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
   const addInput = (args: string[]) => { inputs.push(args); return inputs.length - 1; };
   const many = p.tracks.reduce((n, t) => n + t.clips.length, 0) > 8;
   const thr = many ? ['-threads', '2'] : [];
+  // видеокартой — не больше 4 больших входов: у каждого декодера своя видеопамять
+  let hwLeft = o.hwDecode ? 4 : 0;
+  const hw = (a: MediaAsset, ownDecoder: boolean): string[] => {
+    if (!hwLeft || ownDecoder || !['h264', 'hevc'].includes(a.videoCodec ?? '') || Math.min(a.width, a.height) < 1440) return [];
+    hwLeft--;
+    return ['-hwaccel', 'auto'];
+  };
 
   const assetOf = (c: MediaClip) => p.assets.find((a) => a.id === c.assetId) as MediaAsset;
 
@@ -604,7 +613,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
         const path = vsrc ? vsrc.path : g.asset.path;
         const offset = vsrc ? vsrc.offset : 0;
         const lp = vsrc ? null : loopInput(g.asset, g.in);
-        const idx = addInput([...thr, ...(bgr ? ['-c:v', 'libvpx-vp9'] : vsrc ? [] : alphaDecoder(g.asset)), ...(lp ? lp.args : []), '-ss', fmt(lp ? lp.ss : g.in - offset), '-t', fmt(g.out - g.in + 0.5), '-i', path]);
+        const dec = bgr ? ['-c:v', 'libvpx-vp9'] : vsrc ? [] : alphaDecoder(g.asset);
+        const idx = addInput([...thr, ...dec, ...hw(g.asset, !!vsrc || dec.length > 0 || !!lp), ...(lp ? lp.args : []), '-ss', fmt(lp ? lp.ss : g.in - offset), '-t', fmt(g.out - g.in + 0.5), '-i', path]);
         srcLabel = L('src');
         const half = 0.5 / F;
         const sel = g.clips
@@ -721,7 +731,8 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
           const path = vs ? vs.path : asset.path;
           const off = vs ? vs.offset : 0;
           const lp = vs ? null : loopInput(asset, c.in);
-          const idx = addInput([...thr, ...(vs?.alpha ? ['-c:v', 'libvpx-vp9'] : vs ? [] : alphaDecoder(asset)), ...(lp ? lp.args : []), '-ss', fmt(lp ? lp.ss : c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
+          const dec = vs?.alpha ? ['-c:v', 'libvpx-vp9'] : vs ? [] : alphaDecoder(asset);
+          const idx = addInput([...thr, ...dec, ...hw(asset, !!vs || dec.length > 0 || !!lp), ...(lp ? lp.args : []), '-ss', fmt(lp ? lp.ss : c.in - off), '-t', fmt(c.out - c.in + 0.5), '-i', path]);
           src = L('o');
           chains.push(`[${idx}:v]setpts=(PTS-STARTPTS)/${fmt(c.speed)},fps=${F},tpad=stop_mode=clone:stop_duration=2,trim=duration=${fmt(D)},setpts=PTS-STARTPTS[${src}]`);
         }
