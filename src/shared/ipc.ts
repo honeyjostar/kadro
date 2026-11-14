@@ -139,6 +139,8 @@ export interface KadroApi {
   /** Ответы «О тебе» из установщика (если Kadro ставили новым установщиком), иначе null. */
   aboutFromInstaller: import('./survey').About | null;
   welcomeDone(): Promise<boolean>;
+  /** Ответы «О тебе» — в settings.json (чтобы установщик не спрашивал снова). */
+  saveAbout(a: import('./survey').About): void;
   /** Основной формат роликов (выбран при первом запуске): новые проекты сразу в нём; null — не выбран. */
   /** распознавание речи: на видеокарте или на процессоре */
   asrDeviceInfo(): Promise<import('./asrDevice').AsrDeviceInfo>;

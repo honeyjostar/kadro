@@ -195,6 +195,8 @@ jobs:
         run: |
           cd release
           sha256sum Kadro-Setup-*.exe Kadro-*-portable.zip Kadro-Web-Setup.exe > SHA256SUMS.txt
+          # сколько Kadro займёт после установки — веб-установщик показывает по этому числу ход распаковки
+          if [ -d win-unpacked ]; then echo "# installed-bytes $(du -sb win-unpacked | cut -f1)" >> SHA256SUMS.txt; fi
           cat SHA256SUMS.txt
 
       - name: Файлы в артефакты сборки

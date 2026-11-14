@@ -74,6 +74,8 @@ test('тема, формат, компьютер и модели ИИ — и б�
   expect(settings(data)).toMatchObject({ welcome: 'done', format: '16:9', theme: 'light' });
   const about = await win.evaluate(() => JSON.parse(localStorage.getItem('kadro.about') ?? '{}'));
   expect(about).toEqual({ edit: ['youtube'], level: 'new', source: 'tiktok' });
+  // ответы — и в settings.json: установщик при обновлении не спросит второй раз
+  expect(settings(data).about).toEqual({ edit: ['youtube'], level: 'new', source: 'tiktok' });
   await expect(win.getByTestId('ui-mode').locator('[data-value=simple]')).toHaveClass(/active/);
   await K.app.close();
   // повторный запуск: окна нет, новый проект — сразу 16:9, ролик по сценарию — 16:9

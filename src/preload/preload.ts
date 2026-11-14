@@ -62,6 +62,7 @@ const api: KadroApi = {
   welcome: ipcRenderer.sendSync('app:welcome'),
   aboutFromInstaller: ipcRenderer.sendSync('app:about'),
   welcomeDone: () => ipcRenderer.invoke('app:welcomeDone'),
+  saveAbout: (a) => ipcRenderer.send('app:saveAbout', a),
   asrDeviceInfo: () => ipcRenderer.invoke('asr:deviceInfo'),
   setAsrDevice: (d) => ipcRenderer.invoke('asr:setDevice', d),
   resetAsrBench: () => ipcRenderer.invoke('asr:reset'),

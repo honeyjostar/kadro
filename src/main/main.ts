@@ -1248,6 +1248,8 @@ function registerIpc(): void {
   // ответы «О тебе» из установщика — только понятные значения
   ipcMain.on('app:about', (e) => { e.returnValue = cleanAbout(readSettings().about); });
   ipcMain.handle('app:welcomeDone', () => { writeSettings({ ...readSettings(), welcome: 'done' }); return true; });
+  // ответы «О тебе» из приветствия — и в настройки: установщик увидит их и не спросит второй раз
+  ipcMain.on('app:saveAbout', (_e, a: unknown) => { const c = cleanAbout(a); if (c) writeSettings({ ...readSettings(), about: c }); });
   // основной формат роликов: новые проекты сразу в нём
   ipcMain.on('prefs:format', (e) => { e.returnValue = readSettings().format ?? null; });
   ipcMain.handle('asr:deviceInfo', () => asrDeviceInfo());

@@ -88,7 +88,8 @@ namespace Kadro.WebSetup
             { "mbps", new[] { "МБ/с", "MB/s" } },
             { "verify", new[] { "Проверяю файл…", "Checking the file…" } },
             { "installTitle", new[] { "Устанавливаю Kadro", "Installing Kadro" } },
-            { "installSub", new[] { "Меньше минуты — и Kadro откроется сам.", "Under a minute, then Kadro opens by itself." } },
+            { "installSub", new[] { "Распаковываю около 1 ГБ — обычно это 1–2 минуты. Kadro откроется сам.", "Unpacking about 1 GB — usually 1–2 minutes. Kadro opens by itself." } },
+            { "unpacked", new[] { "Распаковано {0} из ~{1} МБ", "Unpacked {0} of ~{1} MB" } },
             { "installing", new[] { "Раскладываю файлы…", "Putting files in place…" } },
             { "tipLabel", new[] { "Пока ждёшь", "While you wait" } },
             { "cancel", new[] { "Отмена", "Cancel" } },
@@ -248,7 +249,10 @@ namespace Kadro.WebSetup
         public const float W = 780, H = 520;
         public Page Page = Page.Hello;
         public DateTime PageAt = DateTime.UtcNow;
-        public bool Known;                 // Kadro здесь уже запускали — «О тебе» не спрашиваем
+        public bool Known;                 // Kadro здесь уже запускали (есть его настройки)
+        public bool Asked;                 // на «О тебе» уже отвечали — второй раз не спрашиваем
+        public long Unpacked, UnpackTotal; // установка: сколько байт записал установщик и сколько примерно всего
+        public DateTime InstallAt = DateTime.UtcNow;
         public bool Motion = true;
         public string Level, Source;
         public readonly List<string> Edits = new List<string>();
@@ -545,7 +549,7 @@ namespace Kadro.WebSetup
                 Icon("check", x, y + 1, 16, C.Accent, 2.4f);
                 y += Para(S.Get(k), Assets.Font("onest-400", 14), C.A(C.Text, 220), x + 26, y, w - 26) + 9;
             }
-            Button("hello-next", S.Get(Known ? "install" : "next"), x, 448, 0, () => { if (Known) StartInstall(); else Go(Page.About); }, null, 180);
+            Button("hello-next", S.Get(Asked ? "install" : "next"), x, 448, 0, () => { if (Asked) StartInstall(); else Go(Page.About); }, null, 180);
         }
 
         void About()
@@ -583,9 +587,11 @@ namespace Kadro.WebSetup
             var track = new RectangleF(x, 208, w, 8);
             using (var p = Round(track, 4)) using (var b = new SolidBrush(C.SurfHi)) g.FillPath(b, p);
             var t = (float)((DateTime.UtcNow.Ticks / 10000) % 1600) / 1600f;
-            if (Phase == Phase.Download && Total > 0 || Phase == Phase.Verify)
+            bool unpack = inst && Unpacked > 0 && UnpackTotal > 0;
+            if (Phase == Phase.Download && Total > 0 || Phase == Phase.Verify || unpack)
             {
-                var frac = Phase == Phase.Verify ? 1f : Math.Min(1f, (float)Got / Total);
+                // при установке — по тому, сколько установщик уже записал на диск (до 98%: общий размер — оценка)
+                var frac = unpack ? Math.Min(0.98f, (float)Unpacked / UnpackTotal) : Phase == Phase.Verify ? 1f : Math.Min(1f, (float)Got / Total);
                 if (frac > 0.005f)
                 {
                     var fill = new RectangleF(x, 208, Math.Max(8, w * frac), 8);
@@ -612,7 +618,11 @@ namespace Kadro.WebSetup
                     if (Speed > 0) right = (Speed / 1048576.0).ToString("0.0", S.L == 0 ? System.Globalization.CultureInfo.GetCultureInfo("ru-RU") : System.Globalization.CultureInfo.InvariantCulture) + " " + S.Get("mbps");
                     break;
                 case Phase.Verify: left = S.Get("verify"); break;
-                default: left = S.Get("installing"); break;
+                default:
+                    left = unpack ? string.Format(S.Get("unpacked"), Mb(Math.Min(Unpacked, UnpackTotal)), Mb(UnpackTotal)) : S.Get("installing");
+                    var el = (int)(DateTime.UtcNow - InstallAt).TotalSeconds;
+                    right = (el / 60) + ":" + (el % 60).ToString("00");
+                    break;
             }
             Text(left, small, C.Text, x, 228);
             if (right != "") Text(right, small, C.Muted, x + w - Measure(right, small).Width, 228);
@@ -736,6 +746,9 @@ namespace Kadro.WebSetup
                     sums = rd.ReadToEnd();
                 var m = Regex.Match(sums, @"^([0-9a-fA-F]{64})\s+\*?(Kadro-Setup-[0-9.]+\.exe)\s*$", RegexOptions.Multiline);
                 if (!m.Success) throw new SetupException(S.Get("errNoSetup"));
+                // сколько займёт Kadro после установки: строка «# installed-bytes N» в SHA256SUMS.txt (новые выпуски)
+                var ib = Regex.Match(sums, @"^#\s*installed-bytes\s+(\d+)\s*$", RegexOptions.Multiline);
+                long installed = ib.Success ? long.Parse(ib.Groups[1].Value) : 0;
                 var hash = m.Groups[1].Value.ToLowerInvariant();
                 var name = m.Groups[2].Value;
                 var dir = Path.Combine(Path.GetTempPath(), "Kadro-Web-Setup");
@@ -779,9 +792,23 @@ namespace Kadro.WebSetup
                 // полный установщик — тихо (/S): своё окно не показывает, ход виден здесь
                 using (var p = Process.Start(new ProcessStartInfo(file, "/S") { UseShellExecute = !IsMono }))
                 {
-                    p.WaitForExit();
+                    // ход — по счётчику записи процесса установщика (в старых выпусках размера нет: сжатие ~3,1 раза)
+                    ui.UnpackTotal = installed > 0 ? installed : (long)(new FileInfo(file).Length * 3.14);
+                    ui.Unpacked = 0;
+                    ui.InstallAt = DateTime.UtcNow;
+                    while (!p.WaitForExit(250))
+                    {
+                        try
+                        {
+                            IO_COUNTERS c;
+                            if (GetProcessIoCounters(p.Handle, out c)) ui.Unpacked = (long)c.WriteBytes;
+                        }
+                        catch { }
+                    }
                     if (p.ExitCode != 0) throw new SetupException(string.Format(S.Get("errExit"), p.ExitCode));
                 }
+                // Kadro тут уже запускали, а на «О тебе» ответили сейчас — дописать ответы в его настройки
+                try { MergeAbout(); } catch { }
                 try { File.Delete(file); } catch { }
                 ui.Launched = LaunchKadro();
                 Finished = true;
@@ -817,6 +844,45 @@ namespace Kadro.WebSetup
             return File.Exists(Path.Combine(Path.Combine(Home, ".kadro"), "settings.json"));
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        struct IO_COUNTERS { public ulong ReadOps, WriteOps, OtherOps, ReadBytes, WriteBytes, OtherBytes; }
+        [DllImport("kernel32.dll")] static extern bool GetProcessIoCounters(IntPtr process, out IO_COUNTERS counters);
+
+        static string SettingsFile { get { return Path.Combine(Path.Combine(Home, ".kadro"), "settings.json"); } }
+
+        /// <summary>В настройках Kadro уже есть ответы «О тебе» (от установщика или из приветствия Kadro).</summary>
+        public static bool AboutAnswered()
+        {
+            try { return File.Exists(SettingsFile) && Regex.IsMatch(File.ReadAllText(SettingsFile), "\"about\"\\s*:"); }
+            catch { return true; } // не прочитать — не трогаем и не спрашиваем
+        }
+
+        string AboutJson()
+        {
+            var edits = new List<string>();
+            foreach (var o in Survey.Edits) if (ui.Edits.Contains(o.Id)) edits.Add(Q(o.Id));
+            var sb = new StringBuilder("{\"edit\": [").Append(string.Join(", ", edits.ToArray())).Append("]");
+            if (ui.Level != null) sb.Append(", \"level\": ").Append(Q(ui.Level));
+            if (ui.Source != null) sb.Append(", \"source\": ").Append(Q(ui.Source));
+            return sb.Append(", \"from\": \"installer\"}").ToString();
+        }
+
+        /// <summary>Настройки Kadro уже есть, ответов в них нет — вставить «about» первым ключом, остальное не трогая.</summary>
+        void MergeAbout()
+        {
+            if (!ui.AboutDone || !File.Exists(SettingsFile) || AboutAnswered()) return;
+            var text = File.ReadAllText(SettingsFile);
+            int at = text.IndexOf('{');
+            if (at < 0 || text.Substring(0, at).Trim().Length > 0) return; // не объект JSON — не трогаем
+            var rest = text.Substring(at + 1);
+            bool empty = rest.TrimStart().StartsWith("}");
+            var merged = text.Substring(0, at + 1) + "\"about\": " + AboutJson() + (empty ? "" : ", ") + rest.TrimStart();
+            var tmp = SettingsFile + ".tmp";
+            File.WriteAllText(tmp, merged, new UTF8Encoding(false));
+            File.Copy(tmp, SettingsFile, true);
+            File.Delete(tmp);
+        }
+
         static string Q(string s) { return "\"" + s + "\""; }
 
         /// <summary>Язык и ответы — для первого запуска Kadro (если Kadro тут ещё не запускали). Как installer-about.mjs.</summary>
@@ -828,15 +894,7 @@ namespace Kadro.WebSetup
             Directory.CreateDirectory(dir);
             var sb = new StringBuilder();
             sb.Append("{\"lang\": ").Append(Q(S.L == 0 ? "ru" : "en")).Append(", \"welcome\": \"pending\"");
-            if (ui.AboutDone)
-            {
-                var edits = new List<string>();
-                foreach (var o in Survey.Edits) if (ui.Edits.Contains(o.Id)) edits.Add(Q(o.Id));
-                sb.Append(", \"about\": {\"edit\": [").Append(string.Join(", ", edits.ToArray())).Append("]");
-                if (ui.Level != null) sb.Append(", \"level\": ").Append(Q(ui.Level));
-                if (ui.Source != null) sb.Append(", \"source\": ").Append(Q(ui.Source));
-                sb.Append(", \"from\": \"installer\"}");
-            }
+            if (ui.AboutDone) sb.Append(", \"about\": ").Append(AboutJson());
             sb.Append("}");
             File.WriteAllText(file, sb.ToString(), new UTF8Encoding(false));
         }
@@ -887,6 +945,7 @@ namespace Kadro.WebSetup
             var lang = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
             S.L = lang == "ru" || lang == "uk" || lang == "be" || lang == "kk" ? 0 : 1;
             ui.Known = Installer.KadroKnown();
+            ui.Asked = Installer.AboutAnswered();
             ui.Motion = AnimationsOn();
             ui.Close = () => Close();
             ui.Minimize = () => WindowState = FormWindowState.Minimized;
@@ -1071,11 +1130,11 @@ namespace Kadro.WebSetup
             switch (a[1])
             {
                 case "hello": break;
-                case "hello-known": ui.Known = true; break;
+                case "hello-known": ui.Known = true; ui.Asked = true; break;
                 case "about": ui.Go(Page.About); ui.Level = "new"; ui.Edits.Add("shorts"); ui.Edits.Add("games"); ui.Source = "telegram"; ui.HoverId = "edit-youtube"; break;
                 case "load": ui.Go(Page.Load); ui.Phase = Phase.Download; ui.Total = 369098752; ui.Got = 148897792; ui.Speed = 4.2 * 1048576; ui.Tip = a.Length > 5 ? int.Parse(a[5]) : 0; break;
                 case "connect": ui.Go(Page.Load); ui.Phase = Phase.Connect; ui.Tip = 1; break;
-                case "install": ui.Go(Page.Load); ui.Phase = Phase.Install; ui.Tip = 3; break;
+                case "install": ui.Go(Page.Load); ui.Phase = Phase.Install; ui.Tip = 3; ui.UnpackTotal = 1153433600; ui.Unpacked = 498073600; ui.InstallAt = DateTime.UtcNow.AddSeconds(-47); break;
                 case "error": ui.Go(Page.Error); ui.ErrorDetail = "The remote name could not be resolved: 'github.com'"; break;
                 case "done": ui.Go(Page.Done); ui.Launched = true; break;
                 default: return 2;

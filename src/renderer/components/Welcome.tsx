@@ -83,7 +83,7 @@ export function Welcome({ onDone }: { onDone: () => void }) {
   const steps = order.map((k) => ({ lang: tx('Язык и тема'), about: tx('О тебе'), format: tx('Формат'), hw: tx('Компьютер и ИИ') })[k]);
   const [about, setAbout] = useState<About>(() => readAbout());
   const uiMode = useStore((s) => s.uiMode);
-  const saveAbout = (a: About) => { setAbout(a); writeAbout(a); };
+  const saveAbout = (a: About) => { setAbout(a); writeAbout(a); api.saveAbout(a); };
   const next = () => {
     if (page === 'about') {
       const f = formatFor(about.edit);

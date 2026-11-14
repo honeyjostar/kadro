@@ -3,8 +3,8 @@
 #   bash scripts/test-web-setup.sh [папка для снимков]
 # Нужны: mono-mcs, libmono-system-windows-forms4.0-cil, binutils-mingw-w64-x86-64, xvfb, xdotool, imagemagick, python3.
 # 1) новичок: Дальше → «О тебе» с клавиатуры (Впервые, Шортсы, Telegram) → Установить → скачивание → тихая установка (/S)
-#    → «Готово»; settings.json — с ответами; 2) Kadro тут уже запускали + битый файл: сразу «Установить», ошибка,
-#    установщик не запускается, настройки не тронуты.
+#    → «Готово»; settings.json — с ответами; 2) Kadro уже запускали, ответов нет: «О тебе» → ответы дописаны в его
+#    настройки; 3) ответы уже есть + битый файл: сразу «Установить», ошибка, установщик не запускается, настройки целы.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 if [ -z "${INNER:-}" ]; then
@@ -84,17 +84,34 @@ sleep 3
 kill -0 $APP 2>/dev/null && fail "окно не закрылось само после запуска Kadro"
 echo "ok: новичок — ответы записаны, установка тихая, окно закрылось"
 
-# 2) Kadro уже запускали, файл битый
+# 2) Kadro уже запускали, но на «О тебе» не отвечали: спросим и допишем ответы в его настройки, остальное не тронув
 fresh
 mkdir -p "$HOME/.kadro"; echo '{"lang": "en", "recent": []}' > "$HOME/.kadro/settings.json"
+open_app
+keys Return
+sleep 0.6
+shot 5-about-known
+keys Tab space Tab Tab Tab Tab Tab Tab Tab Tab Tab Tab Tab Tab Tab Tab Tab Tab Tab Tab Return
+for _ in $(seq 60); do [ -f "$HOME/setup-args.txt" ] && break; sleep 0.25; done
+sleep 3
+want='{"about": {"edit": [], "level": "new", "from": "installer"}, "lang": "en", "recent": []}'
+got=$(cat "$HOME/.kadro/settings.json")
+[ "$got" = "$want" ] || fail "ответы не дописаны: $got"
+sleep 3
+kill $APP 2>/dev/null || true
+echo "ok: Kadro уже был — ответы дописаны в настройки, остальное цело"
+
+# 3) на «О тебе» уже отвечали + файл битый: сразу «Установить», ошибка, установщик не запускается, настройки не тронуты
+fresh
+mkdir -p "$HOME/.kadro"; echo "$want" > "$HOME/.kadro/settings.json"
 echo x >> "$T/srv/Kadro-Setup-9.9.9.exe"
 open_app
-shot 5-known
+shot 6-known
 keys Return
 sleep 4
-shot 6-error
+shot 7-error
 [ -f "$HOME/setup-args.txt" ] && fail "битый файл всё равно запущен"
-[ "$(cat "$HOME/.kadro/settings.json")" = '{"lang": "en", "recent": []}' ] || fail "настройки тронуты"
+[ "$(cat "$HOME/.kadro/settings.json")" = "$want" ] || fail "настройки тронуты"
 ls /tmp/Kadro-Web-Setup/Kadro-Setup-9.9.9.exe 2>/dev/null && fail "битый файл не удалён"
 kill $APP 2>/dev/null || true
 echo "ok: битый файл — ошибка, установщик не запускался, настройки целы"
