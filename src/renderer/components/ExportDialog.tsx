@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { CheckCircle2, ClipboardList, FolderOpen, ImageDown, ScanEye, ShieldCheck, Star, TriangleAlert, X } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FolderOpen, ImageDown, ScanEye, Send, ShieldCheck, Star, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { exportSize } from '../../shared/geometry';
 import { stickerShortSide, TG_STICKER } from '../../shared/tgSticker';
@@ -8,7 +8,8 @@ import type { ExportResult } from '../../shared/ipc';
 import { encoderLabel, reasonText, type HwInfo } from '../../shared/hw';
 import { projectDuration } from '../../shared/timeline';
 import type { ExportFormat, ExportOptions } from '../../shared/types';
-import { GITHUB_PAGE } from '../../shared/links';
+import { GITHUB_PAGE, TELEGRAM_CHANNEL } from '../../shared/links';
+import { tgAfterExport, tgDone } from '../promo';
 import { checkRetention, copyChapters, staleAiClips } from '../actions';
 import { RetentionItem } from './Retention';
 import { chaptersOf } from '../../shared/markers';
@@ -77,6 +78,7 @@ export function ExportDialog() {
   const format: ExportFormat = opts.format ?? 'mp4';
   const setFormat = (f: ExportFormat) => setOpts((o) => fitFormat(o, f, shortSideOf(project.settings), project.settings.fps, project.settings));
   const [star, setStar] = useState<'ask' | 'thanks' | 'hidden'>('ask');
+  const [tg, setTg] = useState<'ask' | 'hidden' | null>(null);
   const retention = useStore((s) => s.retention);
   const [retBusy, setRetBusy] = useState(false);
   const title = format === 'gif' ? tx('Экспорт в GIF') : format === 'mp3' ? tx('Экспорт звука') : format === 'sticker' ? tx('Видеостикер Telegram') : tx('Экспорт видео');
@@ -175,6 +177,7 @@ export function ExportDialog() {
         }
       }
       setExtraDone(done);
+      if (r.ok && !r.askStar && tgAfterExport()) setTg('ask');
       setResult(r);
       setPhase(r.ok ? 'done' : 'error');
     } catch (e) {
@@ -371,6 +374,18 @@ export function ExportDialog() {
                     <Star size={13} />{tx('Поставить звезду')}
                   </button>
                   <button className="btn small ghost" data-testid="star-later" onClick={() => setStar('hidden')}>{tx('Не сейчас')}</button>
+                </div>
+              </div>
+            )}
+            {!result.askStar && tg === 'ask' && (
+              <div className="star-ask tg-ask" data-testid="tg-ask">
+                <Send size={20} className="star-ico" />
+                <b>{tx('Шаблоны, фоны и гайды — в канале Kadro')}</b>
+                <p>{tx('Новые фоны для TikTok, приёмы монтажа и что появилось в Kadro.')}</p>
+                <div className="star-btns">
+                  <button className="btn small primary" data-testid="tg-yes" onClick={() => { void api.openUrl(TELEGRAM_CHANNEL); tgDone(); setTg('hidden'); }}><Send size={13} />{tx('Открыть канал')}</button>
+                  <button className="btn small ghost" data-testid="tg-later" onClick={() => setTg('hidden')}>{tx('Не сейчас')}</button>
+                  <button className="btn small ghost" data-testid="tg-never" onClick={() => { tgDone(); setTg('hidden'); }}>{tx('Не показывать')}</button>
                 </div>
               </div>
             )}

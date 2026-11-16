@@ -38,7 +38,8 @@ import { captionCues, dubPhrases, fitSpeed, placeDub, quietOriginal, slotOf } fr
 import { personWanted } from '../shared/person';
 import { SUBSCRIBE_DUR } from '../shared/subscribe';
 import { EFFECTS } from '../shared/effects';
-import { setTransition } from '../shared/timeline';
+import { edit, layoutMain, setTransition } from '../shared/timeline';
+import { BG_DURATION, bgPreset } from '../shared/backgrounds';
 import type { EffectType, TransitionType } from '../shared/types';
 import { noteUsed } from './favs';
 import { findLag, SYNC_MIN_CONFIDENCE, syncedPlacement } from '../shared/audioSync';
@@ -2737,4 +2738,43 @@ export function addAdjustmentLayer(): string | null {
     getState().toast(tx('Корректирующий слой: фильтр, цвет и эффекты на нём меняют всё, что под ним. Прозрачность — сила'), 'ok');
   }
   return id;
+}
+
+// ---------- живые фоны ----------
+/**
+ * Живой фон из «Шаблонов» → «Фоны»: клип-основа (чёрная картинка) с шейдером фона, на BG_DURATION секунд.
+ * Пустой проект — с начала; иначе — к курсору на основную дорожку. Поверх кладётся видео, текст или озвучка.
+ */
+export async function addBackground(id: string): Promise<string | null> {
+  const b = bgPreset(id);
+  if (!b) return null;
+  const demo = await loadDemoFiles();
+  if (!demo.bgBase) { getState().toast(tx('Файл для фонов не найден — переустанови Kadro'), 'err'); return null; }
+  const byPath = await assetsForPaths([demo.bgBase]);
+  const asset = byPath.get(demo.bgBase);
+  if (!asset) return null;
+  const s = getState();
+  const empty = projectDuration(s.project) === 0;
+  const at = empty ? 0 : s.playhead;
+  let clipId: string | null = null;
+  s.commit((p) => {
+    const r = addToMain(p, asset.id, at);
+    clipId = r.clipId;
+    return edit(r.project, (d) => {
+      for (const t of d.tracks) for (const c of t.clips) {
+        if (c.id !== r.clipId || c.type !== 'media') continue;
+        c.in = 0;
+        c.out = BG_DURATION;
+        c.fit = 'cover';
+        c.effects = [{ ...b.effect, params: { ...(b.effect.params ?? {}) } }];
+      }
+      layoutMain(d);
+    });
+  });
+  if (clipId) {
+    s.select([clipId]);
+    s.revealClip(clipId);
+    s.toast(tx('Фон «{0}» на {1} с. Поверх положи видео, текст или озвучку; длину меняй за край клипа, цвет и скорость — во вкладке «Эффекты».', b.label, BG_DURATION), 'ok');
+  }
+  return clipId;
 }

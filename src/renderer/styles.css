@@ -577,6 +577,8 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .star-ask p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
 .star-ask .star-btns { grid-column: 2; display: flex; gap: 8px; margin-top: 8px; }
 .star-ask.thanks { grid-template-columns: auto 1fr; }
+.tg-ask .star-ico { color: #2aabee; }
+.tg-ask .star-btns { flex-wrap: wrap; }
 .intro-offer { position: fixed; right: 18px; bottom: 18px; z-index: 70; width: 380px; margin: 0; box-shadow: 0 14px 40px var(--shadow); }
 .intro-offer .star-ico { color: var(--accent); }
 /* логотип на видео — в настройках проекта */
@@ -1480,3 +1482,16 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 /* соло и замок видны, когда включены или под мышью — имя дорожки не теряется */
 .track-head .icon-btn.solo:not(.on), .track-head .icon-btn.lock:not(.on) { opacity: 0; }
 .track-head:hover .icon-btn.solo, .track-head:hover .icon-btn.lock, .track-head .icon-btn.solo:focus-visible, .track-head .icon-btn.lock:focus-visible { opacity: 1; }
+/* ссылка-кнопка в тексте подсказки */
+button.link { background: none; border: 0; padding: 0; font: inherit; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+button.link:hover { color: var(--strong); }
+/* живые фоны в «Шаблонах» */
+.bg-section { margin: 4px 0 14px; }
+.bg-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.bg-card { display: flex; flex-direction: column; gap: 5px; padding: 0; background: none; border: 0; cursor: pointer; color: var(--text); text-align: left; }
+.bg-thumb { position: relative; display: block; aspect-ratio: 9 / 16; border-radius: 9px; overflow: hidden; background: #000; outline: 1px solid var(--line); transition: outline-color .15s; }
+.bg-thumb canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bg-card:hover .bg-thumb, .bg-card:focus-visible .bg-thumb { outline: 2px solid var(--accent); }
+.bg-card:disabled { opacity: .6; cursor: progress; }
+.bg-name { font-size: 11.5px; line-height: 1.25; color: var(--muted); }
+.bg-card:hover .bg-name { color: var(--strong); }

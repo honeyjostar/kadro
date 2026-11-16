@@ -53,6 +53,7 @@ import { SFX, SFX_IDS, sfxFile, type SfxId } from '../../shared/sfx';
 import { pickInOrder, type FavKind } from '../../shared/favs';
 import { noteUsed, useFavs } from '../favs';
 import { defaultVoice, VOICES } from '../../shared/voices';
+import { BackgroundsSection } from './Backgrounds';
 
 export const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'media', label: tx('Медиа'), icon: <Film size={19} /> },
@@ -172,6 +173,7 @@ function TemplatesPanel() {
             <button className="btn small" disabled={busy} onClick={() => getState().setScriptOpen(true)} data-testid="tpl-script">{tx('Написать сценарий…')}</button>
           </div>
         </div>
+        <BackgroundsSection />
         <p className="hint">{tx('Готовый монтаж с переходами, цветом, эффектами и надписями. Наведи на шаблон, чтобы посмотреть, нажми — и выбери свои видео и фото по порядку.')}</p>
         <div className="chips">
           <button className={cat === 'all' ? 'active' : ''} onClick={() => setCat('all')}>{tx('Все')}</button>

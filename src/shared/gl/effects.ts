@@ -2,6 +2,8 @@
 // Договор: функция vec4 effect(vec2 uv); getColor(uv) — кадр клипа; time — секунды от начала клипа;
 // progress — 0..1 по клипу; amount — сила 0..1 (ползунок во вкладке «Эффекты»); resolution — размер кадра в пикселях.
 
+import { GL_BACKGROUND_SOURCES } from './backgrounds';
+
 export const GL_EFFECT_SOURCES: Record<string, string> = {
   aberration: `// Name: Хроматическая аберрация
 // Author: Kadro
@@ -247,4 +249,6 @@ vec4 effect(vec2 uv) {
   return vec4(col, base.a);
 }
 `,
+  // живые фоны — в конце списка шейдеров (в «Шаблонах» у них свой раздел)
+  ...GL_BACKGROUND_SOURCES,
 };

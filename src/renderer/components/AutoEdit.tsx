@@ -9,6 +9,7 @@ import { AUTO_STYLES, isFullLength, type AutoStyle, type AutoStyleDef } from '..
 import type { AspectKey } from '../../shared/types';
 import { buildAutoEdit, cancelAutoEdit, loadDemoFiles, type AutoStage } from '../actions';
 import { api, getState, useStore } from '../store';
+import { TELEGRAM_CHANNEL } from '../../shared/links';
 import { Progress } from './controls';
 
 /** Длины первых кадров стиля (для полоски ритма на карточке). */
@@ -182,6 +183,10 @@ export function AutoEditDialog() {
         </div>
 
         {note && <div className="warn"><TriangleAlert size={15} /><span>{note}</span></div>}
+        {!busy && files.length >= MANY_FILES && (
+          <p className="hint small auto-guide">{tx('Как снимать, чтобы авто-ролик вышел лучше, и разборы монтажа — в канале Kadro.')}{' '}
+            <button className="link" onClick={() => void api.openUrl(TELEGRAM_CHANNEL)} data-testid="auto-guide-tg">{tx('Открыть гайды')}</button></p>
+        )}
         {open.fresh && !busy && <p className="hint small auto-fresh">{tx('Ролик откроется новым проектом. Текущий, если в нём есть несохранённое, останется в «Моих проектах».')}</p>}
         {stage && (<div className="auto-progress" data-testid="auto-progress"><span>{stage.label}…</span><Progress value={progress} /></div>)}
         <div className="actions">
