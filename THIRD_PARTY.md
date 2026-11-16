@@ -30,3 +30,9 @@ Kadro распространяется под GNU GPL v3 или новее. В �
 (копия с Hugging Face, файлы сверяются по SHA-256).
 
 Демо-ролики, демо-бит, звуки на стыках (свуш, щелчок, «бум»), звуки мем-кнопок (`meme-*.m4a`: «дун-дун-дууун», своя басовая партия, басовый «дроп») и превью шаблонов (`resources/demo`, `resources/templates`) сделаны в самом проекте кодом — `scripts/make-demo.mjs`, `scripts/make-sfx.mjs`, `scripts/make-memes.mjs`, `scripts/demo-scenes.js`, `tests/e2e/previews.spec.ts` — и распространяются под лицензией Kadro.
+
+## Microsoft Fluent Emoji (объёмные эмодзи стикеров)
+
+`src/renderer/assets/emoji/*.webp` — 116 эмодзи из [microsoft/fluentui-emoji](https://github.com/microsoft/fluentui-emoji) (стиль 3D), уменьшены до 192×192 и сохранены в WebP.
+
+MIT License — Copyright (c) Microsoft Corporation.

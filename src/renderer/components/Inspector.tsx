@@ -978,6 +978,12 @@ function TextInspector({ clip }: { clip: TextClip }) {
             <Slider label={tx('Толщина')} min={0} max={20} step={0.5} value={s.strokeWidth} format={(v) => v.toFixed(1)}
               onChange={(v) => st({ strokeWidth: v }, 'sw')} />
             <Toggle label={tx('Тень')} on={s.shadow} onChange={(v) => st({ shadow: v }, 'sh')} />
+            <div className="section-title">{tx('Объём и свечение')}</div>
+            <Slider label={tx('Объём')} min={0} max={30} step={1} value={s.depth ?? 0} format={(v) => v.toFixed(0)}
+              onChange={(v) => st({ depth: v, depthColor: s.depthColor ?? '#000000' }, 'dp')} />
+            {(s.depth ?? 0) > 0 && <ColorField label={tx('Цвет боков')} value={s.depthColor ?? '#000000'} onChange={(v) => st({ depthColor: v }, 'dpc')} />}
+            <Toggle label={tx('Неоновое свечение')} on={!!s.glow} onChange={(v) => st({ glow: v ? (s.strokeWidth ? s.strokeColor : s.color) : undefined }, 'gl')} />
+            {s.glow && <ColorField label={tx('Цвет свечения')} value={s.glow} onChange={(v) => st({ glow: v }, 'glc')} />}
             <div className="section-title">{tx('Плашка')}</div>
             <ColorField label={tx('Цвет плашки')} value={s.bgColor} onChange={(v) => st({ bgColor: v, bgOpacity: s.bgOpacity || 0.7 }, 'bgc')} />
             <Slider label={tx('Плотность')} min={0} max={1} value={s.bgOpacity} format={pct} onChange={(v) => st({ bgOpacity: v }, 'bgo')} />

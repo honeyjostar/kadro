@@ -53,7 +53,7 @@ export type AiJob =
   | { kind: 'modelImport'; jobId: string; what: 'asr' | 'tts'; id: string; file: string }
   | { kind: 'stab'; jobId: string; path: string; in: number; out: number; strength: number; offset?: number }
   | { kind: 'beats'; jobId: string; path: string }
-  | { kind: 'highlights'; jobId: string; path: string; duration: number; /** ещё и громкость звука на той же сетке (игры) */ loud?: boolean }
+  | { kind: 'highlights'; jobId: string; path: string; duration: number; /** ещё и громкость звука на той же сетке (игры) */ loud?: boolean; /** громкость с шагом 0.1 с — склейки в паузах речи (авто-ролик) */ speech?: boolean }
   | { kind: 'refEdit'; jobId: string; path: string }
   | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number }
   | { kind: 'faces'; jobId: string; path: string; in: number; out: number; width: number; height: number; image?: boolean }
@@ -75,7 +75,7 @@ export type AiOutput =
   | { kind: 'tts'; path: string; duration: number }
   | { kind: 'stab'; path: string; range: [number, number] }
   | { kind: 'beats'; beats: number[]; bpm: number; shape?: import('./beats').MusicShape }
-  | { kind: 'highlights'; hl: Highlights; loud?: number[] }
+  | { kind: 'highlights'; hl: Highlights; loud?: number[]; speech?: number[] }
   | { kind: 'refEdit'; template: import('./templates').Template; shots: number; flashes: number; zooms: number; music: boolean; duration: number }
   | { kind: 'reframe'; points: { t: number; x: number; y: number; found: boolean }[] }
   | { kind: 'faces'; frames: import('./blur').DetFrame[] }
@@ -314,6 +314,9 @@ export interface KadroApi {
   deleteTemplate(id: string): Promise<void>;
   cancelAi(jobId: string): void;
   onAiProgress(cb: (jobId: string, p: number, stage?: string) => void): () => void;
+  /** «Нагрузка ПК»: включить или выключить замеры (раз в секунду). */
+  sysmon(on: boolean): void;
+  onSysmon(cb: (s: import('./sysmon').SysSample) => void): () => void;
   showInFolder(path: string): void;
   setTitle(title: string): void;
   /** Записать ошибку окна в журнал программы. */

@@ -326,6 +326,9 @@ export interface TextStyle {
   maxWidth: number;      // доля ширины холста для переноса строк
   highlight?: WordHighlight; // подсветка произносимого слова (субтитры)
   keyColor?: string;         // цвет ключевых слов (Word.key)
+  depth?: number;            // объём: глубина «выдавленных» букв в пикселях 1080 (0 — плоский)
+  depthColor?: string;       // цвет боков объёмных букв
+  glow?: string;             // неоновое свечение вокруг букв этим цветом
 }
 
 export interface WordHighlight {

@@ -32,7 +32,7 @@ import type { EffectType, MediaAsset, MediaClip, PersonFx, StickerMotion, TextAn
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme, addSticker,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme, addSticker, addTextTheme,
   enhanceClip, disableEnhance, addAdjustmentLayer, beatPunch } from '../actions';
 import { aiAllowed, enhanceTarget } from '../../shared/enhance';
 import { useMenu, type MenuEntry } from './Menu';
@@ -54,6 +54,8 @@ import { pickInOrder, type FavKind } from '../../shared/favs';
 import { noteUsed, useFavs } from '../favs';
 import { defaultVoice, VOICES } from '../../shared/voices';
 import { BackgroundsSection } from './Backgrounds';
+import { TEXT_THEMES } from '../../shared/textThemes';
+import { emojiUrl } from '../emoji';
 
 export const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'media', label: tx('Медиа'), icon: <Film size={19} /> },
@@ -544,15 +546,22 @@ function BlogSample({ b }: { b: BlogStyle }) {
   );
 }
 
-export function textPreviewStyle(s: Partial<TextStyle>): React.CSSProperties {
+export function textPreviewStyle(s: Partial<TextStyle>, scale = 1): React.CSSProperties {
   const st = { ...s };
+  const shadows: string[] = [];
+  if (st.glow) shadows.push(`0 0 ${6 * scale}px ${st.glow}`, `0 0 ${14 * scale}px ${st.glow}`);
+  const n = st.depth ? Math.min(8, Math.max(2, Math.round(st.depth / 2))) : 0;
+  for (let i = 1; i <= n; i++) shadows.push(`${((i * 0.55 * (st.depth ?? 0)) / n / 10) * scale}px ${((i * (st.depth ?? 0)) / n / 10) * scale}px 0 ${st.depthColor ?? '#000'}`);
+  if (st.shadow && !st.glow) shadows.push('0 2px 6px rgba(0,0,0,.6)');
   return {
     fontFamily: `'${st.font ?? 'Montserrat'}'`,
     fontWeight: st.bold === false ? 400 : 700,
+    fontStyle: st.italic ? 'italic' : undefined,
+    textTransform: st.uppercase ? 'uppercase' : undefined,
     color: st.color ?? '#fff',
     WebkitTextStroke: st.strokeWidth ? `${Math.min(3, st.strokeWidth / 3)}px ${st.strokeColor}` : undefined,
     paintOrder: 'stroke fill',
-    textShadow: st.shadow ? '0 2px 6px rgba(0,0,0,.6)' : undefined,
+    textShadow: shadows.length ? shadows.join(', ') : undefined,
     background: st.bgOpacity ? hexA(st.bgColor ?? '#000', st.bgOpacity) : undefined,
     padding: st.bgOpacity ? '1px 7px' : undefined,
     borderRadius: 4,
@@ -594,6 +603,15 @@ function TextPanel() {
           </div>
         </div>
         <StickersCard />
+        <div className="section-title">{tx('Тематический текст')}</div>
+        <div className="theme-grid" data-testid="text-themes">
+          {TEXT_THEMES.map((t) => (
+            <button key={t.id} className={`theme-tile anim-${t.anim.in?.type ?? 'fade'}`} onClick={() => addTextTheme(t.id)} title={tx('Добавить: {0}', t.label)} data-testid={`theme-${t.id}`}>
+              <div className="theme-sample"><span style={{ ...textPreviewStyle(t.style, 1.6), fontSize: Math.max(11, Math.min(24, 150 / Math.max(5, t.text.length * (t.style.uppercase || /^[^a-zа-яё]*$/.test(t.text) ? 1.25 : 1)))) }}>{t.text}</span></div>
+              <span className="label">{t.label}</span>
+            </button>
+          ))}
+        </div>
         <div className="section-title">{tx('Готовые стили')}</div>
         <div className="tile-grid">
           {TEXT_PRESETS.map((t) => (
@@ -990,7 +1008,7 @@ function StickersCard() {
   return (
     <div className="ai-card sticker-card" data-testid="stickers">
       <h4><Smile size={15} />{tx('Стикеры')}</h4>
-      <p className="hint">{tx('Эмодзи крупно, всё время в движении. Встаёт у курсора на 3 секунды — двигай и растягивай как текст.')}</p>
+      <p className="hint">{tx('Объёмные эмодзи крупно, всё время в движении. Встают у курсора на 3 секунды — двигай и растягивай как текст.')}</p>
       <div className="field-row"><label>{tx('Движение')}</label></div>
       <div className="chips" data-testid="sticker-motion">
         {STICKER_MOTIONS.map((m) => <button key={m.id} className={motion === m.id ? 'active' : ''} onClick={() => setMotion(m.id)} data-value={m.id}>{m.label}</button>)}
@@ -1000,7 +1018,7 @@ function StickersCard() {
       </div>
       <div className="sticker-grid" data-motion={motion}>
         {items.map((e) => (
-          <button key={e} onClick={() => addSticker(e, motion)} title={tx('Добавить стикер')} data-testid="sticker"><span>{e}</span></button>
+          <button key={e} onClick={() => addSticker(e, motion)} title={tx('Добавить стикер')} data-testid="sticker">{emojiUrl(e) ? <img src={emojiUrl(e)!} alt={e} draggable={false} /> : <span>{e}</span>}</button>
         ))}
       </div>
     </div>

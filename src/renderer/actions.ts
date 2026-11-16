@@ -40,6 +40,7 @@ import { SUBSCRIBE_DUR } from '../shared/subscribe';
 import { EFFECTS } from '../shared/effects';
 import { edit, layoutMain, setTransition } from '../shared/timeline';
 import { BG_DURATION, bgPreset } from '../shared/backgrounds';
+import { TEXT_THEME_DUR, TEXT_THEMES } from '../shared/textThemes';
 import type { EffectType, TransitionType } from '../shared/types';
 import { noteUsed } from './favs';
 import { findLag, SYNC_MIN_CONFIDENCE, syncedPlacement } from '../shared/audioSync';
@@ -1662,14 +1663,14 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
     while (!autoStopped && next < todo.length) {
       const a = todo[next++];
       const src = a.proxy === 'ready' && a.previewPath ? a.previewPath : a.path;
-      const job: AiJob = { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration };
+      const job: AiJob = { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration, speech: a.hasAudio };
       running.set(job.jobId, a.path);
       stage({ label: todo.length > 1 ? tx('Смотрю видео {0} из {1}', Math.min(todo.length, done + 1), todo.length) : tx('Смотрю видео'), jobId: job.jobId, step: step + done, steps: Math.max(1, steps) });
       autoCancel = () => { for (const id of running.keys()) void api.cancelAi(id); };
       let r: AiResponse;
       try { r = await runJob(tx('Смотрю видео'), job); } finally { running.delete(job.jobId); }
       if (autoStopped) return;
-      hlMemo.set(a.path, r.ok && r.output?.kind === 'highlights' ? r.output.hl : null);
+      hlMemo.set(a.path, r.ok && r.output?.kind === 'highlights' ? { ...r.output.hl, ...(r.output.speech?.length ? { speech: r.output.speech } : {}) } : null);
       done++;
     }
   };
@@ -2777,4 +2778,23 @@ export async function addBackground(id: string): Promise<string | null> {
     s.toast(tx('Фон «{0}» на {1} с. Поверх положи видео, текст или озвучку; длину меняй за край клипа, цвет и скорость — во вкладке «Эффекты».', b.label, BG_DURATION), 'ok');
   }
   return clipId;
+}
+
+// ---------- тематический текст ----------
+/** Тематическая надпись у курсора: стиль, анимация, место; сразу выделена — текст можно менять справа. */
+export function addTextTheme(id: string): string | null {
+  const t = TEXT_THEMES.find((x) => x.id === id);
+  if (!t) return null;
+  const s = getState();
+  let clipId = '';
+  s.commit((p) => {
+    const r = addText(p, s.playhead, t.text, t.style);
+    clipId = r.clipId;
+    return updateClip(r.project, r.clipId, { duration: TEXT_THEME_DUR, anim: structuredClone(t.anim), ...(t.y !== undefined ? { y: t.y } : {}) });
+  });
+  if (clipId) {
+    s.select([clipId]);
+    setTimeout(() => window.dispatchEvent(new Event('kadro:edit-text')), 30);
+  }
+  return clipId || null;
 }

@@ -1,6 +1,7 @@
 // Готовит слои текста для экспорта: каждый текстовый клип — PNG размера экспорта
 // (рисуется той же функцией, что и в плеере).
 import { tx } from '../../shared/i18n';
+import { loadEmoji } from '../emoji';
 import { drawText, fontString, isTextAnimated, textStateAt, textStateKey } from '../../shared/textRender';
 import { particleEffects } from '../../shared/effects';
 import { drawParticles } from '../../shared/particles';
@@ -29,6 +30,7 @@ export async function loadProjectFonts(p: Project): Promise<void> {
 
 export async function renderTextLayers(p: Project, W: number, H: number, fps = 30, onProgress?: (p: number) => void): Promise<{ layers: TextLayerReq[]; blank: Uint8Array }> {
   await loadProjectFonts(p);
+  await loadEmoji();
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;

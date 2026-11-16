@@ -24,7 +24,7 @@ import { onsetEnvelope } from '../shared/audioSync';
 
 import { cancelDownload, check as checkUpdate, clearUpdated, download as downloadUpdate, initUpdater, install as installUpdate, setAutoCheck, updateState } from './updater';
 import * as m3d from './model3d';
-import { highlights } from './highlights';
+import { highlights, readExtra, writeExtra } from './highlights';
 import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
 import { KadroTray } from './tray';
 import { normalizeAppearance, type Appearance } from '../shared/appearance';
@@ -38,6 +38,8 @@ import { labStats } from '../shared/colorMatch';
 import { duckNow, setDuck, type DuckSettings } from '../shared/duck';
 import type { CoachState } from '../shared/coach';
 import { LOGO_EXTS } from '../shared/logo';
+import { beginActivity, startSysmon, stopSysmon } from './sysmon';
+import { SPEECH_STEP } from '../shared/autoEdit';
 import { SFX_IDS, setSfxFiles } from '../shared/sfx';
 import { refreshNext, savedNext } from './next';
 import type { NextInfo } from '../shared/next';
@@ -383,6 +385,15 @@ async function transcribeOn(id: string, wav: string, model: AsrModelId): Promise
   return r;
 }
 
+/** Как называть ИИ-задачу в «Нагрузке ПК». */
+function activityLabel(kind: AiJob['kind']): string {
+  const names: Partial<Record<AiJob['kind'], string>> = {
+    highlights: tx('Разбор видео'), beats: tx('Поиск ритма'), captions: tx('Субтитры'), tts: tx('Озвучка'), translate: tx('Перевод'),
+    reframe: tx('Кадрирование'), faces: tx('Поиск лиц'), refEdit: tx('Повтор монтажа'),
+  };
+  return names[kind] ?? tx('ИИ: {0}', kind);
+}
+
 async function runAi(job: AiJob): Promise<AiResponse> {
   const id = job.jobId;
   const send = (p: number, stage?: string) => win?.webContents.send('ai:progress', id, p, stage);
@@ -478,22 +489,32 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       const hl = await highlights(job.path, job.duration, (p) => send(p, tx('Смотрю видео')), ac.signal);
       // громкость (уровень RMS) на тех же шагах — для игр, где моменты ищутся по звуку, а не по речи
       let loud: number[] | undefined;
-      if (job.loud) {
+      let speech: number[] | undefined;
+      if (job.loud || job.speech) {
         try {
           const rate = 4000;
+          const cachedSpeech = job.speech && !job.loud ? readExtra<number[]>(job.path, 'speech') : null;
+          if (cachedSpeech?.length) return { ok: true, output: { kind: 'highlights', hl, speech: cachedSpeech } };
           const buf = await ffmpegToBuffer(['-hide_banner', '-v', 'error', '-i', job.path, '-vn', '-ac', '1', '-ar', String(rate), '-f', 's16le', 'pipe:1'], ac.signal, true);
           const pcm = new Int16Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 2));
-          const per = Math.max(1, Math.round(hl.step * rate));
-          loud = [];
-          for (let i = 0; i < pcm.length; i += per) {
-            let s = 0;
-            const e = Math.min(pcm.length, i + per);
-            for (let k = i; k < e; k++) s += pcm[k] * pcm[k];
-            loud.push(Math.round((Math.sqrt(s / Math.max(1, e - i)) / 32768) * 1e4) / 1e4);
+          const rms = (per: number) => {
+            const out: number[] = [];
+            for (let i = 0; i < pcm.length; i += per) {
+              let s = 0;
+              const e = Math.min(pcm.length, i + per);
+              for (let k = i; k < e; k++) s += pcm[k] * pcm[k];
+              out.push(Math.round((Math.sqrt(s / Math.max(1, e - i)) / 32768) * 1e4) / 1e4);
+            }
+            return out;
+          };
+          if (job.loud) loud = rms(Math.max(1, Math.round(hl.step * rate)));
+          if (job.speech) {
+            speech = rms(Math.round(SPEECH_STEP * rate));
+            writeExtra(job.path, 'speech', speech);
           }
         } catch (err) { if (ac.signal.aborted) throw err; log('loudness failed', job.path, err); }
       }
-      return { ok: true, output: { kind: 'highlights', hl, loud } };
+      return { ok: true, output: { kind: 'highlights', hl, loud, speech } };
     }
     if (job.kind === 'faces') {
       const r = await workerCall<{ frames: import('../shared/blur').DetFrame[] }>(id, { kind: 'faces', path: job.path, in: job.in, out: job.out, width: job.width, height: job.height, image: job.image });
@@ -1016,11 +1037,12 @@ function registerIpc(): void {
     log('export start', req.opts);
     tray.exportStart();
     let r: Awaited<ReturnType<typeof exportProject>>;
+    const done = beginActivity(tx('Экспорт'));
     try {
       r = await exportProject(req, (p) => { win?.webContents.send('export:progress', p); tray.progress(p); }, ctl.signal);
     } catch (e) {
       r = { ok: false, error: e instanceof Error ? e.message : String(e) };
-    }
+    } finally { done(); }
     log('export result', r);
     // новый экспорт мог начаться поверх (старый отменён) — значок показывает только текущий
     if (exportAbort === ctl) { exportAbort = null; tray.exportEnd(r, ctl.signal.aborted); }
@@ -1042,7 +1064,13 @@ function registerIpc(): void {
     Object.values(ASR_MODELS).map((m) => ({ id: m.id, label: m.label, note: m.note, sizeMb: m.sizeMb, ready: asrModelReady(m.id) })));
   ipcMain.handle('ai:voices', async (): Promise<VoiceInfo[]> =>
     Object.values(TTS_VOICES).map((v) => ({ id: v.id, label: v.label, sizeMb: v.sizeMb, ready: ttsVoiceReady(v.id), lang: v.lang, gender: v.gender, hq: !!v.hq, pack: v.pack })));
-  ipcMain.handle('ai:run', (_e, job: AiJob) => runAi(job));
+  ipcMain.handle('ai:run', async (_e, job: AiJob) => {
+    const done = beginActivity(activityLabel(job.kind));
+    try { return await runAi(job); } finally { done(); }
+  });
+  // «Нагрузка ПК»: замеры идут, только пока виджет открыт
+  ipcMain.on('sysmon:start', () => { startSysmon((x) => win?.webContents.send('sysmon:sample', x)); });
+  ipcMain.on('sysmon:stop', () => stopSysmon());
   // модели вручную: архив, скачанный в браузере (если Kadro сам скачать не смог)
   // готовые субтитры: выбрать .srt/.vtt, прочитать (с определением кодировки), сохранить .srt
   ipcMain.handle('subs:pick', async () => {
@@ -1558,7 +1586,8 @@ if (!lock) {
     log('Kadro started', app.getVersion(), process.platform, 'ffmpeg:', ffmpegPath());
   });
   app.on('before-quit', () => { tray.quitting = true; });
-  app.on('window-all-closed', () => {
+  app.on('before-quit', () => stopSysmon());
+app.on('window-all-closed', () => {
     for (const w of workers.values()) w.kill();
     app.quit();
   });

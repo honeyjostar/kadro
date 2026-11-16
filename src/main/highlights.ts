@@ -103,3 +103,17 @@ function scan(file: string, duration: number, hw: boolean, onProgress?: (p: numb
     });
   });
 }
+
+/** Ещё один разбор того же файла (громкость речи и т. п.) — на диске рядом с основным: прочитать (null — нет) и записать. */
+function extraKey(file: string, tag: string): string {
+  try { const s = fs.statSync(file); return `${file}|${s.size}|${s.mtimeMs}|${tag}`; } catch { return `${file}|${tag}`; }
+}
+export function readExtra<T>(file: string, tag: string): T | null {
+  const f = diskFile(extraKey(file, tag));
+  if (!f) return null;
+  try { return JSON.parse(fs.readFileSync(f, 'utf8')) as T; } catch { return null; }
+}
+export function writeExtra(file: string, tag: string, v: unknown): void {
+  const f = diskFile(extraKey(file, tag));
+  if (f) fs.promises.writeFile(f, JSON.stringify(v)).catch(() => undefined);
+}

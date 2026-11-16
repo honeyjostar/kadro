@@ -1,4 +1,5 @@
 import { tx } from '../../shared/i18n';
+import { SysMon } from './SysMon';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection, saveFrame, shuttle, snapshotNow } from '../actions';
 import { SNAPSHOT_EVERY_MS } from '../../shared/versions';
@@ -266,6 +267,7 @@ export function App() {
       {catalogOpen && <PluginCatalog />}
       {pasteOpen && copiedAttrs && <Suspense fallback={null}><PasteAttrsDialog attrs={copiedAttrs} /></Suspense>}
       {keysOpen && <Suspense fallback={null}><ShortcutsDialog /></Suspense>}
+      <SysMon />
       {searchOpen && <Suspense fallback={null}><SearchDialog /></Suspense>}
       {coverOpen && <Suspense fallback={null}><CoverDialog /></Suspense>}
       {versionsOpen && <VersionsDialog />}

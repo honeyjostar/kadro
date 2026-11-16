@@ -28,7 +28,24 @@ export interface FrameStat { b: number; s: number; m: number; c: number; g?: num
  * Оценка видео по времени: score[i] — насколько хорош момент i·step (0..1); cuts — где внутри видео склейки;
  * sig — отпечатки кадров подряд по 16 чисел (может не быть у старых разборов).
  */
-export interface Highlights { step: number; score: number[]; cuts: number[]; sig?: number[]; act?: number[] }
+export interface Highlights { step: number; score: number[]; cuts: number[]; sig?: number[]; act?: number[]; /** громкость звука с шагом SPEECH_STEP — чтобы не резать посреди фразы */ speech?: number[] }
+/** Шаг громкости для склеек в паузах речи, сек. */
+export const SPEECH_STEP = 0.1;
+const speechRef = new WeakMap<number[], number>();
+/**
+ * «Цена» склейки в момент t по звуку видео: 0 — тишина (пауза между фразами), около 1 и больше — посреди речи или
+ * громкого звука. Без громкости — 0 (не мешает).
+ */
+export function cutCost(hl: Highlights | null | undefined, t: number): number {
+  const sp = hl?.speech;
+  if (!sp?.length) return 0;
+  let ref = speechRef.get(sp);
+  if (ref === undefined) { ref = Math.max(1e-4, quantile(sp, 0.75)); speechRef.set(sp, ref); }
+  const i = Math.round(t / SPEECH_STEP);
+  let v = 0; let n = 0;
+  for (let k = i - 1; k <= i + 1; k++) if (k >= 0 && k < sp.length) { v += sp[k]; n++; }
+  return n ? v / n / ref : 0;
+}
 export const SIG_N = 16;
 
 function lapMean(g: ArrayLike<number>, w: number, h: number): number {
@@ -1149,15 +1166,43 @@ export function fullEdit(base: Project, inp: AutoInput): { project: Project; sum
   let switches = 0;
   const trOff = Math.floor(rand() * 3);
   const order = media.map((_, i) => i).filter((i) => needs[i].length);
+  // со звуком видео склейки — в паузах речи: начало и конец куска сдвигаются к тишине (не режем посреди слова)
+  const speechAware = inp.videoSound !== 'off' || !music;
   order.forEach((i, oi) => {
     const a = media[i].asset;
+    const hl = media[i].hl;
+    const useSpeech = speechAware && vid[i] && !!hl?.speech?.length;
+    let fileEnd = us[i].a0; // конец прошлого куска этого файла — новый не залезает на него
     needs[i].forEach((len, r) => {
-      const s0 = starts[i][r] ?? 0;
-      // кадр подгоняем к доле: из видео можно взять чуть больше или меньше, но не за пределы его куска
+      let s0 = starts[i][r] ?? 0;
+      const next = vid[i] ? Math.min(us[i].a1, r + 1 < needs[i].length ? starts[i][r + 1] : us[i].a1) : Infinity;
+      if (useSpeech) {
+        let best = s0; let bv = Infinity;
+        // начало — в паузе перед фразой (до 1.5 с от лучшего места; дальше — хуже по картинке)
+        for (let x = Math.max(fileEnd, us[i].a0, s0 - 1.5); x <= Math.min(s0 + 1.5, next - len * 0.6); x += 0.05) {
+          const v = cutCost(hl, x) + 0.12 * Math.abs(x - s0);
+          if (v < bv) { bv = v; best = x; }
+        }
+        s0 = best;
+      }
+      // длина кадра: на доле музыки и (со звуком) в паузе речи; из видео можно взять чуть больше или меньше, но не за пределы его куска
+      const room = next - s0;
       let d = len;
-      const room = vid[i] ? Math.min(us[i].a1, r + 1 < needs[i].length ? starts[i][r + 1] : us[i].a1) - s0 : Infinity;
       const e = snap(t, t + len);
       if (e - t <= room + 1e-6 && e - t >= 0.6) d = e - t;
+      if (useSpeech) {
+        const cands: { d: number; beat: boolean }[] = [{ d, beat: e - t === d && beats.length > 0 }];
+        // фраза важнее ровной длины кадра: кусок может быть от 0.6 до 1.8 обычной длины
+        for (const b of beats) { const dd = b - t; if (dd >= len * 0.6 && dd <= len * 1.8 && dd <= room) cands.push({ d: dd, beat: true }); if (b > t + len * 1.9) break; }
+        for (let dd = len * 0.6; dd <= Math.min(len * 1.8, room); dd += 0.1) cands.push({ d: dd, beat: false });
+        let bv = Infinity;
+        for (const c of cands) {
+          if (c.d < 0.8 || c.d > room + 1e-6) continue;
+          const v = cutCost(hl, s0 + c.d) + 0.25 * Math.abs(c.d - len) / len + (beats.length && !c.beat ? 0.12 : 0);
+          if (v < bv) { bv = v; d = c.d; }
+        }
+      }
+      fileEnd = s0 + d;
       const c = makeClip(a, s0, d);
       const z = vid[i] ? st.zoomVideo : Math.max(st.zoom, 0.06);
       if (z > 0) {

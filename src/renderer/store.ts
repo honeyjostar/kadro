@@ -108,6 +108,9 @@ interface State {
   /** Окно «Повторить монтаж по ролику»: fresh — новым проектом; ref — сразу разобрать этот ролик. */
   refOpen: { fresh: boolean; ref?: string; files?: string[] } | null;
   keysOpen: boolean;
+  /** Виджет «Нагрузка ПК» (процессор, память, видеокарта, температуры). */
+  monOpen: boolean;
+  setMonOpen: (b: boolean) => void;
   /** Обновления Kadro (состояние из главного процесса). */
   update: import('../shared/update').UpdateState | null;
   /** обучение «Первый ролик за 3 шага» и был ли удачный экспорт, пока оно идёт */
@@ -267,6 +270,7 @@ export const useStore = create<State>((set, get) => ({
   setFollowDraw: (followDraw) => set({ followDraw, blurDraw: null }),
   refOpen: null,
   keysOpen: false,
+  monOpen: (() => { try { return localStorage.getItem('kadro.mon') === '1'; } catch { return false; } })(),
   update: null,
   coach: api.coach ?? null,
   coachExported: false,
@@ -387,6 +391,7 @@ export const useStore = create<State>((set, get) => ({
   setBlurDraw: (blurDraw) => set({ blurDraw }),
   setRefOpen: (o) => set({ refOpen: o }),
   setKeysOpen: (b) => set({ keysOpen: b }),
+  setMonOpen: (b) => { try { localStorage.setItem('kadro.mon', b ? '1' : '0'); } catch { /* без хранилища — только до перезапуска */ } set({ monOpen: b }); },
   setUpdate: (u) => set({ update: u }),
   setCoach: (c) => { api.setCoach(c); set({ coach: c, coachExported: c === 'active' ? false : get().coachExported }); },
   markExported: () => set({ coachExported: true }),

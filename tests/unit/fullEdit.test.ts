@@ -104,3 +104,41 @@ describe('фильм: части', () => {
     expect(Math.abs(b.reduce((s, x) => s + x, 0) - 60)).toBeLessThan(1);
   });
 });
+
+describe('фильм: склейки в паузах речи', () => {
+  it('со звуком видео начало и конец кусков попадают в тишину', async () => {
+    const { cutCost, SPEECH_STEP } = await import('../../src/shared/autoEdit');
+    // речь: фразы по 2.6 с, между ними паузы 0.5 с
+    const speechOf = (dur: number) => Array.from({ length: Math.ceil(dur / SPEECH_STEP) }, (_, i) => ((i * SPEECH_STEP) % 3.1 < 2.6 ? 0.3 : 0.004));
+    const media = sixty().slice(0, 12).map((m) => ({ ...m, hl: { ...m.hl!, speech: speechOf(m.asset.duration) } }));
+    const { project } = autoEdit(newProject('t', '16:9'), input({ media, music: null, videoSound: 'on', length: 'full' }));
+    const cl = mainTrack(project).clips as MediaClip[];
+    const hlOf = (id: string) => media.find((m) => m.asset.id === id)!.hl;
+    const quiet = (c: MediaClip, t: number) => cutCost(hlOf(c.assetId), t) < 0.3;
+    const ok = cl.filter((c) => quiet(c, c.in) && quiet(c, c.out)).length;
+    expect(ok / cl.length).toBeGreaterThan(0.6); // без учёта речи — около 10%
+  });
+});
+
+describe('нагрузка ПК', () => {
+  it('пики копятся по делам, совет — по тому, что упирается', async () => {
+    const { addPeaks, bottleneck } = await import('../../src/shared/sysmon');
+    const s = (cpu: number, activity: string[], gpu: number | null = 30) => ({ t: 0, cpu, cpuTemp: null, cores: 8, ram: 8000, ramTotal: 16000, appCpu: 5, appRam: 900, gpu, gpuEnc: 40, gpuDec: 10, gpuMem: 1000, gpuMemTotal: 6000, gpuTemp: 60, gpuName: 'GTX 1060', activity });
+    let p = addPeaks([], s(20, []), 'idle');
+    p = addPeaks(p, s(97, ['Экспорт']), 'idle');
+    p = addPeaks(p, s(80, ['Экспорт']), 'idle');
+    expect(p.find((x) => x.label === 'Экспорт')).toMatchObject({ cpu: 97, secs: 2, gpuEnc: 40 });
+    expect(p.find((x) => x.label === 'idle')?.cpu).toBe(20);
+    expect(bottleneck(s(97, []))).toBe('cpu');
+    expect(bottleneck({ ...s(10, []), gpuTemp: 90 })).toBe('hot');
+    expect(bottleneck(s(10, []))).toBeNull();
+  });
+});
+
+describe('тематический текст', () => {
+  it('шрифты тем есть в Kadro', async () => {
+    const { TEXT_THEMES } = await import('../../src/shared/textThemes');
+    const { FONTS } = await import('../../src/shared/defaults');
+    for (const t of TEXT_THEMES) expect(FONTS.some((f) => f.family === t.style.font), t.id).toBe(true);
+  });
+});

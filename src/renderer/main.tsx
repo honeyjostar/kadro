@@ -18,6 +18,7 @@ import type { Appearance } from '../shared/appearance';
 import { warper } from './engine/warp';
 import * as glReg from './glRegistry';
 import { glRunner } from './engine/gl';
+import { loadEmoji } from './emoji';
 import * as userFonts from './userFonts';
 import { clipRenders } from './components/Timeline';
 
@@ -71,3 +72,5 @@ api.onCustomStatus((st) => {
 setTextWarper((W, H, draw, quad) => warper().warpDrawn(W, H, draw, quad));
 
 createRoot(document.getElementById('root')!).render(<CrashGuard><App /></CrashGuard>);
+
+void loadEmoji(); // объёмные эмодзи для стикеров и субтитров

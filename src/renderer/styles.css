@@ -1248,18 +1248,19 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .sticker-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 8px; }
 .sticker-grid button { aspect-ratio: 1; border-radius: 9px; border: 1px solid var(--line-soft); background: var(--bg); cursor: pointer; font-size: 22px; display: flex; align-items: center; justify-content: center; padding: 0; }
 .sticker-grid button:hover { border-color: var(--accent); background: var(--accent-soft); }
-.sticker-grid button span { display: inline-block; line-height: 1; }
-.sticker-grid[data-motion='bounce'] button:hover span { animation: st-bounce 0.62s ease-in-out infinite; }
-.sticker-grid[data-motion='pulse'] button:hover span { animation: st-pulse 0.62s ease-in-out infinite; }
-.sticker-grid[data-motion='wiggle'] button:hover span { animation: st-wiggle 0.45s ease-in-out infinite; }
-.sticker-grid[data-motion='spin'] button:hover span { animation: st-spin 2s linear infinite; }
-.sticker-grid[data-motion='float'] button:hover span { animation: st-float 1.4s ease-in-out infinite; }
+.sticker-grid button span, .sticker-grid button img { display: inline-block; line-height: 1; }
+.sticker-grid button img { width: 78%; height: 78%; object-fit: contain; }
+.sticker-grid[data-motion='bounce'] button:hover span, .sticker-grid[data-motion='bounce'] button:hover img { animation: st-bounce 0.62s ease-in-out infinite; }
+.sticker-grid[data-motion='pulse'] button:hover span, .sticker-grid[data-motion='pulse'] button:hover img { animation: st-pulse 0.62s ease-in-out infinite; }
+.sticker-grid[data-motion='wiggle'] button:hover span, .sticker-grid[data-motion='wiggle'] button:hover img { animation: st-wiggle 0.45s ease-in-out infinite; }
+.sticker-grid[data-motion='spin'] button:hover span, .sticker-grid[data-motion='spin'] button:hover img { animation: st-spin 2s linear infinite; }
+.sticker-grid[data-motion='float'] button:hover span, .sticker-grid[data-motion='float'] button:hover img { animation: st-float 1.4s ease-in-out infinite; }
 @keyframes st-bounce { 0%, 100% { transform: translateY(0) scale(1, 0.94); } 50% { transform: translateY(-6px) scale(1.04); } }
 @keyframes st-pulse { 0%, 100% { transform: scale(0.92); } 50% { transform: scale(1.12); } }
 @keyframes st-wiggle { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(12deg); } }
 @keyframes st-spin { to { transform: rotate(360deg); } }
 @keyframes st-float { 0%, 100% { transform: translateY(2px) rotate(-4deg); } 50% { transform: translateY(-3px) rotate(4deg); } }
-@media (prefers-reduced-motion: reduce) { .sticker-grid button:hover span { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .sticker-grid button:hover span, .sticker-grid button:hover img { animation: none !important; } }
 
 /* обучение «Первый ролик за 3 шага» — полоса над таймлайном */
 .coach { display: flex; align-items: center; gap: 10px; padding: 6px 12px; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
@@ -1495,3 +1496,55 @@ button.link:hover { color: var(--strong); }
 .bg-card:disabled { opacity: .6; cursor: progress; }
 .bg-name { font-size: 11.5px; line-height: 1.25; color: var(--muted); }
 .bg-card:hover .bg-name { color: var(--strong); }
+/* тематический текст: плитка с надписью на «кадре», при наведении — её анимация появления */
+.theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
+.theme-tile { display: flex; flex-direction: column; gap: 5px; padding: 0; border: 0; background: none; cursor: pointer; color: var(--text); text-align: left; }
+.theme-sample { height: 68px; border-radius: 9px; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0 6px;
+  background: radial-gradient(120% 90% at 30% 20%, #3a3f55 0%, #1b1d27 55%, #0e0f15 100%); outline: 1px solid var(--line-soft); transition: outline-color .15s; }
+.theme-sample span { white-space: nowrap; line-height: 1.15; max-width: 100%; overflow: hidden; text-overflow: clip; border-radius: 3px; }
+.theme-tile:hover .theme-sample, .theme-tile:focus-visible .theme-sample { outline: 2px solid var(--accent); }
+.theme-tile .label { font-size: 11.5px; color: var(--muted); }
+.theme-tile:hover .label { color: var(--strong); }
+.theme-tile:hover .theme-sample span { animation-duration: .7s; animation-fill-mode: both; animation-timing-function: cubic-bezier(.2,.8,.2,1); }
+.anim-pop:hover .theme-sample span, .anim-elastic:hover .theme-sample span { animation-name: tt-pop; }
+.anim-zoom:hover .theme-sample span { animation-name: tt-zoom; }
+.anim-fade:hover .theme-sample span { animation-name: tt-fade; }
+.anim-blur:hover .theme-sample span { animation-name: tt-blur; }
+.anim-slideUp:hover .theme-sample span { animation-name: tt-up; }
+.anim-slideRight:hover .theme-sample span { animation-name: tt-right; }
+.anim-slideLeft:hover .theme-sample span { animation-name: tt-left; }
+.anim-wipe:hover .theme-sample span, .anim-typewriter:hover .theme-sample span { animation-name: tt-wipe; animation-timing-function: steps(14, end); }
+.anim-wipe:hover .theme-sample span { animation-timing-function: ease-out; }
+.anim-bounce:hover .theme-sample span { animation-name: tt-bounce; }
+@keyframes tt-pop { 0% { transform: scale(.2); opacity: 0; } 60% { transform: scale(1.15); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes tt-zoom { from { transform: scale(1.8); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes tt-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tt-blur { from { filter: blur(8px); opacity: 0; } to { filter: none; opacity: 1; } }
+@keyframes tt-up { from { transform: translateY(70%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes tt-right { from { transform: translateX(-60%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes tt-left { from { transform: translateX(60%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes tt-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes tt-bounce { 0% { transform: translateY(-120%); } 55% { transform: translateY(0); } 72% { transform: translateY(-22%); } 88% { transform: none; } 94% { transform: translateY(-6%); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .theme-tile:hover .theme-sample span { animation: none !important; } }
+/* виджет «Нагрузка ПК» */
+.sysmon { position: fixed; right: 14px; bottom: 14px; z-index: 60; width: 330px; max-height: calc(100vh - 90px); overflow: auto; background: var(--panel, #15161c); color: var(--text);
+  border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 16px 40px var(--shadow, rgba(0,0,0,.4)); font-size: 12.5px; }
+.sysmon.small { width: 250px; }
+.sysmon header { display: flex; align-items: center; gap: 7px; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--line-soft); position: sticky; top: 0; background: inherit; }
+.sysmon header b { font-size: 13px; color: var(--strong); }
+.sysmon .mon-act { margin-left: auto; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; color: var(--muted); padding: 2px 8px; border-radius: 999px; background: var(--raised); }
+.sysmon .mon-act.busy { color: #fff; background: var(--accent); }
+.mon-rows { padding: 8px 12px 4px; display: grid; gap: 8px; }
+.mon-row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 10px; }
+.mon-row .k { color: var(--muted); }
+.mon-row .v { font-variant-numeric: tabular-nums; color: var(--strong); font-weight: 600; }
+.mon-row .v.warn { color: #ff6b5a; }
+.mon-spark { grid-column: 1 / -1; width: 100%; height: 22px; }
+.mon-advice { margin: 4px 12px 8px; padding: 8px 10px; border-radius: 8px; background: rgba(255, 107, 90, .12); color: var(--strong); line-height: 1.4; }
+.mon-peaks { padding: 4px 12px 10px; }
+.mon-peaks-head { display: flex; align-items: center; justify-content: space-between; color: var(--muted); margin: 4px 0; }
+.mon-peaks table { width: 100%; border-collapse: collapse; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.mon-peaks th { text-align: left; font-weight: 500; color: var(--muted); padding: 3px 4px 3px 0; }
+.mon-peaks td { padding: 3px 4px 3px 0; border-top: 1px solid var(--line-soft); }
+.mon-note { margin: 0 12px 10px; }
+.icon-btn.on { color: var(--accent); }

@@ -1,5 +1,5 @@
 import { tx } from '../../shared/i18n';
-import { FolderOpen, FilePlus2, House, Keyboard, Monitor, Moon, Package, Save, Search, Settings, Sun, Upload } from 'lucide-react';
+import { Activity, FolderOpen, FilePlus2, House, Keyboard, Monitor, Moon, Package, Save, Search, Settings, Sun, Upload } from 'lucide-react';
 import type { ThemePref } from '../../shared/ipc';
 import type { ReactNode } from 'react';
 import { newProjectAction, openProject, packProjectAction, saveProject } from '../actions';
@@ -25,6 +25,7 @@ export function TopBar() {
   const setThemePref = useStore((s) => s.setThemePref);
   const th = THEMES[themePref];
   const uiMode = useStore((s) => s.uiMode);
+  const monOpen = useStore((s) => s.monOpen);
   return (
     <header className="topbar">
       <button className="logo logo-btn" onClick={() => setHome(true)} title={tx('Главный экран: новый проект, мои проекты, демо, шаблоны')}><LogoMark />Kadro</button>
@@ -43,6 +44,7 @@ export function TopBar() {
       <button className="btn ghost small" title={tx('{0}. Нажми, чтобы переключить: тёмная → светлая → как в Windows', th.label)}
         onClick={() => setThemePref(th.next)} data-testid="theme-btn">{th.icon}<span className="tb-label">{th.short}</span></button>
       <button className="icon-btn" title={tx('Настройки: тема, цвет акцента, значок программы, размер интерфейса, своё оформление')} onClick={() => getState().setSettingsOpen(true)} data-testid="topbar-settings"><Settings size={16} /></button>
+      <button className={`icon-btn ${monOpen ? 'on' : ''}`} title={tx('Нагрузка ПК: процессор, память, видеокарта и температуры — и что из дел Kadro грузит сильнее')} onClick={() => getState().setMonOpen(!monOpen)} data-testid="topbar-sysmon" aria-pressed={monOpen}><Activity size={16} /></button>
       <button className="icon-btn" title={tx('Горячие клавиши (F1)')} onClick={() => getState().setKeysOpen(true)} data-testid="topbar-keys"><Keyboard size={16} /></button>
       <button className="btn ghost small" title={tx('Новый пустой проект. Текущий не пропадёт — он останется в «Моих проектах»')} onClick={() => void newProjectAction()}><FilePlus2 size={15} /><span className="tb-label">{tx('Новый')}</span></button>
       <button className="btn ghost small" title={tx('Открыть проект .kadro или добавить видео, фото, звук')} onClick={() => void openProject()}><FolderOpen size={15} /><span className="tb-label">{tx('Открыть')}</span></button>

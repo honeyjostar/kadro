@@ -24,6 +24,12 @@ export interface TextLayout {
 
 type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
+/** Объёмные эмодзи (картинки из набора Kadro): глиф без FE0F → картинка. Окно заполняет при запуске (renderer/emoji.ts). */
+const emojiImgs = new Map<string, CanvasImageSource>();
+const emojiKey = (s: string) => s.replace(/\uFE0F/g, '').trim();
+export function setEmojiImage(glyph: string, img: CanvasImageSource): void { emojiImgs.set(emojiKey(glyph), img); }
+export const emojiImage = (s: string): CanvasImageSource | undefined => emojiImgs.get(emojiKey(s));
+
 export function fontString(clip: TextClip, px: number): string {
   const s = clip.style;
   return `${s.italic ? 'italic ' : ''}${s.bold ? 700 : 400} ${px}px "${s.font}", "Onest", sans-serif`;
@@ -261,6 +267,16 @@ function drawFlat(ctx: Ctx, clip: TextClip, W: number, H: number, local: number 
     ctx.clip();
   }
 
+  // текст — одно эмодзи из набора (стикер): рисуем объёмную картинку вместо шрифта системы
+  const pic = s.bgOpacity > 0 ? undefined : emojiImage(clip.text);
+  if (pic) {
+    const size = L.px * 1.22;
+    if (s.shadow) { ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 14 * k; ctx.shadowOffsetY = 6 * k; }
+    ctx.drawImage(pic, L.cx - size / 2, L.cy - size / 2, size, size);
+    ctx.restore();
+    return;
+  }
+
   const hl = s.highlight && s.highlight.mode !== 'none' && clip.words?.length ? s.highlight : undefined;
   const ps = pieces(ctx, L, xOf);
   const wordsMatch = !!clip.words?.length && ps.length === clip.words.length; // слова совпадают с текстом
@@ -329,18 +345,43 @@ function drawFlat(ctx: Ctx, clip: TextClip, W: number, H: number, local: number 
   };
   // обычные слова, потом «выскочившее» — поверх
   const order = [...shown].sort((a, b) => Number(mapped && hl!.mode === 'pop' && a.word === st.active) - Number(mapped && hl!.mode === 'pop' && b.word === st.active));
+  // объём: буквы «выдавлены» вниз-вправо слоями цвета depthColor (бока), тень — у самого дальнего слоя
+  const depth = (s.depth ?? 0) * k;
+  if (depth > 0.5) {
+    const n = Math.min(40, Math.ceil(depth));
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.fillStyle = s.depthColor ?? '#000000';
+    ctx.strokeStyle = s.depthColor ?? '#000000';
+    ctx.lineWidth = s.strokeWidth * k * 2;
+    for (let i = n; i >= 1; i--) {
+      if (i === n && s.shadow) shadow(); else noShadow();
+      const dx = (depth * i * 0.55) / n, dy = (depth * i) / n;
+      for (const p of order) {
+        if (s.strokeWidth > 0) ctx.strokeText(p.vis, p.x + dx, yOf(p.line) + dy);
+        ctx.fillText(p.vis, p.x + dx, yOf(p.line) + dy);
+      }
+    }
+    noShadow();
+  }
+  // неон: свечение цветом glow вокруг обводки и букв
+  const glow = () => { ctx.shadowColor = s.glow!; ctx.shadowBlur = 26 * k; ctx.shadowOffsetX = 0; ctx.shadowOffsetY = 0; };
+  const outer = () => { if (s.glow) glow(); else if (s.shadow && !(depth > 0.5)) shadow(); };
   if (s.strokeWidth > 0) {
-    if (s.shadow) shadow();
+    outer();
     ctx.lineJoin = 'round';
     ctx.miterLimit = 2;
     ctx.lineWidth = s.strokeWidth * k * 2; // обводка рисуется по центру контура — половина наружу
     ctx.strokeStyle = s.strokeColor;
     for (const p of order) drawPiece(p, true);
     noShadow();
-  } else if (s.shadow) {
-    shadow();
+    if (s.glow) glow();
+  } else {
+    outer();
   }
+  if (s.glow) for (const p of order) drawPiece(p, false); // второй проход — свечение ярче
   for (const p of order) drawPiece(p, false);
+  noShadow();
   // эмодзи по смыслу — над текстом, «выскакивает», когда звучит его слово
   const emo = st.emoji >= 0 && wordsMatch ? clip.words![st.emoji].emoji : undefined;
   if (emo && st.emojiK > 0) {
@@ -353,11 +394,15 @@ function drawFlat(ctx: Ctx, clip: TextClip, W: number, H: number, local: number 
     ctx.save();
     ctx.translate(ex, ey);
     ctx.scale(Math.max(0.01, pop), Math.max(0.01, pop));
-    ctx.font = `${size}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(emo, 0, 0);
+    const img = emojiImage(emo);
+    if (img) ctx.drawImage(img, -size * 0.55, -size * 0.55, size * 1.1, size * 1.1);
+    else {
+      ctx.font = `${size}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(emo, 0, 0);
+    }
     ctx.restore();
   }
   ctx.restore();
