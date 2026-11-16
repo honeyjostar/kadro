@@ -4,7 +4,7 @@ import { makePhoto3dMaps } from './photo3dMaps';
 import { tx } from '../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildGraph, cpuOnlyCodec, fullArgs, gifArgs, gifFilter, mp3Args } from '../shared/exportGraph';
+import { buildGraph, cpuOnlyCodec, fullArgs, gifArgs, gifFilter, mp3Args, withLoudnorm } from '../shared/exportGraph';
 import { ffmetadataChapters } from '../shared/markers';
 import { exportSize } from '../shared/geometry';
 import type { ExportReq, ExportResult, TextLayerReq } from '../shared/ipc';
@@ -97,7 +97,8 @@ async function exportMp3(req: ExportReq, onProgress: (p: number) => void, signal
   const { project, opts } = req;
   // звуки на стыках — тоже в звуке ролика
   const full = expandSfx(project);
-  const g = buildGraph(full, { width: 16, height: 16, fps: 30, textLayers: [], audioOnly: true, includeMusic: true, duck: await duckFor(full) });
+  const g0 = buildGraph(full, { width: 16, height: 16, fps: 30, textLayers: [], audioOnly: true, includeMusic: true, duck: await duckFor(full) });
+  const g = opts.loudnorm ? withLoudnorm(g0) : g0;
   fs.mkdirSync(path.dirname(opts.outPath), { recursive: true });
   const tmpOut = path.join(path.dirname(opts.outPath), `.${path.basename(opts.outPath, '.mp3')}.kadro-part.mp3`);
   const filterFile = path.join(cacheDir('export'), `mp3_${Date.now()}.txt`);
@@ -164,8 +165,9 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     // большие видео (2K/4K) декодирует видеокарта, если она есть (на Windows — D3D11/DXVA, у NVIDIA — и CUDA)
     const hwInfo = await hardwareInfo().catch(() => null);
     const hwDecode = process.platform === 'win32' && !!hwInfo?.gpus.length && process.env.KADRO_NO_HWDEC !== '1';
-    const graph = buildGraph(project, { hwDecode, width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments, blurMasks, photo3dMaps,
+    const graph0 = buildGraph(project, { hwDecode, width: size.w, height: size.h, fps: opts.fps, textLayers: lists, grayFile, rgbFile, luts: loadLuts(project), transparent: !!opts.alpha, glSegments, blurMasks, photo3dMaps,
       duck: opts.alpha || sticker ? undefined : await duckFor(project), maxDuration: sticker ? TG_STICKER.maxSec : opts.maxSec });
+    const graph = opts.loudnorm && !sticker && format !== 'gif' ? withLoudnorm(graph0) : graph0;
     const filterFile = path.join(job, 'graph.txt');
     fs.writeFileSync(filterFile, graph.filter);
     // главы из маркеров — видны в плеерах (VLC, MPC-HC, «Кино и ТВ»)

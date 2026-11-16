@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -279,5 +279,26 @@ describe('экспорт: форматы файла', () => {
       if (codec === 'hevc') expect(j.streams.find((s: any) => s.codec_type === 'video').codec_tag_string).toBe('hvc1');
       expect(pixelAt(out, 0.5, 180, 320)[0]).toBeGreaterThan(200);
     }
+  });
+});
+
+describe('экспорт: громкость для соцсетей', () => {
+  it('тихий звук выравнивается до −14 LUFS', () => {
+    const quiet = f('quiet.mp4');
+    if (!fs.existsSync(quiet)) ff(['-f', 'lavfi', '-i', 'color=c=red:s=320x240:r=30:d=6', '-f', 'lavfi', '-i', 'sine=f=440:d=6', '-filter:a', 'volume=-30dB', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', quiet]);
+    let p = addAsset(newProject('t', '16:9'), assetFromFile('q', quiet, 'video'));
+    p = addToMain(p, 'q', 0).project;
+    const measure = (file: string) => {
+      const r = spawnSync('ffmpeg', ['-hide_banner', '-nostats', '-i', file, '-af', 'ebur128', '-f', 'null', '-'], { encoding: 'utf8' });
+      const m = /I:\s+(-?[\d.]+) LUFS\s*\n\s*Threshold/.exec(r.stderr) ?? /I:\s+(-?[\d.]+) LUFS/.exec(r.stderr.split('Summary:').pop() ?? '');
+      return Number(m?.[1]);
+    };
+    const plain = f('loud-plain.mp4');
+    runExport(p, plain, { width: 320, height: 180 });
+    const norm = f('loud-norm.mp4');
+    const g = runExport(p, norm, { width: 320, height: 180, loudnorm: true });
+    expect(g.filter).toContain('loudnorm=I=-14');
+    expect(measure(plain)).toBeLessThan(-30);
+    expect(Math.abs(measure(norm) - -14)).toBeLessThan(2);
   });
 });

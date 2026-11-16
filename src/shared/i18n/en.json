@@ -460,6 +460,7 @@
  "Вырезать": "Cut",
  "Вырезать тишину между фразами в выделенном клипе": "Cut silence between phrases in the selected clip",
  "Вырезаю человека…": "Cutting the person out…",
+ "Выровнять громкость для соцсетей": "Normalize loudness for social media",
  "Выскакивает, курсор нажимает — «Вы подписаны», звенит колокольчик. Длится 3 секунды.": "Pops up, a cursor clicks it — “Subscribed”, the bell rings. Lasts 3 seconds.",
  "Выскок": "Pop",
  "Высокое": "High",
@@ -2904,6 +2905,7 @@
  "эффект не попадёт в видео": "the effect won't be in the video",
  "— необязательно": "— optional",
  "↑ ↓ — выбрать, Enter — применить. Эффект и фильтр встанут на выделенные клипы, переход — на выбранный стык.": "↑ ↓ to pick, Enter to apply. Effects and filters go on the selected clips, transitions on the selected cut.",
+ "−14 LUFS, как ждут YouTube, TikTok и Instagram: тихий ролик станет громче, громкий не будет приглушён": "−14 LUFS, as YouTube, TikTok and Instagram expect: a quiet video gets louder, a loud one won't be turned down",
  "−{0} дБ": "−{0} dB",
  "★ — в избранное. Плитку можно перетащить прямо на клип на таймлайне.": "★ adds to favorites. You can drag a tile straight onto a clip on the timeline."
 }

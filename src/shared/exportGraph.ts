@@ -915,6 +915,14 @@ export function mfBitrate(quality: Quality, fps: number, size?: { w: number; h: 
   return Math.round(Math.min(120e6, Math.max(2e6, px * bpp)));
 }
 
+/** Громкость под соцсети (EBU R128): YouTube, TikTok и Instagram приглушают громкие ролики и не поднимают тихие —
+ *  выровненный звук звучит так, как задумано. −14 LUFS интегральной громкости, пики до −1,5 дБ. */
+export const LOUD_TARGET = -14;
+export function withLoudnorm(g: BuiltGraph, target = LOUD_TARGET): BuiltGraph {
+  if (!g.aOut) return g;
+  return { ...g, filter: `${g.filter};\n${g.aOut}loudnorm=I=${target}:TP=-1.5:LRA=11,aresample=48000[aln]`, aOut: '[aln]' };
+}
+
 /** ProRes (MOV) и WebM считаются только процессором: у видеокарт таких кодировщиков нет. */
 export const cpuOnlyCodec = (c: VideoCodec | undefined): boolean => c === 'prores' || c === 'webm';
 

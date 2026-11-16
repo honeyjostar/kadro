@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { buildGraph, fullArgs, type BuildOpts, type Quality } from '../../src/shared/exportGraph';
+import { buildGraph, fullArgs, withLoudnorm, type BuildOpts, type Quality } from '../../src/shared/exportGraph';
 import type { MediaAsset, Project, VideoCodec } from '../../src/shared/types';
 import { grayPng, rgbPng } from '../../src/main/png';
 
@@ -109,7 +109,7 @@ export function assetFromFile(id: string, file: string, kind: MediaAsset['kind']
   };
 }
 
-export function runExport(p: Project, out: string, opts: Partial<BuildOpts> & { quality?: Quality; alpha?: boolean; codec?: VideoCodec } = {}): { args: string[]; filter: string } {
+export function runExport(p: Project, out: string, opts: Partial<BuildOpts> & { quality?: Quality; alpha?: boolean; codec?: VideoCodec; loudnorm?: boolean } = {}): { args: string[]; filter: string } {
   const W = opts.width ?? 540;
   const H = opts.height ?? 960;
   const F = opts.fps ?? 30;
@@ -125,7 +125,8 @@ export function runExport(p: Project, out: string, opts: Partial<BuildOpts> & { 
     fs.writeFileSync(file, rgbPng(bytes, w, h));
     return file;
   };
-  const g = buildGraph(p, { width: W, height: H, fps: F, textLayers: opts.textLayers ?? [], grayFile, rgbFile, luts: opts.luts, transparent: opts.alpha, blurMasks: opts.blurMasks, photo3dMaps: opts.photo3dMaps });
+  const g0 = buildGraph(p, { width: W, height: H, fps: F, textLayers: opts.textLayers ?? [], grayFile, rgbFile, luts: opts.luts, transparent: opts.alpha, blurMasks: opts.blurMasks, photo3dMaps: opts.photo3dMaps });
+  const g = opts.loudnorm ? withLoudnorm(g0) : g0;
   const filterFile = out + '.filter.txt';
   fs.writeFileSync(filterFile, g.filter);
   const args = fullArgs(g, filterFile, ffmpegMajor(), opts.alpha ? 'vp9alpha' : 'x264', opts.quality ?? 'normal', F, out, undefined, undefined, opts.codec)

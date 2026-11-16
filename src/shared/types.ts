@@ -408,6 +408,8 @@ export interface ExportOptions {
   maxSec?: number;
   /** видео: H.264 MP4 (по умолчанию), H.265 MP4 (меньше файл, iPhone и Mac), ProRes MOV (для монтажёров), WebM (VP9) */
   codec?: VideoCodec;
+  /** выровнять громкость под соцсети: −14 LUFS, пики не выше −1,5 дБ (EBU R128) */
+  loudnorm?: boolean;
 }
 export type VideoCodec = 'h264' | 'hevc' | 'prores' | 'webm';
 /** Расширение файла видео для кодека. */

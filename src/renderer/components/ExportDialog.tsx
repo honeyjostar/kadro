@@ -16,7 +16,7 @@ import { renderTextLayers } from '../engine/textExport';
 import { renderGlSegments, type GlRender } from '../engine/glExport';
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
-import { Field, Progress, Seg } from './controls';
+import { Field, Progress, Seg, Toggle } from './controls';
 import { shortSideOf, sizeFor } from '../../shared/defaults';
 import { setSettings } from '../../shared/timeline';
 import { PLATFORMS, isVertical, type Platform } from '../../shared/safezones';
@@ -229,6 +229,10 @@ export function ExportDialog() {
                   options={[128, 192, 320].map((k) => ({ value: k as 128 | 192 | 320, label: tx('{0} кбит/с', k) }))} />
               </Field>
             )}
+            {format === 'mp3' && (
+              <Toggle label={tx('Выровнять громкость для соцсетей')} hint={tx('−14 LUFS, как ждут YouTube, TikTok и Instagram: тихий ролик станет громче, громкий не будет приглушён')}
+                on={!!opts.loudnorm} onChange={(v) => setOpts({ ...opts, loudnorm: v || undefined })} testId="export-loudnorm-mp3" />
+            )}
             {format === 'mp4' && (<>
             <Field label={tx('Разрешение')} right={<span className="value">{size.w}×{size.h}</span>}>
               <Seg value={opts.height} onChange={(v) => setOpts({ ...opts, height: v })}
@@ -250,6 +254,8 @@ export function ExportDialog() {
                     : opts.codec === 'webm' ? tx('WebM (VP9) — для сайтов и браузеров. Считается процессором, поэтому дольше.')
                       : tx('H.264 — открывается везде: телефоны, соцсети, любые плееры.')}</p>
             </Field>
+            <Toggle label={tx('Выровнять громкость для соцсетей')} hint={tx('−14 LUFS, как ждут YouTube, TikTok и Instagram: тихий ролик станет громче, громкий не будет приглушён')}
+              on={!!opts.loudnorm} onChange={(v) => setOpts({ ...opts, loudnorm: v || undefined })} testId="export-loudnorm" />
             <Field label={tx('Чем кодировать')} right={<span className="hint small" data-testid="export-hw">{hwShort}</span>}>
               <Seg value={opts.encoder === 'nvenc' ? 'gpu' : opts.encoder} onChange={(v) => setOpts({ ...opts, encoder: v })} testId="export-encoder"
                 options={[{ value: 'auto', label: tx('Авто') }, { value: 'gpu', label: tx('Видеокарта') }, { value: 'x264', label: tx('Процессор') }]} />
