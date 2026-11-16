@@ -5,7 +5,7 @@ import { tx } from '../i18n';
 
 export type GlParamType = 'float' | 'int' | 'bool' | 'vec2' | 'vec3' | 'vec4' | 'ivec2' | 'ivec3' | 'ivec4';
 export type GlValue = number | boolean | number[];
-export interface GlParam { name: string; type: GlParamType; value: GlValue; min?: number; max?: number; label?: string }
+export interface GlParam { name: string; type: GlParamType; value: GlValue; min?: number; max?: number; label?: string; /** vec3 — цвет (пометка «// @color Подпись»): в окне — выбор цвета */ color?: boolean }
 
 /** Шейдер-переход или шейдер-эффект: встроенный или плагин из папки пользователя. */
 export interface GlDef {
@@ -57,7 +57,7 @@ export interface GlMeta { name?: string; author?: string; license?: string; desc
 export function parseGlsl(src: string): GlMeta {
   const meta: GlMeta = { tags: [], params: [], errors: [] };
   const lines = src.split(/\r?\n/);
-  let pendingRange: { min: number; max: number; label?: string } | null = null;
+  let pendingRange: { min?: number; max?: number; label?: string; color?: boolean } | null = null;
   for (const line of lines) {
     const h = /^\s*\/\/\s*(Name|Название|Author|Автор|License|Лицензия|Description|Описание|Tags|Теги)\s*:\s*(.+?)\s*$/i.exec(line);
     if (h) {
@@ -72,6 +72,8 @@ export function parseGlsl(src: string): GlMeta {
     }
     const r = /^\s*\/\/\s*@range\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)\s*(.*)$/.exec(line);
     if (r) { pendingRange = { min: Number(r[1]), max: Number(r[2]), label: r[3].trim() || undefined }; continue; }
+    const cm = /^\s*\/\/\s*@color\b\s*(.*)$/.exec(line);
+    if (cm) { pendingRange = { color: true, label: cm[1].trim() || undefined }; continue; }
     const u = /^\s*uniform\s+(\w+)\s+(\w+)\s*;\s*(?:\/\/\s*=\s*(.+?))?\s*$/.exec(line);
     if (u) {
       const type = u[1] as GlParamType;

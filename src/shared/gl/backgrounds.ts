@@ -420,6 +420,96 @@ vec4 effect(vec2 uv) {
   return put(uv, col);
 }
 `,
+  bg_gradient: `// Name: Фон: живой градиент
+// Author: Kadro
+// License: MIT
+// Description: Два своих цвета мягко перетекают друг в друга — под фирменные цвета, цитаты и обложки
+// Tags: background, gradient, brand
+// @color Первый цвет
+uniform vec3 color1; // = vec3(1.0, 0.24, 0.5)
+// @color Второй цвет
+uniform vec3 color2; // = vec3(0.25, 0.35, 1.0)
+// @range(0.1, 3) Скорость
+uniform float speed; // = 1.0
+//#lib
+vec4 effect(vec2 uv) {
+  vec2 p = vec2(uv.x * ratio, uv.y);
+  float t = time * 0.15 * speed;
+  float n = fbm(p * 1.4 + vec2(t, -t * 0.7));
+  float k = smoothstep(0.15, 0.85, uv.x * 0.45 + uv.y * 0.35 + (n - 0.5) * 0.9 + 0.1 * sin(t * 2.0));
+  vec3 col = mix(color1, color2, k);
+  col *= 0.85 + 0.3 * fbm(p * 3.0 - t);
+  col += (h21(uv * resolution + fract(time)) - 0.5) * 0.02;
+  return put(uv, col);
+}
+`,
+
+  bg_glowframe: `// Name: Светящаяся рамка
+// Author: Kadro
+// License: MIT
+// Description: Неоновая рамка бежит по краю кадра поверх видео — для стримов, гейминга и обложек
+// Tags: overlay, frame, neon
+// @color Цвет
+uniform vec3 tint; // = vec3(1.0, 0.2, 0.75)
+// @range(0.002, 0.05) Толщина
+uniform float width; // = 0.012
+// @range(0, 3) Скорость бегущего света
+uniform float speed; // = 1.0
+vec4 effect(vec2 uv) {
+  vec4 base = getColor(uv);
+  vec2 q = vec2(uv.x * ratio, uv.y);
+  vec2 R = vec2(ratio, 1.0);
+  float m = 0.035;
+  vec2 d2 = min(q - m, R - m - q);
+  float d = abs(min(d2.x, d2.y));
+  float line = smoothstep(width, 0.0, d);
+  float halo = exp(-d * 60.0) * 0.6;
+  // бегущий блик по периметру
+  float per = 2.0 * (R.x + R.y);
+  float s = q.y < m + width * 3.0 ? q.x : q.x > R.x - m - width * 3.0 ? R.x + q.y : q.y > R.y - m - width * 3.0 ? R.x + R.y + (R.x - q.x) : 2.0 * R.x + R.y + (R.y - q.y);
+  float run = pow(0.5 + 0.5 * cos(6.2831853 * (s / per - time * 0.25 * speed)), 6.0);
+  vec3 col = base.rgb + tint * (line * (0.7 + 0.8 * run) + halo * (0.4 + 0.6 * run)) * amount * 1.4;
+  return vec4(col, base.a);
+}
+`,
+
+  bg_snow: `// Name: Фон: снегопад
+// Author: Kadro
+// License: MIT
+// Description: Зимняя ночь: снег падает слоями, огни города в дымке — для новогодних роликов
+// Tags: background, winter, snow, new year
+// @range(0, 1) Сила снега
+uniform float density; // = 0.7
+// @color Цвет огней
+uniform vec3 lights; // = vec3(1.0, 0.75, 0.4)
+//#lib
+float flakes(vec2 p, float t, float sc, float sp) {
+  p *= sc;
+  p.y += t * sp;
+  p.x += sin(p.y * 0.35 + t * 0.6) * 0.6;
+  vec2 id = floor(p), f = fract(p) - 0.5;
+  float n = h21(id);
+  if (n > density) return 0.0;
+  vec2 o = (vec2(h21(id + 3.1), h21(id + 7.7)) - 0.5) * 0.6;
+  return smoothstep(0.09 + 0.06 * n, 0.0, length(f - o));
+}
+vec4 effect(vec2 uv) {
+  vec2 p = vec2(uv.x * ratio, uv.y);
+  vec3 col = mix(vec3(0.06, 0.08, 0.16), vec3(0.01, 0.02, 0.06), uv.y);
+  // огни города внизу в дымке
+  for (int i = 0; i < 24; i++) {
+    float fi = float(i);
+    vec2 c = vec2(h21(vec2(fi, 1.0)) * ratio, 0.06 + 0.16 * h21(vec2(fi, 2.0)));
+    float tw = 0.7 + 0.3 * sin(time * (1.0 + h21(vec2(fi, 3.0))) + fi);
+    col += lights * 0.02 / (0.01 + length(p - c)) * 0.12 * tw;
+  }
+  col += vec3(0.25, 0.3, 0.45) * exp(-uv.y * 5.0) * 0.35;
+  float t = time;
+  float sn = flakes(p, t, 6.0, 0.9) * 0.45 + flakes(p + 3.0, t, 11.0, 1.4) * 0.7 + flakes(p + 7.0, t, 20.0, 2.2) * 0.9;
+  col += vec3(0.95, 0.97, 1.0) * sn;
+  return put(uv, col);
+}
+`,
 };
 
 /** Исходники фонов: общий кусок (put, шум, сдвиг оттенка) — вместо строки «//#lib». */

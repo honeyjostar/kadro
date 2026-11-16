@@ -314,7 +314,7 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
               if (def?.toggle) return <div key={e.type} className="field-row fx-toggle-row"><label>{def.label}</label>{del}</div>;
               const gl = isGlType(e.type) ? glDef(e.type) : undefined;
               const label = def?.label ?? gl?.name ?? (isGlType(e.type) ? tx('Плагин не найден: {0}', e.type.replace(/^plug:e\//, '')) : e.type);
-              const setParam = (name: string, v: number) => up({ effects: clip.effects!.map((x) => (x.type === e.type ? { ...x, params: { ...x.params, [name]: v } } : x)) }, `fxp-${e.type}-${name}`);
+              const setParam = (name: string, v: number | number[]) => up({ effects: clip.effects!.map((x) => (x.type === e.type ? { ...x, params: { ...x.params, [name]: v } } : x)) }, `fxp-${e.type}-${name}`);
               return (
                 <div key={e.type} className={gl ? 'fx-gl' : undefined}>
                   <Slider label={label} min={0} max={1} step={0.01} value={e.amount} format={pct}
@@ -325,6 +325,11 @@ function MediaInspector({ clip, asset, trackKind }: { clip: MediaClip; asset?: M
                     const val = typeof cur === 'number' ? cur : (prm.value as number);
                     return <Slider key={prm.name} label={`· ${prm.label ?? prm.name}`} min={prm.min!} max={prm.max!} step={(prm.max! - prm.min!) / 100} value={val}
                       format={(v) => (Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(2))} onChange={(v) => setParam(prm.name, v)} />;
+                  })}
+                  {gl?.params.filter((prm) => prm.color && prm.type === 'vec3').map((prm) => {
+                    const cur = e.params?.[prm.name];
+                    const rgb = (Array.isArray(cur) && cur.length === 3 ? cur : prm.value) as number[];
+                    return <ColorField key={prm.name} label={`· ${prm.label ?? prm.name}`} value={rgbToHex(rgb)} onChange={(v) => setParam(prm.name, hexToRgb01(v))} />;
                   })}
                 </div>
               );
@@ -1008,4 +1013,13 @@ function TextInspector({ clip }: { clip: TextClip }) {
       </div>
     </>
   );
+}
+
+/** Цвет шейдера (0..1) ↔ #rrggbb. */
+function rgbToHex(c: number[]): string {
+  return `#${c.map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0')).join('')}`;
+}
+function hexToRgb01(h: string): number[] {
+  const n = parseInt(h.replace('#', ''), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255].map((v) => Math.round(v * 1000) / 1000);
 }
