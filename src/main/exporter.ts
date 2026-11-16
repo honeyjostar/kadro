@@ -4,7 +4,7 @@ import { makePhoto3dMaps } from './photo3dMaps';
 import { tx } from '../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
-import { buildGraph, fullArgs, gifArgs, gifFilter, mp3Args } from '../shared/exportGraph';
+import { buildGraph, cpuOnlyCodec, fullArgs, gifArgs, gifFilter, mp3Args } from '../shared/exportGraph';
 import { ffmetadataChapters } from '../shared/markers';
 import { exportSize } from '../shared/geometry';
 import type { ExportReq, ExportResult, TextLayerReq } from '../shared/ipc';
@@ -213,11 +213,11 @@ export async function exportProject(req: ExportReq, onProgress: (p: number) => v
     }
     // видеокарта: то, что прошло пробное кодирование; не вышло — следующий кодировщик, в конце процессор
     const hw = opts.alpha || opts.encoder === 'x264' ? null : await hardwareInfo();
-    const encoders: EncoderEngine[] = opts.alpha ? ['vp9alpha'] : encoderPlan(opts.encoder, hw?.encoders ?? null, process.platform);
+    const encoders: EncoderEngine[] = opts.alpha ? ['vp9alpha'] : cpuOnlyCodec(opts.codec) ? ['x264'] : encoderPlan(opts.encoder, hw?.encoders ?? null, process.platform);
     let lastErr: unknown;
     for (const enc of encoders) {
       try {
-        const args = fullArgs(graph, filterFile, ffmpegMajor(), enc, opts.quality, opts.fps, tmpOut, metaFile, size);
+        const args = fullArgs(graph, filterFile, ffmpegMajor(), enc, opts.quality, opts.fps, tmpOut, metaFile, size, opts.codec);
         await runFfmpeg(args, { duration: Math.min(total, graph.duration), onProgress, signal });
         fs.rmSync(opts.outPath, { force: true });
         fs.renameSync(tmpOut, opts.outPath);

@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { act, importAt, launch, solidVideo, store, waitAssetsReady } from './kadro';
+import { act, colorsVideo, importAt, launch, solidVideo, store, waitAssetsReady } from './kadro';
 
 function info(f: string) {
   const j = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_type,width,height:format=duration', '-of', 'json', f], { encoding: 'utf8' }));
@@ -60,5 +60,24 @@ test('кружок длиннее минуты обрезается до 60 се
   expect(c.dur).toBeLessThan(60.5);
   expect(info(path.join(dir, 'long.mp4')).dur).toBeGreaterThan(69);
   expect(K.errors).toEqual([]);
+  await K.app.close();
+});
+
+test('экспорт: формат файла H.265 — расширение .mp4, кодек hevc с меткой hvc1', async () => {
+  const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-hevc-')), 'clip.mp4');
+  const K = await launch({ env: { KADRO_TEST_EXPORT: out } });
+  const win = K.win;
+  await importAt(win, [colorsVideo()], 'main', 0);
+  await waitAssetsReady(win);
+  await win.evaluate(() => (window as any).__kadro.useStore.getState().setExportOpen(true));
+  await win.getByTestId('export-codec').locator('[data-value=hevc]').click();
+  await expect(win.getByTestId('export-codec-hint')).toContainText('iPhone');
+  await win.getByTestId('export-start').click();
+  await expect.poll(() => fs.existsSync(out), { timeout: 120_000 }).toBe(true);
+  await expect(win.locator('.done-line')).toBeVisible({ timeout: 120_000 });
+  const j = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-print_format', 'json', '-show_streams', out], { encoding: 'utf8' }));
+  const v = j.streams.find((s: any) => s.codec_type === 'video');
+  expect(v.codec_name).toBe('hevc');
+  expect(v.codec_tag_string).toBe('hvc1');
   await K.app.close();
 });

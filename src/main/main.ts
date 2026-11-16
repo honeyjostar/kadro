@@ -28,7 +28,8 @@ import { highlights } from './highlights';
 import { applyShortcutIcons, applyWindowIcon, CustomStyles, ensureCustomFiles, iconPng, makeCustomIcon } from './appearance';
 import { KadroTray } from './tray';
 import { normalizeAppearance, type Appearance } from '../shared/appearance';
-import type { AspectKey, ExportFormat, MediaAsset, Project } from '../shared/types';
+import type { AspectKey, ExportFormat, MediaAsset, Project, VideoCodec } from '../shared/types';
+import { codecExt } from '../shared/types';
 import { decodeSubtitleBytes } from '../shared/subtitles';
 import { isKadroUrl } from '../shared/links';
 import { afterExport, type StarAnswer } from '../shared/star';
@@ -997,14 +998,14 @@ function registerIpc(): void {
     e.returnValue = true;
   });
   setSfxFiles(demoFiles().sfx); // звуки на стыках — для экспорта, даже если главный экран не открывали
-  ipcMain.handle('dialog:exportPath', async (_e, name: string, format?: ExportFormat) => {
-    const ext = format === 'gif' || format === 'mp3' ? format : format === 'sticker' ? 'webm' : 'mp4';
+  ipcMain.handle('dialog:exportPath', async (_e, name: string, format?: ExportFormat, codec?: VideoCodec) => {
+    const ext = format === 'gif' || format === 'mp3' ? format : format === 'sticker' ? 'webm' : codecExt(codec);
     // автотесты: без системного окна (расширение — по формату)
     if (process.env.KADRO_TEST_EXPORT) return process.env.KADRO_TEST_EXPORT.replace(/\.\w+$/, `.${ext}`);
     const r = await dialog.showSaveDialog(win!, {
-      title: ext === 'mp3' ? tx('Куда сохранить звук') : ext === 'gif' ? tx('Куда сохранить GIF') : ext === 'webm' ? tx('Куда сохранить стикер') : tx('Куда сохранить видео'),
+      title: ext === 'mp3' ? tx('Куда сохранить звук') : ext === 'gif' ? tx('Куда сохранить GIF') : ext === 'webm' && format === 'sticker' ? tx('Куда сохранить стикер') : tx('Куда сохранить видео'),
       defaultPath: path.join(app.getPath(ext === 'mp3' ? 'music' : 'videos'), `${name || 'Kadro'}.${ext}`),
-      filters: [{ name: ext === 'mp3' ? tx('Звук MP3') : ext === 'gif' ? tx('Анимация GIF') : ext === 'webm' ? tx('Стикер Telegram (WebM)') : tx('Видео MP4'), extensions: [ext] }],
+      filters: [{ name: ext === 'mp3' ? tx('Звук MP3') : ext === 'gif' ? tx('Анимация GIF') : ext === 'webm' && format === 'sticker' ? tx('Стикер Telegram (WebM)') : ext === 'mov' ? tx('Видео ProRes (MOV)') : ext === 'webm' ? tx('Видео WebM') : tx('Видео MP4'), extensions: [ext] }],
     });
     return r.canceled ? null : r.filePath ?? null;
   });

@@ -252,7 +252,7 @@ export interface KadroApi {
   autosave(project: Project, path: string | null): void;
   /** То же, но дожидается записи — при закрытии окна. */
   autosaveNow(project: Project, path: string | null): void;
-  pickExportPath(defaultName: string, format?: import('./types').ExportFormat): Promise<string | null>;
+  pickExportPath(defaultName: string, format?: import('./types').ExportFormat, codec?: import('./types').VideoCodec): Promise<string | null>;
   startExport(req: ExportReq): Promise<ExportResult>;
   cancelExport(): void;
   onExportProgress(cb: (p: number) => void): () => void;

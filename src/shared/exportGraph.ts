@@ -10,7 +10,7 @@ import { effectiveColor, ffmpegColorFilter } from './color';
 import { GRADE_N, gradeActive, gradeTable, haldImage, type CubeLut } from './grade';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale, stretchedSize } from './geometry';
 import { beatTimes, clipDuration, mainTrack, projectDuration } from './timeline';
-import type { BlendMode, MediaAsset, MediaClip, Project } from './types';
+import type { BlendMode, MediaAsset, MediaClip, Project, VideoCodec } from './types';
 import { maskBytes } from './mask';
 import { blurGroups, blurRadius, mosaicBlock } from './blur';
 import { adjustClipForRender } from './adjust';
@@ -915,8 +915,34 @@ export function mfBitrate(quality: Quality, fps: number, size?: { w: number; h: 
   return Math.round(Math.min(120e6, Math.max(2e6, px * bpp)));
 }
 
-export function encoderArgs(enc: Exclude<EncoderEngine, 'vp9alpha'>, quality: Quality, fps: number, duration: number, size?: { w: number; h: number }): string[] {
+/** ProRes (MOV) и WebM считаются только процессором: у видеокарт таких кодировщиков нет. */
+export const cpuOnlyCodec = (c: VideoCodec | undefined): boolean => c === 'prores' || c === 'webm';
+
+export function encoderArgs(enc: Exclude<EncoderEngine, 'vp9alpha'>, quality: Quality, fps: number, duration: number, size?: { w: number; h: number }, codec: VideoCodec = 'h264'): string[] {
   const q3 = <T,>(max: T, high: T, normal: T): T => (quality === 'max' ? max : quality === 'high' ? high : normal);
+  if (codec === 'prores') {
+    // ProRes 422 HQ (Максимум) или 422 — монтажный формат: огромный файл, но без потерь при пересжатии
+    return ['-c:v', 'prores_ks', '-profile:v', quality === 'max' ? '3' : '2', '-vendor', 'apl0', '-pix_fmt', 'yuv422p10le', '-r', String(fps),
+      '-c:a', 'pcm_s16le', '-ar', '48000', '-t', fmt(duration)];
+  }
+  if (codec === 'webm') {
+    return ['-c:v', 'libvpx-vp9', '-crf', q3('20', '26', '32'), '-b:v', '0', '-deadline', 'good', '-cpu-used', q3('2', '3', '4'), '-row-mt', '1',
+      '-pix_fmt', 'yuv420p', '-r', String(fps), '-c:a', 'libopus', '-b:a', '160k', '-ar', '48000', '-t', fmt(duration)];
+  }
+  if (codec === 'hevc') {
+    let hv: string[];
+    let hpix = 'yuv420p';
+    switch (enc) {
+      case 'nvenc': hv = ['-c:v', 'hevc_nvenc', '-preset', q3('p7', 'p5', 'p4'), '-rc', 'vbr', '-cq', q3('20', '24', '28'), '-b:v', '0']; break;
+      case 'amf': { const qp = q3(20, 24, 28); hv = ['-c:v', 'hevc_amf', '-usage', 'transcoding', '-quality', q3('quality', 'quality', 'balanced'), '-rc', 'cqp', '-qp_i', String(qp), '-qp_p', String(qp + 1)]; break; }
+      case 'qsv': hpix = 'nv12'; hv = ['-c:v', 'hevc_qsv', '-preset', q3('veryslow', 'slower', 'medium'), '-global_quality', q3('20', '24', '28')]; break;
+      case 'mf': hpix = 'nv12'; hv = ['-c:v', 'hevc_mf', '-hw_encoding', '1', '-b:v', String(Math.round(mfBitrate(quality, fps, size) * 0.65))]; break;
+      default: hv = ['-c:v', 'libx265', '-preset', q3('slow', 'medium', 'fast'), '-crf', q3('19', '22', '26'), '-x265-params', 'log-level=error'];
+    }
+    // hvc1 — иначе iPhone, Mac и QuickTime не откроют H.265
+    return [...hv, '-tag:v', 'hvc1', '-pix_fmt', hpix, '-r', String(fps), '-c:a', 'aac', '-b:a', '192k', '-ar', '48000',
+      '-movflags', '+faststart', '-t', fmt(duration)];
+  }
   let pix = 'yuv420p';
   let v: string[];
   switch (enc) {
@@ -968,7 +994,7 @@ export function mp3Args(g: BuiltGraph, filterFile: string, ffmpegMajor: number, 
     '-ar', '44100', '-id3v2_version', '3', '-metadata', `title=${title}`, '-t', fmt(g.duration), '-progress', 'pipe:1', '-nostats', out];
 }
 
-export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number, enc: EncoderEngine, quality: Quality, fps: number, out: string, metaFile?: string, size?: { w: number; h: number }): string[] {
+export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number, enc: EncoderEngine, quality: Quality, fps: number, out: string, metaFile?: string, size?: { w: number; h: number }, codec?: VideoCodec): string[] {
   const filterOpt = ffmpegMajor >= 7 ? ['-/filter_complex', filterFile] : ['-filter_complex_script', filterFile];
   const flat = g.inputs.flat();
   const metaIdx = flat.filter((a) => a === '-i').length;
@@ -979,7 +1005,7 @@ export function fullArgs(g: BuiltGraph, filterFile: string, ffmpegMajor: number,
     ...filterOpt,
     '-map', g.vOut, '-map', g.aOut,
     ...(metaFile ? ['-map_metadata', String(metaIdx), '-map_chapters', String(metaIdx)] : []),
-    ...(enc === 'vp9alpha' ? alphaEncoderArgs(fps, g.duration) : encoderArgs(enc, quality, fps, g.duration, size)),
+    ...(enc === 'vp9alpha' ? alphaEncoderArgs(fps, g.duration) : encoderArgs(enc, quality, fps, g.duration, size, codec)),
     '-progress', 'pipe:1', '-nostats',
     out,
   ];

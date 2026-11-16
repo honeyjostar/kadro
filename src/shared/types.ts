@@ -402,6 +402,11 @@ export interface ExportOptions {
   mp3Kbps?: 128 | 192 | 320;
   /** не длиннее стольких секунд (кружок Telegram — до 60 с): дальше ролик обрезается */
   maxSec?: number;
+  /** видео: H.264 MP4 (по умолчанию), H.265 MP4 (меньше файл, iPhone и Mac), ProRes MOV (для монтажёров), WebM (VP9) */
+  codec?: VideoCodec;
 }
+export type VideoCodec = 'h264' | 'hevc' | 'prores' | 'webm';
+/** Расширение файла видео для кодека. */
+export const codecExt = (c: VideoCodec | undefined): 'mp4' | 'mov' | 'webm' => (c === 'prores' ? 'mov' : c === 'webm' ? 'webm' : 'mp4');
 
 export type ExportFormat = 'mp4' | 'gif' | 'mp3' | 'sticker';

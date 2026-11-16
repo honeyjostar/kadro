@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -261,5 +262,22 @@ describe('экспорт: цвет, наложения, звук', () => {
     expect((filter.match(/[^a]select=/g) || []).length).toBe(2);
     expect(Math.abs(probe(f('o14.mp4')).duration - 6)).toBeLessThan(0.1);
     expect(near(pixelAt(f('o14.mp4'), 4.75, 270, 480), SEC_RGB.cyan)).toBe(true); // 4.75 → исходник 5.5
+  });
+});
+
+describe('экспорт: форматы файла', () => {
+  it('H.265 (hvc1 — для iPhone и Mac), ProRes 422 в MOV, WebM VP9 + Opus', () => {
+    for (const [codec, ext, v, a] of [['hevc', 'mp4', 'hevc', 'aac'], ['prores', 'mov', 'prores', 'pcm_s16le'], ['webm', 'webm', 'vp9', 'opus']] as const) {
+      const out = f(`codec-${codec}.${ext}`);
+      const p = addToMain(proj(), 'red', 0, { in: 0, out: 1.5 }).project;
+      runExport(p, out, { codec, width: 360, height: 640 });
+      const r = probe(out);
+      expect(r.vcodec, codec).toBe(v);
+      expect(r.duration).toBeCloseTo(1.5, 0);
+      const j = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-print_format', 'json', '-show_streams', out], { encoding: 'utf8' }));
+      expect(j.streams.find((s: any) => s.codec_type === 'audio')?.codec_name, codec).toBe(a);
+      if (codec === 'hevc') expect(j.streams.find((s: any) => s.codec_type === 'video').codec_tag_string).toBe('hvc1');
+      expect(pixelAt(out, 0.5, 180, 320)[0]).toBeGreaterThan(200);
+    }
   });
 });

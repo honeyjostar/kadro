@@ -130,7 +130,7 @@ export function ExportDialog() {
   const hwWhy = hw && !hw.best && failed && hw.gpus.length ? tx('{0}: {1}', hw.gpus[0].name, reasonText(failed, hw.gpus)) : '';
 
   const start = async () => {
-    const outPath = await api.pickExportPath(project.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Kadro', format);
+    const outPath = await api.pickExportPath(project.name.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Kadro', format, format === 'mp4' ? opts.codec : undefined);
     if (!outPath) return;
     setPhase('running');
     setProgress(0);
@@ -240,6 +240,15 @@ export function ExportDialog() {
             <Field label={tx('Качество')}>
               <Seg value={opts.quality} onChange={(v) => setOpts({ ...opts, quality: v })}
                 options={[{ value: 'normal', label: tx('Обычное') }, { value: 'high', label: tx('Высокое') }, { value: 'max', label: tx('Максимум') }]} />
+            </Field>
+            <Field label={tx('Формат файла')}>
+              <Seg value={opts.codec ?? 'h264'} onChange={(v) => setOpts({ ...opts, codec: v === 'h264' ? undefined : v })} testId="export-codec"
+                options={[{ value: 'h264', label: 'MP4 H.264' }, { value: 'hevc', label: 'MP4 H.265' }, { value: 'prores', label: 'ProRes' }, { value: 'webm', label: 'WebM' }]} />
+              <p className="hint small" data-testid="export-codec-hint">{
+                opts.codec === 'hevc' ? tx('H.265: тот же вид при файле в 1,5–2 раза меньше. Открывается на iPhone, Mac и в соцсетях; на старых компьютерах может не играть.')
+                  : opts.codec === 'prores' ? tx('ProRes 422 в MOV — для монтажа в Final Cut, Premiere и DaVinci: без потерь при пересжатии, но файл огромный. Считается процессором.')
+                    : opts.codec === 'webm' ? tx('WebM (VP9) — для сайтов и браузеров. Считается процессором, поэтому дольше.')
+                      : tx('H.264 — открывается везде: телефоны, соцсети, любые плееры.')}</p>
             </Field>
             <Field label={tx('Чем кодировать')} right={<span className="hint small" data-testid="export-hw">{hwShort}</span>}>
               <Seg value={opts.encoder === 'nvenc' ? 'gpu' : opts.encoder} onChange={(v) => setOpts({ ...opts, encoder: v })} testId="export-encoder"
