@@ -1,4 +1,5 @@
 // Действия редактора, которые вызываются из разных мест интерфейса.
+import { findGameMoments, gameSeries, gameShortProject, type GameLayout } from '../shared/gameClips';
 import { tx } from '../shared/i18n';
 import { aiCovers, aiSource, aiStale, videoInputFor, videoSource } from '../shared/ai';
 import { normalizeRamp, originalRange } from '../shared/retime';
@@ -44,7 +45,7 @@ import { findLag, SYNC_MIN_CONFIDENCE, syncedPlacement } from '../shared/audioSy
 import { frameStats, type FrameStats } from '../shared/cover';
 import { cutLength, cutRanges, cutTimeline, fillerIndices, transcriptWords } from '../shared/textEdit';
 import { COMMAND_CHIPS, parseCommands, type Command } from '../shared/commands';
-import { applyAutoZoom, clearAutoZoom, zoomMoments, ZOOM, type ZoomStrength } from '../shared/autoZoom';
+import { applyAutoZoom, applyBeatPunch, clearAutoZoom, zoomMoments, ZOOM, type ZoomStrength } from '../shared/autoZoom';
 import { BLUR_HOLD, linkTracks, newRegion, padFace, regionSpan } from '../shared/blur';
 import { mediaKeyTime } from '../shared/anim';
 import { addAdjustLayer } from '../shared/adjust';
@@ -474,6 +475,25 @@ export function disableRetouch(clipId: string): void {
 }
 
 // ---------- ритм ----------
+/** «Удар в ритм»: кадр толкается вперёд на каждую долю музыки. Ритм ещё не искали — найдём сам. */
+export async function beatPunch(strong = false): Promise<number> {
+  const s = getState();
+  if (!beatTimes(s.project).length) {
+    const music = s.project.tracks.filter((t) => t.kind === 'audio').flatMap((t) => t.clips)
+      .map((c) => (c.type === 'media' ? s.project.assets.find((a) => a.id === c.assetId) : undefined))
+      .filter((a): a is MediaAsset => !!a && !!a.hasAudio && !a.beats?.length);
+    if (!music.length) { s.toast(tx('Для удара в ритм нужна музыка на дорожке звука')); return 0; }
+    for (const a of [...new Set(music)]) await findBeats(a.id);
+  }
+  const beats = beatTimes(getState().project);
+  if (!beats.length) return 0;
+  let count = 0;
+  getState().commit((p) => { const r = applyBeatPunch(p, beats, strong ? 1.14 : 1.08, 1); count = r.count; return r.project; });
+  if (count) getState().toast(tx('Удар в ритм: толчков {0}. Убрать — «Убрать автозум» или Ctrl+Z', count), 'ok');
+  else getState().toast(tx('Доли есть, но на основной дорожке в эти моменты нет видео'));
+  return count;
+}
+
 export async function findBeats(assetId: string): Promise<boolean> {
   const a = getState().project.assets.find((x) => x.id === assetId);
   if (!a || !a.hasAudio) { getState().toast(tx('В этом файле нет звука')); return false; }
@@ -1822,6 +1842,32 @@ export async function findShortMoments(asset: MediaAsset, o: { len: ShortLen; co
   return ms;
 }
 
+/** Игра: лучшие моменты по экшену — громкость и движение кадра (речь не нужна). */
+export async function findGameShortMoments(asset: MediaAsset, o: { len: ShortLen; count: number }, onStage: (s: ShortsStage) => void): Promise<ShortMoment[] | null> {
+  if (asset.kind !== 'video') { getState().toast(tx('Нужно видео'), 'err'); return null; }
+  const jobId = `hl_${uidShort()}`;
+  onStage({ label: tx('Смотрю игру — для длинной записи это пара минут'), jobId, step: 1, steps: 1 });
+  const src = asset.proxy === 'ready' && asset.previewPath ? asset.previewPath : asset.path;
+  const r = await runJob(tx('Ищу яркие моменты'), { kind: 'highlights', jobId, path: src, duration: asset.duration, loud: !!asset.hasAudio });
+  if (!r.ok || r.output?.kind !== 'highlights') { if (r.error !== tx('Отменено')) getState().toast(tx('Не получилось: {0}', r.error), 'err'); return null; }
+  const len = SHORT_LENS[o.len];
+  const ms = findGameMoments(gameSeries(r.output.hl, asset.peaks, asset.duration, r.output.loud), asset.duration, { min: len.min, max: len.max, count: o.count });
+  if (!ms.length) getState().toast(tx('Подходящих моментов нет: запись короче, чем нужно для клипа.'));
+  return ms;
+}
+
+/** Собрать игровые клипы (9:16) и сохранить в «Мои проекты». */
+export async function createGameShorts(asset: MediaAsset, moments: ShortMoment[], layout: GameLayout, onStage: (s: ShortsStage) => void): Promise<string[] | null> {
+  onStage({ label: tx('Собираю клипы'), step: 1, steps: 1 });
+  const projects = moments.map((m, i) => gameShortProject(asset, m, i + 1, layout));
+  try {
+    return await api.saveShorts(projects, asset.name.replace(/\.[^.]+$/, ''));
+  } catch (e) {
+    getState().toast(tx('Не получилось сохранить шортсы: {0}', e instanceof Error ? e.message : String(e)), 'err');
+    return null;
+  }
+}
+
 /** Собрать проекты шортсов и сохранить их в «Мои проекты». reframe — кадр следует за человеком (дольше). */
 export async function createShorts(asset: MediaAsset, moments: ShortMoment[], style: BlogStyle, reframe: boolean, onStage: (s: ShortsStage) => void): Promise<string[] | null> {
   const projects: Project[] = [];
@@ -2445,6 +2491,7 @@ export async function runCommands(text: string): Promise<{ done: string[]; unkno
         alignToBeats();
         break;
       }
+      case 'beatPunch': if (await beatPunch()) done.push(tx('удар в ритм')); break;
       case 'freeze': await freezeFrame(); done.push(tx('стоп-кадр')); break;
       case 'split': splitAtPlayhead(); done.push(tx('разрезано')); break;
       case 'delete':

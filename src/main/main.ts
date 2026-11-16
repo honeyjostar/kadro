@@ -475,7 +475,24 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       const ac = new AbortController();
       aiAborts.set(id, ac);
       const hl = await highlights(job.path, job.duration, (p) => send(p, tx('Смотрю видео')), ac.signal);
-      return { ok: true, output: { kind: 'highlights', hl } };
+      // громкость (уровень RMS) на тех же шагах — для игр, где моменты ищутся по звуку, а не по речи
+      let loud: number[] | undefined;
+      if (job.loud) {
+        try {
+          const rate = 4000;
+          const buf = await ffmpegToBuffer(['-hide_banner', '-v', 'error', '-i', job.path, '-vn', '-ac', '1', '-ar', String(rate), '-f', 's16le', 'pipe:1'], ac.signal, true);
+          const pcm = new Int16Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 2));
+          const per = Math.max(1, Math.round(hl.step * rate));
+          loud = [];
+          for (let i = 0; i < pcm.length; i += per) {
+            let s = 0;
+            const e = Math.min(pcm.length, i + per);
+            for (let k = i; k < e; k++) s += pcm[k] * pcm[k];
+            loud.push(Math.round((Math.sqrt(s / Math.max(1, e - i)) / 32768) * 1e4) / 1e4);
+          }
+        } catch (err) { if (ac.signal.aborted) throw err; log('loudness failed', job.path, err); }
+      }
+      return { ok: true, output: { kind: 'highlights', hl, loud } };
     }
     if (job.kind === 'faces') {
       const r = await workerCall<{ frames: import('../shared/blur').DetFrame[] }>(id, { kind: 'faces', path: job.path, in: job.in, out: job.out, width: job.width, height: job.height, image: job.image });

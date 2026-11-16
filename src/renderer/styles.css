@@ -1468,3 +1468,6 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 .font-star { width: 24px; height: 24px; flex-shrink: 0; opacity: 0; color: var(--muted); }
 .font-row-fav:hover .font-star, .font-star:focus-visible { opacity: 1; }
 .font-star.on { opacity: 1; color: #ffc940; }
+/* «Нарезать в шортсы»: разговор или игра */
+.shorts-mode { margin: 0 0 12px; }
+.shorts-mode button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; font-size: 13px; }

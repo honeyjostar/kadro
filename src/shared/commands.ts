@@ -30,6 +30,7 @@ export type Command =
   | { kind: 'reframe' }
   | { kind: 'retouch' }
   | { kind: 'beats' }
+  | { kind: 'beatPunch' }
   | { kind: 'freeze' }
   | { kind: 'split' }
   | { kind: 'delete' }
@@ -97,6 +98,7 @@ export function parseOne(part: string): Command | null {
   if (/(ретуш|сглад\S* кож|гладк\S* кож|retouch|smooth skin)/.test(s)) return { kind: 'retouch' };
   if (/(держи \S+ в кадре|в центре кадра|автокадр|кадрируй|reframe|in frame)/.test(s)) return { kind: 'reframe' };
   if (/(стоп-?кадр|заморо|freeze)/.test(s)) return { kind: 'freeze' };
+  if (/(удар|толч|пульс|тряхн|punch|bump)/.test(s) && /(ритм|бит|такт|beat)/.test(s)) return { kind: 'beatPunch' };
   if (/(под бит|под ритм|в ритм|в такт|по битам|to the beat|on beat)/.test(s)) return { kind: 'beats' };
   if (/(шортс|shorts|лучшие моменты|best moments)/.test(s)) return { kind: 'shorts' };
   if (/(разреж|разрез|раздели|split)/.test(s)) return { kind: 'split' };
@@ -132,7 +134,7 @@ export function parseCommands(text: string): { cmds: Command[]; unknown: string[
 
 /** Что умеют команды словами — примеры для подсказок. Каждый пример обязан разбираться (tests/unit/commands.test.ts). */
 export const COMMAND_HELP: { group: string; examples: string[] }[] = [
-  { group: tx('Монтаж'), examples: [tx('убери паузы'), tx('убери слова-паразиты'), tx('ускорь в 2 раза'), tx('разрежь'), tx('стоп-кадр'), tx('подгони под бит'), tx('нарежь шортсы'), tx('отмени')] },
+  { group: tx('Монтаж'), examples: [tx('убери паузы'), tx('убери слова-паразиты'), tx('ускорь в 2 раза'), tx('разрежь'), tx('стоп-кадр'), tx('подгони под бит'), tx('удар в ритм'), tx('нарежь шортсы'), tx('отмени')] },
   { group: tx('Звук'), examples: [tx('музыку тише'), tx('музыку на 30%'), tx('убери музыку'), tx('голос громче'), tx('чистый голос'), tx('убери звук')] },
   { group: tx('Картинка'), examples: [tx('сделай вертикально'), tx('стабилизируй'), tx('улучши качество'), tx('чёрно-белое'), tx('сделай светлее'), tx('убери фон'), tx('скрой лица'), tx('ретушь'), tx('добавь автозум')] },
   { group: tx('Субтитры и выпуск'), examples: [tx('добавь субтитры'), tx('переведи субтитры на английский'), tx('спрячь субтитры'), tx('сделай обложку'), tx('экспорт')] },

@@ -60,3 +60,48 @@ test('длинное видео → моменты → проекты шортс
   expect(K.errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
   await K.app.close();
 });
+
+/** «Геймплей» 90 с: почти ничего не происходит, на 40-й секунде — грохот и мельтешение, на 70-й — только грохот. */
+function gameplay(): string {
+  return media('gameplay.mp4', (f) => {
+    ff(['-f', 'lavfi', '-i', 'color=c=0x203040:s=640x360:r=30:d=90', '-f', 'lavfi', '-i', 'testsrc2=s=640x360:r=30:d=90',
+      '-f', 'lavfi', '-i', 'anoisesrc=d=90:a=0.02:c=pink', '-f', 'lavfi', '-i', 'anoisesrc=d=90:a=0.9:c=white',
+      '-filter_complex',
+      "[0:v][1:v]overlay=enable='between(t,37,43)'[v];" +
+      "[3:a]volume=enable='not(between(t,38,42)+between(t,69,72))':volume=0[boom];[2:a][boom]amix=inputs=2:normalize=0[a]",
+      '-map', '[v]', '-map', '[a]', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-t', '90', f]);
+  });
+}
+
+test('игра: моменты по экшену без речи → вертикальные клипы с размытым фоном', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-gshorts-'));
+  const K = await launch({ env: { KADRO_TEST_PICK: gameplay(), KADRO_TEST_SHORTS: dir, KADRO_SKIP_HOME: '' } });
+  const win = K.win;
+  await win.getByTestId('home-shorts').click();
+  await win.getByTestId('shorts-mode-game').click();
+  await expect(win.getByTestId('shorts-lang-ru')).toHaveCount(0);
+  await win.getByTestId('shorts-pick').click();
+  await expect(win.getByTestId('shorts-src')).toContainText('gameplay.mp4');
+  await win.getByTestId('shorts-len-short').click();
+  await win.getByTestId('shorts-count-3').click();
+  await win.getByTestId('shorts-layout-blur').click();
+  await win.getByTestId('shorts-find').click();
+  await expect(win.getByTestId('shorts-list')).toBeVisible({ timeout: 120_000 });
+  // первый (лучший) — вокруг 40-й секунды: и громко, и движение
+  await expect(win.getByTestId('shorts-item').first()).toContainText('ЭТО БЫЛО ЖЁСТКО');
+  await expect(win.getByTestId('shorts-item').first()).toContainText('много движения');
+  await win.getByTestId('shorts-make').click();
+  await expect(win.getByTestId('shorts-done')).toBeVisible({ timeout: 60_000 });
+  const files = fs.readdirSync(path.join(dir, 'gameplay')).filter((f) => f.endsWith('.kadro')).sort();
+  expect(files.length).toBeGreaterThanOrEqual(2);
+  const p = JSON.parse(fs.readFileSync(path.join(dir, 'gameplay', files[0]), 'utf8'));
+  expect(p.settings.aspect).toBe('9:16');
+  expect(p.settings.background).toBe('blur');
+  const main = p.tracks.find((t: any) => t.kind === 'main').clips[0];
+  expect(main.fit).toBe('contain');
+  expect(main.in).toBeLessThan(40);
+  expect(main.out).toBeGreaterThan(41);
+  expect(main.out - main.in).toBeCloseTo(25, 0);
+  expect(K.errors.filter((e) => !/Failed to load resource/.test(e))).toEqual([]);
+  await K.app.close();
+});

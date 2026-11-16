@@ -2,7 +2,7 @@ import { tx } from '../../shared/i18n';
 import { showsInMode } from '../../shared/uiMode';
 import { txj } from '../txj';
 import {
-  Clapperboard,
+  Clapperboard, Activity,
   Zap, AudioLines, BellRing, Blend, Volume2, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
   LayoutTemplate, Smile, Sparkles, SlidersHorizontal, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users, ZoomIn, ArrowLeftCircle, Speaker, Timer, Star, History, MonitorPlay,
 } from 'lucide-react';
@@ -33,8 +33,7 @@ import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
   loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme, addSticker,
-  enhanceClip, disableEnhance, addAdjustmentLayer,
-} from '../actions';
+  enhanceClip, disableEnhance, addAdjustmentLayer, beatPunch } from '../actions';
 import { aiAllowed, enhanceTarget } from '../../shared/enhance';
 import { useMenu, type MenuEntry } from './Menu';
 import { sampleCanvas, useSamplesReady } from '../sampleFrames';
@@ -1079,6 +1078,15 @@ function AdjustButton() {
   );
 }
 
+function BeatPunchButton() {
+  const busy = useJobRunning('bt_');
+  return (
+    <button className="btn block adjust-add" disabled={busy} onClick={() => void beatPunch()} data-testid="beat-punch"
+      title={tx('Кадр толкается вперёд на каждую долю музыки — как в клипах и игровых нарезках. Нужна музыка на дорожке звука')}>
+      <Activity size={14} />{busy ? tx('Ищу ритм…') : tx('Удар в ритм — на всё видео')}</button>
+  );
+}
+
 function EffectsPanel() {
   const sel = useSelected();
   const commit = useStore((s) => s.commit);
@@ -1103,6 +1111,7 @@ function EffectsPanel() {
       <div className="panel-head">{txj('Эффекты · {0}', all.length)}</div>
       <div className="panel-body">
         <AdjustButton />
+        <BeatPunchButton />
         <MemeButtons />
         <p className="hint">{clip ? tx('Нажми — эффект добавится, ещё раз — уберётся. Наведи мышь, чтобы посмотреть. Сила — справа, во вкладке «Эффекты».') : tx('Выдели клип на таймлайне — эффекты применяются к нему. Наведи мышь на эффект, чтобы посмотреть.')}</p>
         <div className="chips" style={{ margin: '10px 0 8px' }}>

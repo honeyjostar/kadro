@@ -10,7 +10,7 @@ import type { MediaAsset, Project, Word } from './types';
 
 export interface Phrase { start: number; end: number; words: Word[]; text: string; /** конец предложения: знак или долгая пауза после */ ends: boolean }
 
-export type ShortReason = 'hook' | 'question' | 'dense' | 'emotion' | 'loud' | 'numbers';
+export type ShortReason = 'hook' | 'question' | 'dense' | 'emotion' | 'loud' | 'numbers' | 'action' | 'peak';
 export interface ShortMoment { start: number; end: number; score: number; hook: string; title: string; reasons: ShortReason[]; words: Word[] }
 
 export type ShortLen = 'short' | 'mid' | 'long';
@@ -23,6 +23,7 @@ export const SHORT_LENS: Record<ShortLen, { min: number; max: number; label: str
 export const REASON_LABEL: Record<ShortReason, string> = {
   hook: tx('цепляет с первых слов'), question: tx('вопрос в начале'), dense: tx('плотная речь'),
   emotion: tx('эмоции'), loud: tx('громче обычного'), numbers: tx('цифры'),
+  action: tx('много движения'), peak: tx('самый громкий миг'),
 };
 
 const norm = (w: string) => w.toLowerCase().replace(/ё/g, 'е').replace(/[^\p{L}\p{N}?!]/gu, '');

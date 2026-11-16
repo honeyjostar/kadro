@@ -77,3 +77,32 @@ export function clearAutoZoom(p: Project): Project {
     }
   });
 }
+
+/** «Удар в ритм»: на каждую долю музыки кадр резко толкается вперёд (to) и сразу возвращается — как в клипах
+ *  и игровых нарезках. every — каждая n-я доля. Ключи помечаются как автозум: «Убрать автозум» снимает и их. */
+export function applyBeatPunch(p: Project, beats: number[], to = 1.08, every = 1): { project: Project; count: number } {
+  let count = 0;
+  const picked: number[] = [];
+  for (let i = 0; i < beats.length; i += Math.max(1, every)) if (!picked.length || beats[i] - picked[picked.length - 1] >= 0.3) picked.push(beats[i]);
+  const project = edit(clearAutoZoom(p), (d) => {
+    for (const c of mainTrack(d).clips) {
+      if (c.type !== 'media') continue;
+      const inside = picked.filter((t) => t >= c.start + 0.05 && t + 0.3 <= clipEnd(c));
+      if (!inside.length) continue;
+      const base = c.transform.scale || 1;
+      const at = (x: number) => round(mediaKeyTime(c, Math.min(clipEnd(c) - 0.01, Math.max(c.start, x))), 4);
+      const added: Keyframe[] = inside.flatMap((t) => [
+        { t: at(t - 0.02), v: base, ease: 'linear' as const },
+        { t: at(t + 0.05), v: round(base * to, 3), ease: 'smooth' as const },
+        { t: at(t + 0.28), v: base, ease: 'smooth' as const },
+      ]);
+      const manual = c.keyframes?.scale ?? [];
+      const free = added.filter((k) => manual.every((m) => Math.abs(m.t - k.t) > 0.05));
+      if (!free.length) continue;
+      c.keyframes = { ...c.keyframes, scale: [...manual, ...free].sort((a, b) => a.t - b.t) };
+      c.autoZoom = free.map((k) => k.t);
+      count += inside.length;
+    }
+  });
+  return { project, count };
+}

@@ -62,6 +62,8 @@ describe('команды словами', () => {
     expect(parseOne('держи меня в кадре')).toEqual({ kind: 'reframe' });
     expect(parseOne('стоп-кадр')).toEqual({ kind: 'freeze' });
     expect(parseOne('подгони под бит')).toEqual({ kind: 'beats' });
+    expect(parseOne('удар в ритм')).toEqual({ kind: 'beatPunch' });
+    expect(parseOne('толчки под бит')).toEqual({ kind: 'beatPunch' });
     expect(parseOne('нарежь шортсы')).toEqual({ kind: 'shorts' });
     expect(parseOne('разрежь')).toEqual({ kind: 'split' });
     expect(parseOne('удали клип')).toEqual({ kind: 'delete' });

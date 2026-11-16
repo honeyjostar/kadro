@@ -2,12 +2,13 @@
 // с таймкодами → выбранные — отдельными вертикальными проектами с субтитрами «как у блогеров» и крючком сверху.
 import { tx, uiLang } from '../../shared/i18n';
 import { txj } from '../txj';
-import { Check, Film, FolderOpen, Scissors, X } from 'lucide-react';
+import { Check, Film, FolderOpen, Gamepad2, MessageSquareText, Scissors, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BLOG_STYLES } from '../../shared/blogCaptions';
 import { REASON_LABEL, SHORT_LENS, type ShortLen, type ShortMoment } from '../../shared/shorts';
 import type { MediaAsset } from '../../shared/types';
-import { cancelJob, createShorts, findShortMoments, openRecent, shortsAsset, type ShortsStage } from '../actions';
+import { cancelJob, createGameShorts, createShorts, findGameShortMoments, findShortMoments, openRecent, shortsAsset, type ShortsStage } from '../actions';
+import type { GameLayout } from '../../shared/gameClips';
 import { api, getState, useStore } from '../store';
 import { fmtDur, fmtTime, plural } from '../util';
 import { Progress, Toggle } from './controls';
@@ -20,7 +21,11 @@ const nMoments = (n: number) => `${n} ${plural(n, tx('момент'), tx('мом
 
 export function ShortsDialog() {
   const assets = useStore((s) => s.project.assets);
-  const videos = useMemo(() => assets.filter((a) => a.kind === 'video' && a.hasAudio && !a.derived && !a.missing).sort((a, b) => b.duration - a.duration), [assets]);
+  // что в видео: разговор (моменты — по речи) или игра (по экшену: громко и много движения)
+  const [mode, setMode] = useState<'talk' | 'game'>('talk');
+  const [layout, setLayout] = useState<GameLayout>('blur');
+  const game = mode === 'game';
+  const videos = useMemo(() => assets.filter((a) => a.kind === 'video' && (game || a.hasAudio) && !a.derived && !a.missing).sort((a, b) => b.duration - a.duration), [assets, game]);
   const [src, setSrc] = useState<MediaAsset | null>(videos[0] ?? null);
   const [len, setLen] = useState<ShortLen>('mid');
   const [count, setCount] = useState(5);
@@ -57,7 +62,7 @@ export function ShortsDialog() {
     stopped.current = false;
     setStage({ label: tx('Готовлю'), step: 0, steps: 2 });
     try {
-      const ms = await findShortMoments(src, { len, count, model }, setStage);
+      const ms = game ? await findGameShortMoments(src, { len, count }, setStage) : await findShortMoments(src, { len, count, model }, setStage);
       if (ms && ms.length && !stopped.current) {
         setMoments(ms);
         setChosen(new Set(ms.map((_, i) => i)));
@@ -71,7 +76,7 @@ export function ShortsDialog() {
     const list = moments.filter((_, i) => chosen.has(i)).sort((a, b) => a.start - b.start);
     setStage({ label: tx('Собираю шортсы'), step: 0, steps: list.length });
     try {
-      const out = await createShorts(src, list, BLOG_STYLES.find((b) => b.id === style) ?? BLOG_STYLES[0], reframe, setStage);
+      const out = game ? await createGameShorts(src, list, layout, setStage) : await createShorts(src, list, BLOG_STYLES.find((b) => b.id === style) ?? BLOG_STYLES[0], reframe, setStage);
       if (out && !stopped.current) { setFiles(out); setPhase('done'); }
     } finally { setStage(null); }
   };
@@ -89,7 +94,13 @@ export function ShortsDialog() {
 
         {phase === 'setup' && (
           <>
-            <p className="hint auto-lead">{tx('Стрим, подкаст или влог → Kadro послушает речь, найдёт самые цепляющие моменты и сделает из каждого вертикальный ролик: кадр следует за человеком, субтитры как у блогеров, заголовок-крючок сверху.')}</p>
+            <div className="seg shorts-mode" data-testid="shorts-mode">
+              <button className={!game ? 'active' : ''} disabled={busy} onClick={() => setMode('talk')} data-testid="shorts-mode-talk"><MessageSquareText size={14} />{tx('Разговор')}</button>
+              <button className={game ? 'active' : ''} disabled={busy} onClick={() => setMode('game')} data-testid="shorts-mode-game"><Gamepad2 size={14} />{tx('Игра')}</button>
+            </div>
+            {game
+              ? <p className="hint auto-lead">{tx('Запись игры с PS5, Xbox или ПК → Kadro найдёт самые яркие моменты по экшену: где громко и где кадр резко меняется — погони, перестрелки, аварии. Речь не нужна.')}</p>
+              : <p className="hint auto-lead">{tx('Стрим, подкаст или влог → Kadro послушает речь, найдёт самые цепляющие моменты и сделает из каждого вертикальный ролик: кадр следует за человеком, субтитры как у блогеров, заголовок-крючок сверху.')}</p>}
             <div className="section-title">{tx('Длинное видео')}</div>
             <div className="shorts-src" data-testid="shorts-src">
               {src ? <><Film size={15} /><span className="name" title={src.path}>{src.name}</span><span className="faint">{fmtDur(src.duration)}</span></>
@@ -107,16 +118,27 @@ export function ShortsDialog() {
                 <div className="chips">{(Object.keys(SHORT_LENS) as ShortLen[]).map((k) => <button key={k} className={len === k ? 'active' : ''} disabled={busy} onClick={() => setLen(k)} data-testid={`shorts-len-${k}`}>{SHORT_LENS[k].label}</button>)}</div>
                 <div className="section-title">{tx('Сколько найти')}</div>
                 <div className="chips">{COUNTS.map((n) => <button key={n} className={count === n ? 'active' : ''} disabled={busy} onClick={() => setCount(n)} data-testid={`shorts-count-${n}`}>{n}</button>)}</div>
+                {!game && <>
                 <div className="section-title">{tx('Язык речи')}</div>
                 <div className="chips">
                   <button className={model === 'ru' ? 'active' : ''} disabled={busy} onClick={() => setModel('ru')} data-testid="shorts-lang-ru">{tx('Русский')}</button>
                   <button className={model === 'multi' ? 'active' : ''} disabled={busy} onClick={() => setModel('multi')} data-testid="shorts-lang-multi">{tx('Английский и другие')}</button>
                 </div>
+                </>}
               </div>
               <div>
+                {game ? <>
+                  <div className="section-title">{tx('Раскладка 9:16')}</div>
+                  <div className="chips">
+                    <button className={layout === 'blur' ? 'active' : ''} disabled={busy} onClick={() => setLayout('blur')} data-testid="shorts-layout-blur">{tx('Игра целиком, фон размыт')}</button>
+                    <button className={layout === 'fill' ? 'active' : ''} disabled={busy} onClick={() => setLayout('fill')} data-testid="shorts-layout-fill">{tx('Во весь экран')}</button>
+                  </div>
+                  <p className="hint small">{tx('Во весь экран края игры по бокам обрежутся — зато крупно, как в шортсах.')}</p>
+                </> : <>
                 <div className="section-title">{tx('Субтитры')}</div>
                 <div className="chips">{BLOG_STYLES.map((b) => <button key={b.id} className={style === b.id ? 'active' : ''} disabled={busy} onClick={() => setStyle(b.id)} data-testid={`shorts-style-${b.id}`}>{b.label}</button>)}</div>
                 <Toggle label={tx('Кадр следует за человеком')} hint={tx('Дольше: Kadro ищет человека в каждом шортсе')} on={reframe} onChange={setReframe} testId="shorts-reframe" />
+                </>}
               </div>
             </div>
           </>
@@ -131,13 +153,13 @@ export function ShortsDialog() {
                   <input type="checkbox" checked={chosen.has(i)} disabled={busy} onChange={() => toggle(i)} />
                   <span className="shorts-rank">{i + 1}</span>
                   <span className="shorts-body">
-                    <b>«{m.hook}»</b>
+                    <b>{game ? m.title : `«${m.hook}»`}</b>
                     <span className="hint small">{fmtTime(m.start, 30)} – {fmtTime(m.end, 30)} · {fmtDur(m.end - m.start)}{m.reasons.length ? ` · ${m.reasons.map((r) => REASON_LABEL[r]).join(', ')}` : ''}</span>
                   </span>
                 </label>
               ))}
             </div>
-            <Toggle label={tx('Кадр следует за человеком')} hint={tx('Дольше: Kadro ищет человека в каждом шортсе')} on={reframe} onChange={setReframe} />
+            {!game && <Toggle label={tx('Кадр следует за человеком')} hint={tx('Дольше: Kadro ищет человека в каждом шортсе')} on={reframe} onChange={setReframe} />}
           </>
         )}
 

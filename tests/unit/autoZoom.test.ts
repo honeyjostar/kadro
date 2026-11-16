@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { newProject } from '../../src/shared/defaults';
 import { addAsset, addToMain, mainTrack, updateClip } from '../../src/shared/timeline';
-import { applyAutoZoom, clearAutoZoom, zoomMoments, ZOOM } from '../../src/shared/autoZoom';
+import { applyAutoZoom, applyBeatPunch, clearAutoZoom, zoomMoments, ZOOM } from '../../src/shared/autoZoom';
 import type { MediaAsset, MediaClip } from '../../src/shared/types';
 
 const asset = (id: string, d: number): MediaAsset => ({ id, kind: 'video', path: `/m/${id}`, previewPath: `/m/${id}`, name: id, duration: d, width: 1920, height: 1080, fps: 30, hasVideo: true, hasAudio: true, size: 1, rotation: 0, proxy: 'none' });
@@ -34,4 +34,16 @@ describe('автозум', () => {
     const twice = applyAutoZoom(r.project, [2], 1.2).project;
     expect((mainTrack(twice).clips[0] as MediaClip).keyframes!.scale).toHaveLength(5);
   });
+  it('удар в ритм: толчок на каждую долю, слишком частые доли пропускаются, снимается как автозум', () => {
+    let p = addAsset(newProject('t'), asset('v', 20));
+    p = addToMain(p, 'v', 0, { in: 5, out: 15 }).project;
+    const r = applyBeatPunch(p, [1, 1.1, 2, 3, 9.9], 1.1);
+    expect(r.count).toBe(3); // 1,1 — ближе 0,3 с к 1; 9,9 — толчок не успеет вернуться до конца клипа
+    const c = mainTrack(r.project).clips[0] as MediaClip;
+    expect(c.keyframes!.scale!.map((k) => k.v)).toEqual([1, 1.1, 1, 1, 1.1, 1, 1, 1.1, 1]);
+    expect(c.keyframes!.scale![1].t).toBeCloseTo(6.05, 3);
+    const back = mainTrack(clearAutoZoom(r.project)).clips[0] as MediaClip;
+    expect(back.keyframes?.scale).toBeUndefined();
+  });
 });
+
