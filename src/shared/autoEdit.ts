@@ -499,7 +499,7 @@ export interface AutoInput {
   music?: MediaAsset | null;      // если у неё есть beats — склейки на её долях
   style: AutoStyle;
   aspect: AspectKey;
-  length: number | 'auto';        // секунды или «сколько получится из материала»
+  length: number | 'auto' | 'full'; // секунды, «сколько получится» (клип до 45 с) или «весь материал» (фильм)
   title: string;
   videoSound: 'off' | 'quiet' | 'on';
   seed: number;
@@ -607,6 +607,8 @@ export function weaveOwners(counts: number[], n: number, quality: number[] = [])
 }
 
 export function autoEdit(base: Project, inp: AutoInput): { project: Project; summary: AutoSummary } {
+  // длинный ролик (весь материал, от 2 минут) — фильм: все файлы по порядку, их лучшие куски, звук видео
+  if (inp.length === 'full' || (inp.length !== 'auto' && inp.length >= FULL_FROM)) return fullEdit(base, inp);
   const st = autoStyle(inp.style);
   const rand = rng(inp.seed);
   const media = inp.media.filter((m) => isVideo(m.asset) || m.asset.kind === 'image');
@@ -992,3 +994,236 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
     },
   };
 }
+
+// ---------- фильм из всего материала ----------
+/** «Весь материал»: ролик — на столько от хороших секунд всех видео (остальное — повторы, тряска, пустые места). */
+export const FULL_KEEP = 0.3;
+/** Длинный ролик — не длиннее стольких секунд (больше — выбери длину сам). */
+export const FULL_MAX = 30 * 60;
+/** Длины от стольких секунд собираются как фильм, а не как клип под музыку. */
+export const FULL_FROM = 120;
+export const isFullLength = (l: AutoInput['length']): boolean => l === 'full' || (typeof l === 'number' && l >= FULL_FROM);
+
+/** Файлы по порядку съёмки: у камер и телефонов имя растёт со временем (VID_20261116_…, DJI_0042, IMG_1234). */
+export function shootingOrder<T extends { asset: MediaAsset }>(media: T[]): T[] {
+  return [...media].sort((a, b) => a.asset.name.localeCompare(b.asset.name, undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+/** Доли музыки по кругу (музыка повторяется, пока идёт ролик): время на таймлайне. */
+export function loopedBeats(music: MediaAsset | null | undefined, musicIn: number, until: number): number[] {
+  if (!music?.beats?.length) return [];
+  const period = music.duration - musicIn;
+  if (period < 4) return [];
+  const one = music.beats.map((b) => b - musicIn).filter((b) => b >= 0 && b < period).sort((a, b) => a - b);
+  if (one.length < 8) return [];
+  const out: number[] = [];
+  for (let k = 0; k * period <= until + period; k++) for (const b of one) out.push(r3(b + k * period));
+  return out;
+}
+
+/**
+ * Сколько секунд из каждого файла: по хорошим секундам и удачности, каждый файл — хотя бы один кадр (если ролик
+ * не слишком короткий для всех), но не больше 90% самого файла. Возвращает бюджеты по порядку media.
+ */
+export function fullBudgets(good: number[], quality: number[], lens: number[], isVid: boolean[], target: number, shot: number, photo: number): number[] {
+  const n = good.length;
+  const out = new Array<number>(n).fill(0);
+  const minOf = (i: number) => (isVid[i] ? Math.min(lens[i] * 0.9, shot) : photo);
+  // кто влезает хотя бы одним кадром: самые удачные
+  const rank = good.map((_, i) => i).sort((a, b) => quality[b] * (1 + good[b] / 60) - quality[a] * (1 + good[a] / 60) || a - b);
+  let left = target;
+  const inSet = new Set<number>();
+  for (const i of rank) {
+    const m = minOf(i);
+    if (m < 0.6) continue;
+    if (left - m < -0.5 && inSet.size) continue;
+    out[i] = m; left -= m; inSet.add(i);
+  }
+  // остальное — по хорошим секундам и удачности, с пределом 90% файла
+  for (let guard = 0; guard < 50 && left > 0.5; guard++) {
+    const open = [...inSet].filter((i) => isVid[i] && out[i] < lens[i] * 0.9 - 0.05);
+    if (!open.length) break;
+    const w = open.map((i) => good[i] * (0.5 + quality[i]));
+    const W = w.reduce((a, b) => a + b, 0) || open.length;
+    let spent = 0;
+    open.forEach((i, k) => {
+      const add = Math.min(lens[i] * 0.9 - out[i], (left * (w[k] || 1)) / W);
+      out[i] += add; spent += add;
+    });
+    left -= spent;
+    if (spent < 0.05) break;
+  }
+  return out.map((v) => r3(v));
+}
+
+/**
+ * Монтаж из всего материала (десятки файлов, минуты и часы видео): все файлы по порядку съёмки, из каждого — его
+ * лучшие куски по времени видео (без наложений, без склеек и тряски внутри), длина кадра — по стилю, склейки —
+ * на долях музыки (музыка идёт по кругу), звук видео остаётся, переходы — между файлами, внутри файла — резкие.
+ */
+export function fullEdit(base: Project, inp: AutoInput): { project: Project; summary: AutoSummary } {
+  const st = autoStyle(inp.style);
+  const rand = rng(inp.seed);
+  const media = shootingOrder(inp.media.filter((m) => isVideo(m.asset) || m.asset.kind === 'image'));
+  if (!media.length) throw new Error(tx('Нужны видео или фото'));
+  const music = inp.music && (inp.music.kind === 'audio' || inp.music.hasAudio) ? inp.music : null;
+
+  const vid = media.map((m) => isVideo(m.asset));
+  const us = media.map((m) => (isVideo(m.asset) ? usable(m.asset) : { a0: 0, a1: 0, len: 0 }));
+  const good = media.map((m, i) => (vid[i] ? goodSeconds(m.hl, us[i].a0, us[i].a1) : 0));
+  const quality = media.map((m, i) => (vid[i] ? topScore(m.hl) : 0.45));
+  const lens = us.map((u) => u.len);
+  const shot = clamp(st.cut * 2, 2.2, 6);
+  const photo = clamp(st.cut * 1.6, 2, 4);
+  const all = lens.reduce((a, b) => a + b, 0) + media.filter((_, i) => !vid[i]).length * photo;
+  const target = inp.length === 'full'
+    ? clamp(good.reduce((a, b) => a + b, 0) * FULL_KEEP + media.filter((_, i) => !vid[i]).length * photo, Math.min(60, all), FULL_MAX)
+    : Math.min(typeof inp.length === 'number' ? inp.length : 60, all);
+  const budget = fullBudgets(good, quality, lens, vid, target, shot, photo);
+
+  // кадры каждого файла: длины около shot (±25%), сумма — бюджет файла
+  const needs: number[][] = media.map((_, i) => {
+    if (!budget[i]) return [];
+    if (!vid[i]) return [budget[i]];
+    const k = Math.max(1, Math.round(budget[i] / shot));
+    const raw = Array.from({ length: k }, () => 0.75 + rand() * 0.5);
+    const s = raw.reduce((a, b) => a + b, 0);
+    return raw.map((x) => r3((x / s) * budget[i]));
+  });
+  // куски: лучшие места каждого файла по времени
+  const starts: number[][] = media.map((m, i) => (vid[i] && needs[i].length ? pickWindows(m.hl, needs[i], us[i].a0, us[i].a1, rand) : needs[i].map(() => 0)));
+
+  const asp = ASPECTS[inp.aspect];
+  const p: Project = {
+    ...structuredClone(base),
+    settings: { ...base.settings, aspect: inp.aspect, width: asp.w, height: asp.h },
+    tracks: [newTrack('main')],
+    updatedAt: Date.now(),
+  };
+  for (const m of media) if (!p.assets.some((x) => x.id === m.asset.id)) p.assets.push(m.asset);
+  if (music && !p.assets.some((x) => x.id === music.id)) p.assets.push(music);
+  const main = mainTrack(p);
+  const frameAR = asp.w / asp.h;
+  let anyContain = false;
+
+  // доли музыки для склеек (музыка по кругу)
+  const raw = (music?.beats ?? []).filter((b) => b >= 0).sort((a, b) => a - b);
+  const p0 = clamp(Math.round(music?.shape?.phase ?? 0), 0, 3);
+  const musicIn = music && raw.length > p0 && raw[p0] > 0.3 ? Math.max(0, raw[p0] - 0.02) : 0;
+  const beats = loopedBeats(music, musicIn, target + 60);
+  const beat = beats.length > 8 ? quantile(beats.slice(1, 64).map((b, i) => b - beats[i]), 0.5) : 60 / (music?.bpm && music.bpm > 40 ? music.bpm : st.bpm);
+  let bi = 0;
+  /** Конец кадра — на ближайшей доле (не дальше полудоли и не короче 1.2 с). */
+  const snap = (t0: number, end: number): number => {
+    if (!beats.length) return end;
+    while (bi < beats.length - 1 && beats[bi + 1] <= end) bi++;
+    const cands = [beats[bi], beats[bi + 1]].filter((b) => b !== undefined && b - t0 >= 1.2 && Math.abs(b - end) <= Math.max(0.25, beat * 0.55));
+    if (!cands.length) return end;
+    return cands.reduce((x, y) => (Math.abs(y - end) < Math.abs(x - end) ? y : x));
+  };
+
+  const makeClip = (a: MediaAsset, inT: number, dur: number): MediaClip => {
+    const c: MediaClip = newMediaClip(a);
+    const rot = Math.abs(a.rotation % 180) === 90;
+    const ar = (rot ? a.height : a.width) / Math.max(1, rot ? a.width : a.height);
+    c.fit = ar && frameAR && frameAR / ar > 1.5 ? 'contain' : 'cover';
+    if (c.fit === 'contain') anyContain = true;
+    c.transform = { ...DEFAULT_TRANSFORM };
+    if (isVideo(a)) {
+      c.in = r3(inT);
+      c.out = r3(Math.min(a.duration, inT + dur));
+      if (music && inp.videoSound === 'off') { c.muted = true; c.volume = 0; } else if (music && inp.videoSound === 'quiet') c.volume = 0.3;
+      // звук не обрывается щелчком на склейке
+      if (a.hasAudio) { c.fadeIn = Math.min(0.08, dur / 4); c.fadeOut = Math.min(0.08, dur / 4); }
+    } else {
+      c.in = 0;
+      c.out = r3(dur);
+    }
+    c.color = { ...DEFAULT_COLOR, ...st.color };
+    if (st.effects.length) c.effects = st.effects.map((e) => ({ ...e }));
+    return c;
+  };
+
+  let t = 0;
+  let zoomDir = rand() < 0.5;
+  let switches = 0;
+  const trOff = Math.floor(rand() * 3);
+  const order = media.map((_, i) => i).filter((i) => needs[i].length);
+  order.forEach((i, oi) => {
+    const a = media[i].asset;
+    needs[i].forEach((len, r) => {
+      const s0 = starts[i][r] ?? 0;
+      // кадр подгоняем к доле: из видео можно взять чуть больше или меньше, но не за пределы его куска
+      let d = len;
+      const room = vid[i] ? Math.min(us[i].a1, r + 1 < needs[i].length ? starts[i][r + 1] : us[i].a1) - s0 : Infinity;
+      const e = snap(t, t + len);
+      if (e - t <= room + 1e-6 && e - t >= 0.6) d = e - t;
+      const c = makeClip(a, s0, d);
+      const z = vid[i] ? st.zoomVideo : Math.max(st.zoom, 0.06);
+      if (z > 0) {
+        zoomDir = !zoomDir;
+        c.keyframes = { scale: zoomDir ? [{ t: c.in, v: 1, ease: 'smooth' }, { t: c.out, v: 1 + z, ease: 'smooth' }] : [{ t: c.in, v: 1 + z, ease: 'smooth' }, { t: c.out, v: 1, ease: 'smooth' }] };
+        c.transform.scale = zoomDir ? 1 : 1 + z;
+      }
+      main.clips.push(c);
+      // переход — только на смене файла (новое место, новая сцена), и не на каждой: иначе ролик «плывёт»
+      const lastOfFile = r === needs[i].length - 1;
+      let td = 0;
+      if (lastOfFile && oi < order.length - 1 && st.trans.length && st.trEvery) {
+        switches++;
+        if ((switches + trOff) % Math.max(1, Math.min(3, st.trEvery)) === 0) {
+          td = r3(clamp(st.trDur(beat), 0.2, 0.6));
+          c.transitionOut = { type: st.trans[Math.floor(rand() * st.trans.length)], duration: td } as Transition;
+        }
+      }
+      t += d - td;
+    });
+  });
+  const first = main.clips[0] as MediaClip;
+  if (st.fadeIn && first) first.anim = { in: { type: 'fade', dur: 0.6 } };
+  const lastC = main.clips[main.clips.length - 1] as MediaClip;
+  if (lastC) lastC.anim = { ...(lastC.anim ?? {}), out: { type: 'fade', dur: 1 } as ClipAnim };
+  layoutMain(p);
+  if (anyContain) p.settings.background = 'blur';
+  const total = r3(lastC.start + (lastC.out - lastC.in) / lastC.speed);
+
+  // музыка по кругу до конца ролика
+  if (music) {
+    const tr = newTrack('audio', tx('Музыка'));
+    const period = music.duration - musicIn;
+    for (let at = 0; at < total - 0.3 && period > 1; at += period) {
+      const mc = newMediaClip(music, r3(at));
+      mc.in = r3(musicIn);
+      mc.out = r3(Math.min(music.duration, musicIn + (total - at)));
+      if (inp.videoSound === 'on') mc.volume = 0.45;
+      const cut = mc.out < music.duration - 0.1;
+      mc.fadeOut = cut ? r3(Math.min(2.5, (mc.out - mc.in) * 0.2)) : 0.15;
+      if (at > 0) mc.fadeIn = 0.15;
+      tr.clips.push(mc);
+    }
+    p.tracks.push(tr);
+  }
+
+  const title = inp.title.trim();
+  if (title) {
+    const preset = TEXT_PRESETS.find((x) => x.id === st.title.preset)?.style ?? {};
+    const c: TextClip = newTextClip(0.3, title, { ...preset, ...st.title.style });
+    c.duration = r3(clamp((main.clips[0] ? clipLen(main.clips[0] as MediaClip) : 3) + 0.5, 2, Math.min(4.5, total - 0.4)));
+    c.y = inp.aspect === '9:16' ? 0.42 : 0.45;
+    c.anim = structuredClone(st.title.anim);
+    const tt = newTrack('text');
+    tt.clips.push(c);
+    p.tracks.push(tt);
+  }
+  p.name = title || tx('Фильм');
+
+  const usedCount = order.length;
+  return {
+    project: p,
+    summary: {
+      cuts: Math.max(0, main.clips.length - 1), duration: total, used: usedCount, dropped: media.length - usedCount, repeated: false,
+      bpm: Math.round(60 / beat), onBeats: beats.length > 0,
+    },
+  };
+}
+const clipLen = (c: MediaClip) => (c.out - c.in) / c.speed;

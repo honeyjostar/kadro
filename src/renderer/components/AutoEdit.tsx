@@ -3,8 +3,8 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
 import { Film, FolderOpen, Image as ImageIcon, Music, TriangleAlert, WandSparkles, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { AUTO_STYLES, type AutoStyle, type AutoStyleDef } from '../../shared/autoEdit';
+import { useEffect, useRef, useState } from 'react';
+import { AUTO_STYLES, isFullLength, type AutoStyle, type AutoStyleDef } from '../../shared/autoEdit';
 
 import type { AspectKey } from '../../shared/types';
 import { buildAutoEdit, cancelAutoEdit, loadDemoFiles, type AutoStage } from '../actions';
@@ -33,9 +33,17 @@ const ASPECTS: { value: AspectKey; label: string; where: string }[] = [
   { value: '1:1', label: '1:1', where: tx('пост') },
   { value: '4:5', label: '4:5', where: 'Instagram' },
 ];
-const LENGTHS: { value: number | 'auto'; label: string }[] = [
-  { value: 'auto', label: tx('Сколько получится') }, { value: 15, label: tx('15 с') }, { value: 30, label: tx('30 с') }, { value: 60, label: tx('1 мин') },
+const LENGTHS: { value: number | 'auto' | 'full'; label: string; hint: string }[] = [
+  { value: 'auto', label: tx('Клип'), hint: tx('Короткий клип под музыку из лучших мест — до 45 секунд') },
+  { value: 15, label: tx('15 с'), hint: tx('Клип под музыку на 15 секунд') },
+  { value: 30, label: tx('30 с'), hint: tx('Клип под музыку на 30 секунд') },
+  { value: 60, label: tx('1 мин'), hint: tx('Клип под музыку на минуту') },
+  { value: 180, label: tx('3 мин'), hint: tx('Ролик на 3 минуты: все файлы по порядку съёмки, лучшие куски каждого, звук видео остаётся') },
+  { value: 600, label: tx('10 мин'), hint: tx('Ролик на 10 минут: все файлы по порядку съёмки, лучшие куски каждого, звук видео остаётся') },
+  { value: 'full', label: tx('Весь материал'), hint: tx('Фильм из всего: каждый файл по порядку съёмки, из него — хорошие места без тряски и пустоты (примерно треть хорошего). Длина — от материала, до 30 минут') },
 ];
+/** Столько файлов и больше — по умолчанию «Весь материал» (из 60 кусков клип на 40 секунд никому не нужен). */
+const MANY_FILES = 8;
 const SOUNDS: { value: 'off' | 'quiet' | 'on'; label: string }[] = [
   { value: 'off', label: tx('Только музыка') }, { value: 'quiet', label: tx('Видео тихо под музыкой') }, { value: 'on', label: tx('Видео и музыка') },
 ];
@@ -50,7 +58,9 @@ export function AutoEditDialog() {
   const [music, setMusic] = useState<string | null>(open?.music !== undefined ? open.music : last?.music ?? null);
   const [style, setStyle] = useState<AutoStyle>(last?.style ?? 'energy');
   const [aspect, setAspect] = useState<AspectKey>(open?.fresh ? last?.aspect ?? getState().defaultFormat ?? '9:16' : projAspect);
-  const [length, setLength] = useState<number | 'auto'>(last?.length ?? 'auto');
+  const [length, setLengthRaw] = useState<number | 'auto' | 'full'>(last?.length ?? 'auto');
+  const lengthTouched = useRef(false);
+  const setLength = (l: number | 'auto' | 'full') => { lengthTouched.current = true; setLengthRaw(l); if (isFullLength(l) && sound === 'off') setSound('quiet'); };
   const [title, setTitle] = useState('');
   const [sound, setSound] = useState<'off' | 'quiet' | 'on'>(last?.videoSound ?? 'off');
   const [stage, setStage] = useState<AutoStage | null>(null);
@@ -58,6 +68,12 @@ export function AutoEditDialog() {
   const job = useStore((s) => (stage?.jobId ? s.jobs[stage.jobId] : undefined));
 
   useEffect(() => { void loadDemoFiles(); }, []);
+  // много файлов — сразу «Весь материал» со звуком видео (если длину ещё не выбирали руками)
+  useEffect(() => {
+    if (lengthTouched.current || files.length < MANY_FILES || isFullLength(length)) return;
+    setLengthRaw('full');
+    setSound((s) => (s === 'off' ? 'quiet' : s));
+  }, [files.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const close = () => { if (stage) cancelAutoEdit(); else getState().setAutoOpen(null); };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
@@ -156,7 +172,9 @@ export function AutoEditDialog() {
             <div className="section-title">{tx('Формат')}</div>
             <div className="chips">{ASPECTS.map((x) => <button key={x.value} className={aspect === x.value ? 'active' : ''} disabled={busy} title={x.where} onClick={() => setAspect(x.value)} data-testid={`auto-aspect-${x.value.replace(':', '-')}`}>{x.label} <span className="faint">{x.where}</span></button>)}</div>
             <div className="section-title">{tx('Длина')}</div>
-            <div className="chips">{LENGTHS.map((x) => <button key={String(x.value)} className={length === x.value ? 'active' : ''} disabled={busy} onClick={() => setLength(x.value)} data-testid={`auto-len-${x.value}`}>{x.label}</button>)}</div>
+            <div className="chips">{LENGTHS.map((x) => <button key={String(x.value)} className={length === x.value ? 'active' : ''} disabled={busy} title={x.hint} onClick={() => setLength(x.value)} data-testid={`auto-len-${x.value}`}>{x.label}</button>)}</div>
+            <p className="hint small" data-testid="auto-len-hint">{LENGTHS.find((x) => x.value === length)?.hint}
+              {files.length >= MANY_FILES && !isFullLength(length) ? ' ' + tx('Файлов много ({0}) — для ролика из всего выбери «Весь материал».', files.length) : ''}</p>
             <div className="section-title">{tx('Надпись в начале')}</div>
             <input className="input auto-title" placeholder={tx('Например: Лето на море. Пусто — без надписи')} value={title} maxLength={60} disabled={busy}
               onChange={(e) => setTitle(e.target.value)} data-testid="auto-title" />

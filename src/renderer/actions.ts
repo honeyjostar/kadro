@@ -1650,13 +1650,31 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
     }
   }
   // лучшие места в видео
+  // много файлов — смотрим по несколько сразу (ffmpeg на одном видео не загружает все ядра и видеокарту)
   const todo = videos.filter((a) => !hlMemo.has(a.path));
-  for (const [n, a] of todo.entries()) {
-    const src = a.proxy === 'ready' && a.previewPath ? a.previewPath : a.path;
-    const r = await run(todo.length > 1 ? tx('Смотрю видео {0} из {1}', n + 1, todo.length) : tx('Смотрю видео'), { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration });
-    if (autoStopped) return null;
-    hlMemo.set(a.path, r.ok && r.output?.kind === 'highlights' ? r.output.hl : null);
-  }
+  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4;
+  const lanes = todo.length < 3 ? 1 : cores >= 12 ? 3 : 2;
+  const running = new Map<string, string>(); // jobId → путь: «Остановить» отменяет все
+  let done = 0;
+  let next = 0;
+  const lane = async () => {
+    while (!autoStopped && next < todo.length) {
+      const a = todo[next++];
+      const src = a.proxy === 'ready' && a.previewPath ? a.previewPath : a.path;
+      const job: AiJob = { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration };
+      running.set(job.jobId, a.path);
+      stage({ label: todo.length > 1 ? tx('Смотрю видео {0} из {1}', Math.min(todo.length, done + 1), todo.length) : tx('Смотрю видео'), jobId: job.jobId, step: step + done, steps: Math.max(1, steps) });
+      autoCancel = () => { for (const id of running.keys()) void api.cancelAi(id); };
+      let r: AiResponse;
+      try { r = await runJob(tx('Смотрю видео'), job); } finally { running.delete(job.jobId); }
+      if (autoStopped) return;
+      hlMemo.set(a.path, r.ok && r.output?.kind === 'highlights' ? r.output.hl : null);
+      done++;
+    }
+  };
+  await Promise.all(Array.from({ length: lanes }, lane));
+  autoCancel = null;
+  step += done;
   if (autoStopped) return null;
 
   stage({ label: tx('Собираю ролик'), step: steps, steps: Math.max(1, steps) });

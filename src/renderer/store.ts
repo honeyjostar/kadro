@@ -25,7 +25,7 @@ export interface AutoParams {
   music: string | null;            // путь к музыке
   style: AutoStyle;
   aspect: AspectKey;
-  length: number | 'auto';
+  length: number | 'auto' | 'full';
   title: string;
   videoSound: 'off' | 'quiet' | 'on';
 }

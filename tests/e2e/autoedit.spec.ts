@@ -215,3 +215,34 @@ test('новые стили: «Велосити» — ускорение и за
   expect(r.ok, r.error).toBe(true);
   expect(Math.abs(probe(out).duration - total)).toBeLessThan(0.25);
 });
+
+test('много файлов → «Весь материал»: ролик на минуты из всех файлов по порядку съёмки, звук видео, музыка по кругу', async () => {
+  // 12 файлов по 20 с (разная картинка), имена — как с камеры, но выбраны вразнобой
+  const files = Array.from({ length: 12 }, (_, k) => media(`CAM_${String(k + 1).padStart(4, '0')}.mp4`, (f) => ff(['-f', 'lavfi', '-i', `testsrc2=s=320x180:r=30:d=20,hue=h=${k * 30}`,
+    '-f', 'lavfi', '-i', `sine=frequency=${300 + k * 40}:sample_rate=48000:duration=20`, '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', f])));
+  const mixed = [...files.slice(6), ...files.slice(0, 6)];
+  await store(win, 'setAutoOpen', { fresh: true, files: mixed });
+  await expect(dialog()).toBeVisible();
+  await expect(win.getByTestId('auto-file')).toHaveCount(12);
+  await expect(win.getByTestId('auto-len-full')).toHaveClass(/active/);
+  await win.getByTestId('auto-music-demo').click();
+  await win.getByTestId('auto-sound-quiet').click();
+  await win.getByTestId('auto-style-clean').click();
+  await win.getByTestId('auto-aspect-16-9').click();
+  await win.getByTestId('auto-title').fill('');
+  await win.getByTestId('auto-build').click();
+  await expect(dialog()).toHaveCount(0, { timeout: 150_000 });
+  const p = await project(win);
+  const clips = p.tracks[0].clips as MediaClip[];
+  const last = clips[clips.length - 1];
+  const total = last.start + (last.out - last.in) / last.speed;
+  expect(total).toBeGreaterThan(50);
+  const names = clips.map((c) => p.assets.find((a) => a.id === c.assetId)!.name);
+  expect(new Set(names).size).toBe(12);
+  expect(names).toEqual([...names].sort());
+  // звук видео тихо под музыкой; музыка — до конца ролика (демо-бит короче — повторяется)
+  expect(clips.every((c) => !c.muted && c.volume === 0.3)).toBe(true);
+  const mus = p.tracks.find((t) => t.kind === 'audio')!.clips as MediaClip[];
+  const mEnd = mus[mus.length - 1].start + (mus[mus.length - 1].out - mus[mus.length - 1].in);
+  expect(Math.abs(mEnd - total)).toBeLessThan(0.1);
+});
