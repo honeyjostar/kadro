@@ -40,7 +40,7 @@ if (location.hostname === 'honeyjostar.github.io') {
     const vids = e.target.tagName === 'VIDEO' ? [e.target] : [...e.target.querySelectorAll('video')];
     vids.forEach((v) => { if (e.isIntersecting && !calm) v.play().catch(() => undefined); else v.pause(); });
   }), { threshold: 0.15 });
-  document.querySelectorAll('.film video, .reel').forEach((el) => play.observe(el));
+  document.querySelectorAll('.film video, .reel, .bgrow').forEach((el) => play.observe(el));
   if (calm) document.querySelectorAll('.film video').forEach((v) => { v.controls = true; });
 })();
 

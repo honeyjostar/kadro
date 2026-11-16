@@ -43,7 +43,7 @@ float stars(vec2 p, float t, float dens) {
   return s;
 }
 float meteor(vec2 p, float t, float k) {
-  float per = 3.5 + k * 1.7;
+  float per = 2.6 + k * 1.3;
   float c = floor((t + k * 2.3) / per);
   float l = fract((t + k * 2.3) / per) * per;
   if (l > 0.9 || h21(vec2(c, k)) > meteors * 1.2) return 0.0;
@@ -66,10 +66,10 @@ vec4 effect(vec2 uv) {
   // Млечный Путь — светлая туманная полоса по диагонали
   float band = exp(-pow((uv.y - 0.25 - uv.x * 0.55) * 3.2, 2.0));
   float neb = fbm(p * 3.0 + vec2(time * 0.01, 0.0));
-  col += band * (0.08 + 0.22 * neb) * vec3(0.55, 0.45, 0.9);
+  col += band * (0.1 + 0.3 * neb) * vec3(0.55, 0.45, 0.9);
   col += band * smoothstep(0.55, 0.9, fbm(p * 7.0 - 3.0)) * 0.12 * vec3(0.9, 0.7, 1.0);
   float drift = time * 0.004;
-  float s = stars(p * 18.0 + drift, time, 0.35) * 0.6 + stars(p * 42.0 + drift * 2.0, time * 1.3, 0.3) * 0.45 + stars(p * 90.0, time * 1.7, 0.28) * 0.3;
+  float s = stars(p * 14.0 + drift, time, 0.35) * 1.1 + stars(p * 32.0 + drift * 2.0, time * 1.3, 0.3) * 0.8 + stars(p * 70.0, time * 1.7, 0.28) * 0.55;
   s *= 0.7 + 0.6 * band;
   col += s * vec3(0.95, 0.95, 1.0);
   float m = meteor(p, time, 0.0) + meteor(p, time, 1.0) + meteor(p, time, 2.0);
@@ -175,8 +175,8 @@ vec4 effect(vec2 uv) {
   } else {
     float d = hor - uv.y;
     float z = 0.25 / max(d, 0.002);
-    float gx = p.x * z;
-    float gz = z + time * 1.6 * speed;
+    float gx = p.x * z * 7.0;
+    float gz = z * 1.5 + time * 2.4 * speed;
     float lw = 0.07;
     float lines = smoothstep(lw, 0.0, 0.5 - abs(fract(gx) - 0.5)) + smoothstep(lw, 0.0, 0.5 - abs(fract(gz) - 0.5));
     col = mix(vec3(0.05, 0.0, 0.1), vec3(0.2, 0.0, 0.25), d * 2.0);
@@ -241,9 +241,10 @@ vec4 effect(vec2 uv) {
   float rings = smoothstep(0.08, 0.0, 0.5 - abs(fract(z) - 0.5));
   float spokes = smoothstep(0.04, 0.0, 0.5 - abs(fract(a / 6.2831853 * 12.0 + z * 0.1) - 0.5)) * 0.35;
   vec3 c = 0.5 + 0.5 * cos(6.2831853 * (vec3(0.0, 0.33, 0.67) + floor(z) * 0.13 + 0.6));
-  vec3 col = c * (rings + spokes) * smoothstep(0.0, 0.25, r) * 1.3;
+  vec3 col = c * (rings + spokes) * smoothstep(0.06, 0.32, r) * 1.3;
   col += c * 0.12 / (0.2 + 6.0 * r);
   col *= smoothstep(1.2, 0.3, r) * 0.6 + 0.4;
+  col *= smoothstep(0.03, 0.2, r); // в самой середине кольца сливаются в рябь — там темно
   col = hueShift(col, hue);
   return put(uv, col);
 }
@@ -388,28 +389,31 @@ vec4 effect(vec2 uv) {
     float d = hor - uv.y;
     float z = 0.35 / max(d, 0.002);
     float bend = 0.25 * sin(time * 0.4) * d * d * 4.0;     // дорога плавно поворачивает
-    float x = (p.x - bend) * z;
+    float x = (p.x - bend) * z * 7.0;
     float road = step(abs(x), 1.65);
     col = mix(vec3(0.02, 0.0, 0.05), vec3(0.05, 0.02, 0.1), d);
-    col += vec3(0.0, 0.9, 1.0) * smoothstep(0.06 * z, 0.0, abs(abs(x) - 1.65)) * smoothstep(0.0, 0.05, d) * 1.4;
+    col += vec3(0.0, 0.9, 1.0) * smoothstep(0.12, 0.0, abs(abs(x) - 1.65)) * smoothstep(0.0, 0.05, d) * 1.4;
     float dash = step(0.5, fract((z + t) * 0.5));
-    col += vec3(1.0, 0.2, 0.8) * smoothstep(0.04 * z, 0.0, abs(abs(x) - 0.55)) * dash * road * smoothstep(0.0, 0.05, d);
+    col += vec3(1.0, 0.2, 0.8) * smoothstep(0.08, 0.0, abs(abs(x) - 0.55)) * dash * road * smoothstep(0.0, 0.05, d);
     // препятствия: по блоку на ряд, в своей полосе
     float zz = z + t;
     float row = floor(zz / 6.0);
     float lane = floor(h21(vec2(row, 4.0)) * 3.0) - 1.0;
     float inRow = fract(zz / 6.0) * 6.0;
-    float ob = step(abs(x - lane * 1.1), 0.42) * step(inRow, 0.9) * road;
+    float near = smoothstep(0.9, 1.6, z); // у самой камеры препятствие не заслоняет экран
+    float ob = step(abs(x - lane * 1.1), 0.42) * step(inRow, 0.9) * road * near;
     vec3 obc = 0.5 + 0.5 * cos(6.2831853 * (vec3(0.0, 0.33, 0.67) + row * 0.21));
     col = mix(col, obc * 1.2, ob * smoothstep(0.0, 0.05, d));
-    col += obc * 0.25 * step(abs(x - lane * 1.1), 0.6) * smoothstep(1.6, 0.0, abs(inRow - 0.45)) * road * smoothstep(0.0, 0.05, d);
+    col += obc * 0.25 * step(abs(x - lane * 1.1), 0.6) * smoothstep(1.6, 0.0, abs(inRow - 0.45)) * road * near * smoothstep(0.0, 0.05, d);
   }
   // игрок — светящийся шар внизу, уходит от препятствий
   float nextRow = floor((0.35 / 0.08 + t) / 6.0);
   float avoid = floor(h21(vec2(nextRow, 4.0)) * 3.0) - 1.0;
   float target = avoid == 0.0 ? (h21(vec2(nextRow, 8.0)) > 0.5 ? 1.0 : -1.0) : 0.0;
-  float px = target * 0.13 * ratio * 0.5;
-  vec2 pc = vec2(px, 0.1 + 0.015 * abs(sin(time * 8.0 * speed)));
+  float zp = 0.35 / (hor - 0.1);
+  float px = target * 1.1 / (zp * 7.0);
+  float dp = hor - 0.1;
+  vec2 pc = vec2(px + 0.25 * sin(time * 0.4) * dp * dp * 4.0, 0.1 + 0.015 * abs(sin(time * 8.0 * speed)));
   float pd = length(p - pc);
   col += vec3(0.4, 1.0, 0.6) * (smoothstep(0.035, 0.03, pd) + 0.01 / (pd + 0.01) * 0.3);
   col = hueShift(col, hue);
