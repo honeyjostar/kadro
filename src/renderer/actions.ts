@@ -8,7 +8,7 @@ import { CAPTION_STYLE, newProject, shortSideOf, sizeFor, uid } from '../shared/
 import { exportSize } from '../shared/geometry';
 import type { AiJob, AiOutput, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
 import {
-  addAsset, addFree, addText, addToMain, alignMainToBeats, mainTrack, moveClipsBy, trimClip, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
+  addAsset, addFree, addText, addToMain, alignMainToBeats, clipLocked, mainTrack, moveClipsBy, trimClip, beatTimes, deleteClips, duplicateClip, findClip, keepSourceRanges, projectDuration, setCaptions,
   splitClip, updateAsset, updateClip, clipEnd, insertFreeze, setRetime, planGroup, applyGroup, ungroupClip, setSettings, sourceTimeAt, type SourceRange,
 } from '../shared/timeline';
 import { renderTextLayers } from './engine/textExport';
@@ -242,8 +242,11 @@ export function splitAtPlayhead(): void {
 export function deleteSelection(): void {
   const s = getState();
   if (!s.selection.length) return;
-  s.commit((p) => deleteClips(p, s.selection));
-  s.select([]);
+  const free = s.selection.filter((id) => !clipLocked(s.project, id));
+  if (free.length < s.selection.length) s.toast(tx('Дорожка с замком: её клипы не удаляются. Сними замок слева от дорожки'));
+  if (!free.length) return;
+  s.commit((p) => deleteClips(p, free));
+  s.select(s.selection.filter((id) => !free.includes(id)));
 }
 
 export function duplicateSelection(): void {

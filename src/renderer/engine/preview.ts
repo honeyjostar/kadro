@@ -23,7 +23,7 @@ import { drawText } from '../../shared/textRender';
 import { logoBox, progressBox } from '../../shared/logo';
 import { expandPerson, neonPulse, projectBeats } from '../../shared/person';
 import { expandSfx } from '../../shared/sfx';
-import { clipDuration, clipEnd, projectDuration } from '../../shared/timeline';
+import { clipDuration, clipEnd, projectDuration, trackSilent } from '../../shared/timeline';
 import { applyGlEffects, drawAnyTransition, glEffectsOf } from './glDraw';
 import type { BlendMode, Mask, MediaAsset, MediaClip, Project, Track } from '../../shared/types';
 
@@ -548,7 +548,7 @@ export class PreviewEngine {
   }
 
   private gainFor(c: MediaClip, track: Track, prevTr: number, t: number, isVisualEntryWithSeparateAudio: boolean): number {
-    if (isVisualEntryWithSeparateAudio || track.muted || c.muted) return 0;
+    if (isVisualEntryWithSeparateAudio || (this.project ? trackSilent(this.project, track) : track.muted) || c.muted) return 0;
     let v = c.volume * this.duckAt(c, track, t);
     const local = t - c.start;
     const dur = clipDuration(c);

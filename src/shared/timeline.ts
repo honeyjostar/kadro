@@ -530,7 +530,16 @@ export function setTransition(p: Project, clipId: string, tr: Transition | null)
   });
 }
 
-export function setTrackFlag(p: Project, trackId: string, patch: Partial<Pick<Track, 'muted' | 'hidden'>>): Project {
+/** Дорожку не слышно: выключен звук или соло включено у других дорожек. */
+export function trackSilent(p: Project, t: Track): boolean {
+  return t.muted || (!t.solo && p.tracks.some((x) => x.solo && x.kind !== 'text'));
+}
+/** Клип на дорожке с замком — его нельзя двигать, обрезать и удалять. */
+export function clipLocked(p: Project, clipId: string): boolean {
+  return p.tracks.some((t) => t.locked && t.clips.some((c) => c.id === clipId));
+}
+
+export function setTrackFlag(p: Project, trackId: string, patch: Partial<Pick<Track, 'muted' | 'hidden' | 'solo' | 'locked'>>): Project {
   return edit(p, (d) => {
     const t = d.tracks.find((x) => x.id === trackId);
     if (t) Object.assign(t, patch);

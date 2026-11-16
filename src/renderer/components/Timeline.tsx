@@ -3,7 +3,7 @@ import { HistoryButton } from './History';
 import {
   Activity, AudioLines, SlidersHorizontal, Blend, Bookmark, Copy, Eye, EyeOff, Film, Group, Layers, Maximize2, Mic, Plus, Ungroup, Redo2, Rewind, Scissors, Snowflake, Trash2, Type, Undo2, Volume2, VolumeX, Wand2,
   ZoomIn, ZoomOut,
-  ScanEye,
+  ScanEye, Lock, LockOpen,
 } from 'lucide-react';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FILTER_PRESETS } from '../../shared/color';
@@ -195,7 +195,7 @@ interface ClipProps {
 /** Клип за краем экрана и до, и после прокрутки не перерисовываем: миниатюры и волна рисуются только в видимой части. */
 function sameClipProps(a: ClipProps, b: ClipProps): boolean {
   // от дорожки клипу нужны только вид и «скрыта» — сама дорожка меняется при правке любого её клипа
-  if (a.track !== b.track && (a.track.id !== b.track.id || a.track.kind !== b.track.kind || a.track.hidden !== b.track.hidden)) return false;
+  if (a.track !== b.track && (a.track.id !== b.track.id || a.track.kind !== b.track.kind || a.track.hidden !== b.track.hidden || a.track.locked !== b.track.locked)) return false;
   if (a.clip !== b.clip || a.asset !== b.asset || a.pps !== b.pps || a.selected !== b.selected
     || a.rowH !== b.rowH || a.ghost !== b.ghost || a.left !== b.left || a.onDown !== b.onDown) return false;
   if (a.view === b.view || (a.view.left === b.view.left && a.view.width === b.view.width)) return true;
@@ -277,6 +277,7 @@ const ClipView = memo(function ClipView({ clip, track, asset, pps, view, selecte
   if (selected) cls += ' selected';
   if (ghost) cls += ' ghost';
   if (track.hidden) cls += ' dim';
+  if (track.locked) cls += ' locked';
   const kfs = keyTimesOnTimeline(clip);
   return (
     <div className={cls} style={{ left, width }} data-testid="clip" data-clip={clip.id}
@@ -324,6 +325,12 @@ function TrackHead({ row }: { row: Row }) {
         <button className={`icon-btn ${t.muted ? 'on' : ''}`} title={t.muted ? tx('Включить звук дорожки') : tx('Выключить звук дорожки')} data-testid="track-mute"
           onClick={() => commit((p) => setTrackFlag(p, t.id, { muted: !t.muted }))}>{t.muted ? <VolumeX size={14} /> : <Volume2 size={14} />}</button>
       )}
+      {t.kind !== 'text' && (
+        <button className={`icon-btn solo ${t.solo ? 'on' : ''}`} title={t.solo ? tx('Снять соло') : tx('Соло: слышно только эту дорожку (и другие с соло)')} data-testid="track-solo"
+          onClick={() => commit((p) => setTrackFlag(p, t.id, { solo: !t.solo }))}>S</button>
+      )}
+      <button className={`icon-btn lock ${t.locked ? 'on' : ''}`} title={t.locked ? tx('Снять замок') : tx('Замок: клипы дорожки не двигаются, не обрезаются и не удаляются')} data-testid="track-lock"
+        onClick={() => commit((p) => setTrackFlag(p, t.id, { locked: !t.locked }))}>{t.locked ? <Lock size={13} /> : <LockOpen size={13} />}</button>
     </div>
   );
 }
@@ -691,6 +698,14 @@ export function Timeline() {
   clipDownRef.current = clipDown;
   const onClipDown = useCallback((e: React.PointerEvent, clip: Clip, track: Track, mode: 'body' | 'l' | 'r') => {
     const live = getState().project.tracks.find((t) => t.id === track.id);
+    // дорожка с замком: клип можно выделить, но не тащить и не обрезать
+    if (live?.locked) {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      const s = getState();
+      s.select(e.ctrlKey || e.metaKey ? (s.selection.includes(clip.id) ? s.selection.filter((x) => x !== clip.id) : [...s.selection, clip.id]) : [clip.id]);
+      return;
+    }
     clipDownRef.current(e, live?.clips.find((c) => c.id === clip.id) ?? clip, live ?? track, mode);
   }, []);
 

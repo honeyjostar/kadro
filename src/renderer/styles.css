@@ -433,7 +433,7 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 @container (max-width: 1050px) { .tl-toolbar .tool { min-width: 40px; } .tl-toolbar .tool span { font-size: 9.5px; } .tl-toolbar .zoom { width: 70px; } }
 .tl-toolbar .grow { flex: 1; }
 .zoom { width: 120px; }
-.tl-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 158px minmax(0, 1fr); overflow: hidden; }
+.tl-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 176px minmax(0, 1fr); overflow: hidden; }
 .tl-heads { border-right: 1px solid var(--line-soft); overflow: hidden; background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
 .tl-corner { flex-shrink: 0; border-bottom: 1px solid var(--line-soft); }
 .tl-heads-list { overflow: hidden; flex: 1; min-height: 0; }
@@ -1471,3 +1471,12 @@ textarea.input { resize: vertical; min-height: 64px; line-height: 1.4; user-sele
 /* «Нарезать в шортсы»: разговор или игра */
 .shorts-mode { margin: 0 0 12px; }
 .shorts-mode button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px; font-size: 13px; }
+/* дорожка: соло и замок */
+.track-head .icon-btn.solo { font-size: 11px; font-weight: 700; width: 22px; }
+.track-head .icon-btn.solo.on { color: var(--accent-ink); background: #f5c542; }
+.clip.locked { cursor: default; }
+.clip.locked .trim { display: none; }
+.clip.locked::after { content: ''; position: absolute; inset: 0; z-index: 3; background: repeating-linear-gradient(135deg, rgba(0,0,0,0.18) 0 6px, transparent 6px 12px); pointer-events: none; border-radius: inherit; }
+/* соло и замок видны, когда включены или под мышью — имя дорожки не теряется */
+.track-head .icon-btn.solo:not(.on), .track-head .icon-btn.lock:not(.on) { opacity: 0; }
+.track-head:hover .icon-btn.solo, .track-head:hover .icon-btn.lock, .track-head .icon-btn.solo:focus-visible, .track-head .icon-btn.lock:focus-visible { opacity: 1; }

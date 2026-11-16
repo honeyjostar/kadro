@@ -9,7 +9,7 @@ import { applyH, focal, hasPerspective, hasTilt, homography, pinQuad, quadSize, 
 import { effectiveColor, ffmpegColorFilter } from './color';
 import { GRADE_N, gradeActive, gradeTable, haldImage, type CubeLut } from './grade';
 import { BLUR_SIGMA_1080, orientedSize, placeOnCanvas, unitScale, stretchedSize } from './geometry';
-import { beatTimes, clipDuration, mainTrack, projectDuration } from './timeline';
+import { beatTimes, clipDuration, mainTrack, projectDuration, trackSilent } from './timeline';
 import type { BlendMode, MediaAsset, MediaClip, Project, VideoCodec } from './types';
 import { maskBytes } from './mask';
 import { blurGroups, blurRadius, mosaicBlock } from './blur';
@@ -843,7 +843,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     aLabels.push(lab);
   };
 
-  if (!main.muted) {
+  if (!trackSilent(p, main)) {
     groups.forEach((g, gi) => {
       const c0 = g.clips[0];
       if (c0.muted || c0.volume <= 0) return;
@@ -861,7 +861,7 @@ export function buildGraph(p: Project, o: BuildOpts): BuiltGraph {
     });
   }
   for (const track of p.tracks) {
-    if ((track.kind !== 'video' && track.kind !== 'audio') || track.muted) continue;
+    if ((track.kind !== 'video' && track.kind !== 'audio') || trackSilent(p, track)) continue;
     if (track.kind === 'audio' && o.includeMusic === false) continue;
     for (const c of track.clips) {
       if (c.type !== 'media' || c.muted || c.volume <= 0) continue;

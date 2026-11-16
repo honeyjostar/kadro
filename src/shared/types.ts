@@ -371,6 +371,10 @@ export interface Track {
   name: string;
   muted: boolean;
   hidden: boolean;
+  /** «Соло»: слышно только дорожки с соло (остальные — без звука, пока соло есть хоть у одной) */
+  solo?: boolean;
+  /** «Замок»: клипы дорожки не двигаются, не обрезаются и не удаляются */
+  locked?: boolean;
   clips: Clip[];
 }
 
