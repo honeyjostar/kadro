@@ -735,7 +735,7 @@ function demoFiles(): DemoFiles {
   setSfxFiles(sfx);
   const memes: Record<string, string> = {};
   for (const id of ['drama', 'tbc', 'drop']) { const f = has('demo', `meme-${id}.m4a`); if (f) memes[id] = f; }
-  return { scenes, beat: has('demo', 'beat.m4a'), reel: reel('reel'), reelWide: reel('reel-wide'), previews, sfx, memes, bgBase: has('demo', 'bg-base.png'), outro: has('demo', 'outro-mascot.png') };
+  return { scenes, beat: has('demo', 'beat.m4a'), reel: reel('reel'), reelWide: reel('reel-wide'), previews, sfx, memes, bgBase: has('demo', 'bg-base.png'), outro: has('demo', 'outro-mascot.png'), logoSpin: has('demo', 'kadro-spin.webm') };
 }
 async function readProjectFile(file: string): Promise<Project> {
   const p = JSON.parse(fs.readFileSync(file, 'utf8')) as Project;

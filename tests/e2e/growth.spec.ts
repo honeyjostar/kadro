@@ -97,3 +97,16 @@ test('разбор видео работает (лучшие места и гр�
   expect(r.ok, r.error).toBe(true);
   expect(r.output.hl.score.length).toBeGreaterThan(10);
 });
+
+test('лого Kadro крутится: поверх видео, по кругу, растягивается', async () => {
+  await act(win, 'newProjectAction');
+  await win.getByTestId('tab-text').click();
+  await win.getByTestId('add-logo-spin').click();
+  await expect.poll(async () => (await project(win)).tracks.flatMap((t) => t.clips).length).toBe(1);
+  const p = await project(win);
+  const tr = p.tracks.find((t) => t.clips.length)!;
+  expect(tr.kind).toBe('video');
+  const c = tr.clips[0] as any;
+  expect(c.out - c.in).toBe(3);
+  expect(p.assets.find((a) => a.id === c.assetId)!.loop).toBe(true);
+});

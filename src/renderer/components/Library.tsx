@@ -3,7 +3,7 @@
 import { tx } from '../../shared/i18n';
 import { togglePreview, usePreview } from '../audioPreview';
 import { txj } from '../txj';
-import { AudioLines, ChevronRight, Film, Folder, FolderPlus, Image as ImageIcon, Plus, Search, WandSparkles, X, Play, Pause } from 'lucide-react';
+import { AudioLines, ChevronRight, Film, Folder, FolderPlus, Image as ImageIcon, Layers, Plus, Search, WandSparkles, X, Play, Pause } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LibFile, LibFolder, LibListing, LibMeta } from '../../shared/ipc';
 import { placeLibraryFiles } from '../actions';
@@ -64,9 +64,9 @@ export function LibraryView() {
     if (added) open(added.path);
   };
   const remove = async (p: string) => { setFolders(await api.libRemove(p)); if (root === p) { setRoot(null); setDir(null); } };
-  const place = async (paths: string[]) => {
+  const place = async (paths: string[], mode: 'auto' | 'overlay' = 'auto') => {
     setBusy(true);
-    try { await placeLibraryFiles(paths); } finally { setBusy(false); }
+    try { await placeLibraryFiles(paths, { mode }); } finally { setBusy(false); }
   };
 
   /** Окно «Авто-ролик» с файлами из библиотеки: видео и фото по порядку, музыка — первая из этих файлов. */
@@ -159,18 +159,20 @@ export function LibraryView() {
         {list.map((f) => (
           <LibTile key={f.path} f={f} used={inProject.has(f.path)} selected={sel.includes(f.path)} sel={sel}
             onSelect={(multi) => setSel(multi ? (sel.includes(f.path) ? sel.filter((x) => x !== f.path) : [...sel, f.path]) : [f.path])}
-            onPlace={() => void place(sel.includes(f.path) && sel.length > 1 ? sel : [f.path])} />
+            onPlace={() => void place(sel.includes(f.path) && sel.length > 1 ? sel : [f.path])}
+            onOverlay={() => void place(sel.includes(f.path) && sel.length > 1 ? sel : [f.path], 'overlay')} />
         ))}
       </div>
       {listing && !list.length && !listing.error && (
         <p className="hint">{searching ? tx('Ничего не нашлось.') : filter === 'all' ? tx('Здесь нет видео, фото и музыки — загляни в подпапки.') : tx('Таких файлов здесь нет.')}</p>
       )}
-      <p className="hint small" style={{ marginTop: 10 }}>{tx('Двойной клик или «+» — на таймлайн к курсору. Можно перетащить на нужную дорожку. С Ctrl — выбрать несколько.')}</p>
+      <p className="hint small" style={{ marginTop: 10 }}>{tx('Двойной клик или «+» — на таймлайн к курсору, значок слоёв — поверх видео (мемы и гифки). Можно перетащить на нужную дорожку. С Ctrl — выбрать несколько.')}</p>
       {sel.length > 1 && (
         <div className="lib-bar">
           <span>{txj('Выбрано: {0}', sel.length)}</span>
           <button className="btn small" onClick={() => setSel([])}>{tx('Снять')}</button>
           <button className="btn small" onClick={() => autoFrom(list.filter((f) => sel.includes(f.path)))} title={tx('Собрать ролик из выбранных файлов')} data-testid="lib-auto-sel"><WandSparkles size={13} />{tx('Авто-ролик')}</button>
+          <button className="btn small" disabled={busy} onClick={() => void place(sel, 'overlay')} data-testid="lib-overlay"><Layers size={13} />{tx('Поверх')}</button>
           <button className="btn primary small" disabled={busy} onClick={() => void place(sel)} data-testid="lib-place">{tx('На таймлайн')}</button>
         </div>
       )}
@@ -178,8 +180,8 @@ export function LibraryView() {
   );
 }
 
-function LibTile({ f, used, selected, sel, onSelect, onPlace }: {
-  f: LibFile; used: boolean; selected: boolean; sel: string[]; onSelect: (multi: boolean) => void; onPlace: () => void;
+function LibTile({ f, used, selected, sel, onSelect, onPlace, onOverlay }: {
+  f: LibFile; used: boolean; selected: boolean; sel: string[]; onSelect: (multi: boolean) => void; onPlace: () => void; onOverlay: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [meta, setMeta] = useState<LibMeta | undefined>(() => metaCache.get(f.path));
@@ -215,6 +217,7 @@ function LibTile({ f, used, selected, sel, onSelect, onPlace }: {
       {used && <span className="used-dot" title={tx('Уже в проекте')} />}
       <div className="media-actions">
         {f.kind === 'audio' && <ListenButton path={f.path} />}
+        {f.kind !== 'audio' && <button title={tx('Поверх видео — мем, гифка, реакция (к курсору, на дорожку выше)')} onClick={(e) => { e.stopPropagation(); onOverlay(); }} data-testid="lib-file-overlay"><Layers size={14} /></button>}
         <button title={tx('На таймлайн к курсору')} onClick={(e) => { e.stopPropagation(); onPlace(); }} data-testid="lib-file-add"><Plus size={14} /></button>
       </div>
       <div className="media-meta"><span className="name">{f.name}</span><span className="dur">{badge}</span></div>

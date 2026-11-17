@@ -32,7 +32,7 @@ import type { EffectType, MediaAsset, MediaClip, PersonFx, StickerMotion, TextAn
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme, addSticker, addTextTheme, openFriends,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme, addSticker, addTextTheme, openFriends, addLogoSpin,
   enhanceClip, disableEnhance, addAdjustmentLayer, beatPunch } from '../actions';
 import { aiAllowed, enhanceTarget } from '../../shared/enhance';
 import { useMenu, type MenuEntry } from './Menu';
@@ -58,6 +58,7 @@ import { TEXT_THEMES } from '../../shared/textThemes';
 import { WORKSHOP_SUBMIT } from '../../shared/links';
 import { rewardsOpen } from '../../shared/rewards';
 import { emojiUrl } from '../emoji';
+import logoSpinGif from '../assets/kadro-spin.gif';
 
 export const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'media', label: tx('Медиа'), icon: <Film size={19} /> },
@@ -614,6 +615,14 @@ function TextPanel() {
               </button>
             ))}
           </div>
+        </div>
+        <div className="ai-card logo-spin-card" data-testid="logo-spin-card">
+          <img src={logoSpinGif} alt="" width={44} height={44} />
+          <div>
+            <h4>{tx('Лого Kadro крутится')}</h4>
+            <p className="hint">{tx('Вращающийся значок в углу кадра — для концовки, водяного знака или подписи «смонтировано в Kadro».')}</p>
+          </div>
+          <button className="btn small" onClick={() => void addLogoSpin()} data-testid="add-logo-spin"><Plus size={13} />{tx('Добавить')}</button>
         </div>
         <StickersCard />
         <div className="section-title">{tx('Тематический текст')}</div>

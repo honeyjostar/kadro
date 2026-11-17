@@ -6,3 +6,4 @@ declare module '*.webp' { const url: string; export default url; }
 interface ImportMeta {
   glob(pattern: string, opts?: { eager?: boolean; query?: string; import?: string }): Record<string, unknown>;
 }
+declare module '*.gif' { const url: string; export default url; }

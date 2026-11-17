@@ -4,7 +4,7 @@ import { tx } from '../shared/i18n';
 import { aiCovers, aiSource, aiStale, videoInputFor, videoSource } from '../shared/ai';
 import { normalizeRamp, originalRange } from '../shared/retime';
 import { reframeKeyframes } from '../shared/reframe';
-import { CAPTION_STYLE, newProject, shortSideOf, sizeFor, uid } from '../shared/defaults';
+import { CAPTION_STYLE, DEFAULT_TRANSFORM, newProject, shortSideOf, sizeFor, uid } from '../shared/defaults';
 import { exportSize } from '../shared/geometry';
 import type { AiJob, AiOutput, AiResponse, DemoFiles, ExportResult, TtsVoiceId } from '../shared/ipc';
 import {
@@ -2823,4 +2823,22 @@ export function rewardGate(): boolean {
 export function openFriends(): void {
   getState().setSettingsOpen(true);
   setTimeout(() => document.getElementById('friends-sec')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 120);
+}
+
+// ---------- крутящееся лого Kadro ----------
+/** Лого Kadro крутится поверх видео: в правом верхнем углу у курсора, 3 секунды (анимация по кругу), растягивается за край. */
+export async function addLogoSpin(): Promise<string | null> {
+  const demo = await loadDemoFiles();
+  if (!demo.logoSpin) { getState().toast(tx('Файл лого не найден — переустанови Kadro'), 'err'); return null; }
+  const byPath = await assetsForPaths([demo.logoSpin]);
+  const asset = byPath.get(demo.logoSpin);
+  if (!asset) return null;
+  const s = getState();
+  if (!asset.loop) s.commit((p) => updateAsset(p, asset.id, { loop: true }));
+  const id = addAssetToTimeline(asset.id, 'overlay', s.playhead);
+  if (!id) return null;
+  const vertical = s.project.settings.height > s.project.settings.width;
+  getState().commit((p) => updateClip(p, id, { in: 0, out: 3, fit: 'contain', transform: { ...DEFAULT_TRANSFORM, scale: vertical ? 0.24 : 0.16, x: vertical ? 0.33 : 0.4, y: vertical ? -0.38 : -0.36 } } as Partial<MediaClip>));
+  api.track('sticker');
+  return id;
 }
