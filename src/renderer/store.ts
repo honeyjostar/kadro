@@ -64,6 +64,8 @@ interface State {
   searchOpen: boolean;
   /** Открыто окно «Обложка». */
   coverOpen: boolean;
+  /** «Проверка охватов»: какой файл (null — выбрать), это ли экспорт текущего проекта, для какой площадки */
+  reachOpen: { file: string | null; project: boolean; platform?: Platform } | null;
   /** Открыто окно «Запись экрана». */
   screenRecOpen: boolean;
   /** Слева — «Монтаж текстом» вместо раздела. */
@@ -170,6 +172,7 @@ interface State {
   setWide: (b: boolean) => void;
   setSearchOpen: (b: boolean) => void;
   setCoverOpen: (b: boolean) => void;
+  setReachOpen: (r: State['reachOpen']) => void;
   setScreenRecOpen: (b: boolean) => void;
   setTextEditOpen: (b: boolean) => void;
   setBlurShow: (id: string | null) => void;
@@ -256,6 +259,7 @@ export const useStore = create<State>((set, get) => ({
   wide: readPref<boolean>('kadro.wide', false),
   searchOpen: false,
   coverOpen: false,
+  reachOpen: null,
   screenRecOpen: false,
   textEditOpen: false,
   recording: null,
@@ -384,6 +388,7 @@ export const useStore = create<State>((set, get) => ({
   setWide: (wide) => { writePref('kadro.wide', wide); set({ wide }); },
   setSearchOpen: (searchOpen) => set({ searchOpen }),
   setCoverOpen: (coverOpen) => set({ coverOpen }),
+  setReachOpen: (reachOpen) => set({ reachOpen }),
   setScreenRecOpen: (screenRecOpen) => set({ screenRecOpen }),
   setTextEditOpen: (textEditOpen) => set(textEditOpen ? { textEditOpen, wide: false } : { textEditOpen }),
   setHome: (b) => set(b ? { home: true, playing: false } : { home: false }),

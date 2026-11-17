@@ -63,7 +63,8 @@ export type AiJob =
   | { kind: 'beauty'; jobId: string; path: string; in: number; out: number; offset: number; smooth: number; bright: number; width: number; height: number }
   | { kind: 'depth'; jobId: string; path: string; width: number; height: number; at?: number }
   | { kind: 'enhance'; jobId: string; mode: 'fast' | 'ai'; path: string; in: number; out: number; offset: number; width: number; height: number; fps: number }
-  | { kind: 'translate'; jobId: string; texts: string[]; from: import('./translate').LangCode; to: import('./translate').LangCode };
+  | { kind: 'translate'; jobId: string; texts: string[]; from: import('./translate').LangCode; to: import('./translate').LangCode }
+  | { kind: 'reach'; jobId: string; path: string; platform: import('./safezones').Platform | null };
 
 export type AiOutput =
   | { kind: 'captions'; cues: Cue[]; text: string; device?: 'gpu' | 'cpu' }
@@ -85,7 +86,8 @@ export type AiOutput =
   | { kind: 'translate'; texts: string[] }
   | { kind: 'beauty'; path: string; range: [number, number] }
   | { kind: 'depth'; path: string; w: number; h: number }
-  | { kind: 'enhance'; path: string; range: [number, number]; size: [number, number]; device?: 'gpu' | 'cpu' };
+  | { kind: 'enhance'; path: string; range: [number, number]; size: [number, number]; device?: 'gpu' | 'cpu' }
+  | { kind: 'reach'; report: import('./reach').ReachReport };
 
 export interface AiResponse { ok: boolean; output?: AiOutput; error?: string }
 

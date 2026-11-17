@@ -392,7 +392,7 @@ async function transcribeOn(id: string, wav: string, model: AsrModelId): Promise
 function activityLabel(kind: AiJob['kind']): string {
   const names: Partial<Record<AiJob['kind'], string>> = {
     highlights: tx('Разбор видео'), beats: tx('Поиск ритма'), captions: tx('Субтитры'), tts: tx('Озвучка'), translate: tx('Перевод'),
-    reframe: tx('Кадрирование'), faces: tx('Поиск лиц'), refEdit: tx('Повтор монтажа'),
+    reframe: tx('Кадрирование'), faces: tx('Поиск лиц'), refEdit: tx('Повтор монтажа'), reach: tx('Проверка охватов'),
   };
   return names[kind] ?? tx('ИИ: {0}', kind);
 }
@@ -485,6 +485,13 @@ async function runAi(job: AiJob): Promise<AiResponse> {
       aiAborts.set(id, ac);
       const r = await referenceTemplate(job.path, (p, stage) => send(p, stage), ac.signal);
       return { ok: true, output: { kind: 'refEdit', ...r } };
+    }
+    if (job.kind === 'reach') {
+      const ac = new AbortController();
+      aiAborts.set(id, ac);
+      const { reachScan } = await import('./reach');
+      const report = await reachScan(job.path, job.platform, (p, stage) => send(p, stage), ac.signal);
+      return { ok: true, output: { kind: 'reach', report } };
     }
     if (job.kind === 'highlights') {
       const ac = new AbortController();

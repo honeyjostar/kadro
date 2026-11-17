@@ -2,7 +2,7 @@
 // мои проекты (как в CapCut), шаблоны с живыми превью. Открывается при запуске и кнопкой «Главная».
 import { tx, uiLang } from '../../shared/i18n';
 import { txj } from '../txj';
-import { Clapperboard, FileText, Gamepad2, GraduationCap, FolderOpen, Keyboard, Play, Scissors, Send, Settings, Sparkles, WandSparkles, X } from 'lucide-react';
+import { Clapperboard, FileText, Gamepad2, GraduationCap, FolderOpen, Keyboard, Play, Scissors, Send, Settings, ShieldCheck, Sparkles, WandSparkles, X } from 'lucide-react';
 import { TELEGRAM_CHANNEL } from '../../shared/links';
 import { useEffect, useRef, useState } from 'react';
 import { ASPECTS } from '../../shared/defaults';
@@ -181,6 +181,14 @@ export function Home() {
                 <span className="hint">{tx('Запись катки или стрима — Kadro найдёт погони, перестрелки и взрывы по звуку и движению и нарежет вертикальные клипы.')}</span>
               </span>
               <button className="btn" disabled={busy} onClick={() => getState().setShortsOpen('game')} data-testid="home-game">{tx('Нарезать')}</button>
+            </div>
+            <div className="home-auto home-reach">
+              <span className="home-auto-icon"><ShieldCheck size={20} /></span>
+              <span className="home-auto-text">
+                <b>{tx('Проверка охватов')}</b>
+                <span className="hint">{tx('Почему ролик могут не показывать: чужой водяной знак, пустое начало, тишина, мыло. Любой ролик — хоть из CapCut.')}</span>
+              </span>
+              <button className="btn" disabled={busy} onClick={() => getState().setReachOpen({ file: null, project: false })} data-testid="home-reach">{tx('Проверить')}</button>
             </div>
             <div className="home-more">
               <button className="btn" disabled={busy} onClick={() => void run(openProject)} data-testid="home-open"><FolderOpen size={15} />{tx('Открыть проект или видео…')}</button>

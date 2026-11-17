@@ -1584,3 +1584,36 @@ button.link:hover { color: var(--strong); }
 .low-end, .low-end * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 .low-end .theme-tile:hover .theme-sample span, .low-end .sticker-grid button:hover span, .low-end .sticker-grid button:hover img { animation: none !important; }
 .low-end .modal { box-shadow: 0 6px 18px var(--shadow, rgba(0, 0, 0, .35)); }
+
+/* «Проверка охватов» */
+.reach-modal { width: 640px; }
+.reach-modal h3 { display: flex; align-items: center; gap: 8px; }
+.reach-ico { color: var(--accent); }
+.reach-file { display: flex; align-items: center; gap: 10px; margin: 12px 0 10px; min-width: 0; }
+.reach-name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.reach-file .btn svg { margin-right: 4px; vertical-align: -2px; }
+.reach-busy { margin: 14px 0 4px; }
+.reach-busy-line { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.reach-result { margin-top: 14px; }
+.reach-ok { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radius-m); background: var(--bg); border: 1px solid var(--line-soft); }
+.reach-ok svg { color: var(--ok); flex: none; margin-top: 1px; }
+.reach-ok p { margin: 3px 0 0; }
+.reach-sum { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 4px; }
+.reach-chip { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line-soft); }
+.reach-chip.cut { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.reach-chip.worse { color: var(--warn-text); border-color: color-mix(in srgb, var(--warn-text) 45%, transparent); }
+.reach-group.cut .section-title { color: var(--danger); }
+.reach-group.worse .section-title { color: var(--warn-text); }
+.reach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.reach-list li { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius-m); background: var(--bg); border: 1px solid var(--line-soft); }
+.reach-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; font-size: 13px; line-height: 1.4; }
+.reach-text .hint { margin: 0; }
+.reach-btns { display: flex; flex-direction: column; gap: 6px; align-items: stretch; flex: none; }
+.reach-btns .btn svg { margin-right: 4px; vertical-align: -2px; }
+.reach-done { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ok); white-space: nowrap; }
+.reach-mini { position: relative; flex: none; background: color-mix(in srgb, var(--text) 10%, transparent); border-radius: 4px; overflow: hidden; margin-top: 2px; }
+.reach-mini.v { width: 27px; height: 48px; }
+.reach-mini.h { width: 56px; height: 32px; }
+.reach-mini i { position: absolute; border: 1.5px solid var(--danger); background: color-mix(in srgb, var(--danger) 30%, transparent); border-radius: 2px; }
+.reach-note { margin-top: 12px; }
+.home-reach .home-auto-icon { color: var(--accent); }

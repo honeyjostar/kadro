@@ -42,6 +42,7 @@ const LAZY = {
   SearchDialog: () => import('./Search').then((m) => ({ default: m.SearchDialog })),
   CoverDialog: () => import('./CoverDialog').then((m) => ({ default: m.CoverDialog })),
   ScreenRecDialog: () => import('./ScreenRecDialog').then((m) => ({ default: m.ScreenRecDialog })),
+  ReachDialog: () => import('./ReachDialog').then((m) => ({ default: m.ReachDialog })),
 };
 const ExportDialog = lazy(LAZY.ExportDialog);
 const Welcome = lazy(LAZY.Welcome);
@@ -56,6 +57,7 @@ const RefEditDialog = lazy(LAZY.RefEditDialog);
 const SearchDialog = lazy(LAZY.SearchDialog);
 const CoverDialog = lazy(LAZY.CoverDialog);
 const ScreenRecDialog = lazy(LAZY.ScreenRecDialog);
+const ReachDialog = lazy(LAZY.ReachDialog);
 
 /** Высота таймлайна в режиме «Большой плеер»: вертикальному видео нужна высота, а не ширина. */
 const WIDE_TL = 210;
@@ -99,6 +101,7 @@ export function App() {
   const keysOpen = useStore((s) => s.keysOpen);
   const searchOpen = useStore((s) => s.searchOpen);
   const coverOpen = useStore((s) => s.coverOpen);
+  const reachOpen = useStore((s) => s.reachOpen);
   const versionsOpen = useStore((s) => s.versionsOpen);
   const screenRecOpen = useStore((s) => s.screenRecOpen);
   const textEdit = useStore((s) => s.textEditOpen);
@@ -286,6 +289,7 @@ export function App() {
       <SysMon />
       {searchOpen && <Suspense fallback={null}><SearchDialog /></Suspense>}
       {coverOpen && <Suspense fallback={null}><CoverDialog /></Suspense>}
+      {reachOpen && <Suspense fallback={null}><ReachDialog /></Suspense>}
       {versionsOpen && <VersionsDialog />}
       {screenRecOpen && <Suspense fallback={null}><ScreenRecDialog /></Suspense>}
       {chromaPaintClip && <Suspense fallback={null}><ChromaPaintDialog key={chromaPaintClip} clipId={chromaPaintClip} /></Suspense>}

@@ -38,6 +38,10 @@ function estimateMb(w: number, h: number, fps: number, q: ExportOptions['quality
 }
 
 let lastOpts: Omit<ExportOptions, 'outPath'> | null = null;
+/** Поправка из «Проверки охватов»: следующий экспорт — с выравниванием громкости и (или) высоким качеством. */
+export function presetExport(patch: Partial<Pick<ExportOptions, 'loudnorm' | 'quality'>>): void {
+  lastOpts = { quality: 'high', height: 1080, fps: 30, encoder: 'auto', ...lastOpts, ...patch, format: 'mp4' };
+}
 let lastExtras: ExtraFormatId[] = [];
 const FMT = (id: ExtraFormatId) => EXTRA_FORMATS.find((f) => f.id === id)!;
 
@@ -413,6 +417,7 @@ export function ExportDialog() {
               </div>
             )}
             <div className="actions">
+              {format === 'mp4' && result.path && <button className="btn" onClick={() => { close(); getState().setReachOpen({ file: result.path!, project: true, platform: platform === 'other' ? undefined : platform }); }} data-testid="export-reach"><ShieldCheck size={15} />{tx('Проверить охваты')}</button>}
               {format === 'mp4' && <button className="btn" onClick={() => { close(); getState().setCoverOpen(true); }} data-testid="export-cover"><ImageDown size={15} />{tx('Обложка')}</button>}
               <button className="btn" onClick={close}>{tx('Закрыть')}</button>
               <button className="btn primary" onClick={() => api.showInFolder(result.path!)} data-testid="export-show"><FolderOpen size={15} />{tx('Показать в папке')}</button>

@@ -16,8 +16,8 @@ export class FfmpegError extends Error {
   constructor(message: string, public stderr: string) { super(message); }
 }
 
-/** Запускает ffmpeg. Аргументы должны включать '-progress pipe:1', если нужен прогресс. */
-export function runFfmpeg(args: string[], o: RunOpts = {}): Promise<void> {
+/** Запускает ffmpeg. Аргументы должны включать '-progress pipe:1', если нужен прогресс. Возвращает конец stderr (сводки фильтров). */
+export function runFfmpeg(args: string[], o: RunOpts = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     let proc: ChildProcess;
     try {
@@ -49,7 +49,7 @@ export function runFfmpeg(args: string[], o: RunOpts = {}): Promise<void> {
     proc.on('close', (code) => {
       o.signal?.removeEventListener('abort', onAbort);
       if (o.signal?.aborted) reject(new FfmpegError(tx('Отменено'), err));
-      else if (code === 0) resolve();
+      else if (code === 0) resolve(err);
       else reject(new FfmpegError(lastErrorLine(err) || tx('ffmpeg завершился с кодом {0}', code), err));
     });
   });

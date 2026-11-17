@@ -272,7 +272,7 @@ function hookProgress(): void {
   });
 }
 
-async function runJob(label: string, job: AiJob, clipId?: string, cancellable = true): Promise<AiResponse> {
+export async function runJob(label: string, job: AiJob, clipId?: string, cancellable = true): Promise<AiResponse> {
   hookProgress();
   const s = getState();
   s.setJob({ id: job.jobId, label, progress: 0, clipId, cancellable });
