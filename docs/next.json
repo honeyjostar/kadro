@@ -1,27 +1,25 @@
 {
-  "id": "2026-12-after-1.0",
+  "id": "2026-12-after-1.1",
   "ru": {
-    "title": "Запись экрана, монтаж через текст и ещё 10 функций",
-    "when": "в декабре–январе",
+    "title": "Звуки для монтажа, ровный цвет и ещё быстрее на слабых ПК",
+    "when": "в декабре",
     "items": [
-      "Запись экрана и веб-камеры прямо в Kadro",
-      "Кружки Telegram, ВК Клипы, RuTube и Дзен; экспорт сразу в 9:16, 16:9 и 1:1",
-      "Обложка для YouTube и TikTok в один клик",
-      "Монтаж через текст: удалил слово — вырезалось; «убери паузы, музыку тише» — Kadro сделает",
-      "Автозум на важных словах, размытие лиц и номеров, которое едет за объектом",
-      "Качество 720p → 1080p, 3D-фото, синхронизация камер по звуку, таймлапс"
+      "Звуки для монтажа: свисты, удары, щелчки, переходы — бесплатно и без авторских прав",
+      "Авто-монтаж выравнивает не только свет, но и цвет между кусками",
+      "Kadro открывается быстрее на старых ноутбуках",
+      "Анимированные мемы с маскотом Kadro",
+      "Игровые шрифты для заголовков"
     ]
   },
   "en": {
-    "title": "Screen recording, text-based editing and 10 more features",
-    "when": "in December–January",
+    "title": "Sound effects, even color and even faster on low-end PCs",
+    "when": "in December",
     "items": [
-      "Screen and webcam recording right in Kadro",
-      "Telegram circles, VK Clips, RuTube and Dzen; export to 9:16, 16:9 and 1:1 at once",
-      "A YouTube and TikTok thumbnail in one click",
-      "Text-based editing: delete a word and it's cut; “remove pauses, music quieter” — Kadro does it",
-      "Auto-zoom on key words, face and plate blur that follows the object",
-      "720p → 1080p upscaling, 3D photos, multi-camera sync by sound, timelapse"
+      "Sound effects for editing: whooshes, hits, clicks, transitions — free and copyright-safe",
+      "Auto-edit evens out color between shots, not just light",
+      "Kadro opens faster on old laptops",
+      "Animated memes with the Kadro mascot",
+      "Gaming fonts for titles"
     ]
   }
 }
