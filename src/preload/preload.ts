@@ -154,6 +154,7 @@ const api: KadroApi = {
   pickMusic: () => ipcRenderer.invoke('dialog:music'),
   extractAudio: (p) => ipcRenderer.invoke('audio:extract', p),
   audioEnvelope: (p) => ipcRenderer.invoke('audio:envelope', p),
+  audioLevels: (p) => ipcRenderer.invoke('audio:levels', p),
   grabFrames: (items, maxW) => ipcRenderer.invoke('frames:grab', items, maxW),
   screenSources: () => ipcRenderer.invoke('screen:sources'),
   screenChoose: (id, audio) => ipcRenderer.invoke('screen:choose', id, audio),

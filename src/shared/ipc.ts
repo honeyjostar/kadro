@@ -294,6 +294,8 @@ export interface KadroApi {
   saveLut(name: string, text: string): Promise<{ path: string; name: string }>;
   /** Огибающая «начал звуков» файла (200 точек в секунду) — для синхронизации камер по звуку; нет звука — null. */
   audioEnvelope(path: string): Promise<Float32Array | null>;
+  /** громкость (RMS) с шагом 0,1 с — кто говорит */
+  audioLevels(path: string): Promise<number[] | null>;
   // ---------- запись экрана и веб-камеры ----------
   /** Экраны и окна, которые можно записать (без окна Kadro). */
   screenSources(): Promise<{ id: string; name: string; screen: boolean; thumb: string }[]>;

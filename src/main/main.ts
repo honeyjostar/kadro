@@ -1338,6 +1338,30 @@ function registerIpc(): void {
   ipcMain.handle('lut:read', (_e, p: string) => { if (!/\.cube$/i.test(p)) return null; try { return fs.readFileSync(p, 'utf8'); } catch { return null; } });
   // синхронизация камер по звуку: огибающая «начал звуков» файла (первые 20 минут, 8 кГц), с памятью на время работы
   const envCache = new Map<string, Float32Array>();
+  // громкость речи с шагом 0,1 с (тот же кэш, что у авто-ролика) — подкаст: камера на говорящего
+  ipcMain.handle('audio:levels', async (_e, src: string) => {
+    if (typeof src !== 'string') return null;
+    const hit = readExtra<number[]>(src, 'speech');
+    if (hit?.length) return hit;
+    try {
+      const rate = 4000;
+      const buf = await ffmpegToBuffer(['-hide_banner', '-v', 'error', '-i', src, '-vn', '-ac', '1', '-ar', String(rate), '-f', 's16le', 'pipe:1'], undefined, true);
+      const pcm = new Int16Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 2));
+      const per = Math.round(SPEECH_STEP * rate);
+      const out: number[] = [];
+      for (let i = 0; i < pcm.length; i += per) {
+        let sum = 0;
+        const e = Math.min(pcm.length, i + per);
+        for (let k = i; k < e; k++) sum += pcm[k] * pcm[k];
+        out.push(Math.round((Math.sqrt(sum / Math.max(1, e - i)) / 32768) * 1e4) / 1e4);
+      }
+      writeExtra(src, 'speech', out);
+      return out;
+    } catch (err) {
+      log('audio levels failed', src, err);
+      return null;
+    }
+  });
   ipcMain.handle('audio:envelope', async (_e, src: string) => {
     let st: fs.Stats;
     try { st = fs.statSync(src); } catch { return null; }

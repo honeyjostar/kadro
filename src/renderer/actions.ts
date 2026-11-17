@@ -2259,6 +2259,78 @@ export async function syncByAudio(): Promise<number> {
   return moves.length;
 }
 
+// ---------- подкаст: камера на говорящего ----------
+/**
+ * После синхронизации по звуку: ракурсы на дорожках наложений показываются, только когда их человек говорит.
+ * Основная дорожка — общий план (говорят вместе или молчат). Звук ракурсов уходит на свои дорожки целиком,
+ * чтобы не прерывался на склейках. Ракурсы — выделенные клипы или все видео поверх клипа основной дорожки под курсором.
+ */
+export async function autoSwitchCameras(): Promise<number> {
+  const s = getState();
+  const p = s.project;
+  type Angle = { clip: MediaClip; asset: MediaAsset; main: boolean };
+  const asAngle = (id: string): Angle | null => {
+    const f = findClip(p, id);
+    if (!f || f.clip.type !== 'media') return null;
+    const a = p.assets.find((x) => x.id === (f.clip as MediaClip).assetId);
+    return a && a.kind === 'video' && a.hasVideo && a.hasAudio ? { clip: f.clip as MediaClip, asset: a, main: f.track.kind === 'main' } : null;
+  };
+  let angles = s.selection.map(asAngle).filter((x): x is Angle => !!x);
+  if (angles.length < 2) {
+    // ничего не выделено: клип основной дорожки под курсором и всё видео поверх него
+    const t = s.playhead;
+    const base = mainTrack(p).clips.find((c) => c.type === 'media' && c.start <= t && clipEnd(c) > t);
+    if (base) {
+      const over = p.tracks.filter((tr) => tr.kind === 'video' && !tr.hidden).flatMap((tr) => tr.clips)
+        .filter((c) => c.type === 'media' && c.start < clipEnd(base) && clipEnd(c) > base.start);
+      angles = [base, ...over].map((c) => asAngle(c.id)).filter((x): x is Angle => !!x);
+    }
+  }
+  const main = angles.find((x) => x.main);
+  const others = angles.filter((x) => !x.main);
+  if (!main || !others.length) { s.toast(tx('Нужны два ракурса со звуком: общий план — на основной дорожке, остальные — поверх (сначала «Синхронизировать по звуку»)')); return 0; }
+  if (angles.some((x) => Math.abs(x.clip.speed - 1) > 1e-6 || x.clip.retime)) { s.toast(tx('Переключение камер — для клипов с обычной скоростью (1×)')); return 0; }
+  // общий отрезок, где есть все ракурсы
+  const T0 = Math.max(...angles.map((x) => x.clip.start));
+  const T1 = Math.min(...angles.map((x) => clipEnd(x.clip)));
+  if (T1 - T0 < 4) { s.toast(tx('Ракурсы почти не идут вместе — сначала «Синхронизировать по звуку»')); return 0; }
+  const jobId = 'multicam';
+  s.setJob({ id: jobId, label: tx('Слушаю, кто говорит'), progress: 0.2, cancellable: false });
+  const lv = new Map<string, number[] | null>();
+  try {
+    for (const x of [main, ...others]) if (!lv.has(x.asset.path)) lv.set(x.asset.path, await api.audioLevels(x.asset.path));
+  } finally { s.setJob(null, jobId); }
+  const { SWITCH_DEFAULTS, keepOnly, rangesOf, switchPlan } = await import('../shared/multicam');
+  const step = SWITCH_DEFAULTS.step;
+  const n = Math.floor((T1 - T0) / step);
+  const levels: number[][] = [];
+  for (const x of [main, ...others]) {
+    const l = lv.get(x.asset.path);
+    if (!l?.length) { s.toast(tx('Не получилось прочитать звук «{0}»', x.asset.name), 'err'); return 0; }
+    levels.push(Array.from({ length: n }, (_, i) => l[Math.min(l.length - 1, Math.max(0, Math.round((x.clip.in + (T0 + i * step - x.clip.start)) / step)))] ?? 0));
+  }
+  const shots = switchPlan(levels);
+  if (shots.length < 2) { s.toast(tx('Не слышу смены говорящих — проверь, что у каждой камеры свой звук')); return 0; }
+  // звук ракурсов — на свои дорожки целиком (иначе он прервётся там, где ракурс не виден)
+  for (const x of others) if (!x.clip.muted && x.clip.volume > 0) await extractAudio(x.clip.id);
+  getState().commit((q0) => {
+    let q = q0;
+    others.forEach((x, k) => {
+      const c = findClip(q, x.clip.id)?.clip;
+      if (!c) return;
+      const keep: [number, number][] = [...rangesOf(shots, k + 1, T0)];
+      if (c.start < T0) keep.push([c.start, T0]);
+      if (clipEnd(c) > T1) keep.push([T1, clipEnd(c)]);
+      q = keepOnly(q, c.id, keep);
+    });
+    return q;
+  });
+  const cuts = shots.length - 1;
+  getState().toast(tx('Камеры переключаются по голосу: {0} склеек. Отменить — Ctrl+Z', cuts), 'ok');
+  api.track('multicam');
+  return cuts;
+}
+
 // ---------- обложка ----------
 export interface CoverFrame { file: string; url: string; t: number; stats: FrameStats; img: HTMLImageElement }
 

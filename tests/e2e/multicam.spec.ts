@@ -1,7 +1,7 @@
 // Синхронизация камер по звуку: два ракурса одной сцены, второй включили на 1,5 с позже —
 // после «Синхронизировать по звуку» его клип встаёт на 1,5 с правее; чужая запись не двигается.
 import { expect, test, type Page } from '@playwright/test';
-import { clapVideo, importAt, launch, project, reset, solidVideo, store, type Kadro } from './kadro';
+import { clapVideo, ff, importAt, launch, media, project, reset, solidVideo, store, type Kadro } from './kadro';
 
 let K: Kadro;
 let win: Page;
@@ -49,4 +49,35 @@ test('ракурс, который начался раньше основног�
   await win.getByTestId('sync-audio').click();
   await expect(win.locator('.toast').filter({ hasText: 'Не нашёл общего звука' })).toBeVisible({ timeout: 30_000 });
   expect((await byTrack('video')).find((x) => x.id === t.id).start).toBe(9);
+});
+
+/** Камера одного из двух говорящих: свой цвет, громко — когда говорит «свой» человек, тихо — когда второй. */
+function podcastCam(name: string, color: string, mine: [number, number][]): string {
+  const near = mine.map(([a, b]) => `between(t,${a},${b})`).join('+');
+  return media(name, (f) => ff(['-f', 'lavfi', '-i', `color=c=${color}:s=320x180:r=30:d=14`,
+    '-f', 'lavfi', '-i', `aevalsrc='0.5*sin(2*PI*220*t)*sin(2*PI*3*t)*(${near})+0.08*sin(2*PI*220*t)*sin(2*PI*3*t)*(1-(${near}))':s=48000:d=14`,
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', f]));
+}
+
+test('подкаст: камера сама переключается на говорящего, звук ракурса — целиком на своей дорожке', async () => {
+  await reset(win);
+  await importAt(win, [podcastCam('podA.mp4', 'red', [[0, 5], [10, 14]])], 'main', 0);
+  await importAt(win, [podcastCam('podB.mp4', 'blue', [[5, 10]])], 'overlay', 0);
+  const [a] = await byTrack('main');
+  const [b] = await byTrack('video');
+  await store(win, 'select', [a.id, b.id]);
+  await win.getByTestId('multicam-switch').click();
+  await expect(win.locator('.toast').filter({ hasText: 'Камеры переключаются по голосу' })).toBeVisible({ timeout: 60_000 });
+  // камера Б видна только, пока говорит Б (5–10 с, склейки чуть раньше слов)
+  const shown = (await byTrack('video')).map((c) => [c.start, c.start + (c.out - c.in)]);
+  expect(shown.length).toBe(1);
+  expect(shown[0][0]).toBeGreaterThan(4.3);
+  expect(shown[0][0]).toBeLessThan(5.6);
+  expect(shown[0][1]).toBeGreaterThan(9.3);
+  expect(shown[0][1]).toBeLessThan(10.6);
+  // её звук не прерывается: отдельная дорожка на все 14 с, у видео звук выключен
+  const audio = await byTrack('audio');
+  expect(audio.some((c) => c.out - c.in > 13)).toBe(true);
+  // основная дорожка — общий план — не тронута
+  expect((await byTrack('main')).length).toBe(1);
 });
