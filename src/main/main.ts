@@ -39,6 +39,7 @@ import { duckNow, setDuck, type DuckSettings } from '../shared/duck';
 import type { CoachState } from '../shared/coach';
 import { LOGO_EXTS } from '../shared/logo';
 import { beginActivity, startSysmon, stopSysmon } from './sysmon';
+import { addGifs, GIF_EXT, gifsDir, inGifs, listGifs, removeGif } from './gifs';
 import { statDay, statDue, statUrl } from '../shared/stats';
 import { enterCode, newRefCode, type RefResult, type Rewards } from '../shared/rewards';
 import { SPEECH_STEP } from '../shared/autoEdit';
@@ -652,7 +653,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; about?: unknown; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; lightCopy?: LightCopyPref; duck?: Partial<DuckSettings>; coach?: CoachState; /** анонимная статистика (согласие) */ stats?: boolean; statsSent?: Record<string, string>; /** «Набор создателя» и код приглашения */ rewards?: Rewards }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; about?: unknown; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; lightCopy?: LightCopyPref; duck?: Partial<DuckSettings>; coach?: CoachState; /** анонимная статистика (согласие) */ stats?: boolean; statsSent?: Record<string, string>; /** «Набор создателя» и код приглашения */ rewards?: Rewards; /** раздел «Гифки»: подключённые папки */ gifFolders?: string[] }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 /** Событие анонимной статистики — только с согласия и не чаще раза в день (см. shared/stats). */
 async function track(ev: string): Promise<void> {
@@ -968,6 +969,44 @@ function registerIpc(): void {
     libAdd(list);
     return libFolders();
   });
+  // раздел «Гифки»: свои гифки (копии в папке Kadro) и подключённые папки
+  const gifFolders = () => readSettings().gifFolders ?? [];
+  ipcMain.handle('gifs:list', () => listGifs(gifFolders()));
+  ipcMain.handle('gifs:add', async (_e, paths: string[] | null) => {
+    let list = paths;
+    if (!list) {
+      if (process.env.KADRO_TEST_GIFS) list = process.env.KADRO_TEST_GIFS.split('|');
+      else {
+        const r = await dialog.showOpenDialog(win!, { title: tx('Загрузить гифки'), properties: ['openFile', 'multiSelections'], filters: [{ name: tx('Гифки и короткие ролики'), extensions: GIF_EXT.map((e) => e.slice(1)) }] });
+        if (r.canceled) return 0;
+        list = r.filePaths;
+      }
+    }
+    return addGifs(list);
+  });
+  ipcMain.handle('gifs:addFolder', async (_e, dir: string | null) => {
+    let d = dir;
+    if (!d) {
+      if (process.env.KADRO_TEST_GIF_FOLDER) d = process.env.KADRO_TEST_GIF_FOLDER;
+      else {
+        const r = await dialog.showOpenDialog(win!, { title: tx('Подключить папку с гифками'), properties: ['openDirectory'] });
+        if (r.canceled || !r.filePaths[0]) return listGifs(gifFolders());
+        d = r.filePaths[0];
+      }
+    }
+    const st = readSettings();
+    const list = st.gifFolders ?? [];
+    if (!list.includes(d) && path.resolve(d) !== path.resolve(gifsDir())) writeSettings({ ...st, gifFolders: [...list, d] });
+    return listGifs(gifFolders());
+  });
+  ipcMain.handle('gifs:removeFolder', (_e, d: string) => {
+    const st = readSettings();
+    writeSettings({ ...st, gifFolders: (st.gifFolders ?? []).filter((x) => x !== d) });
+    return listGifs(gifFolders());
+  });
+  ipcMain.handle('gifs:remove', (_e, p: string) => removeGif(String(p)));
+  ipcMain.handle('gifs:meta', (_e, file: string) => (inGifs(file, gifFolders()) ? libMeta(file) : { missing: true }));
+  ipcMain.handle('gifs:open', () => shell.openPath(gifsDir()));
   ipcMain.handle('lib:remove', (_e, p: string) => {
     const s = readSettings();
     writeSettings({ ...s, library: (s.library ?? []).filter((x) => x !== p) });

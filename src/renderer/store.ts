@@ -13,7 +13,7 @@ import type { CustomStatus } from '../shared/ipc';
 
 export const api: KadroApi = (window as unknown as { kadro: KadroApi }).kadro;
 
-export type LeftTab = 'media' | 'audio' | 'text' | 'captions' | 'effects' | 'transitions' | 'filters' | 'templates' | 'ai' | '3d';
+export type LeftTab = 'media' | 'audio' | 'text' | 'gifs' | 'captions' | 'effects' | 'transitions' | 'filters' | 'templates' | 'ai' | '3d';
 export type AudioPlace = 'start' | 'cursor' | 'list';
 export type PreviewQuality = 'auto' | 'high' | 'medium' | 'low';
 

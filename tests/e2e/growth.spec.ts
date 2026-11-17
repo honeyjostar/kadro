@@ -110,3 +110,27 @@ test('лого Kadro крутится: поверх видео, по кругу,
   expect(c.out - c.in).toBe(3);
   expect(p.assets.find((a) => a.id === c.assetId)!.loop).toBe(true);
 });
+
+test('раздел «Гифки»: загрузить свою, подключить папку, нажать — гифка поверх видео по кругу', async () => {
+  const gif = path.join(os.tmpdir(), 'kadro-e2e', 'growth_meme.gif');
+  if (!fs.existsSync(gif)) {
+    const { execFileSync } = await import('node:child_process');
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=160x120:r=10:d=1', gif]);
+  }
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kadro-gifdir-'));
+  fs.copyFileSync(gif, path.join(dir, 'reaction.gif'));
+  await K.app.evaluate((_e, v) => { process.env.KADRO_TEST_GIFS = v.gif; process.env.KADRO_TEST_GIF_FOLDER = v.dir; }, { gif, dir });
+  await act(win, 'newProjectAction');
+  await win.getByTestId('tab-gifs').click();
+  await expect(win.getByTestId('gif-kadro')).toBeVisible();
+  await win.getByTestId('gifs-upload').click();
+  await expect(win.getByTestId('gif-tile')).toHaveCount(1);
+  await win.getByTestId('gifs-folder-add').click();
+  await expect(win.getByTestId('gif-tile')).toHaveCount(2);
+  await win.getByTestId('gif-tile').first().locator('.gif-hit').click();
+  await expect.poll(async () => (await project(win)).tracks.flatMap((t) => t.clips).length, { timeout: 30_000 }).toBe(1);
+  const p = await project(win);
+  const tr = p.tracks.find((t) => t.clips.length)!;
+  expect(tr.kind).toBe('video');
+  expect(p.assets.find((a) => a.id === (tr.clips[0] as any).assetId)!.loop).toBe(true);
+});

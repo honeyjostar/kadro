@@ -2,7 +2,7 @@ import { tx } from '../../shared/i18n';
 import { showsInMode } from '../../shared/uiMode';
 import { txj } from '../txj';
 import {
-  Clapperboard, Activity, Gamepad2, Lock, Puzzle, Send,
+  Clapperboard, Activity, Gamepad2, Lock, Puzzle, Send, ImagePlay,
   Zap, AudioLines, BellRing, Blend, Volume2, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
   LayoutTemplate, Smile, Sparkles, SlidersHorizontal, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users, ZoomIn, ArrowLeftCircle, Speaker, Timer, Star, History, MonitorPlay,
 } from 'lucide-react';
@@ -54,6 +54,7 @@ import { pickInOrder, type FavKind } from '../../shared/favs';
 import { noteUsed, useFavs } from '../favs';
 import { defaultVoice, VOICES } from '../../shared/voices';
 import { BackgroundsSection } from './Backgrounds';
+import { GifsPanel } from './GifsPanel';
 import { TEXT_THEMES } from '../../shared/textThemes';
 import { WORKSHOP_SUBMIT } from '../../shared/links';
 import { rewardsOpen } from '../../shared/rewards';
@@ -64,6 +65,7 @@ export const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
   { id: 'media', label: tx('Медиа'), icon: <Film size={19} /> },
   { id: 'audio', label: tx('Аудио'), icon: <Music size={19} /> },
   { id: 'text', label: tx('Текст'), icon: <Type size={19} /> },
+  { id: 'gifs', label: tx('Гифки'), icon: <ImagePlay size={19} /> },
   { id: 'captions', label: tx('Субтитры'), icon: <Captions size={19} /> },
   { id: 'effects', label: tx('Эффекты'), icon: <Zap size={19} /> },
   { id: 'transitions', label: tx('Переходы'), icon: <Blend size={19} /> },
@@ -98,6 +100,7 @@ export function LeftPanel() {
       {tab === 'media' && <MediaPanel />}
       {tab === 'audio' && <AudioPanel />}
       {tab === 'text' && <TextPanel />}
+      {tab === 'gifs' && <GifsPanel />}
       {tab === 'captions' && <CaptionsPanel />}
       {tab === 'effects' && <EffectsPanel />}
       {tab === 'transitions' && <TransitionsPanel />}

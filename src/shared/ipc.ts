@@ -322,6 +322,14 @@ export interface KadroApi {
   track(ev: string): void;
   /** «Набор создателя»: состояние, ввод кода (друга или ответного), открытие за концовку «Сделано в Kadro». */
   rewards(): Promise<import('./rewards').Rewards>;
+  /** Раздел «Гифки»: список (папка Kadro и подключённые), загрузка своих, папки, удаление загруженного, миниатюра. */
+  gifsList(): Promise<GifList>;
+  gifsAdd(paths?: string[] | null): Promise<number>;
+  gifsAddFolder(dir?: string | null): Promise<GifList>;
+  gifsRemoveFolder(dir: string): Promise<GifList>;
+  gifsRemove(path: string): Promise<boolean>;
+  gifsMeta(path: string): Promise<LibMeta>;
+  gifsOpen(): Promise<string>;
   /** Мастерская: удалить поставленный оттуда шаблон; свой шаблон — в файл для отправки. */
   removeWorkshopTemplate(file: string): Promise<boolean>;
   exportTemplate(id: string): Promise<string | null>;
@@ -333,3 +341,5 @@ export interface KadroApi {
   /** Записать ошибку окна в журнал программы. */
   logError(message: string): void;
 }
+
+export interface GifList { folders: { path: string; name: string; own: boolean; exists: boolean }[]; files: { path: string; name: string; size: number; folder: string; kind: 'image' | 'video' }[] }

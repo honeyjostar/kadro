@@ -1564,3 +1564,19 @@ button.link:hover { color: var(--strong); }
 .logo-spin-card h4 { margin: 0 0 2px; }
 .logo-spin-card .hint { margin: 0; }
 .logo-spin-card img { border-radius: 8px; background: repeating-conic-gradient(var(--raised-2) 0 25%, var(--raised) 0 50%) 0 0 / 10px 10px; }
+/* раздел «Гифки» */
+.gifs-panel.drop-over { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.gif-folders { margin-top: 10px; }
+.gif-folders .chip-wrap { display: inline-flex; align-items: center; }
+.gif-folders .chip-x { padding: 0 4px; margin-left: -4px; background: none; border: 0; color: var(--muted); cursor: pointer; }
+.gif-search { margin: 8px 0 0; }
+.gif-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.gif-tile { position: relative; }
+.gif-tile .gif-hit, .gif-tile.builtin { display: block; width: 100%; padding: 0; border: 0; background: var(--raised); border-radius: 8px; overflow: hidden; cursor: pointer; aspect-ratio: 1; position: relative; outline: 1px solid var(--line-soft); }
+.gif-tile:hover .gif-hit, .gif-tile.builtin:hover { outline: 2px solid var(--accent); }
+.gif-tile img, .gif-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gif-tile.builtin img { object-fit: contain; padding: 10%; background: repeating-conic-gradient(var(--raised-2) 0 25%, var(--raised) 0 50%) 0 0 / 12px 12px; }
+.gif-ph { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; color: var(--muted); }
+.gif-name { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 5px 3px; font-size: 10.5px; color: #fff; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: linear-gradient(transparent, rgba(0, 0, 0, .75)); pointer-events: none; }
+.gif-del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 6px; border: 0; background: rgba(0, 0, 0, .65); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.gif-empty { display: flex; gap: 10px; align-items: center; margin-top: 10px; color: var(--muted); font-size: 12.5px; }
