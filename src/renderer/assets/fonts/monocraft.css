@@ -1,0 +1,3 @@
+/* Monocraft — шрифт в стиле Minecraft с кириллицей. © 2022 Idrees Hassan, SIL Open Font License 1.1 (Monocraft-OFL.txt). */
+@font-face { font-family: 'Monocraft'; font-style: normal; font-weight: 400; font-display: swap; src: url(./monocraft-400.woff2) format('woff2'); }
+@font-face { font-family: 'Monocraft'; font-style: normal; font-weight: 700; font-display: swap; src: url(./monocraft-700.woff2) format('woff2'); }

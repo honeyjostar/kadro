@@ -57,3 +57,19 @@ test('«Нагрузка ПК»: процессор и память раз в с
   await win.getByTestId('sysmon-close').click();
   await expect(win.getByTestId('sysmon')).toHaveCount(0);
 });
+
+test('шрифт Monocraft (как в Minecraft) встроен и с кириллицей; надпись «Как в Minecraft»', async () => {
+  const r = await win.evaluate(async () => {
+    const loaded = await document.fonts.load('700 48px "Monocraft"', 'Привет');
+    const c = document.createElement('canvas').getContext('2d')!;
+    c.font = '700 48px "Monocraft"'; const a = c.measureText('Привет мир').width;
+    c.font = '700 48px monospace'; const b = c.measureText('Привет мир').width;
+    return { n: loaded.length, differs: Math.abs(a - b) > 1 };
+  });
+  expect(r.n).toBeGreaterThan(0);
+  expect(r.differs).toBe(true);
+  await act(win, 'newProjectAction');
+  await win.getByTestId('tab-text').click();
+  await win.getByTestId('theme-block').click();
+  await expect.poll(async () => (await texts()).some((t) => t.style.font === 'Monocraft')).toBe(true);
+});

@@ -1,6 +1,7 @@
 import { tx, uiLang } from '../shared/i18n';
 import { createRoot } from 'react-dom/client';
 import './fonts';
+import './assets/fonts/monocraft.css'; // в стиле Minecraft (не из Fontsource)
 import './styles.css';
 import * as timeline from '../shared/timeline';
 import * as effects from '../shared/effects';

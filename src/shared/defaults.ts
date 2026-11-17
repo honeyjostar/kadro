@@ -294,6 +294,7 @@ export const FONTS: { family: string; label: string; cat: FontCat }[] = [
   { family: 'Underdog', label: 'Underdog', cat: 'hand' },
   { family: 'Poiret One', label: 'Poiret One', cat: 'hand' },
   { family: 'Stick', label: 'Stick', cat: 'hand' },
+  { family: 'Monocraft', label: tx('Monocraft (как в Minecraft)'), cat: 'pixel' },
   { family: 'Press Start 2P', label: 'Press Start 2P', cat: 'pixel' },
   { family: 'Pixelify Sans', label: 'Pixelify Sans', cat: 'pixel' },
   { family: 'Tiny5', label: 'Tiny5', cat: 'pixel' },

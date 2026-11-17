@@ -36,3 +36,9 @@ Kadro распространяется под GNU GPL v3 или новее. В �
 `src/renderer/assets/emoji/*.webp` — 116 эмодзи из [microsoft/fluentui-emoji](https://github.com/microsoft/fluentui-emoji) (стиль 3D), уменьшены до 192×192 и сохранены в WebP.
 
 MIT License — Copyright (c) Microsoft Corporation.
+
+## Monocraft (шрифт в стиле Minecraft)
+
+`src/renderer/assets/fonts/monocraft-*.woff2` — [IdreesInc/Monocraft](https://github.com/IdreesInc/Monocraft), обычное и жирное начертание, переведены в WOFF2 без изменений.
+
+SIL Open Font License 1.1 — Copyright (c) 2022, Idrees Hassan. Полный текст: `src/renderer/assets/fonts/Monocraft-OFL.txt`. Не связан с Mojang и Microsoft; Minecraft — их товарный знак.

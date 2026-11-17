@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { dataDir } from './bins';
 
-export const GIF_EXT = ['.gif', '.webp', '.apng', '.png', '.webm', '.mp4', '.mov', '.m4v'];
+export const GIF_EXT = ['.gif', '.webp', '.apng', '.png', '.jpg', '.jpeg', '.webm', '.mp4', '.mov', '.m4v'];
 const MAX = 1000;
 
 export const gifsDir = (): string => { const d = path.join(dataDir(), 'gifs'); fs.mkdirSync(d, { recursive: true }); return d; };
