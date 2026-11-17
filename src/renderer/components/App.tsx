@@ -87,6 +87,12 @@ export function App() {
   const bugOpen = useStore((s) => s.bugOpen);
   const catalogOpen = useStore((s) => s.pluginCatalogOpen);
   const lowEnd = useStore((s) => s.lowEnd);
+  // задачи из Telegram-бота (монтаж с телефона)
+  useEffect(() => {
+    let off: (() => void) | undefined;
+    void import('../tgTasks').then((m) => { off = m.initTgTasks(); });
+    return () => off?.();
+  }, []);
   // «Режим для слабого ПК» — классом на всём окне (и на главном экране, и в окнах поверх)
   useEffect(() => { document.documentElement.classList.toggle('low-end', lowEnd); }, [lowEnd]);
   useUpdateFeed();

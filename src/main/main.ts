@@ -660,7 +660,7 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; about?: unknown; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; lightCopy?: LightCopyPref; duck?: Partial<DuckSettings>; coach?: CoachState; /** анонимная статистика (согласие) */ stats?: boolean; statsSent?: Record<string, string>; /** «Набор создателя» и код приглашения */ rewards?: Rewards; /** раздел «Гифки»: подключённые папки */ gifFolders?: string[] }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; about?: unknown; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; lightCopy?: LightCopyPref; duck?: Partial<DuckSettings>; coach?: CoachState; /** анонимная статистика (согласие) */ stats?: boolean; statsSent?: Record<string, string>; /** «Набор создателя» и код приглашения */ rewards?: Rewards; /** раздел «Гифки»: подключённые папки */ gifFolders?: string[]; /** монтаж с телефона: свой Telegram-бот */ tg?: import('./tgbot').TgConf }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
 /** Событие анонимной статистики — только с согласия и не чаще раза в день (см. shared/stats). */
 async function track(ev: string): Promise<void> {
@@ -1160,6 +1160,18 @@ function registerIpc(): void {
   ipcMain.handle('ai:run', async (_e, job: AiJob) => {
     const done = beginActivity(activityLabel(job.kind));
     try { return await runAi(job); } finally { done(); }
+  });
+  // монтаж с телефона: свой Telegram-бот
+  ipcMain.handle('tg:get', async () => (await import('./tgbot')).tgState());
+  ipcMain.handle('tg:set', async (_e, patch: { token?: string | null; on?: boolean }) => (await import('./tgbot')).tgSet(patch ?? {}));
+  ipcMain.handle('tg:unpair', async () => (await import('./tgbot')).tgUnpair());
+  ipcMain.handle('tg:result', async (_e, id: string, r: import('../shared/tgbot').TgResult) => { await (await import('./tgbot')).tgResult(String(id), r ?? {}); });
+  ipcMain.handle('tg:openBot', async () => {
+    const bot = readSettings().tg?.bot;
+    if (!bot || !/^\w{3,64}$/.test(bot)) return false;
+    if (!process.env.KADRO_NO_OPEN) await shell.openExternal(`https://t.me/${bot}`);
+    else log('open url', `https://t.me/${bot}`);
+    return true;
   });
   // «Нагрузка ПК»: замеры идут, только пока виджет открыт
   ipcMain.on('sysmon:start', () => { startSysmon((x) => win?.webContents.send('sysmon:sample', x)); });
@@ -1686,6 +1698,21 @@ if (!lock) {
     const probeHw = () => { void hardwareInfo().then((h) => log('hw', JSON.stringify({ cpu: h.cpu, threads: h.threads, ram: h.ramGb, gpus: h.gpus, enc: h.encoders.map((e) => (e.ok ? e.id : `${e.id}:${e.code}${e.need ? `>=${e.need}` : ''}`)) }))); };
     void hardwareBasic().then((b) => setTimeout(probeHw, weakPc(b) ? 30000 : 3000));
     setTimeout(cleanTempOnStart, 6000); // временные файлы прошлых сеансов
+    // свой Telegram-бот (если включён в настройках)
+    void import('./tgbot').then(({ tgInit }) => tgInit({
+      read: () => readSettings().tg ?? {},
+      write: (c) => writeSettings({ ...readSettings(), tg: c }),
+      emit: (st) => win?.webContents.send('tg:state', st),
+      task: (t) => { void track(`tg/${t.kind}`); win?.webContents.send('tg:task', t); },
+      reach: async (file) => {
+        const { reachScan } = await import('./reach');
+        const { reachText } = await import('../shared/tgbot');
+        void track('tg/reach');
+        return reachText(await reachScan(file, 'tiktok', () => undefined));
+      },
+      outDir: () => process.env.KADRO_TG_OUT ?? path.join(app.getPath('videos'), 'Kadro', 'Telegram'),
+      log,
+    }));
     // плагины: правка файла в папке — сразу в окне
     try { ensurePluginDirs(); watchPlugins((list) => win?.webContents.send('plugins:changed', list)); } catch (e) { log('plugins', e); }
     // свои шрифты: положили файл в папку через Проводник — сразу в списке

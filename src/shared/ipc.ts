@@ -122,6 +122,14 @@ export interface KadroApi {
   pickMedia(): Promise<string[]>;
   /** длительность и размер кадра видеофайла (с учётом поворота) */
   probeVideo(file: string): Promise<{ duration: number; width: number; height: number } | null>;
+  /** монтаж с телефона: свой Telegram-бот */
+  tgGet(): Promise<import('./tgbot').TgState>;
+  tgSet(patch: { token?: string | null; on?: boolean }): Promise<import('./tgbot').TgState>;
+  tgUnpair(): Promise<import('./tgbot').TgState>;
+  tgResult(id: string, r: import('./tgbot').TgResult): Promise<void>;
+  tgOpenBot(): Promise<boolean>;
+  onTgState(cb: (s: import('./tgbot').TgState) => void): () => void;
+  onTgTask(cb: (t: import('./tgbot').TgTask) => void): () => void;
   importMedia(paths: string[]): Promise<ImportResult>;
   onAssetUpdate(cb: (id: string, patch: Partial<MediaAsset>) => void): () => void;
   mediaUrl(path: string): string;

@@ -18,6 +18,7 @@ import { reportInstall } from './PluginCatalog';
 import { rewardsOpen, showCode } from '../../shared/rewards';
 import { ensureModel, ensureVoice, importModelFile, modelInBrowser } from '../actions';
 import type { ModelInfo, VoiceInfo } from '../../shared/ipc';
+import type { TgState } from '../../shared/tgbot';
 import { gpuSpeedup, gpuWins, type AsrDeviceInfo, type AsrDevicePref } from '../../shared/asrDevice';
 import { TELEGRAM_CHANNEL } from '../../shared/links';
 import { UpdateSection } from './Update';
@@ -155,6 +156,8 @@ export function SettingsDialog() {
         <CacheSection />
 
         <UpdateSection />
+
+        <TgSection />
 
         <FriendsSection />
 
@@ -440,6 +443,57 @@ function DuckSection() {
 }
 
 /** «Друзья и награды»: «Набор создателя», мой код приглашения, ввод кода друга или ответного кода. */
+/** Монтаж с телефона: свой Telegram-бот (токен от @BotFather, привязка кодом). */
+function TgSection() {
+  const [st, setSt] = useState<TgState | null>(null);
+  const [token, setToken] = useState('');
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    void api.tgGet().then(setSt);
+    return api.onTgState(setSt);
+  }, []);
+  if (!st) return null;
+  const saveToken = async () => {
+    setSaving(true);
+    try { setSt(await api.tgSet({ token })); setToken(''); } finally { setSaving(false); }
+  };
+  const statusText = st.status === 'error' && st.error ? st.error
+    : !st.on ? tx('Выключено.')
+    : st.status === 'ready' ? (st.paired ? tx('Работает: бот @{0} принимает видео от {1}.', st.bot ?? '', st.ownerName ?? tx('тебя')) : tx('Бот @{0} подключён. Осталось привязать твой Telegram — шаг 3.', st.bot ?? ''))
+    : tx('Подключаюсь к Telegram…');
+  return (
+    <section className="settings-sec tg-sec" data-testid="tg-sec">
+      <b>{tx('Монтаж с телефона (Telegram)')}</b>
+      <p className="hint">{tx('Пришли видео своему боту в Telegram — Kadro на этом компьютере соберёт авто-ролик или сделает субтитры и пришлёт готовый ролик в чат. Работает, пока Kadro открыт (можно свернуть к часам). Видео остаются у тебя: Kadro качает их прямо из Telegram.')}</p>
+      <ol className="tg-steps">
+        <li>{tx('В Telegram открой @BotFather → /newbot → придумай имя. Он пришлёт токен — длинную строку вида 123456789:AAH…')}</li>
+        <li>
+          {tx('Вставь токен сюда:')}
+          <div className="custom-row">
+            <input className="input" type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value)}
+              placeholder={st.hasToken ? tx('Токен сохранён — вставь новый, чтобы заменить') : '123456789:AAH…'} data-testid="tg-token" />
+            <button className="btn" disabled={!token.trim() || saving} onClick={() => void saveToken()} data-testid="tg-save">{tx('Сохранить')}</button>
+          </div>
+        </li>
+        <li>
+          {st.code && st.bot
+            ? <>{tx('Напиши боту @{0} этот код:', st.bot)} <b className="tg-code" data-testid="tg-code">{st.code}</b> <button className="btn small" onClick={() => void api.tgOpenBot()} data-testid="tg-open"><Send size={13} />{tx('Открыть бота')}</button></>
+            : st.paired ? tx('Твой Telegram привязан — бот слушается только тебя.') : tx('Когда бот подключится, здесь появится код — его нужно отправить боту.')}
+        </li>
+      </ol>
+      {st.hasToken && <Toggle label={tx('Принимать видео из Telegram')} on={st.on} onChange={(on) => void api.tgSet({ on }).then(setSt)} testId="tg-on" />}
+      <p className={`hint small ${st.status === 'error' ? 'warn-text' : ''}`} data-testid="tg-status">{statusText}</p>
+      {st.hasToken && (
+        <div className="custom-row">
+          {st.paired && <button className="btn small ghost" onClick={() => void api.tgUnpair().then(setSt)} data-testid="tg-unpair">{tx('Отвязать Telegram')}</button>}
+          <button className="btn small ghost" onClick={() => void api.tgSet({ token: null, on: false }).then(setSt)} data-testid="tg-forget">{tx('Удалить токен')}</button>
+        </div>
+      )}
+      <p className="hint small">{tx('Токен хранится зашифрованным на этом компьютере. Kadro отвечает только тому, кто прислал код, — чужие видео бот не принимает. Telegram даёт ботам скачивать видео до 20 МБ и отправлять до 50 МБ: присылай видео обычным сообщением, не файлом.')}</p>
+    </section>
+  );
+}
+
 function FriendsSection() {
   const rw = useStore((st) => st.rewards);
   const [input, setInput] = useState('');

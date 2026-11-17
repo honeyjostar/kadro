@@ -1636,3 +1636,11 @@ button.link:hover { color: var(--strong); }
 .publish-text { font-size: 12px; line-height: 1.4; white-space: pre-wrap; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; word-break: break-word; }
 .publish-how { margin: 0; flex: 1; }
 .publish-btns { display: flex; gap: 6px; justify-content: flex-end; }
+
+/* Монтаж с телефона (Telegram) */
+.tg-steps { margin: 6px 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; line-height: 1.45; }
+.tg-steps .custom-row { margin-top: 6px; }
+.tg-steps .input { flex: 1; min-width: 0; }
+.tg-code { font-size: 18px; letter-spacing: 3px; padding: 2px 8px; border-radius: var(--radius-s); background: var(--accent-soft); color: var(--strong); margin: 0 6px; }
+.tg-steps .btn svg { margin-right: 4px; vertical-align: -2px; }
+.warn-text { color: var(--warn-text); }
