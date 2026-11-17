@@ -1,6 +1,6 @@
 import { tx } from '../../shared/i18n';
 import { txj } from '../txj';
-import { CheckCircle2, ClipboardList, FolderOpen, ImageDown, ScanEye, Send, ShieldCheck, Star, TriangleAlert, X } from 'lucide-react';
+import { CheckCircle2, ClipboardList, FolderOpen, ImageDown, ScanEye, Send, Share2, ShieldCheck, Star, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { exportSize } from '../../shared/geometry';
 import { stickerShortSide, TG_STICKER } from '../../shared/tgSticker';
@@ -417,6 +417,7 @@ export function ExportDialog() {
               </div>
             )}
             <div className="actions">
+              {format === 'mp4' && result.path && <button className="btn" onClick={() => { close(); getState().setPublishOpen({ file: result.path! }); }} data-testid="export-publish"><Share2 size={15} />{tx('Опубликовать')}</button>}
               {format === 'mp4' && result.path && <button className="btn" onClick={() => { close(); getState().setReachOpen({ file: result.path!, project: true, platform: platform === 'other' ? undefined : platform }); }} data-testid="export-reach"><ShieldCheck size={15} />{tx('Проверить охваты')}</button>}
               {format === 'mp4' && <button className="btn" onClick={() => { close(); getState().setCoverOpen(true); }} data-testid="export-cover"><ImageDown size={15} />{tx('Обложка')}</button>}
               <button className="btn" onClick={close}>{tx('Закрыть')}</button>

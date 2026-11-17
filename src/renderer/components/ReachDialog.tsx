@@ -1,6 +1,6 @@
 // Окно «Проверка охватов»: что в готовом ролике мешает площадке его показывать, а зрителям — досматривать, и как это
 // поправить одной кнопкой. Ролик — только что сохранённый из Kadro или любой другой (хоть из CapCut).
-import { CheckCircle2, FolderOpen, Play, ShieldCheck, Upload, Wrench, X } from 'lucide-react';
+import { CheckCircle2, FolderOpen, Play, Share2, ShieldCheck, Upload, Wrench, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { tx } from '../../shared/i18n';
 import { platformIssues, sortIssues, type ReachIssue, type ReachLevel, type ReachReport } from '../../shared/reach';
@@ -182,6 +182,9 @@ export function ReachDialog() {
             <button className="btn" onClick={() => void openInKadro()} data-testid="reach-open"><Wrench size={15} />{tx('Открыть в Kadro и поправить')}</button>
           )}
           <button className="btn" onClick={close} disabled={busy}>{tx('Закрыть')}</button>
+          {file && !busy && report && issues.length === 0 && (
+            <button className="btn" onClick={() => { close(); getState().setPublishOpen({ file }); }} data-testid="reach-publish"><Share2 size={15} />{tx('Опубликовать')}</button>
+          )}
           {file && !busy && (fixedAny
             ? <button className="btn primary" onClick={() => { close(); getState().setExportOpen(true); }} data-testid="reach-export"><Upload size={15} />{tx('Сохранить заново')}</button>
             : <button className="btn primary" onClick={() => void run(file)} data-testid="reach-run"><ShieldCheck size={15} />{report ? tx('Проверить снова') : tx('Проверить')}</button>)}

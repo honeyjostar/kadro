@@ -120,6 +120,8 @@ export interface KadroApi {
   hardwareBasic(): Promise<Pick<import('./hw').HwInfo, 'cpu' | 'threads' | 'ramGb' | 'gpus'>>;
   openDriverPage(vendor: 'nvidia' | 'amd' | 'intel'): Promise<boolean>;
   pickMedia(): Promise<string[]>;
+  /** длительность и размер кадра видеофайла (с учётом поворота) */
+  probeVideo(file: string): Promise<{ duration: number; width: number; height: number } | null>;
   importMedia(paths: string[]): Promise<ImportResult>;
   onAssetUpdate(cb: (id: string, patch: Partial<MediaAsset>) => void): () => void;
   mediaUrl(path: string): string;

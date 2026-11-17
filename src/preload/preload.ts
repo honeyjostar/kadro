@@ -18,6 +18,7 @@ const api: KadroApi = {
   hardwareBasic: () => ipcRenderer.invoke('hw:basic'),
   openDriverPage: (vendor) => ipcRenderer.invoke('hw:driverPage', vendor),
   pickMedia: () => ipcRenderer.invoke('dialog:media'),
+  probeVideo: (file) => ipcRenderer.invoke('media:probeVideo', file),
   importMedia: (paths) => ipcRenderer.invoke('media:import', paths),
   onAssetUpdate: (cb) => on('asset:update', cb),
   mediaUrl: (p) => `kmedia://f/${encodeURIComponent(p)}`,

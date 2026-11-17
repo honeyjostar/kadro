@@ -51,6 +51,7 @@ function buildItems(fav: ReturnType<typeof useFavs.getState>['s']): Item[] {
     { id: 'cmd-autozoom', group: cmd, label: tx('Автозум на важных словах'), keywords: [tx('наезд'), 'zoom'], run: () => void autoZoomWords('mid') },
     { id: 'cmd-textedit', group: cmd, label: tx('Монтаж текстом'), keywords: [tx('расшифровка'), tx('удалить слова'), tx('паразиты'), tx('команды')], run: () => s.setTextEditOpen(true) },
     { id: 'cmd-screenrec', group: cmd, label: tx('Записать экран или камеру'), keywords: [tx('запись экрана'), tx('веб-камера'), tx('скринкаст')], run: () => s.setScreenRecOpen(true) },
+    { id: 'cmd-publish', group: cmd, label: tx('Опубликовать: TikTok, Reels, Shorts, ВК, RUTUBE, Дзен'), keywords: [tx('выложить'), tx('хэштеги'), tx('подпись'), 'vk'], run: () => s.setPublishOpen({ file: null }) },
     { id: 'cmd-reach', group: cmd, label: tx('Проверка охватов'), keywords: [tx('охваты'), tx('теневой бан'), tx('водяной знак'), tx('перед публикацией'), tx('просмотры')], run: () => s.setReachOpen({ file: null, project: false }) },
     { id: 'cmd-cover', group: cmd, label: tx('Обложка для YouTube и TikTok'), keywords: [tx('превью'), 'thumbnail'], run: () => s.setCoverOpen(true) },
     { id: 'cmd-sync', group: cmd, label: tx('Синхронизировать по звуку'), keywords: [tx('мультикамера'), tx('ракурсы'), tx('хлопок')], run: () => void syncByAudio() },

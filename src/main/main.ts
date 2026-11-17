@@ -66,7 +66,7 @@ import { bundledFile, cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir, she
 import { asrBenchKey, decideAsrDevice, DML_FALLBACK, gpuKey, type AsrBench, type AsrDevice, type AsrDeviceInfo, type AsrDevicePref } from '../shared/asrDevice';
 import { exportProject, exportSpeechAudio, glFrames } from './exporter';
 import { DRIVER_PAGES, hardwareBasic, hardwareInfo } from './hardware';
-import { MEDIA_EXT, analyze, coverIfReady, makeCover, makePeaks, makeProxy, makeThumbs, setLightCopyRule } from './media';
+import { MEDIA_EXT, analyze, coverIfReady, makeCover, makePeaks, makeProxy, makeThumbs, probe, setLightCopyRule } from './media';
 import { Queue, backgroundLimit } from '../shared/queue';
 
 void net;
@@ -824,6 +824,16 @@ function registerIpc(): void {
     if (!process.env.KADRO_NO_OPEN) await shell.openExternal(url);
     return true;
   });
+  ipcMain.handle('media:probeVideo', async (_e, file: string) => {
+    if (typeof file !== 'string') return null;
+    try {
+      const pr = await probe(file);
+      if (!pr.video) return null;
+      const sd = pr.video.side_data_list?.find((x) => typeof x.rotation === 'number');
+      const rot = Math.abs(((Math.round(sd?.rotation ?? Number(pr.video.tags?.rotate ?? 0)) % 180) + 180) % 180) === 90;
+      return { duration: pr.duration, width: (rot ? pr.video.height : pr.video.width) ?? 0, height: (rot ? pr.video.width : pr.video.height) ?? 0 };
+    } catch { return null; }
+  });
   ipcMain.handle('dialog:media', async () => {
     if (process.env.KADRO_TEST_PICK) return process.env.KADRO_TEST_PICK.split('|'); // автотесты: без системного окна
     const r = await dialog.showOpenDialog(win!, {
@@ -1386,7 +1396,7 @@ function registerIpc(): void {
     aiAborts.get(jobId)?.abort();
     for (const w of workers.values()) w.postMessage({ cancel: jobId });
   });
-  ipcMain.on('shell:show', (_e, p: string) => shell.showItemInFolder(p));
+  ipcMain.on('shell:show', (_e, p: string) => { if (process.env.KADRO_NO_OPEN) log('show in folder', p); else shell.showItemInFolder(p); });
   ipcMain.on('win:title', (_e, t: string) => win?.setTitle(t));
   // язык интерфейса: окно спрашивает его до загрузки; смена — перезапуск всей программы
   ipcMain.on('lang:get', (e) => { e.returnValue = uiLang(); });
