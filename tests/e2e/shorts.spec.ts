@@ -28,6 +28,7 @@ test('длинное видео → моменты → проекты шортс
   await win.getByTestId('shorts-pick').click();
   await expect(win.getByTestId('shorts-src')).toContainText('talk-long.mp4');
   await win.getByTestId('shorts-len-short').click();
+  await expect(win.getByTestId('shorts-count-all')).toHaveText('Все хорошие');
   await win.getByTestId('shorts-count-3').click();
   await win.getByTestId('shorts-lang-ru').click();
   await win.getByTestId('shorts-style-beast').click();
@@ -38,6 +39,7 @@ test('длинное видео → моменты → проекты шортс
   expect(n).toBeGreaterThanOrEqual(1);
   expect(n).toBeLessThanOrEqual(3);
   await expect(win.getByTestId('shorts-item').first()).toContainText('«');
+  await expect(win.getByTestId('shorts-why').first()).toContainText('Почему:');
   await win.getByTestId('shorts-make').click();
   await expect(win.getByTestId('shorts-done')).toBeVisible({ timeout: 120_000 });
   const files = fs.readdirSync(path.join(dir, 'talk-long')).filter((f) => f.endsWith('.kadro')).sort();

@@ -5,7 +5,7 @@ import { txj } from '../txj';
 import { Check, Film, FolderOpen, Gamepad2, MessageSquareText, Scissors, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BLOG_STYLES } from '../../shared/blogCaptions';
-import { REASON_LABEL, SHORT_LENS, type ShortLen, type ShortMoment } from '../../shared/shorts';
+import { ALL_SHORTS, SHORT_LENS, whyOf, type ShortLen, type ShortMoment } from '../../shared/shorts';
 import type { MediaAsset } from '../../shared/types';
 import { cancelJob, createGameShorts, createShorts, findGameShortMoments, findShortMoments, openRecent, shortsAsset, type ShortsStage } from '../actions';
 import type { GameLayout } from '../../shared/gameClips';
@@ -14,7 +14,7 @@ import { fmtDur, fmtTime, plural } from '../util';
 import { Progress, Toggle } from './controls';
 
 type Phase = 'setup' | 'pick' | 'done';
-const COUNTS = [3, 5, 8];
+const COUNTS = [3, 5, 10, 20, ALL_SHORTS];
 const base = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const nShorts = (n: number) => `${n} ${plural(n, tx('шортс'), tx('шортса'), tx('шортсов'))}`;
 const nMoments = (n: number) => `${n} ${plural(n, tx('момент'), tx('момента'), tx('моментов'))}`;
@@ -118,7 +118,8 @@ export function ShortsDialog() {
                 <div className="section-title">{tx('Длина шортса')}</div>
                 <div className="chips">{(Object.keys(SHORT_LENS) as ShortLen[]).map((k) => <button key={k} className={len === k ? 'active' : ''} disabled={busy} onClick={() => setLen(k)} data-testid={`shorts-len-${k}`}>{SHORT_LENS[k].label}</button>)}</div>
                 <div className="section-title">{tx('Сколько найти')}</div>
-                <div className="chips">{COUNTS.map((n) => <button key={n} className={count === n ? 'active' : ''} disabled={busy} onClick={() => setCount(n)} data-testid={`shorts-count-${n}`}>{n}</button>)}</div>
+                <div className="chips">{COUNTS.map((n) => <button key={n} className={count === n ? 'active' : ''} disabled={busy} onClick={() => setCount(n)} data-testid={`shorts-count-${n === ALL_SHORTS ? 'all' : n}`}>{n === ALL_SHORTS ? tx('Все хорошие') : n}</button>)}</div>
+                <p className="hint small">{tx('Без минут и кредитов: Kadro считает всё на твоём компьютере — нарезай сколько угодно видео любой длины.')}</p>
                 {!game && <>
                 <div className="section-title">{tx('Язык речи')}</div>
                 <div className="chips">
@@ -147,7 +148,15 @@ export function ShortsDialog() {
 
         {phase === 'pick' && (
           <>
-            <p className="hint auto-lead">{txj('Нашёл {0}. Отметь, какие собрать, — каждый станет отдельным проектом в «Моих проектах».', nMoments(moments.length))}</p>
+            <div className="shorts-pick-head">
+              <p className="hint auto-lead">{txj('Нашёл {0}. Отметь, какие собрать, — каждый станет отдельным проектом в «Моих проектах».', nMoments(moments.length))}</p>
+              {moments.length > 3 && (
+                <button className="btn small ghost" disabled={busy} data-testid="shorts-all"
+                  onClick={() => setChosen(chosen.size === moments.length ? new Set() : new Set(moments.map((_, i) => i)))}>
+                  {chosen.size === moments.length ? tx('Снять все') : tx('Отметить все')}
+                </button>
+              )}
+            </div>
             <div className="shorts-list" data-testid="shorts-list">
               {moments.map((m, i) => (
                 <label key={i} className={`shorts-item ${chosen.has(i) ? 'on' : ''}`} data-testid="shorts-item">
@@ -155,7 +164,8 @@ export function ShortsDialog() {
                   <span className="shorts-rank">{i + 1}</span>
                   <span className="shorts-body">
                     <b>{game ? m.title : `«${m.hook}»`}</b>
-                    <span className="hint small">{fmtTime(m.start, 30)} – {fmtTime(m.end, 30)} · {fmtDur(m.end - m.start)}{m.reasons.length ? ` · ${m.reasons.map((r) => REASON_LABEL[r]).join(', ')}` : ''}</span>
+                    <span className="hint small">{fmtTime(m.start, 30)} – {fmtTime(m.end, 30)} · {fmtDur(m.end - m.start)}</span>
+                    <span className="hint small shorts-why" data-testid="shorts-why">{tx('Почему: {0}', whyOf(m))}</span>
                   </span>
                 </label>
               ))}

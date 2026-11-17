@@ -107,3 +107,33 @@ describe('проект шортса', () => {
     expect(title.start).toBe(0);
   });
 });
+
+describe('без лимитов и с объяснением', () => {
+  it('«все хорошие»: больше 8, но скучные куски не попадают; у каждого — «почему» словами', async () => {
+    const { ALL_SHORTS, whyOf } = await import('../../src/shared/shorts');
+    // 12 сильных кусков по 40 с через скучные вставки
+    const parts: { at: number; text: string; wps?: number }[] = [];
+    for (let k = 0; k < 12; k++) {
+      const at = k * 80;
+      parts.push(
+        { at, text: `Почему ${k + 2} минуты монтажа экономят 100 часов?` },
+        { at: at + 4, text: 'Я покажу секрет который реально работает!' },
+        { at: at + 8, text: 'Это просто огонь и это очень быстро!' },
+        { at: at + 12, text: 'Смотри как это делается за три шага.' },
+        { at: at + 16, text: 'Кидаешь клипы выбираешь стиль и жмёшь собрать!' },
+        ...boring(at + 22, 9),
+      );
+    }
+    const words = speech(parts);
+    const all = findMoments(words, { min: 15, max: 35, count: ALL_SHORTS });
+    expect(all.length).toBeGreaterThan(8);
+    expect(all.length).toBeLessThanOrEqual(14);
+    // скучные куски не попали
+    expect(all.every((m) => m.reasons.length > 0)).toBe(true);
+    const why = whyOf(all[0]);
+    expect(why).toContain('начинается с вопроса');
+    expect(all.every((m) => whyOf(m).length > 5)).toBe(true);
+    const fake = { start: 0, end: 20, score: 1, hook: '', title: '', words: [], reasons: ['dense', 'loud'] as ('dense' | 'loud')[], wps: 2.64, loud: 1.32 };
+    expect(whyOf(fake)).toBe('плотная речь — 2,6 слова в секунду, громче обычного на 32%');
+  });
+});

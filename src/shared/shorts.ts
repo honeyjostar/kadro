@@ -1,7 +1,7 @@
 // Нарезка длинного видео (стрим, подкаст, влог) в шортсы: по распознанной речи ищем лучшие моменты —
 // крючок в начале, цельные фразы, плотная речь, эмоции, громкость — и собираем из каждого вертикальный проект
 // с субтитрами «как у блогеров» и заголовком-крючком. Чистые функции — тестируются без программы.
-import { tx } from './i18n';
+import { tx, uiLocale } from './i18n';
 import { CAPTION_STYLE, newProject } from './defaults';
 import { wordsToCues } from './captions';
 import { BLOG_STYLES, applyBlogStyle, keywordScore, type BlogStyle } from './blogCaptions';
@@ -11,7 +11,7 @@ import type { MediaAsset, Project, Word } from './types';
 export interface Phrase { start: number; end: number; words: Word[]; text: string; /** конец предложения: знак или долгая пауза после */ ends: boolean }
 
 export type ShortReason = 'hook' | 'question' | 'dense' | 'emotion' | 'loud' | 'numbers' | 'action' | 'peak';
-export interface ShortMoment { start: number; end: number; score: number; hook: string; title: string; reasons: ShortReason[]; words: Word[] }
+export interface ShortMoment { start: number; end: number; score: number; hook: string; title: string; reasons: ShortReason[]; words: Word[]; /** слов в секунду и громкость к средней по видео — для «почему этот момент» */ wps?: number; loud?: number }
 
 export type ShortLen = 'short' | 'mid' | 'long';
 export const SHORT_LENS: Record<ShortLen, { min: number; max: number; label: string }> = {
@@ -19,6 +19,24 @@ export const SHORT_LENS: Record<ShortLen, { min: number; max: number; label: str
   mid: { min: 30, max: 60, label: tx('30–60 с') },
   long: { min: 45, max: 90, label: tx('45–90 с') },
 };
+
+/** «Все хорошие» — столько, сколько найдётся (до этого числа). Минут и кредитов нет: всё считает компьютер. */
+export const ALL_SHORTS = 40;
+
+/** Почему выбран момент — словами, с цифрами: начало, темп речи, громкость. */
+export function whyOf(m: ShortMoment): string {
+  const parts: string[] = [];
+  if (m.reasons.includes('question')) parts.push(tx('начинается с вопроса'));
+  else if (m.reasons.includes('hook')) parts.push(tx('цепляет с первых слов'));
+  if (m.reasons.includes('dense') && m.wps) parts.push(tx('плотная речь — {0} слова в секунду', m.wps.toLocaleString(uiLocale(), { maximumFractionDigits: 1 })));
+  if (m.reasons.includes('emotion')) parts.push(tx('эмоции и восклицания'));
+  if (m.reasons.includes('numbers')) parts.push(tx('есть цифры — их досматривают'));
+  if (m.reasons.includes('loud') && m.loud) parts.push(tx('громче обычного на {0}%', Math.round((m.loud - 1) * 100)));
+  if (m.reasons.includes('action')) parts.push(tx('много движения'));
+  if (m.reasons.includes('peak')) parts.push(tx('самый громкий миг'));
+  if (!parts.length) parts.push(tx('цельная мысль от начала до конца'));
+  return parts.join(', ');
+}
 
 export const REASON_LABEL: Record<ShortReason, string> = {
   hook: tx('цепляет с первых слов'), question: tx('вопрос в начале'), dense: tx('плотная речь'),
@@ -69,7 +87,7 @@ export function titleOf(hook: string): string {
 
 interface ScoreCtx { loud?: (t0: number, t1: number) => number; target: number }
 
-function scoreWindow(ph: Phrase[], c: ScoreCtx): { score: number; reasons: ShortReason[] } {
+function scoreWindow(ph: Phrase[], c: ScoreCtx): { score: number; reasons: ShortReason[]; wps: number; loudRatio?: number } {
   const start = ph[0].start;
   const end = ph[ph.length - 1].end;
   const dur = Math.max(0.1, end - start);
@@ -104,11 +122,12 @@ function scoreWindow(ph: Phrase[], c: ScoreCtx): { score: number; reasons: Short
   const complete = (ph[ph.length - 1].ends ? 0.5 : -0.3);
   // громкость относительно всего видео
   let loud = 0;
-  if (c.loud) { loud = Math.max(-0.4, Math.min(0.5, c.loud(start, end) - 1)); if (loud > 0.15) reasons.push('loud'); }
+  let loudRatio: number | undefined;
+  if (c.loud) { loudRatio = c.loud(start, end); loud = Math.max(-0.4, Math.min(0.5, loudRatio - 1)); if (loud > 0.15) reasons.push('loud'); }
   // длина — ближе к середине выбранного диапазона
   const lenFit = -Math.abs(dur - c.target) / c.target * 0.4;
   const score = 1.3 * density - 1.2 * silence + hook + 0.7 * emotion + 0.5 * keys + 0.25 * Math.min(nums, 3) / 3 + complete + loud + lenFit;
-  return { score, reasons };
+  return { score, reasons, wps, loudRatio };
 }
 
 /**
@@ -127,15 +146,18 @@ export function findMoments(words: Word[], o: { min: number; max: number; count:
       if (dur > o.max) break;
       if (dur < o.min) continue;
       const win = ph.slice(i, j + 1);
-      const { score, reasons } = scoreWindow(win, { loud: o.loud, target });
+      const { score, reasons, wps, loudRatio } = scoreWindow(win, { loud: o.loud, target });
       const hook = hookOf(win);
-      cands.push({ start: win[0].start, end: win[win.length - 1].end, score, reasons, hook, title: titleOf(hook), words: win.flatMap((p) => p.words) });
+      cands.push({ start: win[0].start, end: win[win.length - 1].end, score, reasons, hook, title: titleOf(hook), words: win.flatMap((p) => p.words), wps: Math.round(wps * 10) / 10, ...(loudRatio !== undefined ? { loud: Math.round(loudRatio * 100) / 100 } : {}) });
     }
   }
   cands.sort((a, b) => b.score - a.score);
   const picked: ShortMoment[] = [];
+  // «все хорошие»: без лимита по числу, но не хуже половины лучшего (и не скучные — с положительной оценкой)
+  const floor = o.count >= ALL_SHORTS && cands.length ? Math.max(0.2, cands[0].score * 0.5) : -Infinity;
   for (const m of cands) {
     if (picked.length >= o.count) break;
+    if (m.score < floor) break;
     if (picked.some((p) => m.start < p.end + 1 && p.start < m.end + 1)) continue;
     picked.push(m);
   }

@@ -77,9 +77,11 @@ export function findGameMoments(g: GameSeries, duration: number, o: { min: numbe
   const used: [number, number][] = [];
   const order = g.score.map((v, i) => [v, i] as const).sort((a, b) => b[0] - a[0]);
   const out: ShortMoment[] = [];
+  // «все хорошие» — до ALL_SHORTS, но не слабее трети самого яркого момента
+  const floor = o.count >= 40 && order.length ? Math.max(0.05, order[0][0] / 3) : 0.05;
   for (const [v, i] of order) {
     if (out.length >= o.count) break;
-    if (v <= 0.05) break;
+    if (v <= floor) break;
     const peak = (i + 0.5) * g.step;
     let start = clamp(peak - len * 0.65, 0, Math.max(0, duration - len));
     const end = Math.min(duration, start + len);
