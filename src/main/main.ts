@@ -824,6 +824,27 @@ function registerIpc(): void {
     if (!process.env.KADRO_NO_OPEN) await shell.openExternal(url);
     return true;
   });
+  // переезд из CapCut: выбрать папку проекта CapCut (или draft_content.json) и прочитать его
+  ipcMain.handle('capcut:pick', async () => {
+    let target = process.env.KADRO_TEST_CAPCUT ?? null; // автотесты: без системного окна
+    if (!target) {
+      const base = process.platform === 'win32'
+        ? path.join(process.env.LOCALAPPDATA ?? app.getPath('appData'), 'CapCut', 'User Data', 'Projects', 'com.lveditor.draft')
+        : path.join(app.getPath('home'), 'Movies', 'CapCut', 'User Data', 'Projects', 'com.lveditor.draft');
+      const r = await dialog.showOpenDialog(win!, {
+        title: tx('Папка проекта CapCut'), defaultPath: fs.existsSync(base) ? base : app.getPath('home'),
+        properties: ['openDirectory'],
+      });
+      if (r.canceled || !r.filePaths[0]) return null;
+      target = r.filePaths[0];
+    }
+    const file = /draft_content\.json$/i.test(target) ? target : path.join(target, 'draft_content.json');
+    const dir = path.dirname(file);
+    if (!fs.existsSync(file)) return { error: tx('В этой папке нет проекта CapCut (draft_content.json). Выбери папку проекта внутри «com.lveditor.draft».') };
+    let name = path.basename(dir);
+    try { const meta = JSON.parse(fs.readFileSync(path.join(dir, 'draft_meta_info.json'), 'utf8')) as { draft_name?: string }; if (meta.draft_name) name = meta.draft_name; } catch { /* без названия */ }
+    try { return { text: fs.readFileSync(file, 'utf8'), dir, name }; } catch (e) { return { error: String((e as Error).message || e) }; }
+  });
   ipcMain.handle('media:probeVideo', async (_e, file: string) => {
     if (typeof file !== 'string') return null;
     try {

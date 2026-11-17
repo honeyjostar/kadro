@@ -142,6 +142,9 @@ interface State {
   previewQuality: PreviewQuality;
   /** «Режим для слабого ПК»: авто (по железу), вкл, выкл; lowEnd — включён ли сейчас. */
   perfMode: 'auto' | 'on' | 'off';
+  /** клавиши: как в Kadro и CapCut или как в Premiere Pro (Ctrl+K — разрезать, Ctrl+F — поиск) */
+  keymap: 'kadro' | 'premiere';
+  setKeymap: (k: 'kadro' | 'premiere') => void;
   weakHw: boolean;
   lowEnd: boolean;
   setPerfMode: (m: 'auto' | 'on' | 'off') => void;
@@ -304,6 +307,8 @@ export const useStore = create<State>((set, get) => ({
   reveal: null,
   previewQuality: readPref<PreviewQuality>('kadro.previewQuality', 'auto'),
   perfMode: readPref<'auto' | 'on' | 'off'>('kadro.perfMode', 'auto'),
+  keymap: readPref<'kadro' | 'premiere'>('kadro.keymap', 'kadro'),
+  setKeymap: (keymap) => { writePref('kadro.keymap', keymap); set({ keymap }); },
   weakHw: false,
   lowEnd: readPref<'auto' | 'on' | 'off'>('kadro.perfMode', 'auto') === 'on',
   sourceView: null,

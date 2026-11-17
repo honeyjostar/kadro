@@ -19,6 +19,7 @@ const api: KadroApi = {
   openDriverPage: (vendor) => ipcRenderer.invoke('hw:driverPage', vendor),
   pickMedia: () => ipcRenderer.invoke('dialog:media'),
   probeVideo: (file) => ipcRenderer.invoke('media:probeVideo', file),
+  pickCapcut: () => ipcRenderer.invoke('capcut:pick'),
   tgGet: () => ipcRenderer.invoke('tg:get'),
   tgSet: (patch) => ipcRenderer.invoke('tg:set', patch),
   tgUnpair: () => ipcRenderer.invoke('tg:unpair'),

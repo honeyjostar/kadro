@@ -3,25 +3,30 @@
 import { Keyboard, Search, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { tx } from '../../shared/i18n';
-import { getState } from '../store';
+import { getState, useStore } from '../store';
+import { Seg } from './controls';
 
 interface Key { keys: string[]; what: string }
 interface Section { title: string; items: Key[] }
 
 export function shortcutSections(): Section[] {
+  const prem = getState().keymap === 'premiere';
   return [
     { title: tx('Воспроизведение'), items: [
       { keys: [tx('Пробел')], what: tx('пуск и пауза') },
       { keys: ['←', '→'], what: tx('на кадр назад / вперёд') },
       { keys: ['Shift+←', 'Shift+→'], what: tx('на секунду назад / вперёд') },
       { keys: ['Home', 'End'], what: tx('в начало / в конец ролика') },
+      { keys: ['↑', '↓'], what: tx('к предыдущей / следующей склейке') },
       { keys: ['L'], what: tx('вперёд; ещё раз — быстрее (2×, 4×, 8×)') },
       { keys: ['J'], what: tx('назад; ещё раз — быстрее') },
       { keys: ['K'], what: tx('пауза') },
       { keys: ['Shift+E'], what: tx('сохранить кадр картинкой (PNG)') },
     ] },
     { title: tx('Правка'), items: [
-      { keys: ['S', 'Ctrl+B'], what: tx('разрезать у курсора') },
+      { keys: prem ? ['S', 'Ctrl+B', 'Ctrl+K'] : ['S', 'Ctrl+B'], what: tx('разрезать у курсора') },
+      { keys: ['Q'], what: tx('убрать кусок клипа до курсора (как в CapCut и Premiere)') },
+      { keys: ['W'], what: tx('убрать кусок клипа после курсора') },
       { keys: ['Delete', 'Backspace'], what: tx('удалить выделенное') },
       { keys: ['Ctrl+D'], what: tx('копия выделенного клипа') },
       { keys: ['Ctrl+Z'], what: tx('отменить') },
@@ -49,7 +54,8 @@ export function shortcutSections(): Section[] {
       { keys: ['Ctrl+S'], what: tx('сохранить проект') },
       { keys: ['Ctrl+Shift+S'], what: tx('сохранить как…') },
       { keys: ['Ctrl+E'], what: tx('экспорт') },
-      { keys: ['Ctrl+K'], what: tx('поиск по всему: эффекты, переходы, фильтры, команды') },
+      { keys: ['Ctrl+I'], what: tx('добавить файлы') },
+      { keys: [prem ? 'Ctrl+F' : 'Ctrl+K'], what: tx('поиск по всему: эффекты, переходы, фильтры, команды') },
       { keys: ['F'], what: tx('плеер на весь экран') },
       { keys: ['Ctrl+\\'], what: tx('спрятать или показать боковые панели') },
       { keys: ['F1', 'Ctrl+/'], what: tx('это окно') },
@@ -74,6 +80,7 @@ export function shortcutSections(): Section[] {
 
 export function ShortcutsDialog() {
   const [q, setQ] = useState('');
+  const keymap = useStore((st) => st.keymap);
   const close = () => getState().setKeysOpen(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
@@ -85,7 +92,7 @@ export function ShortcutsDialog() {
     return shortcutSections()
       .map((sec) => ({ ...sec, items: sec.items.filter((it) => !s || it.what.toLowerCase().includes(s) || it.keys.some((k) => k.toLowerCase().includes(s)) || sec.title.toLowerCase().includes(s)) }))
       .filter((sec) => sec.items.length);
-  }, [q]);
+  }, [q, keymap]);
   return (
     <div className="modal-back" onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div className="modal keys-modal" role="dialog" aria-label={tx('Горячие клавиши')} data-testid="keys-dialog">
@@ -96,7 +103,12 @@ export function ShortcutsDialog() {
         <label className="keys-search"><Search size={14} />
           <input className="input" autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx('Найти: разрезать, маркер, Ctrl+…')} data-testid="keys-search" />
         </label>
-        <p className="hint small">{tx('Клавиши работают и в русской раскладке.')}</p>
+        <div className="keys-map">
+          <span className="hint small">{tx('Клавиши как в:')}</span>
+          <Seg value={keymap} onChange={(v) => getState().setKeymap(v)} testId="keymap"
+            options={[{ value: 'kadro', label: tx('Kadro и CapCut') }, { value: 'premiere', label: 'Premiere Pro' }]} />
+          <span className="hint small">{tx('Клавиши работают и в русской раскладке.')}</span>
+        </div>
         <div className="keys-grid">
           {sections.map((sec) => (
             <section key={sec.title} className="keys-sec">

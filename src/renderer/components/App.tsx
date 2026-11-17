@@ -2,7 +2,7 @@ import { tx } from '../../shared/i18n';
 import { weakPc } from '../../shared/lightCopy';
 import { SysMon } from './SysMon';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection, saveFrame, shuttle, snapshotNow } from '../actions';
+import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, trimAtPlayhead, jumpEdit, pickAndImport, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection, saveFrame, shuttle, snapshotNow } from '../actions';
 import { SNAPSHOT_EVERY_MS } from '../../shared/versions';
 import { VersionsDialog } from './History';
 import { applyInstallerAbout } from '../about';
@@ -184,7 +184,9 @@ export function App() {
       if (e.key === 'F1' || ((e.ctrlKey || e.metaKey) && e.code === 'Slash')) { e.preventDefault(); s.setKeysOpen(!s.keysOpen); return; }
       const ctrl = e.ctrlKey || e.metaKey;
       // поиск по всему — Ctrl+K в любой раскладке, и из поля ввода тоже
-      if (ctrl && !e.shiftKey && !e.altKey && e.code === 'KeyK' && !s.home) { e.preventDefault(); s.setSearchOpen(!s.searchOpen); return; }
+      // клавиши Premiere Pro: Ctrl+K — разрезать (Add Edit), поиск — Ctrl+F
+      const prem = s.keymap === 'premiere';
+      if (ctrl && !e.shiftKey && !e.altKey && e.code === (prem ? 'KeyF' : 'KeyK') && !s.home) { e.preventDefault(); s.setSearchOpen(!s.searchOpen); return; }
       if (isTyping(e)) return;
       if (s.home || s.searchOpen) return;
       const fps = s.project.settings.fps;
@@ -209,6 +211,11 @@ export function App() {
       if (ctrl && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); openPasteAttrs(); return; }
       if (ctrl && (k === 'd' || k === 'в')) { e.preventDefault(); duplicateSelection(); return; }
       if (ctrl && (k === 'b' || k === 'и')) { e.preventDefault(); splitAtPlayhead(); return; }
+      if (prem && ctrl && !e.shiftKey && e.code === 'KeyK') { e.preventDefault(); splitAtPlayhead(); return; }
+      // как в CapCut и Premiere: Q / W — убрать кусок до / после курсора, ↑ / ↓ — к склейкам, Ctrl+I — добавить файлы
+      if (!ctrl && !e.altKey && !e.shiftKey && (e.code === 'KeyQ' || e.code === 'KeyW')) { e.preventDefault(); trimAtPlayhead(e.code === 'KeyQ' ? 'left' : 'right'); return; }
+      if (!ctrl && !e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) { e.preventDefault(); jumpEdit(e.key === 'ArrowUp' ? -1 : 1); return; }
+      if (ctrl && !e.shiftKey && e.code === 'KeyI') { e.preventDefault(); void pickAndImport(); return; }
       if (ctrl && (k === 'a' || k === 'ф')) { e.preventDefault(); s.select(s.project.tracks.flatMap((t) => t.clips.map((c) => c.id))); return; }
       if (ctrl && (k === 'g' || k === 'п')) { e.preventDefault(); if (e.shiftKey) ungroupSelection(); else void groupSelection(); return; }
       if (!ctrl && (k === 's' || k === 'ы')) { e.preventDefault(); splitAtPlayhead(); return; }
@@ -224,8 +231,8 @@ export function App() {
       if (e.key === 'Home') { s.setPlayhead(0); return; }
       if (e.key === 'End') { s.setPlayhead(projectDuration(s.project)); return; }
       if (e.key === 'Escape') { s.select([]); return; }
-      if (e.key === '+' || e.key === '=') { s.setZoom(s.pxPerSec * 1.25); return; }
-      if (e.key === '-') { s.setZoom(s.pxPerSec / 1.25); }
+      if (e.key === '+' || e.key === '=') { e.preventDefault(); s.setZoom(s.pxPerSec * 1.25); return; }
+      if (e.key === '-') { e.preventDefault(); s.setZoom(s.pxPerSec / 1.25); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

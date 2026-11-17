@@ -9,7 +9,7 @@ import { TRANSITIONS } from '../../shared/defaults';
 import { searchItems, type SearchItem } from '../../shared/search';
 import type { EffectType, TransitionType } from '../../shared/types';
 import {
-  autoZoomWords, autoSwitchCameras, syncByAudio, addAdjustmentLayer, addEffectTo, addMarkerAtPlayhead, applyTransition, deleteSelection, duplicateSelection, saveFrame, saveProject, selectedVisualClips, setFilterOn, splitAtPlayhead, beatPunch } from '../actions';
+  autoZoomWords, autoSwitchCameras, importCapcut, syncByAudio, addAdjustmentLayer, addEffectTo, addMarkerAtPlayhead, applyTransition, deleteSelection, duplicateSelection, saveFrame, saveProject, selectedVisualClips, setFilterOn, splitAtPlayhead, beatPunch } from '../actions';
 import { useFavs } from '../favs';
 import { glEffects, glTransitions, useGlCatalog } from '../glRegistry';
 import { getState, type LeftTab } from '../store';
@@ -54,6 +54,7 @@ function buildItems(fav: ReturnType<typeof useFavs.getState>['s']): Item[] {
     { id: 'cmd-publish', group: cmd, label: tx('Опубликовать: TikTok, Reels, Shorts, ВК, RUTUBE, Дзен'), keywords: [tx('выложить'), tx('хэштеги'), tx('подпись'), 'vk'], run: () => s.setPublishOpen({ file: null }) },
     { id: 'cmd-reach', group: cmd, label: tx('Проверка охватов'), keywords: [tx('охваты'), tx('теневой бан'), tx('водяной знак'), tx('перед публикацией'), tx('просмотры')], run: () => s.setReachOpen({ file: null, project: false }) },
     { id: 'cmd-cover', group: cmd, label: tx('Обложка для YouTube и TikTok'), keywords: [tx('превью'), 'thumbnail'], run: () => s.setCoverOpen(true) },
+    { id: 'cmd-capcut', group: cmd, label: tx('Открыть проект CapCut'), keywords: ['capcut', tx('капкат'), tx('переезд'), tx('импорт проекта')], run: () => void importCapcut() },
     { id: 'cmd-multicam', group: cmd, label: tx('Переключать камеры по голосу'), keywords: [tx('подкаст'), tx('интервью'), tx('мультикамера'), tx('говорящий')], run: () => void autoSwitchCameras() },
     { id: 'cmd-sync', group: cmd, label: tx('Синхронизировать по звуку'), keywords: [tx('мультикамера'), tx('ракурсы'), tx('хлопок')], run: () => void syncByAudio() },
     { id: 'cmd-script', group: cmd, label: tx('Ролик по сценарию'), run: () => s.setScriptOpen(true) },

@@ -11,7 +11,7 @@ import type { HomeInfo } from '../../shared/ipc';
 import { nextText, type NextInfo } from '../../shared/next';
 import { BUILTIN_TEMPLATES, templateDuration, type Template } from '../../shared/templates';
 import type { AspectKey } from '../../shared/types';
-import { newProjectAction, openDemo, openProject, templateFromFiles, tryTemplate } from '../actions';
+import { importCapcut, newProjectAction, openDemo, openProject, templateFromFiles, tryTemplate } from '../actions';
 import { startTour } from './Tour';
 import { api, getState, useStore } from '../store';
 import { fmtDur } from '../util';
@@ -192,6 +192,7 @@ export function Home() {
             </div>
             <div className="home-more">
               <button className="btn" disabled={busy} onClick={() => void run(openProject)} data-testid="home-open"><FolderOpen size={15} />{tx('Открыть проект или видео…')}</button>
+              <button className="btn" disabled={busy} onClick={() => void run(importCapcut)} data-testid="home-capcut" title={tx('Склейки, обрезка, скорость, громкость, видео поверх, музыка и надписи')}><FolderOpen size={15} />{tx('Открыть проект CapCut…')}</button>
             </div>
           </div>
 

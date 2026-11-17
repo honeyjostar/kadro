@@ -1647,3 +1647,5 @@ button.link:hover { color: var(--strong); }
 .shorts-why { color: var(--text); opacity: 0.8; }
 .shorts-pick-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .shorts-pick-head .btn { flex: none; }
+.keys-map { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 8px 0 4px; }
+.keys-map .seg { flex: none; }

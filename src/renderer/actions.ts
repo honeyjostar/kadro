@@ -243,6 +243,43 @@ export function splitAtPlayhead(): void {
   if (last) s.select([last]);
 }
 
+/**
+ * Q / W — как в CapCut и Premiere (ripple trim): убрать у клипа под курсором кусок до курсора (Q) или после (W).
+ * Клип — выделенный под курсором, иначе — основной дорожки, иначе — любой под курсором.
+ */
+export function trimAtPlayhead(side: 'left' | 'right'): void {
+  const s = getState();
+  const t = s.playhead;
+  const under = (c: Clip) => t > c.start + 1e-3 && t < clipEnd(c) - 1e-3;
+  const sel = s.selection.map((id) => findClip(s.project, id)?.clip).find((c): c is Clip => !!c && under(c));
+  const target = sel ?? mainTrack(s.project).clips.find(under) ?? s.project.tracks.flatMap((tr) => tr.clips).find(under);
+  if (!target) { s.toast(tx('Поставь курсор на клип: Q убирает кусок до курсора, W — после')); return; }
+  if (clipLocked(s.project, target.id)) { s.toast(tx('Дорожка с замком: её клипы не режутся. Сними замок слева от дорожки')); return; }
+  const onMain = findClip(s.project, target.id)?.track.kind === 'main';
+  let keep: string | null = null;
+  s.commit((p) => {
+    const r = splitClip(p, target.id, t);
+    if (!r.clipId) return p;
+    keep = side === 'left' ? r.clipId : target.id;
+    return deleteClips(r.project, [side === 'left' ? target.id : r.clipId]);
+  });
+  if (!keep) return;
+  // на основной дорожке всё после сдвинулось влево — курсор на место склейки
+  if (side === 'left' && onMain) s.setPlayhead(target.start);
+  s.select([keep]);
+}
+
+/** ↑ / ↓ — к предыдущей / следующей склейке (начало или конец любого клипа). */
+export function jumpEdit(dir: -1 | 1): void {
+  const s = getState();
+  const t = s.playhead;
+  const pts = [...new Set(s.project.tracks.filter((tr) => !tr.hidden).flatMap((tr) => tr.clips.flatMap((c) => [c.start, clipEnd(c)])))].sort((a, b) => a - b);
+  const to = dir > 0 ? pts.find((x) => x > t + 1e-3) : [...pts].reverse().find((x) => x < t - 1e-3);
+  if (to === undefined) return;
+  s.setPlaying(false);
+  s.setPlayhead(to);
+}
+
 export function deleteSelection(): void {
   const s = getState();
   if (!s.selection.length) return;
@@ -2257,6 +2294,35 @@ export async function syncByAudio(): Promise<number> {
   if (failed.length) s.toast(tx('Не нашёл общего звука: {0}. Проверь, что это запись той же сцены', failed.join(', ')), moves.length ? 'info' : 'err');
   if (moves.length) s.toast(tx('Синхронизировано по звуку: {0}', moves.length), 'ok');
   return moves.length;
+}
+
+// ---------- переезд из CapCut ----------
+/** Открыть свой проект CapCut в Kadro: склейки, обрезка, скорость, громкость, видео поверх, музыка, надписи. */
+export async function importCapcut(): Promise<boolean> {
+  const s = getState();
+  const r = await api.pickCapcut();
+  if (!r) return false;
+  if ('error' in r) { s.toast(r.error, 'err'); return false; }
+  const { capcutToProject, draftFiles, parseDraft } = await import('../shared/capcut');
+  const parsed = parseDraft(r.text);
+  if ('error' in parsed) { s.toast(parsed.error, 'err'); return false; }
+  const files = draftFiles(parsed.draft, r.dir);
+  const jobId = `cc_${uidShort()}`;
+  s.setJob({ id: jobId, label: tx('Открываю проект CapCut'), progress: 0.3, cancellable: false });
+  let assets: MediaAsset[] = [];
+  try { assets = files.length ? (await api.importMedia(files)).assets : []; } finally { getState().setJob(null, jobId); }
+  const byPath = new Map(assets.map((a) => [a.path, a]));
+  const conv = capcutToProject(parsed.draft, r.dir, r.name, (p) => byPath.get(p));
+  const clips = conv.project.tracks.reduce((n, t) => n + t.clips.length, 0);
+  if (!clips) { s.toast(tx('В проекте CapCut не нашлось клипов, которые можно открыть: {0}', conv.missing.length ? tx('файлы не найдены на диске') : tx('пустой проект')), 'err'); return false; }
+  await replaceProject(conv.project);
+  takeEarlyPatches(assets.map((a) => a.id));
+  const notes = [tx('Проект CapCut открыт: клипов — {0}', clips)];
+  if (conv.missing.length) notes.push(tx('не найдено файлов: {0}', conv.missing.length));
+  if (conv.skipped) notes.push(tx('эффекты, фильтры и переходы CapCut ({0}) не переносятся — у Kadro свои', conv.skipped));
+  getState().toast(notes.join('. '), conv.missing.length ? 'info' : 'ok');
+  api.track('capcut/import');
+  return true;
 }
 
 // ---------- подкаст: камера на говорящего ----------

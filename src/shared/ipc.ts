@@ -122,6 +122,8 @@ export interface KadroApi {
   pickMedia(): Promise<string[]>;
   /** длительность и размер кадра видеофайла (с учётом поворота) */
   probeVideo(file: string): Promise<{ duration: number; width: number; height: number } | null>;
+  /** переезд из CapCut: прочитать проект CapCut (папку или draft_content.json) */
+  pickCapcut(): Promise<{ text: string; dir: string; name: string } | { error: string } | null>;
   /** монтаж с телефона: свой Telegram-бот */
   tgGet(): Promise<import('./tgbot').TgState>;
   tgSet(patch: { token?: string | null; on?: boolean }): Promise<import('./tgbot').TgState>;
