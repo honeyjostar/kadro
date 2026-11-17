@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { newProject } from '../../src/shared/defaults';
-import { autoEdit, fullBudgets, loopedBeats, shootingOrder, type AutoInput, type Highlights } from '../../src/shared/autoEdit';
+import { autoEdit, evenLight, fullBudgets, loopedBeats, shootingOrder, type AutoInput, type Highlights } from '../../src/shared/autoEdit';
 import { mainTrack } from '../../src/shared/timeline';
 import type { MediaAsset, MediaClip } from '../../src/shared/types';
 
@@ -41,12 +41,15 @@ describe('фильм из всего материала', () => {
     expect(summary.used).toBe(60);
     expect(summary.dropped).toBe(0);
     // порядок съёмки: номера файлов не убывают
-    const names = cl.map((c) => project.assets.find((a) => a.id === c.assetId)!.name);
+    // первый кадр — «тизер» (лучший момент), дальше — по порядку съёмки
+    expect(summary.hook).toBe(true);
+    expect(cl[0].effects?.some((e) => e.type === 'flash')).toBe(true);
+    const names = cl.slice(1).map((c) => project.assets.find((a) => a.id === c.assetId)!.name);
     const nums = names.map((n) => Number(n.slice(4)));
     for (let i = 1; i < nums.length; i++) expect(nums[i]).toBeGreaterThanOrEqual(nums[i - 1]);
     // куски одного файла — по времени, не пересекаются, внутри файла
     const by = new Map<string, MediaClip[]>();
-    for (const c of cl) by.set(c.assetId, [...(by.get(c.assetId) ?? []), c]);
+    for (const c of cl.slice(1)) by.set(c.assetId, [...(by.get(c.assetId) ?? []), c]);
     for (const [id, cs] of by) {
       const a = project.assets.find((x) => x.id === id)!;
       cs.forEach((c, i) => {
@@ -140,5 +143,61 @@ describe('тематический текст', () => {
     const { TEXT_THEMES } = await import('../../src/shared/textThemes');
     const { FONTS } = await import('../../src/shared/defaults');
     for (const t of TEXT_THEMES) expect(FONTS.some((f) => f.family === t.style.font), t.id).toBe(true);
+  });
+});
+
+describe('фильм: тизер и дубли', () => {
+  it('без «тизера» — всё строго по порядку; дубль (одна и та же сцена в двух файлах подряд) выбрасывается', async () => {
+    const { project, summary } = autoEdit(newProject('t', '16:9'), input({ hook: false }));
+    expect(summary.hook).toBe(false);
+    const cl = mainTrack(project).clips as MediaClip[];
+    expect(cl[0].effects?.some((e) => e.type === 'flash') ?? false).toBe(false);
+    // два файла с одинаковыми отпечатками кадров = два дубля
+    const { SIG_N } = await import('../../src/shared/autoEdit');
+    const same = (dur: number, k: number) => ({ ...hl(dur, k), sig: Array.from({ length: Math.ceil(dur / 0.5) * SIG_N }, (_, i) => (i % SIG_N) * 10) });
+    const media = [
+      { asset: asset('DJI_0001', 'video', 20), hl: same(20, 1) },
+      { asset: asset('DJI_0002', 'video', 20), hl: { ...same(20, 2), score: same(20, 2).score.map((v) => v * 0.6) } },
+    ];
+    const r = autoEdit(newProject('t', '16:9'), input({ media, music: null, videoSound: 'on', hook: false }));
+    expect(r.summary.dupes).toBeGreaterThan(0);
+    const used = new Set((mainTrack(r.project).clips as MediaClip[]).map((c) => r.project.assets.find((a) => a.id === c.assetId)!.name));
+    expect(used.has('DJI_0001')).toBe(true); // лучший дубль остался
+  });
+});
+
+describe('ровный свет', () => {
+  const hl = (lum: number) => ({ step: 0.5, score: new Array(40).fill(0.6), cuts: [], lum: new Array(40).fill(lum) });
+  const clip = (id: string) => ({ assetId: id, in: 2, out: 6, speed: 1, color: { brightness: 1 } } as unknown as MediaClip);
+  it('тёмный и пересвеченный куски подтягиваются к середине, обычные не трогаются', () => {
+    const media = [{ asset: asset('a', 'video', 20), hl: hl(120) }, { asset: asset('b', 'video', 20), hl: hl(125) }, { asset: asset('c', 'video', 20), hl: hl(60) }, { asset: asset('d', 'video', 20), hl: hl(200) }, { asset: asset('e', 'video', 20), hl: hl(118) }];
+    const clips = ['a', 'b', 'c', 'd', 'e'].map(clip);
+    expect(evenLight(clips, media)).toBe(2);
+    expect(clips[0].color.brightness).toBe(1);
+    expect(clips[2].color.brightness).toBeGreaterThan(1.1);
+    expect(clips[2].color.brightness).toBeLessThanOrEqual(1.2);
+    expect(clips[3].color.brightness).toBeLessThan(0.9);
+  });
+  it('ночная съёмка целиком остаётся ночной; без разбора — ничего', () => {
+    const media = ['a', 'b', 'c'].map((id) => ({ asset: asset(id, 'video', 20), hl: hl(40 + id.charCodeAt(0) % 3) }));
+    const clips = ['a', 'b', 'c'].map(clip);
+    expect(evenLight(clips, media)).toBe(0);
+    expect(evenLight(['a', 'b', 'c'].map(clip), ['a', 'b', 'c'].map((id) => ({ asset: asset(id, 'video', 20) })))).toBe(0);
+  });
+});
+
+describe('дубли — без ложных срабатываний', () => {
+  it('похоже в среднем, но по времени по-разному (пролёт дрона) — не дубль; у дублей — всё время одинаково', async () => {
+    const { SIG_N, sigSeq, seqSimilarity, windowSig, sigSimilarity } = await import('../../src/shared/autoEdit');
+    const frames = 40;
+    // A: светлое сверху → снизу; B: наоборот → снизу вверх. В среднем одинаковые, по времени — разные
+    const make = (flip: boolean) => ({ step: 0.5, score: new Array(frames).fill(0.6), cuts: [], sig: Array.from({ length: frames * SIG_N }, (_, i) => {
+      const f = Math.floor(i / SIG_N); const t = flip ? 1 - f / (frames - 1) : f / (frames - 1);
+      return Math.round(60 + 140 * t);
+    }) });
+    const a = make(false); const b = make(true);
+    expect(sigSimilarity(windowSig(a, 0, 20), windowSig(b, 0, 20))).toBeGreaterThan(0.92);
+    expect(seqSimilarity(sigSeq(a, 0, 20), sigSeq(b, 0, 20))).toBeLessThan(0.5);
+    expect(seqSimilarity(sigSeq(a, 0, 20), sigSeq(make(false), 0, 20))).toBe(1);
   });
 });

@@ -53,6 +53,7 @@ export function probeEncoder(id: HwEncoder): Promise<EncoderCheck> {
     try {
       const p = spawn(ffmpegPath(), ['-hide_banner', '-v', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=640x360:r=30:d=0.5', ...extra, '-c:v', enc, '-f', 'null', '-'],
         { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+      try { if (p.pid) os.setPriority(p.pid, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch { /* нет прав — не страшно */ }
       p.stderr?.on('data', (d) => { if (err.length < 8000) err += String(d); });
       const t = setTimeout(() => { p.kill(); resolve({ id, ok: false, code: 'other', detail: 'timeout' }); }, 20000);
       p.on('error', (e) => { clearTimeout(t); resolve({ id, ok: false, code: 'other', detail: e.message }); });
@@ -63,9 +64,31 @@ export function probeEncoder(id: HwEncoder): Promise<EncoderCheck> {
   });
 }
 
-async function collect(): Promise<HwInfo> {
-  const cpus = os.cpus();
-  const base = { cpu: (cpus[0]?.model ?? '').replace(/\s+/g, ' ').trim(), threads: cpus.length, ramGb: Math.round(os.totalmem() / 2 ** 30) };
+export type HwBasic = Pick<HwInfo, 'cpu' | 'threads' | 'ramGb' | 'gpus'>;
+let basicCache: Promise<HwBasic> | null = null;
+
+/** Процессор, память и видеокарты — без проверки кодировщиков (та запускает FFmpeg и на слабом ПК заметна). */
+export function hardwareBasic(force = false): Promise<HwBasic> {
+  if (force || !basicCache) {
+    basicCache = (async () => {
+      const cpus = os.cpus();
+      const base = { cpu: (cpus[0]?.model ?? '').replace(/\s+/g, ' ').trim(), threads: cpus.length, ramGb: Math.round(os.totalmem() / 2 ** 30) };
+      // автотесты: готовое «железо» вместо настоящего
+      const fake = process.env.KADRO_TEST_HW;
+      if (fake) {
+        const f = JSON.parse(fake.trim().startsWith('{') ? fake : fs.readFileSync(fake, 'utf8')) as Partial<HwInfo>;
+        return { ...base, ...(f.threads ? { threads: f.threads } : {}), ...(f.ramGb ? { ramGb: f.ramGb } : {}), ...(f.cpu ? { cpu: f.cpu } : {}), gpus: f.gpus ?? [] };
+      }
+      let gpus = process.platform === 'win32' ? await windowsGpus() : [];
+      if (!gpus.length) gpus = await chromiumGpus();
+      return { ...base, gpus };
+    })().catch(() => ({ cpu: os.cpus()[0]?.model ?? '', threads: os.cpus().length, ramGb: Math.round(os.totalmem() / 2 ** 30), gpus: [] }));
+  }
+  return basicCache;
+}
+
+async function collect(force: boolean): Promise<HwInfo> {
+  const base = await hardwareBasic(force);
   // автотесты: готовое «железо» вместо настоящего
   const fake = process.env.KADRO_TEST_HW;
   if (fake) {
@@ -73,15 +96,13 @@ async function collect(): Promise<HwInfo> {
     const encoders = f.encoders ?? [];
     return { ...base, ...f, gpus: f.gpus ?? [], encoders, best: pickBest(encoders) };
   }
-  let gpus = process.platform === 'win32' ? await windowsGpus() : [];
-  if (!gpus.length) gpus = await chromiumGpus();
-  const encoders = await Promise.all(encodersFor(gpus, process.platform).map(probeEncoder));
-  return { ...base, gpus, encoders, best: pickBest(encoders) };
+  const encoders = await Promise.all(encodersFor(base.gpus, process.platform).map(probeEncoder));
+  return { ...base, encoders, best: pickBest(encoders) };
 }
 
 /** Сведения о железе (проверка один раз за запуск; force — проверить заново, например после обновления драйвера). */
 export function hardwareInfo(force = false): Promise<HwInfo> {
-  if (force || !cache) cache = collect().catch((e) => ({ cpu: os.cpus()[0]?.model ?? '', threads: os.cpus().length, ramGb: Math.round(os.totalmem() / 2 ** 30), gpus: [], encoders: [{ id: 'nvenc' as const, ok: false, code: 'other' as const, detail: String(e) }], best: null }));
+  if (force || !cache) cache = collect(force).catch((e) => ({ cpu: os.cpus()[0]?.model ?? '', threads: os.cpus().length, ramGb: Math.round(os.totalmem() / 2 ** 30), gpus: [], encoders: [{ id: 'nvenc' as const, ok: false, code: 'other' as const, detail: String(e) }], best: null }));
   return cache;
 }
 

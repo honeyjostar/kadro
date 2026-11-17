@@ -95,6 +95,23 @@ test('своё оформление: файлы-заготовки, измене
   await expect.poll(h1).toBe('rgb(4, 5, 6)');
 });
 
+test('«Режим для слабого ПК»: включается вручную, облегчает всё окно и запоминается', async () => {
+  await expect(dialog()).toBeVisible();
+  const seg = win.getByTestId('perf-mode');
+  await seg.scrollIntoViewIfNeeded();
+  await expect(seg.locator('[data-value=auto]')).toHaveClass(/active/);
+  const lowEnd = () => win.evaluate(() => document.documentElement.classList.contains('low-end'));
+  await seg.locator('[data-value=on]').click();
+  await expect.poll(lowEnd).toBe(true);
+  await expect(win.getByTestId('perf-state')).toContainText('Сейчас включён');
+  // без размытия под панелями
+  expect(await win.evaluate(() => getComputedStyle(document.querySelector('.modal') ?? document.body).backdropFilter)).toMatch(/none|^$/);
+  expect(await win.evaluate(() => localStorage.getItem('kadro.perfMode'))).toBe('"on"');
+  await seg.locator('[data-value=off]').click();
+  await expect.poll(lowEnd).toBe(false);
+  await seg.locator('[data-value=auto]').click();
+});
+
 test('из редактора — шестерёнка вверху; после перезапуска всё на месте', async () => {
   await win.keyboard.press('Escape');
   await expect(dialog()).toHaveCount(0);

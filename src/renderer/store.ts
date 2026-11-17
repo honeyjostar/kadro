@@ -28,6 +28,8 @@ export interface AutoParams {
   length: number | 'auto' | 'full';
   title: string;
   videoSound: 'off' | 'quiet' | 'on';
+  /** длинный ролик начинается с лучшего момента */
+  hook?: boolean;
 }
 /** Окно «Авто-ролик»: заранее выбранные файлы; fresh — собрать новым проектом (с главного экрана). */
 export interface AutoOpen { files: string[]; music?: string | null; fresh: boolean }
@@ -134,6 +136,12 @@ interface State {
   reveal: { id: string; n: number } | null;
   /** Качество превью в плеере: ниже — быстрее на слабом компьютере (на экспорт не влияет). */
   previewQuality: PreviewQuality;
+  /** «Режим для слабого ПК»: авто (по железу), вкл, выкл; lowEnd — включён ли сейчас. */
+  perfMode: 'auto' | 'on' | 'off';
+  weakHw: boolean;
+  lowEnd: boolean;
+  setPerfMode: (m: 'auto' | 'on' | 'off') => void;
+  setWeakHw: (b: boolean) => void;
   /** Открыт просмотр файла — «Взять кусок» (in/out исходника). */
   sourceView: string | null;
 
@@ -287,6 +295,9 @@ export const useStore = create<State>((set, get) => ({
   audioPlace: readPref<AudioPlace>('kadro.audioPlace', 'start'),
   reveal: null,
   previewQuality: readPref<PreviewQuality>('kadro.previewQuality', 'auto'),
+  perfMode: readPref<'auto' | 'on' | 'off'>('kadro.perfMode', 'auto'),
+  weakHw: false,
+  lowEnd: readPref<'auto' | 'on' | 'off'>('kadro.perfMode', 'auto') === 'on',
   sourceView: null,
 
   commit: (fn, key) => {
@@ -409,6 +420,8 @@ export const useStore = create<State>((set, get) => ({
   setAudioPlace: (pl) => { writePref('kadro.audioPlace', pl); set({ audioPlace: pl }); },
   revealClip: (id) => set((st) => ({ reveal: { id, n: (st.reveal?.n ?? 0) + 1 } })),
   setPreviewQuality: (q) => { writePref('kadro.previewQuality', q); set({ previewQuality: q }); },
+  setPerfMode: (m) => { writePref('kadro.perfMode', m); set((st) => ({ perfMode: m, lowEnd: m === 'on' || (m === 'auto' && st.weakHw) })); },
+  setWeakHw: (b) => set((st) => ({ weakHw: b, lowEnd: st.perfMode === 'on' || (st.perfMode === 'auto' && b) })),
   setSourceView: (id) => set(id ? { sourceView: id, playing: false } : { sourceView: null }),
 }));
 

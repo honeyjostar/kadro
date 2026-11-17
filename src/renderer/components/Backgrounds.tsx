@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import { BG_GROUPS, BG_PRESETS, type BgGroup, type BgPreset } from '../../shared/backgrounds';
 import { addBackground } from '../actions';
 import { rewardsOpen } from '../../shared/rewards';
-import { useStore } from '../store';
+import { getState, useStore } from '../store';
+const lowEndNow = () => getState().lowEnd;
 import { Lock } from 'lucide-react';
 import { glRunner } from '../engine/gl';
 import { glDef } from '../glRegistry';
@@ -37,7 +38,10 @@ function BgPreview({ b, live }: { b: BgPreset; live: boolean }) {
     if (!live) return;
     let raf = 0;
     const t0 = performance.now();
-    const loop = () => { frame(2.5 + (performance.now() - t0) / 1000); raf = requestAnimationFrame(loop); };
+    // слабый ПК — 15 кадров в секунду вместо 60: превью живое, а вентилятор не взлетает
+    const every = lowEndNow() ? 1000 / 15 : 0;
+    let last = 0;
+    const loop = (now: number) => { if (now - last >= every) { last = now; frame(2.5 + (now - t0) / 1000); } raf = requestAnimationFrame(loop); };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [b, live]);

@@ -1,6 +1,6 @@
 import type { HwInfo } from '../shared/hw';
 // Главный процесс Kadro: окно, доступ к файлам, импорт, экспорт, ИИ-задачи.
-import { needsLightCopy, type LightCopyPref } from '../shared/lightCopy';
+import { needsLightCopy, weakPc, type LightCopyPref } from '../shared/lightCopy';
 import './lang'; // язык — раньше всего остального
 import { tx, uiLang } from '../shared/i18n';
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, net, protocol, shell, utilityProcess, type UtilityProcess } from 'electron';
@@ -65,7 +65,7 @@ import { projectDuration } from '../shared/timeline';
 import { bundledFile, cacheDir, dataDir, ffmpegPath, ffprobePath, modelsDir, sherpaDmlDir } from './bins';
 import { asrBenchKey, decideAsrDevice, DML_FALLBACK, gpuKey, type AsrBench, type AsrDevice, type AsrDeviceInfo, type AsrDevicePref } from '../shared/asrDevice';
 import { exportProject, exportSpeechAudio, glFrames } from './exporter';
-import { DRIVER_PAGES, hardwareInfo } from './hardware';
+import { DRIVER_PAGES, hardwareBasic, hardwareInfo } from './hardware';
 import { MEDIA_EXT, analyze, coverIfReady, makeCover, makePeaks, makeProxy, makeThumbs, setLightCopyRule } from './media';
 import { Queue, backgroundLimit } from '../shared/queue';
 
@@ -274,7 +274,7 @@ const asrTestDml = () => !!process.env.KADRO_TEST_ASR_DML;
 
 /** Можно ли на видеокарте: Windows, сборка с DirectML на месте, видеокарта определилась. */
 async function asrGpuAvailable(): Promise<{ ok: boolean; why?: AsrDeviceInfo['why']; gpus: { name: string; driver?: string }[] }> {
-  const hw = await hardwareInfo().catch(() => null);
+  const hw = await hardwareBasic().catch(() => null);
   const gpus = hw?.gpus ?? [];
   if (!asrTestDml()) {
     if (process.platform !== 'win32') return { ok: false, why: 'os', gpus };
@@ -489,7 +489,7 @@ async function runAi(job: AiJob): Promise<AiResponse> {
     if (job.kind === 'highlights') {
       const ac = new AbortController();
       aiAborts.set(id, ac);
-      const hl = await highlights(job.path, job.duration, (p) => send(p, tx('Смотрю видео')), ac.signal);
+      const hl = await highlights(job.path, job.duration, (p) => send(p, tx('Смотрю видео')), ac.signal, job.light);
       // громкость (уровень RMS) на тех же шагах — для игр, где моменты ищутся по звуку, а не по речи
       let loud: number[] | undefined;
       let speech: number[] | undefined;
@@ -810,6 +810,7 @@ function registerIpc(): void {
     version: app.getVersion(), platform: process.platform, dataDir: dataDir(),
   }));
   ipcMain.handle('hw:info', (_e, force?: boolean) => hardwareInfo(!!force));
+  ipcMain.handle('hw:basic', () => hardwareBasic());
   ipcMain.handle('hw:driverPage', async (_e, vendor: string) => {
     const url = DRIVER_PAGES[vendor as keyof typeof DRIVER_PAGES];
     if (!url) return false;
@@ -1460,11 +1461,11 @@ function registerIpc(): void {
   ipcMain.on('duck:get', (e) => { e.returnValue = duckNow(); });
   // лёгкие копии для 2K/4K: настройка и правило для импорта
   const lightPref = (): LightCopyPref => readSettings().lightCopy ?? 'auto';
-  setLightCopyRule(async (w, h, fps) => {
+  setLightCopyRule(async (w, h, fps, src) => {
     // маленькому видео и при «Нет» железо не нужно; иначе — ждём сведения о компьютере (обычно уже готовы)
-    if (!needsLightCopy(lightPref(), w, h, fps, null)) return false;
-    const hw: HwInfo | null = await hardwareInfo().catch(() => null);
-    return needsLightCopy(lightPref(), w, h, fps, hw);
+    if (lightPref() === 'off' || Math.min(w, h) < 1000) return false;
+    const hw = await hardwareBasic().catch(() => null);
+    return needsLightCopy(lightPref(), w, h, fps, hw, src);
   });
   ipcMain.on('lightCopy:get', (e) => { e.returnValue = lightPref(); });
   ipcMain.handle('lightCopy:set', (_e, v: LightCopyPref) => { if (['auto', 'on', 'off'].includes(v)) writeSettings({ ...readSettings(), lightCopy: v }); return lightPref(); });
@@ -1664,7 +1665,9 @@ if (!lock) {
     createWindow();
     if (!process.env.KADRO_NO_TRAY) tray.create();
     customStyles.setEnabled(appearance().custom);
-    setTimeout(() => { void hardwareInfo().then((h) => log('hw', JSON.stringify({ cpu: h.cpu, threads: h.threads, ram: h.ramGb, gpus: h.gpus, enc: h.encoders.map((e) => (e.ok ? e.id : `${e.id}:${e.code}${e.need ? `>=${e.need}` : ''}`)) }))); }, 3000);
+    // проверка кодировщиков видеокарты — на слабом ПК позже, когда окно уже открылось и успокоилось
+    const probeHw = () => { void hardwareInfo().then((h) => log('hw', JSON.stringify({ cpu: h.cpu, threads: h.threads, ram: h.ramGb, gpus: h.gpus, enc: h.encoders.map((e) => (e.ok ? e.id : `${e.id}:${e.code}${e.need ? `>=${e.need}` : ''}`)) }))); };
+    void hardwareBasic().then((b) => setTimeout(probeHw, weakPc(b) ? 30000 : 3000));
     setTimeout(cleanTempOnStart, 6000); // временные файлы прошлых сеансов
     // плагины: правка файла в папке — сразу в окне
     try { ensurePluginDirs(); watchPlugins((list) => win?.webContents.send('plugins:changed', list)); } catch (e) { log('plugins', e); }

@@ -12,7 +12,7 @@ import { HL_FINE_H, HL_FINE_W, HL_H, HL_W, frameStat, scoreFrames, type FrameSta
 
 const cache = new Map<string, Highlights>();
 /** Меняется вместе с оценкой кадров — старые разборы на диске тогда не годятся. */
-const HL_VERSION = 3;
+const HL_VERSION = 4;
 
 /** Разбор живёт и на диске: проект на 30 ГБ второй раз не смотрится заново (даже после перезапуска). */
 function diskFile(key: string): string | null {
@@ -36,7 +36,7 @@ export function hlFps(duration: number): number {
   return duration > 600 ? 1 : duration > 120 ? 2 : 4;
 }
 
-export async function highlights(file: string, duration: number, onProgress?: (p: number) => void, signal?: AbortSignal): Promise<Highlights> {
+export async function highlights(file: string, duration: number, onProgress?: (p: number) => void, signal?: AbortSignal, light = false): Promise<Highlights> {
   let key = file;
   let size = 0;
   try { const s = fs.statSync(file); key = `${file}|${s.size}|${s.mtimeMs}`; size = s.size; } catch { /* нет файла — ffmpeg скажет */ }
@@ -49,7 +49,7 @@ export async function highlights(file: string, duration: number, onProgress?: (p
   let hl: Highlights | null = null;
   let err: unknown;
   for (const m of modes) {
-    try { hl = await scan(file, duration, m, onProgress, signal); break; } catch (e) { err = e; if (signal?.aborted) throw e; }
+    try { hl = await scan(file, duration, m, onProgress, signal, light); break; } catch (e) { err = e; if (signal?.aborted) throw e; }
   }
   if (!hl) throw err;
   cache.set(key, hl);
@@ -58,8 +58,9 @@ export async function highlights(file: string, duration: number, onProgress?: (p
 }
 
 type ScanMode = 'hw' | 'skip' | 'plain';
-function scan(file: string, duration: number, mode: ScanMode, onProgress?: (p: number) => void, signal?: AbortSignal): Promise<Highlights> {
-  const fps = hlFps(duration);
+function scan(file: string, duration: number, mode: ScanMode, onProgress?: (p: number) => void, signal?: AbortSignal, light = false): Promise<Highlights> {
+  // слабый ПК — кадров вдвое меньше (оценка моментов почти не хуже, разбор вдвое быстрее)
+  const fps = light ? Math.max(1, hlFps(duration) / 2) : hlFps(duration);
   const size = HL_FINE_W * HL_FINE_H; // кадр 160×90: из него — 80×45 для движения и резкости, сам он — для фокуса
   const expected = Math.max(1, Math.ceil(duration * fps));
   return new Promise((resolve, reject) => {

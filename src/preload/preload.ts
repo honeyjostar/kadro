@@ -15,6 +15,7 @@ function on<T extends unknown[]>(channel: string, cb: (...a: T) => void): () => 
 const api: KadroApi = {
   info: () => ipcRenderer.invoke('app:info'),
   hardware: (force) => ipcRenderer.invoke('hw:info', force),
+  hardwareBasic: () => ipcRenderer.invoke('hw:basic'),
   openDriverPage: (vendor) => ipcRenderer.invoke('hw:driverPage', vendor),
   pickMedia: () => ipcRenderer.invoke('dialog:media'),
   importMedia: (paths) => ipcRenderer.invoke('media:import', paths),

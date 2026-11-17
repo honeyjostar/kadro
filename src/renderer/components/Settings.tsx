@@ -141,6 +141,8 @@ export function SettingsDialog() {
           <p className="hint">{tx('Картинка в плеере. «Авто» — при воспроизведении Kadro сам уменьшает картинку, если компьютер не успевает, и возвращает, когда успевает; на паузе — всегда чёткая. На экспорт не влияет.')}</p>
         </section>
 
+        <PerfSection />
+
         <section className="settings-sec">
           <b>{tx('Лёгкие копии для 2K и 4K')}</b>
           <Seg value={lightCopy} onChange={(v) => { setLightCopy(v); void api.setLightCopy(v); }} testId="light-copy"
@@ -513,6 +515,22 @@ function StatsSection() {
       <b>{tx('Анонимная статистика')}</b>
       <Toggle label={tx('Помогать Kadro анонимной статистикой')} on={on} onChange={(v) => { setOn(v); void api.statsSet(v); }} testId="stats-toggle" />
       <p className="hint">{tx('Раз в день Kadro сообщает счётчику: «запустили», версию и какими функциями пользовались (экспорт, авто-ролик, фоны…). Без имени, почты, файлов, названий проектов и cookies. Так видно, что людям нужно, — и что делать дальше.')}</p>
+    </section>
+  );
+}
+
+/** «Режим для слабого ПК»: превью до 720p без «ретины», разбор видео по одному, лёгкие копии и для тяжёлых 1080p. */
+function PerfSection() {
+  const mode = useStore((st) => st.perfMode);
+  const weak = useStore((st) => st.weakHw);
+  const on = useStore((st) => st.lowEnd);
+  return (
+    <section className="settings-sec" data-testid="perf-sec">
+      <b>{tx('Режим для слабого ПК')}</b>
+      <Seg value={mode} onChange={(v) => getState().setPerfMode(v)} testId="perf-mode"
+        options={[{ value: 'auto', label: tx('Авто') }, { value: 'on', label: tx('Включён') }, { value: 'off', label: tx('Выключен') }]} />
+      <p className="hint">{tx('Для старых и офисных ноутбуков: превью считается в 720p без лишних пикселей, видео разбирается по одному, без размытия под панелями, а тяжёлые видео с телефона (HEVC, 60 к/с) идут через лёгкие копии. Экспорт — всегда в полном качестве.')}</p>
+      <p className="hint small" data-testid="perf-state">{on ? tx('Сейчас включён.') : tx('Сейчас выключен.')} {weak ? tx('Kadro считает этот компьютер слабым.') : tx('Компьютер справляется и без него.')}</p>
     </section>
   );
 }

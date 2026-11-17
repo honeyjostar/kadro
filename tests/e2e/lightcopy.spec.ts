@@ -55,3 +55,23 @@ test('RTX 5060 — копий нет; настройка «Всегда» — е
   expect((await asset(K)).proxy).toBe('none');
   await K.app.close();
 });
+
+const OLD_LAPTOP = JSON.stringify({ cpu: 'Intel Core i3-6006U', threads: 4, ramGb: 8, gpus: [{ name: 'Intel HD Graphics 520', vendor: 'intel' }], encoders: [] });
+function fhd60(): string {
+  const f = path.join(MEDIA, 'fhd60-1920x1080.mp4');
+  if (!fs.existsSync(f)) execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=1920x1080:r=60:d=2', '-f', 'lavfi', '-i', 'sine=440:d=2',
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', f]);
+  return f;
+}
+
+test('старый ноутбук: «Режим для слабого ПК» включается сам, 1080p 60 к/с с телефона — через лёгкую копию', async () => {
+  const K = await launch({ env: { KADRO_TEST_HW: OLD_LAPTOP } });
+  await expect.poll(() => K.win.evaluate(() => document.documentElement.classList.contains('low-end')), { timeout: 15_000 }).toBe(true);
+  await expect(K.win.locator('.toast').filter({ hasText: 'Режим для слабого ПК' })).toBeVisible({ timeout: 15_000 });
+  await importAt(K.win, [fhd60()], 'main', 0);
+  await expect.poll(async () => (await asset(K)).proxy, { timeout: 120_000 }).toBe('ready');
+  const a = await asset(K);
+  expect(a.path).toBe(fhd60());
+  expect(a.previewPath).not.toBe(a.path);
+  await K.app.close();
+});

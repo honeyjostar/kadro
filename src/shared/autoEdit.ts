@@ -28,7 +28,7 @@ export interface FrameStat { b: number; s: number; m: number; c: number; g?: num
  * Оценка видео по времени: score[i] — насколько хорош момент i·step (0..1); cuts — где внутри видео склейки;
  * sig — отпечатки кадров подряд по 16 чисел (может не быть у старых разборов).
  */
-export interface Highlights { step: number; score: number[]; cuts: number[]; sig?: number[]; act?: number[]; /** громкость звука с шагом SPEECH_STEP — чтобы не резать посреди фразы */ speech?: number[] }
+export interface Highlights { step: number; score: number[]; cuts: number[]; sig?: number[]; act?: number[]; /** громкость звука с шагом SPEECH_STEP — чтобы не резать посреди фразы */ speech?: number[]; /** средняя яркость кадра 0…255 — чтобы выровнять свет между кусками */ lum?: number[] }
 /** Шаг громкости для склеек в паузах речи, сек. */
 export const SPEECH_STEP = 0.1;
 const speechRef = new WeakMap<number[], number>();
@@ -178,7 +178,8 @@ export function scoreFrames(st: FrameStat[], step: number): Highlights {
   });
   const score = raw.map((v, i) => r3(clamp((raw[Math.max(0, i - 1)] + 2 * v + raw[Math.min(n - 1, i + 1)]) / 4, 0, 1)));
   const sig = st.every((f) => f.g?.length === SIG_N) ? st.flatMap((f) => f.g!) : undefined;
-  return { step, score, cuts, act, ...(sig ? { sig } : {}) };
+  const lum = st.map((f) => Math.round(f.b));
+  return { step, score, cuts, act, lum, ...(sig ? { sig } : {}) };
 }
 
 /** Насколько похожи два куска видео (по отпечаткам кадров): 0 — разные, 1 — одно и то же. */
@@ -196,6 +197,25 @@ export function sigSimilarity(x: number[] | null, y: number[] | null): number {
   let d = 0;
   for (let k = 0; k < SIG_N; k++) d += Math.abs(x[k] - y[k]);
   return clamp((18 - d / SIG_N) / 12, 0, 1);
+}
+
+/** Отпечатки куска в нескольких точках по времени — чтобы сравнивать дубли «кадр в кадр», а не одну среднюю картинку. */
+export function sigSeq(hl: Highlights, s: number, len: number, k = 5): number[][] | null {
+  if (!hl.sig || hl.sig.length < SIG_N) return null;
+  const out: number[][] = [];
+  for (let p = 0; p < k; p++) {
+    const w = windowSig(hl, s + (len * p) / k, len / k);
+    if (!w) return null;
+    out.push(w);
+  }
+  return out;
+}
+/** Похожесть двух кусков по времени — худшая из точек: дубль похож всё время, а не только в среднем. */
+export function seqSimilarity(x: number[][] | null, y: number[][] | null): number {
+  if (!x || !y || x.length !== y.length) return 0;
+  let mn = 1;
+  for (let p = 0; p < x.length; p++) mn = Math.min(mn, sigSimilarity(x[p], y[p]));
+  return mn;
 }
 
 /** Средняя оценка лучших 30% моментов (насколько видео в целом «удачное»). */
@@ -520,6 +540,8 @@ export interface AutoInput {
   title: string;
   videoSound: 'off' | 'quiet' | 'on';
   seed: number;
+  /** «Весь материал»: начать с лучшего момента (1–2 с «тизер», потом по порядку) — зритель не листает дальше */
+  hook?: boolean;
 }
 export interface AutoSummary {
   cuts: number;
@@ -529,6 +551,9 @@ export interface AutoSummary {
   repeated: boolean;              // материала мало — кадры повторяются
   bpm: number;
   onBeats: boolean;               // склейки на долях музыки (а не по сетке темпа)
+  dupes?: number;                 // «Весь материал»: сколько дублей (одно и то же снято дважды) выброшено
+  hook?: boolean;                 // начинается с «тизера» — лучшего момента
+  light?: number;                 // в скольких кусках выровнен свет (снято темнее или светлее остальных)
 }
 
 /** Предсказуемые «случайные» числа: один seed — один и тот же ролик, другой — другой вариант. */
@@ -1001,15 +1026,50 @@ export function autoEdit(base: Project, inp: AutoInput): { project: Project; sum
     p.tracks.push(t);
   }
   p.name = title || tx('Авто-ролик');
+  const light = evenLight(main.clips as MediaClip[], media);
 
   const usedCount = new Set(slots.map((j) => owner[j])).size;
   return {
     project: p,
     summary: {
       cuts: Math.max(0, main.clips.length - 1), duration: total, used: usedCount, dropped: media.length - usedCount, repeated,
-      bpm: Math.round(60 / beat), onBeats,
+      bpm: Math.round(60 / beat), onBeats, light,
     },
   };
+}
+
+/**
+ * Ровный свет: куски, снятые заметно темнее или светлее остальных (телефон пересветил окно, вечер против дня),
+ * подтягиваются к середине ролика яркостью — мягко (не больше ±20%), чтобы ролик смотрелся как одна съёмка.
+ * Ночная съёмка целиком остаётся ночной: равняемся на сам ролик, а не на «правильную» яркость. Возвращает, сколько поправлено.
+ */
+export function evenLight(clips: MediaClip[], media: AutoMedia[]): number {
+  const byAsset = new Map(media.map((m) => [m.asset.id, m.hl] as const));
+  const lumOf = (c: MediaClip): number | null => {
+    const hl = byAsset.get(c.assetId);
+    if (!hl?.lum?.length) return null;
+    const a = clamp(Math.floor(c.in / hl.step), 0, hl.lum.length - 1);
+    const b = clamp(Math.ceil(c.out / hl.step), a + 1, hl.lum.length);
+    let sum = 0;
+    for (let k = a; k < b; k++) sum += hl.lum[k];
+    return sum / (b - a);
+  };
+  const vals = clips.map(lumOf);
+  const known = vals.filter((v): v is number => v !== null && v > 4);
+  if (known.length < 3) return 0;
+  const target = clamp(quantile(known, 0.5), 30, 190);
+  let n = 0;
+  clips.forEach((c, i) => {
+    const v = vals[i];
+    if (v === null || v <= 4) return;
+    const off = target / v;
+    if (Math.abs(off - 1) < 0.12) return;
+    const k = Math.round(clamp(Math.pow(off, 0.6), 0.82, 1.2) * 100) / 100;
+    if (Math.abs(k - 1) < 0.03) return;
+    c.color = { ...c.color, brightness: Math.round((c.color?.brightness ?? 1) * k * 100) / 100 };
+    n++;
+  });
+  return n;
 }
 
 // ---------- фильм из всего материала ----------
@@ -1161,11 +1221,71 @@ export function fullEdit(base: Project, inp: AutoInput): { project: Project; sum
     return c;
   };
 
+  // дубли: соседние по съёмке файлы, где снято одно и то же (второй-третий дубль), — оставляем лучший кусок
+  const meanScore = (i: number, s0: number, len: number) => {
+    const hl = media[i].hl;
+    if (!hl?.score.length) return 0.5;
+    const a = clamp(Math.floor(s0 / hl.step), 0, hl.score.length - 1);
+    const b = clamp(Math.ceil((s0 + len) / hl.step), a + 1, hl.score.length);
+    let sum = 0;
+    for (let k = a; k < b; k++) sum += hl.score[k];
+    return sum / (b - a);
+  };
+  // Дубль — только если похоже всё время (по 5 точкам), файлы примерно одной длины, и не больше трети файлов:
+  // похожие пролёты дрона над одним полем или одна точка съёмки в разное время — не дубли.
+  let prevShot: { i: number; r: number; sig: number[][] | null; v: number } | null = null;
+  let dupes = 0;
+  const maxDupes = Math.max(1, Math.floor(media.filter((_, i) => vid[i]).length / 3));
+  for (let i = 0; i < media.length; i++) {
+    if (!vid[i]) { prevShot = null; continue; }
+    for (let r = 0; r < needs[i].length; r++) {
+      const hl = media[i].hl;
+      const sig = hl ? sigSeq(hl, starts[i][r], needs[i][r]) : null;
+      const v = meanScore(i, starts[i][r], needs[i][r]);
+      const dA = media[i].asset.duration; const dB = prevShot ? media[prevShot.i].asset.duration : 0;
+      const alike = !!prevShot && prevShot.i !== i && dupes < maxDupes && Math.max(dA, dB) <= 2 * Math.min(dA, dB) && seqSimilarity(prevShot.sig, sig) > 0.92;
+      if (prevShot && alike) {
+        // похожие как две капли: слабый из двух — прочь (нулевая длина = кадра нет)
+        if (v > prevShot.v) { needs[prevShot.i][prevShot.r] = 0; prevShot = { i, r, sig, v }; } else needs[i][r] = 0;
+        dupes++;
+        continue;
+      }
+      prevShot = { i, r, sig, v };
+    }
+  }
+  for (let i = 0; i < media.length; i++) {
+    const keep = needs[i].map((n, r) => ({ n, s: starts[i][r] })).filter((x) => x.n > 0);
+    needs[i] = keep.map((x) => x.n);
+    starts[i] = keep.map((x) => x.s);
+  }
+
   let t = 0;
   let zoomDir = rand() < 0.5;
   let switches = 0;
   const trOff = Math.floor(rand() * 3);
   const order = media.map((_, i) => i).filter((i) => needs[i].length);
+
+  let hooked = false;
+  // «тизер»: самый яркий момент всего материала — первым, 1–2 секунды, со вспышкой; дальше — по порядку съёмки.
+  // Так делают в TikTok и Reels: первые секунды решают, досмотрят ли ролик.
+  if (inp.hook !== false && target >= 25) {
+    let best: { i: number; s: number; len: number; v: number } | null = null;
+    for (const i of order) {
+      if (!vid[i]) continue;
+      needs[i].forEach((len, r) => { const v = meanScore(i, starts[i][r], len); if (!best || v > best.v) best = { i, s: starts[i][r], len, v }; });
+    }
+    const b = best as { i: number; s: number; len: number; v: number } | null;
+    if (b) {
+      hooked = true;
+      const T = clamp(shot * 0.7, 1.2, 2);
+      const s0 = b.s + Math.max(0, (b.len - T) / 2);
+      const c = makeClip(media[b.i].asset, s0, Math.min(T, b.len));
+      c.effects = [...(c.effects ?? []), { type: 'flash', amount: 0.35 }];
+      c.transitionOut = { type: 'fadewhite', duration: 0.25 } as Transition;
+      main.clips.push(c);
+      t += Math.min(T, b.len) - 0.25;
+    }
+  }
   // со звуком видео склейки — в паузах речи: начало и конец куска сдвигаются к тишине (не режем посреди слова)
   const speechAware = inp.videoSound !== 'off' || !music;
   order.forEach((i, oi) => {
@@ -1261,13 +1381,14 @@ export function fullEdit(base: Project, inp: AutoInput): { project: Project; sum
     p.tracks.push(tt);
   }
   p.name = title || tx('Фильм');
+  const light = evenLight(main.clips as MediaClip[], media);
 
   const usedCount = order.length;
   return {
     project: p,
     summary: {
       cuts: Math.max(0, main.clips.length - 1), duration: total, used: usedCount, dropped: media.length - usedCount, repeated: false,
-      bpm: Math.round(60 / beat), onBeats: beats.length > 0,
+      bpm: Math.round(60 / beat), onBeats: beats.length > 0, dupes, hook: hooked, light,
     },
   };
 }

@@ -102,8 +102,9 @@ export function proxyPlan(kind: MediaKind, pr: ProbeResult, file: string): 'none
 }
 
 /** Нужна ли лёгкая копия большому видео (2K/4K) — правило задаёт main.ts по настройке и железу. */
-let lightCopyRule: (w: number, h: number, fps: number) => boolean | Promise<boolean> = () => false;
-export function setLightCopyRule(fn: (w: number, h: number, fps: number) => boolean | Promise<boolean>): void { lightCopyRule = fn; }
+type LightRule = (w: number, h: number, fps: number, src: { codec?: string; mbps?: number }) => boolean | Promise<boolean>;
+let lightCopyRule: LightRule = () => false;
+export function setLightCopyRule(fn: LightRule): void { lightCopyRule = fn; }
 
 export async function analyze(file: string): Promise<{ asset: MediaAsset; plan: 'none' | 'audio' | 'video' }> {
   const pr = await probe(file);
@@ -118,7 +119,8 @@ export async function analyze(file: string): Promise<{ asset: MediaAsset; plan: 
   let plan = proxyPlan(kind, pr, file);
   const fps0 = parseRate(pr.video?.avg_frame_rate) || parseRate(pr.video?.r_frame_rate) || 30;
   // 2K/4K на слабом компьютере: плеер играет лёгкую копию 720p, экспорт — оригинал
-  if (plan === 'none' && kind === 'video' && !isGif && (await lightCopyRule(w, h, fps0))) plan = 'video';
+  const mbps = pr.duration > 0 ? (pr.size * 8) / pr.duration / 1e6 : 0;
+  if (plan === 'none' && kind === 'video' && !isGif && (await lightCopyRule(w, h, fps0, { codec: pr.video?.codec_name, mbps }))) plan = 'video';
   const asset: MediaAsset = {
     id: uid('asset'),
     kind,

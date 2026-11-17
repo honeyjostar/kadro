@@ -53,7 +53,7 @@ export type AiJob =
   | { kind: 'modelImport'; jobId: string; what: 'asr' | 'tts'; id: string; file: string }
   | { kind: 'stab'; jobId: string; path: string; in: number; out: number; strength: number; offset?: number }
   | { kind: 'beats'; jobId: string; path: string }
-  | { kind: 'highlights'; jobId: string; path: string; duration: number; /** ещё и громкость звука на той же сетке (игры) */ loud?: boolean; /** громкость с шагом 0.1 с — склейки в паузах речи (авто-ролик) */ speech?: boolean }
+  | { kind: 'highlights'; jobId: string; path: string; duration: number; /** ещё и громкость звука на той же сетке (игры) */ loud?: boolean; /** громкость с шагом 0.1 с — склейки в паузах речи (авто-ролик) */ speech?: boolean; /** слабый ПК: вдвое реже кадры разбора */ light?: boolean }
   | { kind: 'refEdit'; jobId: string; path: string }
   | { kind: 'reframe'; jobId: string; path: string; in: number; out: number; width: number; height: number }
   | { kind: 'faces'; jobId: string; path: string; in: number; out: number; width: number; height: number; image?: boolean }
@@ -114,6 +114,8 @@ export interface KadroApi {
   info(): Promise<AppInfo>;
   /** Процессор, память, видеокарты и их кодировщики (force — проверить заново). */
   hardware(force?: boolean): Promise<import('./hw').HwInfo>;
+  /** процессор, память, видеокарты — быстро, без проверки кодировщиков */
+  hardwareBasic(): Promise<Pick<import('./hw').HwInfo, 'cpu' | 'threads' | 'ramGb' | 'gpus'>>;
   openDriverPage(vendor: 'nvidia' | 'amd' | 'intel'): Promise<boolean>;
   pickMedia(): Promise<string[]>;
   importMedia(paths: string[]): Promise<ImportResult>;

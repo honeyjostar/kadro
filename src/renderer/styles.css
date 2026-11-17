@@ -1580,3 +1580,7 @@ button.link:hover { color: var(--strong); }
 .gif-name { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 5px 3px; font-size: 10.5px; color: #fff; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: linear-gradient(transparent, rgba(0, 0, 0, .75)); pointer-events: none; }
 .gif-del { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 6px; border: 0; background: rgba(0, 0, 0, .65); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .gif-empty { display: flex; gap: 10px; align-items: center; margin-top: 10px; color: var(--muted); font-size: 12.5px; }
+/* «Режим для слабого ПК»: без размытия под панелями и лишних анимаций — встроенной графике легче */
+.low-end, .low-end * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.low-end .theme-tile:hover .theme-sample span, .low-end .sticker-grid button:hover span, .low-end .sticker-grid button:hover img { animation: none !important; }
+.low-end .modal { box-shadow: 0 6px 18px var(--shadow, rgba(0, 0, 0, .35)); }

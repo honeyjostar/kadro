@@ -64,6 +64,7 @@ export function AutoEditDialog() {
   const setLength = (l: number | 'auto' | 'full') => { lengthTouched.current = true; setLengthRaw(l); if (isFullLength(l) && sound === 'off') setSound('quiet'); };
   const [title, setTitle] = useState('');
   const [sound, setSound] = useState<'off' | 'quiet' | 'on'>(last?.videoSound ?? 'off');
+  const [hook, setHook] = useState(last?.hook !== false);
   const [stage, setStage] = useState<AutoStage | null>(null);
   const [note, setNote] = useState('');
   const job = useStore((s) => (stage?.jobId ? s.jobs[stage.jobId] : undefined));
@@ -99,7 +100,7 @@ export function AutoEditDialog() {
     setNote('');
     setStage({ label: tx('Готовлю'), step: 0, steps: 1 });
     try {
-      const r = await buildAutoEdit({ files, music, style, aspect, length, title, videoSound: music ? sound : 'on' }, { fresh: open.fresh, onStage: setStage });
+      const r = await buildAutoEdit({ files, music, style, aspect, length, title, videoSound: music ? sound : 'on', hook }, { fresh: open.fresh, onStage: setStage });
       if (r) getState().setAutoOpen(null);
     } finally {
       setStage(null);
@@ -174,6 +175,12 @@ export function AutoEditDialog() {
             <div className="chips">{ASPECTS.map((x) => <button key={x.value} className={aspect === x.value ? 'active' : ''} disabled={busy} title={x.where} onClick={() => setAspect(x.value)} data-testid={`auto-aspect-${x.value.replace(':', '-')}`}>{x.label} <span className="faint">{x.where}</span></button>)}</div>
             <div className="section-title">{tx('Длина')}</div>
             <div className="chips">{LENGTHS.map((x) => <button key={String(x.value)} className={length === x.value ? 'active' : ''} disabled={busy} title={x.hint} onClick={() => setLength(x.value)} data-testid={`auto-len-${x.value}`}>{x.label}</button>)}</div>
+            {isFullLength(length) && (
+              <label className="welcome-check auto-hook" data-testid="auto-hook">
+                <input type="checkbox" checked={hook} disabled={busy} onChange={(e) => setHook(e.target.checked)} />
+                <span>{tx('Начать с лучшего момента — 1–2 секунды самого яркого кадра, потом всё по порядку (так ролик не пролистывают)')}</span>
+              </label>
+            )}
             <p className="hint small" data-testid="auto-len-hint">{LENGTHS.find((x) => x.value === length)?.hint}
               {files.length >= MANY_FILES && !isFullLength(length) ? ' ' + tx('Файлов много ({0}) — для ролика из всего выбери «Весь материал».', files.length) : ''}</p>
             <div className="section-title">{tx('Надпись в начале')}</div>

@@ -217,8 +217,8 @@ test('новые стили: «Велосити» — ускорение и за
 });
 
 test('много файлов → «Весь материал»: ролик на минуты из всех файлов по порядку съёмки, звук видео, музыка по кругу', async () => {
-  // 12 файлов по 20 с (разная картинка), имена — как с камеры, но выбраны вразнобой
-  const files = Array.from({ length: 12 }, (_, k) => media(`CAM_${String(k + 1).padStart(4, '0')}.mp4`, (f) => ff(['-f', 'lavfi', '-i', `testsrc2=s=320x180:r=30:d=20,hue=h=${k * 30}`,
+  // 12 файлов по 20 с (разная картинка — и цвет, и яркость, иначе это дубли), имена — как с камеры, но выбраны вразнобой
+  const files = Array.from({ length: 12 }, (_, k) => media(`SHOT_${String(k + 1).padStart(4, '0')}.mp4`, (f) => ff(['-f', 'lavfi', '-i', `testsrc2=s=320x180:r=30:d=20,hue=h=${k * 30},eq=brightness=${(((k % 4) - 1.5) * 0.12).toFixed(2)}`,
     '-f', 'lavfi', '-i', `sine=frequency=${300 + k * 40}:sample_rate=48000:duration=20`, '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-shortest', f])));
   const mixed = [...files.slice(6), ...files.slice(0, 6)];
   await store(win, 'setAutoOpen', { fresh: true, files: mixed });
@@ -239,7 +239,9 @@ test('много файлов → «Весь материал»: ролик на
   expect(total).toBeGreaterThan(50);
   const names = clips.map((c) => p.assets.find((a) => a.id === c.assetId)!.name);
   expect(new Set(names).size).toBe(12);
-  expect(names).toEqual([...names].sort());
+  // первым — «тизер»: лучший момент со вспышкой; дальше — строго по порядку съёмки
+  expect(clips[0].effects?.some((e) => e.type === 'flash')).toBe(true);
+  expect(names.slice(1)).toEqual([...names.slice(1)].sort());
   // звук видео тихо под музыкой; музыка — до конца ролика (демо-бит короче — повторяется)
   expect(clips.every((c) => !c.muted && c.volume === 0.3)).toBe(true);
   const mus = p.tracks.find((t) => t.kind === 'audio')!.clips as MediaClip[];

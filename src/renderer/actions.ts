@@ -1657,7 +1657,7 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
   // много файлов — смотрим по несколько сразу (ffmpeg на одном видео не загружает все ядра и видеокарту)
   const todo = videos.filter((a) => !hlMemo.has(a.path));
   const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4;
-  const lanes = todo.length < 3 ? 1 : cores >= 12 ? 3 : 2;
+  const lanes = todo.length < 3 || getState().lowEnd || cores <= 4 ? 1 : cores >= 12 ? 3 : 2;
   const running = new Map<string, string>(); // jobId → путь: «Остановить» отменяет все
   let done = 0;
   let next = 0;
@@ -1665,7 +1665,7 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
     while (!autoStopped && next < todo.length) {
       const a = todo[next++];
       const src = a.proxy === 'ready' && a.previewPath ? a.previewPath : a.path;
-      const job: AiJob = { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration, speech: a.hasAudio };
+      const job: AiJob = { kind: 'highlights', jobId: `hl_${uidShort()}`, path: src, duration: a.duration, speech: a.hasAudio, light: getState().lowEnd };
       running.set(job.jobId, a.path);
       stage({ label: todo.length > 1 ? tx('Смотрю видео {0} из {1}', Math.min(todo.length, done + 1), todo.length) : tx('Смотрю видео'), jobId: job.jobId, step: step + done, steps: Math.max(1, steps) });
       autoCancel = () => { for (const id of running.keys()) void api.cancelAi(id); };
@@ -1691,7 +1691,7 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
       const r = autoEdit(p, {
         media: media.map((a) => ({ asset: live(a), hl: hlMemo.get(a.path) ?? null })),
         music: music ? { ...live(music), beats: music.beats, bpm: music.bpm, shape: music.shape } : null,
-        style: params.style, aspect: params.aspect, length: params.length, title: params.title, videoSound: params.videoSound, seed,
+        style: params.style, aspect: params.aspect, length: params.length, title: params.title, videoSound: params.videoSound, seed, hook: params.hook,
       });
       summary = r.summary;
       return r.project;
@@ -1712,6 +1712,8 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
   if (music && !sum.onBeats) notes.push(tx('ритм в музыке не нашёлся — склейки по ровному темпу'));
   if (sum.dropped > 0) notes.push(tx('не поместилось файлов: {0} ({1})', sum.dropped, params.length === 'auto' ? tx('музыка короче') : tx('выбери длину побольше')));
   if (sum.repeated) notes.push(tx('материала мало — кадры повторяются'));
+  if (sum.light) notes.push(tx('выровнен свет у кусков: {0} — снято темнее или светлее остальных', sum.light));
+  if (sum.dupes) notes.push(tx('убрано дублей: {0} (одно и то же снято дважды — оставлен лучший)', sum.dupes));
   st.toast(tx('Авто-ролик готов: {0} {1}{2}, {3}.{4} Не нравится — «Ещё вариант» слева или Ctrl+Z.', sum.cuts + 1, plural(sum.cuts + 1, tx('кадр'), tx('кадра'), tx('кадров')), sum.onBeats ? tx(' в ритм музыки') : '', fmtDur(sum.duration), notes.length ? tx(' Важно: {0}.', notes.join('; ')) : ''), 'ok');
   return sum;
 }

@@ -125,17 +125,19 @@ export function Player() {
 
   // качество превью: холст плеера считается в меньшем размере и растягивается — быстрее на слабом компьютере
   const quality = useStore((s) => s.previewQuality);
+  const lowEnd = useStore((s) => s.lowEnd);
   useEffect(() => {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // слабый ПК: без «ретины» (×2 пикселей) и не больше 720p в «Авто» — кадр считается в 2–4 раза быстрее
+    const dpr = lowEnd ? 1 : Math.min(2, window.devicePixelRatio || 1);
     const k = PREVIEW_SCALE[quality];
     let cw = dispW * dpr * k;
     let ch = dispH * dpr * k;
     const short = Math.min(cw, ch);
-    const cap = PREVIEW_CAP[quality];
+    const cap = lowEnd && quality === 'auto' ? 720 : PREVIEW_CAP[quality];
     if (short > cap) { cw = (cw * cap) / short; ch = (ch * cap) / short; }
     engineRef.current?.setAdaptive(quality === 'auto');
     engineRef.current?.setSize(cw, ch);
-  }, [dispW, dispH, quality]);
+  }, [dispW, dispH, quality, lowEnd]);
 
   // рамка выделенного клипа, если он виден в текущий момент
   const box = useMemo(() => {

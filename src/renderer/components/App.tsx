@@ -1,4 +1,5 @@
 import { tx } from '../../shared/i18n';
+import { weakPc } from '../../shared/lightCopy';
 import { SysMon } from './SysMon';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { deleteSelection, dropOnHome, dropPaths, importSubtitles, duplicateSelection, openFiles, reportMissing, saveProject, splitAtPlayhead, groupSelection, addMarkerAtPlayhead, jumpMarker, copyClipAttrs, openPasteAttrs, ungroupSelection, saveFrame, shuttle, snapshotNow } from '../actions';
@@ -81,6 +82,9 @@ export function App() {
   const shortsOpen = useStore((s) => s.shortsOpen);
   const bugOpen = useStore((s) => s.bugOpen);
   const catalogOpen = useStore((s) => s.pluginCatalogOpen);
+  const lowEnd = useStore((s) => s.lowEnd);
+  // «Режим для слабого ПК» — классом на всём окне (и на главном экране, и в окнах поверх)
+  useEffect(() => { document.documentElement.classList.toggle('low-end', lowEnd); }, [lowEnd]);
   useUpdateFeed();
   // окна — заранее, когда главный экран уже показан и Kadro свободен
   useEffect(() => {
@@ -110,6 +114,17 @@ export function App() {
     }).catch(() => { loaded.current = true; });
     // главный экран при запуске (можно выключить на нём самом)
     void api.rewards().then((r) => getState().setRewards(r)).catch(() => undefined);
+    // слабый компьютер — «Режим для слабого ПК» (если в настройках «Авто»); один раз скажем, что включили
+    void api.hardwareBasic().then((hw) => {
+      const weak = weakPc(hw);
+      getState().setWeakHw(weak);
+      let told = false;
+      try { told = localStorage.getItem('kadro.lowEndTold') === '1'; } catch { /* без хранилища */ }
+      if (weak && getState().perfMode === 'auto' && !told) {
+        try { localStorage.setItem('kadro.lowEndTold', '1'); } catch { /* без хранилища */ }
+        setTimeout(() => getState().toast(tx('Компьютер не самый мощный — включён «Режим для слабого ПК»: превью легче, тяжёлые видео — через лёгкие копии, экспорт в полном качестве. Настройки → «Скорость».'), 'info'), 4000);
+      }
+    }).catch(() => undefined);
     api.homeInfo().then((i) => { getState().setDemo(i.demo); setSfxFiles(i.demo.sfx); (window as unknown as { __kadroEngine?: { setProject(p: unknown): void } }).__kadroEngine?.setProject(getState().project); if (i.autoOpen) getState().setHome(true); }).catch(() => undefined);
     return off;
   }, []);
