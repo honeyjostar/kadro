@@ -41,6 +41,8 @@ import { EFFECTS } from '../shared/effects';
 import { edit, layoutMain, setTransition } from '../shared/timeline';
 import { BG_DURATION, bgPreset } from '../shared/backgrounds';
 import { TEXT_THEME_DUR, TEXT_THEMES } from '../shared/textThemes';
+import { rewardsOpen } from '../shared/rewards';
+import { MASCOT_STICKERS } from '../shared/stickers';
 import type { EffectType, TransitionType } from '../shared/types';
 import { noteUsed } from './favs';
 import { findLag, SYNC_MIN_CONFIDENCE, syncedPlacement } from '../shared/audioSync';
@@ -1702,6 +1704,7 @@ export async function buildAutoEdit(params: AutoParams, opts: { fresh: boolean; 
   if (!sum) return null;
   const st = getState();
   st.setAutoLast(params);
+  api.track(`auto/${params.length === 'full' ? 'full' : params.length === 'auto' ? 'clip' : 'len'}`);
   st.select([]);
   st.setPlayhead(0);
   st.setLeftTab('templates');
@@ -1881,6 +1884,7 @@ export async function findGameShortMoments(asset: MediaAsset, o: { len: ShortLen
 
 /** Собрать игровые клипы (9:16) и сохранить в «Мои проекты». */
 export async function createGameShorts(asset: MediaAsset, moments: ShortMoment[], layout: GameLayout, onStage: (s: ShortsStage) => void): Promise<string[] | null> {
+  api.track('shorts/game');
   onStage({ label: tx('Собираю клипы'), step: 1, steps: 1 });
   const projects = moments.map((m, i) => gameShortProject(asset, m, i + 1, layout));
   try {
@@ -1893,6 +1897,7 @@ export async function createGameShorts(asset: MediaAsset, moments: ShortMoment[]
 
 /** Собрать проекты шортсов и сохранить их в «Мои проекты». reframe — кадр следует за человеком (дольше). */
 export async function createShorts(asset: MediaAsset, moments: ShortMoment[], style: BlogStyle, reframe: boolean, onStage: (s: ShortsStage) => void): Promise<string[] | null> {
+  api.track('shorts/talk');
   const projects: Project[] = [];
   for (let i = 0; i < moments.length; i++) {
     let p = shortProject(asset, moments[i], i + 1, style);
@@ -2105,6 +2110,8 @@ export async function setPersonFx(clipId: string, patch: Partial<PersonFx>): Pro
 /** Добавить анимированную кнопку «Подписаться» с колокольчиком у курсора. */
 /** Стикер у курсора (эмодзи с движением по кругу). */
 export function addSticker(emoji: string, motion: StickerMotion): void {
+  if (MASCOT_STICKERS.some((m) => m.glyph === emoji) && rewardGate()) return;
+  api.track('sticker');
   const s = getState();
   let id = '';
   s.commit((p) => { const r = addStickerClip(p, s.playhead, emoji, motion); id = r.clipId; return r.project; });
@@ -2749,6 +2756,8 @@ export function addAdjustmentLayer(): string | null {
 export async function addBackground(id: string): Promise<string | null> {
   const b = bgPreset(id);
   if (!b) return null;
+  if (b.reward && rewardGate()) return null;
+  api.track(`bg/${id}`);
   const demo = await loadDemoFiles();
   if (!demo.bgBase) { getState().toast(tx('Файл для фонов не найден — переустанови Kadro'), 'err'); return null; }
   const byPath = await assetsForPaths([demo.bgBase]);
@@ -2785,6 +2794,8 @@ export async function addBackground(id: string): Promise<string | null> {
 export function addTextTheme(id: string): string | null {
   const t = TEXT_THEMES.find((x) => x.id === id);
   if (!t) return null;
+  if (t.reward && rewardGate()) return null;
+  api.track(`theme/${id}`);
   const s = getState();
   let clipId = '';
   s.commit((p) => {
@@ -2797,4 +2808,19 @@ export function addTextTheme(id: string): string | null {
     setTimeout(() => window.dispatchEvent(new Event('kadro:edit-text')), 30);
   }
   return clipId || null;
+}
+
+// ---------- «Набор создателя» ----------
+/** Набор ещё закрыт: подсказать, как открыть, и показать раздел «Друзья» в настройках. true — закрыт. */
+export function rewardGate(): boolean {
+  const s = getState();
+  if (rewardsOpen(s.rewards)) return false;
+  s.toast(tx('Это из «Набора создателя». Он откроется за концовку «Сделано в Kadro» в экспорте или за приглашение друга — подробности в настройках, раздел «Друзья».'), 'info');
+  openFriends();
+  return true;
+}
+/** Настройки → «Друзья и награды». */
+export function openFriends(): void {
+  getState().setSettingsOpen(true);
+  setTimeout(() => document.getElementById('friends-sec')?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 120);
 }

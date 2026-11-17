@@ -106,7 +106,7 @@ export interface LibMeta { thumb?: string; duration?: number; width?: number; he
 export type ThemePref = 'dark' | 'light' | 'system';
 export interface RecentProject { path: string; name: string; mtime: number; clips: number; duration: number; aspect: string; thumb?: string; size?: number; draft?: boolean }
 /** Демо-файлы из комплекта программы: ролики-сцены, бит, демо-ролик и превью шаблонов. Только те, что есть на диске. */
-export interface DemoFiles { scenes: Record<string, string>; beat: string | null; reel: string | null; reelWide?: string | null; previews: Record<string, string>; /** звуки на стыках */ sfx?: Record<string, string>; /** звуки мем-кнопок */ memes?: Record<string, string>; /** основа живых фонов (чёрная картинка) */ bgBase?: string | null }
+export interface DemoFiles { scenes: Record<string, string>; beat: string | null; reel: string | null; reelWide?: string | null; previews: Record<string, string>; /** звуки на стыках */ sfx?: Record<string, string>; /** звуки мем-кнопок */ memes?: Record<string, string>; /** основа живых фонов (чёрная картинка) */ bgBase?: string | null; /** маскот для концовки «Сделано в Kadro» */ outro?: string | null }
 /** show — настройка «показывать при запуске», autoOpen — открыть ли сейчас (в автотестах выключено). */
 export interface HomeInfo { show: boolean; autoOpen: boolean; demo: DemoFiles; recent: RecentProject[]; /** «Скоро в Kadro» (null — нет или скрыт) */ next?: import('./next').NextInfo | null }
 
@@ -316,6 +316,17 @@ export interface KadroApi {
   onAiProgress(cb: (jobId: string, p: number, stage?: string) => void): () => void;
   /** «Нагрузка ПК»: включить или выключить замеры (раз в секунду). */
   sysmon(on: boolean): void;
+  /** Анонимная статистика: согласие и событие (уйдёт, только если согласие есть, и не чаще раза в день). */
+  statsGet(): Promise<boolean>;
+  statsSet(on: boolean): Promise<void>;
+  track(ev: string): void;
+  /** «Набор создателя»: состояние, ввод кода (друга или ответного), открытие за концовку «Сделано в Kadro». */
+  rewards(): Promise<import('./rewards').Rewards>;
+  /** Мастерская: удалить поставленный оттуда шаблон; свой шаблон — в файл для отправки. */
+  removeWorkshopTemplate(file: string): Promise<boolean>;
+  exportTemplate(id: string): Promise<string | null>;
+  rewardsCode(code: string): Promise<import('./rewards').RefResult>;
+  rewardsOutro(): Promise<import('./rewards').Rewards>;
   onSysmon(cb: (s: import('./sysmon').SysSample) => void): () => void;
   showInFolder(path: string): void;
   setTitle(title: string): void;

@@ -10,6 +10,8 @@ import { projectDuration } from '../../shared/timeline';
 import type { ExportFormat, ExportOptions } from '../../shared/types';
 import { GITHUB_PAGE, TELEGRAM_CHANNEL } from '../../shared/links';
 import { tgAfterExport, tgDone } from '../promo';
+import { rewardsOpen } from '../../shared/rewards';
+import { withOutro } from '../../shared/outro';
 import { checkRetention, copyChapters, staleAiClips } from '../actions';
 import { RetentionItem } from './Retention';
 import { chaptersOf } from '../../shared/markers';
@@ -79,6 +81,9 @@ export function ExportDialog() {
   const setFormat = (f: ExportFormat) => setOpts((o) => fitFormat(o, f, shortSideOf(project.settings), project.settings.fps, project.settings));
   const [star, setStar] = useState<'ask' | 'thanks' | 'hidden'>('ask');
   const [tg, setTg] = useState<'ask' | 'hidden' | null>(null);
+  const rewards = useStore((s) => s.rewards);
+  const [outro, setOutro] = useState(() => { try { return localStorage.getItem('kadro.outro') === '1'; } catch { return false; } });
+  const outroImg = useStore((s) => s.demo?.outro ?? null);
   const retention = useStore((s) => s.retention);
   const [retBusy, setRetBusy] = useState(false);
   const title = format === 'gif' ? tx('Экспорт в GIF') : format === 'mp3' ? tx('Экспорт звука') : format === 'sticker' ? tx('Видеостикер Telegram') : tx('Экспорт видео');
@@ -138,33 +143,35 @@ export function ExportDialog() {
     setProgress(0);
     setEta(null);
     started.current = Date.now();
+    // концовка «Сделано в Kadro» — только в файле (в проекте её нет); открывает «Набор создателя»
+    const src = outro && outroImg && format !== 'mp3' && format !== 'sticker' ? withOutro(project, outroImg) : project;
     cancelled.current = false;
     let gl: GlRender | null = null;
     try {
       // только звук: кадры не нужны
       if (format === 'mp3') {
         setStage(tx('Сохраняю звук'));
-        const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: [], blankPng: new Uint8Array() });
+        const r = await api.startExport({ project: src, opts: { ...opts, outPath }, textLayers: [], blankPng: new Uint8Array() });
         if (r.ok) getState().markExported();
         setResult(r);
         setPhase(r.ok ? 'done' : 'error');
         return;
       }
       setStage(tx('Готовлю текст'));
-      const { layers, blank } = await renderTextLayers(project, size.w, size.h, opts.fps, (p) => setProgress(p * 0.05));
+      const { layers, blank } = await renderTextLayers(src, size.w, size.h, opts.fps, (p) => setProgress(p * 0.05));
       // переходы и эффекты-шейдеры: эти кадры рисует сам Kadro (FFmpeg шейдеры не умеет)
-      gl = await renderGlSegments(project, size.w, size.h, opts.fps, (f, d, n) => { setStage(tx('Рисую шейдеры: кадр {0} из {1}', d, n)); setProgress(f); }, () => cancelled.current);
+      gl = await renderGlSegments(src, size.w, size.h, opts.fps, (f, d, n) => { setStage(tx('Рисую шейдеры: кадр {0} из {1}', d, n)); setProgress(f); }, () => cancelled.current);
       setStage(format === 'gif' ? tx('Сохраняю GIF') : format === 'sticker' ? tx('Сохраняю стикер') : tx('Сохраняю видео'));
       setProgress(0);
-      const r = await api.startExport({ project, opts: { ...opts, outPath }, textLayers: layers, blankPng: blank, glToken: gl?.token, glSegments: gl?.segments });
+      const r = await api.startExport({ project: src, opts: { ...opts, outPath }, textLayers: layers, blankPng: blank, glToken: gl?.token, glSegments: gl?.segments });
       if (r.ok) getState().markExported();
       // ещё форматы — по очереди, теми же настройками
       const done: { label: string; path?: string; error?: string }[] = [];
       if (r.ok && format === 'mp4') {
-        const list = extras.filter((id) => !sameAsProject(project, FMT(id)));
+        const list = extras.filter((id) => !sameAsProject(src, FMT(id)));
         for (let i = 0; i < list.length && !cancelled.current; i++) {
           const f = FMT(list[i]);
-          const q = variantProject(project, f, opts.height);
+          const q = variantProject(src, f, opts.height);
           const short = f.short ?? opts.height;
           const sz = exportSize(q.settings.width, q.settings.height, short);
           setStage(tx('Формат {0} ({1} из {2})', f.label, i + 1, list.length));
@@ -177,6 +184,7 @@ export function ExportDialog() {
         }
       }
       setExtraDone(done);
+      if (r.ok && src !== project) void api.rewardsOutro().then((rw) => { const was = getState().rewards; getState().setRewards(rw); if (!rewardsOpen(was)) getState().toast(tx('Спасибо за концовку! Открыт «Набор создателя»: стикеры с маскотом Kadro, эксклюзивные фоны и надписи.'), 'ok'); });
       if (r.ok && !r.askStar && tgAfterExport()) setTg('ask');
       setResult(r);
       setPhase(r.ok ? 'done' : 'error');
@@ -259,6 +267,8 @@ export function ExportDialog() {
             </Field>
             <Toggle label={tx('Выровнять громкость для соцсетей')} hint={tx('−14 LUFS, как ждут YouTube, TikTok и Instagram: тихий ролик станет громче, громкий не будет приглушён')}
               on={!!opts.loudnorm} onChange={(v) => setOpts({ ...opts, loudnorm: v || undefined })} testId="export-loudnorm" />
+            <Toggle label={tx('Концовка «Сделано в Kadro»')} hint={rewardsOpen(rewards) ? tx('1,5 секунды с маскотом в конце ролика — помогает Kadro расти. Спасибо!') : tx('1,5 секунды с маскотом в конце ролика. За неё откроется «Набор создателя»: стикеры с маскотом, эксклюзивные фоны и надписи')}
+              on={outro} onChange={(v) => { setOutro(v); try { localStorage.setItem('kadro.outro', v ? '1' : '0'); } catch { /* только до перезапуска */ } }} testId="export-outro" />
             <Field label={tx('Чем кодировать')} right={<span className="hint small" data-testid="export-hw">{hwShort}</span>}>
               <Seg value={opts.encoder === 'nvenc' ? 'gpu' : opts.encoder} onChange={(v) => setOpts({ ...opts, encoder: v })} testId="export-encoder"
                 options={[{ value: 'auto', label: tx('Авто') }, { value: 'gpu', label: tx('Видеокарта') }, { value: 'x264', label: tx('Процессор') }]} />

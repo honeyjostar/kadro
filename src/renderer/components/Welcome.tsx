@@ -156,8 +156,8 @@ export function Welcome({ onDone }: { onDone: () => void }) {
             </div>
             {SURVEY_COUNTER && (
               <label className="welcome-check" data-testid="welcome-consent">
-                <input type="checkbox" checked={!!about.consent} onChange={(e) => saveAbout({ ...about, consent: e.target.checked })} />
-                <span>{tx('Отправить эти ответы анонимно, чтобы Kadro понимал, кому он нужен (без имени, почты и cookies)')}</span>
+                <input type="checkbox" checked={!!about.consent} onChange={(e) => { saveAbout({ ...about, consent: e.target.checked }); void api.statsSet(e.target.checked); }} />
+                <span>{tx('Помогать Kadro анонимной статистикой: эти ответы и какими функциями пользуются — раз в день, без имени, почты, файлов и cookies. Выключается в настройках.')}</span>
               </label>
             )}
           </>

@@ -19,10 +19,10 @@ const plain = (html) => html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
 const PAGES = [
   {
     slug: 'capcut-alternative',
-    title: 'Аналог CapCut для ПК — бесплатно и без водяного знака | Kadro Editor',
+    title: 'Как CapCut Pro, только бесплатно и работает в России — аналог для ПК | Kadro Editor',
     description: 'Kadro Editor — бесплатный видеоредактор для Windows, похожий на CapCut Pro: субтитры как у блогеров, 180+ переходов, шаблоны, авто-монтаж, нарезка в шортсы, экспорт до 4K. Без подписки, кредитов и регистрации.',
-    h1: 'Аналог CapCut для ПК. Бесплатно.',
-    lead: 'Kadro Editor — видеоредактор для Windows по мотивам CapCut Pro. Всё, за что CapCut просит подписку, здесь бесплатно и работает на твоём компьютере.',
+    h1: 'Как CapCut Pro. Только работает в России.',
+    lead: 'CapCut Pro из России не оплатить, а без него — водяные знаки, лимиты и кредиты на ИИ. Kadro Editor — видеоредактор для Windows по мотивам CapCut Pro: всё то же бесплатно, без VPN и оплаты картой, и работает на твоём компьютере.',
     video: { src: 'assets/media/film', poster: 'assets/media/film-poster.jpg', wide: true },
     sections: [
       ['Что есть из CapCut Pro', '<ul><li>Автосубтитры по словам в стилях «Хормози», «MrBeast», «Караоке», «Неон» — 25 языков, распознавание прямо на компьютере.</li><li>180+ переходов, 50+ эффектов, 45+ фильтров, ключевые кадры, маски, хромакей.</li><li>19 шаблонов и «Повторить по ролику» — как шаблоны CapCut, только со своими видео.</li><li>Авто-ролик: от короткого клипа под музыку до фильма из 60 файлов.</li><li>Нарезка длинного видео, стрима или подкаста в шортсы.</li><li>Удаление фона, «Клон себя», студийный голос, озвучка текста.</li><li>Экспорт MP4 (H.264 и H.265) до 4K, ProRes, WebM, GIF, MP3 и стикеры для Telegram — без водяного знака.</li></ul>'],
@@ -175,7 +175,7 @@ function page(p) {
 </main>
 <footer>
   <div class="wrap">
-    <span>Kadro Editor делает <a href="https://github.com/honeyjostar">yaposspall</a>. Открытый код, GPL-3.0.</span>
+    <span>Kadro Editor делает <a href="https://github.com/honeyjostar">yaposspall</a>. Открытый код, GPL-3.0. Названия CapCut, GTA и других продуктов — товарные знаки их владельцев; Kadro с ними не связан.</span>
     <span><a href="https://github.com/honeyjostar/kadro">GitHub</a> &nbsp; <a href="${TG}">Telegram</a> &nbsp; <a href="https://github.com/honeyjostar/kadro/blob/master/docs/GUIDE.md">Руководство</a></span>
   </div>
 </footer>

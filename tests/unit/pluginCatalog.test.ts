@@ -3,10 +3,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parseGlsl, pluginDef } from '../../src/shared/gl/glsl';
-import { buildIndex, kindOfSource, safePluginFile, validEntry, type CatalogIndex } from '../../src/shared/pluginCatalog';
+import { buildIndex, kindOfSource, safePluginFile, validEntry, workshopTemplateId, type CatalogIndex } from '../../src/shared/pluginCatalog';
+import { isTemplate } from '../../src/shared/templates';
 
 const root = path.join(__dirname, '..', '..', 'community-plugins');
-const files = ['transitions', 'effects'].flatMap((d) => fs.readdirSync(path.join(root, d)).filter((f) => f.endsWith('.glsl')).sort().map((f) => {
+const files = ['transitions', 'effects', 'templates'].flatMap((d) => fs.readdirSync(path.join(root, d)).filter((f) => f.endsWith(d === 'templates' ? '.json' : '.glsl')).sort().map((f) => {
   const buf = fs.readFileSync(path.join(root, d, f));
   return { file: `${d}/${f}`, src: buf.toString('utf8'), sha256: createHash('sha256').update(buf).digest('hex'), size: buf.length };
 }));
@@ -23,11 +24,19 @@ describe('каталог плагинов сообщества', () => {
     for (const e of index.plugins) {
       expect(validEntry(e), e.file).toBe(true);
       const src = files.find((f) => f.file === e.file)!.src;
+      if (e.kind === 'template') {
+        // шаблон Мастерской: настоящий шаблон со своим id, с названием, описанием, автором и лицензией
+        const t = JSON.parse(src);
+        expect(isTemplate(t), e.file).toBe(true);
+        expect(t.id).toBe(workshopTemplateId(e.file));
+        expect([e.name, e.description, e.author, e.license].every(Boolean), e.file).toBe(true);
+        continue;
+      }
       const m = parseGlsl(src);
       expect(m.errors, e.file).toEqual([]);
       expect([m.name, m.description, m.author, m.license].every(Boolean), e.file).toBe(true);
       expect(kindOfSource(src), e.file).toBe(e.kind);
-      expect(pluginDef(e.kind, e.file, src).def?.id).toBe(`plug:${e.id}`);
+      expect(pluginDef(e.kind as 'transition' | 'effect', e.file, src).def?.id).toBe(`plug:${e.id}`);
       // параметры с ползунком — с понятной подписью
       for (const p of m.params) if (p.min !== undefined) expect(p.label, `${e.file}: ${p.name}`).toBeTruthy();
     }

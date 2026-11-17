@@ -57,7 +57,7 @@ function buildItems(fav: ReturnType<typeof useFavs.getState>['s']): Item[] {
     { id: 'cmd-shorts', group: cmd, label: tx('Нарезать в шортсы'), run: () => s.setShortsOpen(true) },
     { id: 'cmd-settings', group: cmd, label: tx('Настройки'), run: () => s.setSettingsOpen(true) },
     { id: 'cmd-keys', group: cmd, label: tx('Все горячие клавиши'), keys: 'F1', run: () => s.setKeysOpen(true) },
-    { id: 'cmd-plugins', group: cmd, label: tx('Каталог плагинов'), run: () => s.setPluginCatalogOpen(true) },
+    { id: 'cmd-plugins', group: cmd, label: tx('Мастерская: шаблоны, переходы, эффекты'), run: () => s.setPluginCatalogOpen(true) },
     { id: 'cmd-bug', group: cmd, label: tx('Сообщить об ошибке'), run: () => s.setBugOpen({ what: '' }) },
     { id: 'cmd-home', group: cmd, label: tx('Главный экран'), keywords: [tx('мои проекты')], run: () => s.setHome(true) },
   ];

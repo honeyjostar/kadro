@@ -1,0 +1,190 @@
+{
+  "id": "ws-new-year",
+  "name": "Новый год",
+  "hint": "6 тёплых кадров, снег и блёстки, надпись с объёмом",
+  "aspect": "9:16",
+  "author": "Kadro",
+  "license": "MIT",
+  "tags": [
+    "new year",
+    "winter",
+    "holiday"
+  ],
+  "swatch": "radial-gradient(circle at 30% 30%,#fff 0 2px,transparent 3px),radial-gradient(circle at 70% 60%,#fff 0 2px,transparent 3px),linear-gradient(160deg,#1b2a4a,#7a1f2b)",
+  "slots": [
+    {
+      "duration": 2.4,
+      "effects": [
+        {
+          "type": "snow",
+          "amount": 0.5
+        },
+        {
+          "type": "sparkles",
+          "amount": 0.5
+        }
+      ],
+      "color": {
+        "preset": "warm",
+        "presetAmount": 0.6
+      },
+      "zoom": [
+        1,
+        1.1
+      ],
+      "transitionOut": {
+        "type": "fade",
+        "duration": 0.5
+      }
+    },
+    {
+      "duration": 1.8,
+      "effects": [
+        {
+          "type": "snow",
+          "amount": 0.5
+        }
+      ],
+      "color": {
+        "preset": "warm",
+        "presetAmount": 0.6
+      },
+      "zoom": [
+        1.1,
+        1
+      ],
+      "transitionOut": {
+        "type": "fade",
+        "duration": 0.5
+      }
+    },
+    {
+      "duration": 1.8,
+      "effects": [
+        {
+          "type": "snow",
+          "amount": 0.5
+        }
+      ],
+      "color": {
+        "preset": "warm",
+        "presetAmount": 0.6
+      },
+      "zoom": [
+        1,
+        1.1
+      ],
+      "transitionOut": {
+        "type": "fade",
+        "duration": 0.5
+      }
+    },
+    {
+      "duration": 1.8,
+      "effects": [
+        {
+          "type": "snow",
+          "amount": 0.5
+        }
+      ],
+      "color": {
+        "preset": "warm",
+        "presetAmount": 0.6
+      },
+      "zoom": [
+        1.1,
+        1
+      ],
+      "transitionOut": {
+        "type": "fade",
+        "duration": 0.5
+      }
+    },
+    {
+      "duration": 1.8,
+      "effects": [
+        {
+          "type": "snow",
+          "amount": 0.5
+        }
+      ],
+      "color": {
+        "preset": "warm",
+        "presetAmount": 0.6
+      },
+      "zoom": [
+        1,
+        1.1
+      ],
+      "transitionOut": {
+        "type": "fade",
+        "duration": 0.5
+      }
+    },
+    {
+      "duration": 2.8,
+      "effects": [
+        {
+          "type": "snow",
+          "amount": 0.5
+        },
+        {
+          "type": "sparkles",
+          "amount": 0.5
+        }
+      ],
+      "color": {
+        "preset": "warm",
+        "presetAmount": 0.6
+      },
+      "zoom": [
+        1.1,
+        1
+      ]
+    }
+  ],
+  "texts": [
+    {
+      "start": 0.3,
+      "duration": 2.0,
+      "text": "С НОВЫМ ГОДОМ!",
+      "preset": "classic",
+      "style": {
+        "font": "Unbounded",
+        "size": 96,
+        "bold": true,
+        "color": "#ffe9b0",
+        "depth": 8,
+        "depthColor": "#7a1f2b"
+      },
+      "anim": {
+        "in": {
+          "type": "elastic",
+          "dur": 0.7
+        },
+        "out": {
+          "type": "fade",
+          "dur": 0.4
+        }
+      },
+      "y": 0.42
+    },
+    {
+      "start": -2.6,
+      "duration": 2.6,
+      "text": "пусть сбудется",
+      "preset": "classic",
+      "style": {
+        "font": "Caveat",
+        "size": 96
+      },
+      "anim": {
+        "in": {
+          "type": "typewriter",
+          "dur": 1.0
+        }
+      },
+      "y": 0.62
+    }
+  ]
+}

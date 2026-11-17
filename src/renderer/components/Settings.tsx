@@ -3,7 +3,7 @@
 import type { LightCopyPref } from '../../shared/lightCopy';
 import { LANGS_UI, pluralForm, tx, uiLang, uiLocale } from '../../shared/i18n';
 import { txj } from '../txj';
-import { AudioLines, BookOpen, Compass, GraduationCap, Brain, Bug, Send, CheckCircle2, Cpu, Download, Globe, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, RefreshCw, Settings as Gear, Trash2, TriangleAlert, X, XCircle } from 'lucide-react';
+import { AudioLines, BookOpen, Copy, Lock, Star, Compass, GraduationCap, Brain, Bug, Send, CheckCircle2, Cpu, Download, Globe, FileUp, FolderOpen, HardDrive, ImagePlus, LayoutGrid, Puzzle, Languages, RefreshCw, Settings as Gear, Trash2, TriangleAlert, X, XCircle } from 'lucide-react';
 import { encoderLabel, encoderName, reasonText, type GpuVendor, type HwInfo } from '../../shared/hw';
 import { glPluginErrors, glPlugins, useGlCatalog } from '../glRegistry';
 import { useEffect, useState } from 'react';
@@ -15,6 +15,7 @@ import { DUCK_LEVELS, duckNow, setDuck, type DuckSettings } from '../../shared/d
 import { startTour } from './Tour';
 import { LogoMark } from './Home';
 import { reportInstall } from './PluginCatalog';
+import { rewardsOpen, showCode } from '../../shared/rewards';
 import { ensureModel, ensureVoice, importModelFile, modelInBrowser } from '../actions';
 import type { ModelInfo, VoiceInfo } from '../../shared/ipc';
 import { gpuSpeedup, gpuWins, type AsrDeviceInfo, type AsrDevicePref } from '../../shared/asrDevice';
@@ -152,6 +153,10 @@ export function SettingsDialog() {
         <CacheSection />
 
         <UpdateSection />
+
+        <FriendsSection />
+
+        <StatsSection />
 
         <section className="settings-sec" data-testid="help">
           <b>{tx('Помощь')}</b>
@@ -335,7 +340,7 @@ function PluginsSection() {
       <p className="hint">
         {tx('Дополнительные переходы и эффекты: из каталога сообщества в один щелчок или свой файл .glsl (можно просто перетащить его в окно Kadro). Подходит любой переход с gl-transitions.com.')}</p>
       <div className="custom-row">
-        <button className="btn small primary" onClick={() => { getState().setSettingsOpen(false); getState().setPluginCatalogOpen(true); }} data-testid="plugins-catalog"><LayoutGrid size={13} />{tx('Каталог плагинов')}</button>
+        <button className="btn small primary" onClick={() => { getState().setSettingsOpen(false); getState().setPluginCatalogOpen(true); }} data-testid="plugins-catalog"><LayoutGrid size={13} />{tx('Мастерская')}</button>
         <button className="btn small" onClick={() => void api.pickPluginFiles().then(reportInstall)} data-testid="plugins-from-file"><FileUp size={13} />{tx('Из файла…')}</button>
         <button className="btn ghost small" onClick={() => void api.openPluginsDir().then(setDir)} data-testid="plugins-open"><FolderOpen size={13} />{tx('Папка')}</button>
         <button className="btn ghost small" onClick={() => api.openDocs('plugins')}><BookOpen size={13} />{tx('Как написать плагин')}</button>
@@ -428,6 +433,86 @@ function DuckSection() {
       <Toggle label={tx('Приглушать музыку, когда говорят')} on={d.on} onChange={(on) => put({ on })} testId="duck-toggle" />
       {d.on && <Seg value={d.level} onChange={(level) => put({ level })} options={DUCK_LEVELS} testId="duck-level" />}
       <p className="hint">{tx('Во всех проектах: где в видео, записи с микрофона, озвучке или дубляже говорят, музыка на дорожках звука сама становится тише и плавно возвращается. И в плеере, и в готовом видео.')}</p>
+    </section>
+  );
+}
+
+/** «Друзья и награды»: «Набор создателя», мой код приглашения, ввод кода друга или ответного кода. */
+function FriendsSection() {
+  const rw = useStore((st) => st.rewards);
+  const [input, setInput] = useState('');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [reply, setReply] = useState<string | null>(null);
+  if (!rw) return null;
+  const open = rewardsOpen(rw);
+  const copy = async (text: string, done: string) => {
+    try { await navigator.clipboard.writeText(text); getState().toast(done, 'ok'); } catch { getState().toast(tx('Не удалось скопировать'), 'err'); }
+  };
+  const invite = tx('Монтирую в Kadro — как CapCut Pro, только бесплатно и работает в России. Скачай: {0} и введи мой код {1} в «Настройки» → «Друзья» — получишь «Набор создателя».', `https://kadro-editor.github.io/?ref=${rw.code}`, showCode(rw.code));
+  const enter = async () => {
+    const r = await api.rewardsCode(input);
+    if (!r.ok) {
+      const why: Record<typeof r.error, string> = {
+        format: tx('Код не подходит — проверь буквы. Код друга — 6 знаков, ответный — 10.'),
+        own: tx('Это твой собственный код — его вводит друг.'),
+        used: tx('Код друга можно ввести только один раз.'),
+        notmine: tx('Это ответный код не для тебя — его нужно ввести тому, чей код вводил друг.'),
+        again: tx('Этот друг уже засчитан.'),
+      };
+      setMsg({ ok: false, text: why[r.error] });
+      return;
+    }
+    getState().setRewards(r.rewards);
+    setInput('');
+    if (r.reply) {
+      setReply(r.reply);
+      setMsg({ ok: true, text: tx('Готово — «Набор создателя» открыт! Отправь другу ответный код ниже: у него набор тоже откроется.') });
+    } else setMsg({ ok: true, text: tx('Друг засчитан — спасибо! Приглашено: {0}.', r.rewards.invited.length) });
+  };
+  return (
+    <section className="settings-sec" id="friends-sec" data-testid="friends-sec">
+      <b>{tx('Друзья и «Набор создателя»')}</b>
+      <div className={`friends-status ${open ? 'on' : ''}`} data-testid="friends-status">
+        {open ? <><Star size={15} fill="currentColor" />{tx('Набор открыт: стикеры с маскотом Kadro, фоны «Золото», «Цвета Kadro», «Розовое сияние» и надписи «Золото», «В стиле Kadro».')}</>
+          : <><Lock size={15} />{tx('Набор закрыт. В нём стикеры с маскотом Kadro, эксклюзивные фоны и надписи. Открывается любым способом:')}</>}
+      </div>
+      {!open && (
+        <ol className="friends-ways">
+          <li>{tx('Сохрани ролик с концовкой «Сделано в Kadro» (переключатель в окне экспорта).')}</li>
+          <li>{tx('Или пригласи друга: он вводит твой код — набор у него, присылает тебе ответный код — набор у тебя.')}</li>
+        </ol>
+      )}
+      <div className="friends-code">
+        <span className="hint">{tx('Твой код:')}</span><code data-testid="friends-code">{showCode(rw.code)}</code>
+        <button className="btn small" onClick={() => void copy(invite, tx('Приглашение скопировано — отправь его другу'))} data-testid="friends-copy"><Copy size={13} />{tx('Скопировать приглашение')}</button>
+      </div>
+      <div className="custom-row">
+        <input className="input" style={{ flex: 1, minWidth: 0 }} value={input} onChange={(e) => setInput(e.target.value)} placeholder={tx('Код друга или ответный код')} data-testid="friends-input"
+          onKeyDown={(e) => { if (e.key === 'Enter' && input.trim()) void enter(); }} />
+        <button className="btn small primary" disabled={!input.trim()} onClick={() => void enter()} data-testid="friends-enter">{tx('Ввести')}</button>
+      </div>
+      {msg && <p className={`hint ${msg.ok ? '' : 'bad'}`} data-testid="friends-msg">{msg.text}</p>}
+      {reply && (
+        <div className="friends-code">
+          <span className="hint">{tx('Ответный код для друга:')}</span><code data-testid="friends-reply">{reply}</code>
+          <button className="btn small" onClick={() => void copy(reply, tx('Ответный код скопирован'))}><Copy size={13} />{tx('Скопировать')}</button>
+        </div>
+      )}
+      {rw.invited.length > 0 && <p className="hint" data-testid="friends-count">{tx('Приглашено друзей: {0}', rw.invited.length)}</p>}
+    </section>
+  );
+}
+
+/** Анонимная статистика: согласие (то же, что галочка при знакомстве). */
+function StatsSection() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => { void api.statsGet().then(setOn); }, []);
+  if (on === null) return null;
+  return (
+    <section className="settings-sec" data-testid="stats-sec">
+      <b>{tx('Анонимная статистика')}</b>
+      <Toggle label={tx('Помогать Kadro анонимной статистикой')} on={on} onChange={(v) => { setOn(v); void api.statsSet(v); }} testId="stats-toggle" />
+      <p className="hint">{tx('Раз в день Kadro сообщает счётчику: «запустили», версию и какими функциями пользовались (экспорт, авто-ролик, фоны…). Без имени, почты, файлов, названий проектов и cookies. Так видно, что людям нужно, — и что делать дальше.')}</p>
     </section>
   );
 }

@@ -3,7 +3,7 @@
 // задан счётчик SURVEY_COUNTER (GoatCounter); пока он пустой, галочки согласия нет вовсе.
 import type { Level } from './uiMode';
 
-export const SURVEY_COUNTER = ''; // например 'kadro' → https://kadro.goatcounter.com
+export const SURVEY_COUNTER = 'kadro-editor'; // https://kadro-editor.goatcounter.com — счётчик Kadro
 
 export type EditKind = 'shorts' | 'youtube' | 'games' | 'family' | 'work' | 'study' | 'other';
 export type Source = 'tiktok' | 'youtube' | 'telegram' | 'vk' | 'friends' | 'search' | 'github' | 'other';

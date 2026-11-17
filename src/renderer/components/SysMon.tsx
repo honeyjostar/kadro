@@ -43,6 +43,7 @@ export function SysMon() {
   useEffect(() => {
     if (!open) return;
     api.sysmon(true);
+    api.track('sysmon');
     const off = api.onSysmon((s) => {
       setHist((h) => [...h.slice(-(N - 1)), s]);
       setPeaks((p) => addPeaks(p, s, IDLE()));

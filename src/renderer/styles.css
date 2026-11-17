@@ -1548,3 +1548,15 @@ button.link:hover { color: var(--strong); }
 .mon-peaks td { padding: 3px 4px 3px 0; border-top: 1px solid var(--line-soft); }
 .mon-note { margin: 0 12px 10px; }
 .icon-btn.on { color: var(--accent); }
+/* «Набор создателя»: звёздочка у открытого, замок у закрытого */
+.theme-tile, .bg-card { position: relative; }
+.reward-tag { position: absolute; top: 5px; right: 5px; z-index: 2; display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px; border-radius: 999px; font-size: 10.5px; line-height: 1.2; color: #ffd36b; background: rgba(0, 0, 0, .62); pointer-events: none; }
+.locked .theme-sample, .locked .bg-thumb, .sticker-grid.locked button img { filter: saturate(.45) brightness(.7); }
+.reward-chip { display: inline-flex; align-items: center; gap: 4px; }
+.reward-note { margin: 6px 0 0; }
+.friends-code { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+.friends-code code { font: 600 16px/1 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .06em; padding: 8px 12px; border-radius: 8px; background: var(--raised); color: var(--strong); user-select: all; }
+.friends-status { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; background: var(--raised); margin: 6px 0 10px; }
+.friends-status.on { background: rgba(255, 211, 107, .14); }
+.friends-ways { margin: 4px 0 10px; padding-left: 1.2em; }
+.friends-ways li { margin: 3px 0; }

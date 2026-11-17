@@ -11,6 +11,8 @@ export interface TextTheme {
   anim: { in?: TextAnim; out?: TextAnim };
   /** где по высоте кадра (доля), если не по центру */
   y?: number;
+  /** из «Набора создателя» */
+  reward?: boolean;
 }
 
 export const TEXT_THEMES: TextTheme[] = [
@@ -34,5 +36,8 @@ export const TEXT_THEMES: TextTheme[] = [
   { id: 'chapter', label: tx('Глава'), text: tx('ГЛАВА ПЕРВАЯ'), style: { font: 'Cormorant Garamond', size: 92, bold: true, uppercase: true, color: '#ffffff', strokeWidth: 0, shadow: false, bgOpacity: 0 }, anim: { in: { type: 'fade', dur: 1.2 }, out: { type: 'fade', dur: 1 } } },
   { id: 'meme', label: tx('Мем'), text: tx('КОГДА ПОНЯЛ'), style: { font: 'Oswald', size: 110, bold: true, uppercase: true, color: '#ffffff', strokeColor: '#000000', strokeWidth: 9, shadow: false, bgOpacity: 0 }, anim: { in: { type: 'pop', dur: 0.2 } }, y: 0.14 },
   { id: 'subscribe', label: tx('Призыв'), text: tx('Подпишись, если зашло'), style: { font: 'Manrope', size: 72, bold: true, color: '#ffffff', strokeWidth: 0, shadow: false, bgColor: '#ff2d55', bgOpacity: 1 }, anim: { in: { type: 'pop', dur: 0.35 }, out: { type: 'slideDown', dur: 0.35 } }, y: 0.82 },
+  // «Набор создателя»
+  { id: 'gold', label: tx('Золото'), text: tx('ИТОГИ ГОДА'), reward: true, style: { font: 'Unbounded', size: 120, bold: true, uppercase: true, color: '#ffd36b', strokeWidth: 0, shadow: true, depth: 12, depthColor: '#7a4a08', glow: '#ffb02e', bgOpacity: 0 }, anim: { in: { type: 'zoom', dur: 0.5 }, out: { type: 'fade', dur: 0.5 } } },
+  { id: 'kadro', label: tx('В стиле Kadro'), text: tx('Смотри до конца'), reward: true, style: { font: 'Unbounded', size: 88, bold: true, color: '#ffffff', strokeWidth: 0, shadow: false, bgColor: '#ff3d7f', bgOpacity: 1 }, anim: { in: { type: 'elastic', dur: 0.6 }, out: { type: 'pop', dur: 0.3 } }, y: 0.2 },
 ];
 export const TEXT_THEME_DUR = 3;

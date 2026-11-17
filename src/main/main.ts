@@ -13,7 +13,7 @@ import { Readable } from 'node:stream';
 import type { AiJob, AiResponse, DemoFiles, ExportReq, HomeInfo, LibFolder, ModelInfo, RecentProject, ThemePref, VoiceInfo } from '../shared/ipc';
 import { countDeep, forgetLibMeta, libMeta, listDir, searchDir } from './library';
 import { cacheInfo, cleanTempOnStart, clearCache, knownProjectPaths } from './cache';
-import { ensurePluginDirs, installFiles, installFromCatalog, listPlugins, loadCatalog, removePlugin, watchPlugins } from './plugins';
+import { ensurePluginDirs, installFiles, installFromCatalog, listPlugins, loadCatalog, removePlugin, removeWorkshopTemplate, watchPlugins } from './plugins';
 import { FONT_EXT, installFonts, listUserFonts, loadableFace, removeUserFonts, systemFontDirs, systemFonts, userFontsDir } from './fonts';
 import { packProject, packageExtras, relinkProject } from './pack';
 import { referenceTemplate } from './refEdit';
@@ -39,6 +39,8 @@ import { duckNow, setDuck, type DuckSettings } from '../shared/duck';
 import type { CoachState } from '../shared/coach';
 import { LOGO_EXTS } from '../shared/logo';
 import { beginActivity, startSysmon, stopSysmon } from './sysmon';
+import { statDay, statDue, statUrl } from '../shared/stats';
+import { enterCode, newRefCode, type RefResult, type Rewards } from '../shared/rewards';
 import { SPEECH_STEP } from '../shared/autoEdit';
 import { SFX_IDS, setSfxFiles } from '../shared/sfx';
 import { refreshNext, savedNext } from './next';
@@ -650,8 +652,18 @@ async function refreshProject(project: Project): Promise<Project> {
 
 // ---------- проекты ----------
 const settingsFile = () => path.join(dataDir(), 'settings.json');
-interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; about?: unknown; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; lightCopy?: LightCopyPref; duck?: Partial<DuckSettings>; coach?: CoachState }
+interface Settings { lang?: 'ru' | 'en'; welcome?: 'pending' | 'done'; about?: unknown; format?: AspectKey; asrDevice?: AsrDevicePref; asrBench?: Record<string, AsrBench>; asrGpuFailed?: Record<string, string>; lastProject?: string | null; recent?: string[]; showHome?: boolean; theme?: ThemePref; library?: string[]; appearance?: Partial<Appearance>; exportsDone?: number; star?: StarAnswer; nextHidden?: string; intro?: boolean; introAsked?: boolean; lightCopy?: LightCopyPref; duck?: Partial<DuckSettings>; coach?: CoachState; /** анонимная статистика (согласие) */ stats?: boolean; statsSent?: Record<string, string>; /** «Набор создателя» и код приглашения */ rewards?: Rewards }
 const appearance = (): Appearance => normalizeAppearance(readSettings().appearance);
+/** Событие анонимной статистики — только с согласия и не чаще раза в день (см. shared/stats). */
+async function track(ev: string): Promise<void> {
+  const st = readSettings();
+  if (!st.stats || process.env.KADRO_NO_STATS || !statDue(st.statsSent, ev)) return;
+  const url = statUrl(ev);
+  if (!url) return;
+  writeSettings({ ...readSettings(), statsSent: { ...(readSettings().statsSent ?? {}), [ev]: statDay() } });
+  try { await netFetch()(url, {}); } catch (e) { log('stats', ev, e); }
+}
+
 function readSettings(): Settings {
   try { return JSON.parse(fs.readFileSync(settingsFile(), 'utf8')); } catch { return {}; }
 }
@@ -723,7 +735,7 @@ function demoFiles(): DemoFiles {
   setSfxFiles(sfx);
   const memes: Record<string, string> = {};
   for (const id of ['drama', 'tbc', 'drop']) { const f = has('demo', `meme-${id}.m4a`); if (f) memes[id] = f; }
-  return { scenes, beat: has('demo', 'beat.m4a'), reel: reel('reel'), reelWide: reel('reel-wide'), previews, sfx, memes, bgBase: has('demo', 'bg-base.png') };
+  return { scenes, beat: has('demo', 'beat.m4a'), reel: reel('reel'), reelWide: reel('reel-wide'), previews, sfx, memes, bgBase: has('demo', 'bg-base.png'), outro: has('demo', 'outro-mascot.png') };
 }
 async function readProjectFile(file: string): Promise<Project> {
   const p = JSON.parse(fs.readFileSync(file, 'utf8')) as Project;
@@ -816,6 +828,29 @@ function registerIpc(): void {
     return r.canceled ? [] : r.filePaths;
   });
   ipcMain.handle('media:import', (_e, paths: string[]) => importMedia(paths));
+  // «Набор создателя»: открыт ли, мой код приглашения, ввод кода друга или ответного кода, открытие за концовку
+  const rewards = (): Rewards => {
+    const st = readSettings();
+    const r: Rewards = st.rewards && typeof st.rewards.code === 'string' ? { ...st.rewards, by: st.rewards.by ?? [], invited: st.rewards.invited ?? [] } : { by: [], code: newRefCode(), invited: [] };
+    if (!st.rewards) writeSettings({ ...st, rewards: r });
+    return r;
+  };
+  ipcMain.handle('rewards:get', () => rewards());
+  ipcMain.handle('rewards:code', (_e, code: string): RefResult => {
+    const res = enterCode(rewards(), String(code ?? ''));
+    if (res.ok) { writeSettings({ ...readSettings(), rewards: res.rewards }); void track(res.reply ? 'ref/code' : 'ref/reply'); }
+    return res;
+  });
+  ipcMain.handle('rewards:outro', () => {
+    const r = rewards();
+    if (!r.by.includes('outro')) writeSettings({ ...readSettings(), rewards: { ...r, by: [...r.by, 'outro'] } });
+    void track('outro/on');
+    return rewards();
+  });
+  // анонимная статистика: согласие и события (раз в день каждое)
+  ipcMain.handle('stats:get', () => !!readSettings().stats);
+  ipcMain.handle('stats:set', (_e, on: boolean) => { writeSettings({ ...readSettings(), stats: !!on }); if (on) { void track('active'); void track(`ver/${app.getVersion()}`); } });
+  ipcMain.on('stats:track', (_e, ev: string) => { void track(ev); });
   ipcMain.handle('survey:hit', async (_e, url: string) => {
     // только счётчик Kadro на GoatCounter — никаких других адресов
     if (!SURVEY_COUNTER || !url.startsWith(`https://${SURVEY_COUNTER}.goatcounter.com/count?`)) return;
@@ -1044,6 +1079,7 @@ function registerIpc(): void {
       r = { ok: false, error: e instanceof Error ? e.message : String(e) };
     } finally { done(); }
     log('export result', r);
+    if (r.ok) void track(`export/${req.opts.format === 'mp4' ? req.opts.codec ?? 'h264' : req.opts.format}`);
     // новый экспорт мог начаться поверх (старый отменён) — значок показывает только текущий
     if (exportAbort === ctl) { exportAbort = null; tray.exportEnd(r, ctl.signal.aborted); }
     // просьба о звезде на GitHub — после удачного экспорта (первого и ещё раз после 10-го)
@@ -1159,6 +1195,22 @@ function registerIpc(): void {
     try { const t = JSON.parse(fs.readFileSync(path.join(tplDir(), f), 'utf8')); return isTemplate(t) ? [{ ...t, custom: true }] : []; } catch { return []; }
   }));
   ipcMain.handle('tpl:save', (_e, t: Template) => { if (!isTemplate(t)) return false; fs.writeFileSync(tplFile(t.id), JSON.stringify(t)); return true; });
+  // свой шаблон — в файл, чтобы прислать в Мастерскую (без своей музыки и обложки: только монтаж)
+  ipcMain.handle('tpl:export', async (_e, id: string): Promise<string | null> => {
+    let t: Template;
+    try { t = JSON.parse(fs.readFileSync(tplFile(id), 'utf8')) as Template; } catch { return null; }
+    if (!isTemplate(t)) return null;
+    const { music: _m, thumb: _t, custom: _c, ...clean } = t;
+    const out = { ...clean, author: '', license: 'MIT', tags: [] as string[] };
+    const name = `${String(t.name).replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'template'}.kadro-template.json`;
+    const target = process.env.KADRO_TEST_EXPORT_TPL ?? (await dialog.showSaveDialog(win!, {
+      title: tx('Шаблон для Мастерской'), defaultPath: path.join(app.getPath('desktop'), name), filters: [{ name: tx('Шаблон Kadro'), extensions: ['json'] }],
+    })).filePath;
+    if (!target) return null;
+    fs.writeFileSync(target, `${JSON.stringify(out, null, 2)}\n`);
+    shell.showItemInFolder(target);
+    return target;
+  });
   ipcMain.handle('tpl:delete', (_e, id: string) => {
     fs.rmSync(tplFile(id), { force: true });
     fs.rmSync(tplFile(id).replace(/\.json$/, '.m4a'), { force: true }); // музыка шаблона «по ролику»
@@ -1471,6 +1523,7 @@ function registerIpc(): void {
     return installFiles(paths);
   });
   ipcMain.handle('plugins:remove', (_e, file: string) => removePlugin(String(file)));
+  ipcMain.handle('workshop:removeTemplate', (_e, file: string) => removeWorkshopTemplate(String(file)));
   // шрифты: свои (папка fonts) и системные
   const strs = (a: unknown) => (Array.isArray(a) ? a.filter((x): x is string => typeof x === 'string') : []);
   const fontsChanged = () => win?.webContents.send('fonts:changed', listUserFonts());
@@ -1584,6 +1637,7 @@ if (!lock) {
     // установщик пересоздаёт ярлыки со значком по умолчанию — возвращаем выбранный
     if (app.isPackaged) setTimeout(() => { try { applyShortcutIcons(appearance()); } catch (e) { log('shortcut icons', e); } }, 4000);
     log('Kadro started', app.getVersion(), process.platform, 'ffmpeg:', ffmpegPath());
+    setTimeout(() => { void track('active').then(() => track(`ver/${app.getVersion()}`)).then(() => track(`os/${process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'mac' : 'linux'}`)); }, 8000);
   });
   app.on('before-quit', () => { tray.quitting = true; });
   app.on('before-quit', () => stopSysmon());

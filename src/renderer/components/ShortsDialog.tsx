@@ -21,8 +21,9 @@ const nMoments = (n: number) => `${n} ${plural(n, tx('момент'), tx('мом
 
 export function ShortsDialog() {
   const assets = useStore((s) => s.project.assets);
+  const openedAs = useStore((s) => s.shortsOpen);
   // что в видео: разговор (моменты — по речи) или игра (по экшену: громко и много движения)
-  const [mode, setMode] = useState<'talk' | 'game'>('talk');
+  const [mode, setMode] = useState<'talk' | 'game'>(openedAs === 'game' ? 'game' : 'talk');
   const [layout, setLayout] = useState<GameLayout>('blur');
   const game = mode === 'game';
   const videos = useMemo(() => assets.filter((a) => a.kind === 'video' && (game || a.hasAudio) && !a.derived && !a.missing).sort((a, b) => b.duration - a.duration), [assets, game]);

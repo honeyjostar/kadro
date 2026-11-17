@@ -214,6 +214,54 @@
       ],
       "sha256": "a8fe6e1571ad647ec3a2c282980c0115bc8f6485bf2cf0d3a8d437f20fb47198",
       "size": 827
+    },
+    {
+      "id": "w/chase",
+      "kind": "template",
+      "file": "templates/chase.json",
+      "name": "Погоня",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "Игровой клип: наезды, тряска на ударах, вспышка и титр с объёмом",
+      "tags": [
+        "game",
+        "action",
+        "gameplay"
+      ],
+      "sha256": "d03869f0f976001ed94c2c3855a8b20d8b6e683ca40b4574bf5fc8ab57469d4b",
+      "size": 2690
+    },
+    {
+      "id": "w/fonk-edit",
+      "kind": "template",
+      "file": "templates/fonk-edit.json",
+      "name": "Фонк-эдит",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "10 рваных склеек под фонк: тряска, RGB-сдвиг, ч/б вспышки",
+      "tags": [
+        "phonk",
+        "edit",
+        "fast"
+      ],
+      "sha256": "a1c68ab50c8e1d79c9ce4a1e5b965aebaddc021579df82adf1bdc67c666cc59d",
+      "size": 3846
+    },
+    {
+      "id": "w/new-year",
+      "kind": "template",
+      "file": "templates/new-year.json",
+      "name": "Новый год",
+      "author": "Kadro",
+      "license": "MIT",
+      "description": "6 тёплых кадров, снег и блёстки, надпись с объёмом",
+      "tags": [
+        "new year",
+        "winter",
+        "holiday"
+      ],
+      "sha256": "c0f520cd53a8482592470acd33d26bd02634c416920f8e4affc8f05d450024d8",
+      "size": 3436
     }
   ]
 }

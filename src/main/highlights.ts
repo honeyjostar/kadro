@@ -44,19 +44,21 @@ export async function highlights(file: string, duration: number, onProgress?: (p
   if (hit) { cache.set(key, hit); onProgress?.(1); return hit; }
   // большой файл (4K с телефона, экшн-камера) — декодирует видеокарта; не вышло — ещё раз процессором
   const big = size > 300 * 1024 * 1024 || duration > 180;
-  let hl: Highlights;
-  try {
-    hl = await scan(file, duration, big, onProgress, signal);
-  } catch (e) {
-    if (!big || signal?.aborted) throw e;
-    hl = await scan(file, duration, false, onProgress, signal);
+  // по очереди: видеокарта (большие файлы) → процессор без ненужных кадров → обычный разбор
+  const modes: ScanMode[] = big ? ['hw', 'skip', 'plain'] : ['skip', 'plain'];
+  let hl: Highlights | null = null;
+  let err: unknown;
+  for (const m of modes) {
+    try { hl = await scan(file, duration, m, onProgress, signal); break; } catch (e) { err = e; if (signal?.aborted) throw e; }
   }
+  if (!hl) throw err;
   cache.set(key, hl);
   toDisk(key, hl);
   return hl;
 }
 
-function scan(file: string, duration: number, hw: boolean, onProgress?: (p: number) => void, signal?: AbortSignal): Promise<Highlights> {
+type ScanMode = 'hw' | 'skip' | 'plain';
+function scan(file: string, duration: number, mode: ScanMode, onProgress?: (p: number) => void, signal?: AbortSignal): Promise<Highlights> {
   const fps = hlFps(duration);
   const size = HL_FINE_W * HL_FINE_H; // кадр 160×90: из него — 80×45 для движения и резкости, сам он — для фокуса
   const expected = Math.max(1, Math.ceil(duration * fps));
@@ -64,7 +66,7 @@ function scan(file: string, duration: number, hw: boolean, onProgress?: (p: numb
     const proc = spawn(ffmpegPath(), [
       '-hide_banner', '-nostdin', '-v', 'error',
       // кадры, на которые никто не ссылается, не декодируем: при 1–4 кадрах в секунду они не нужны, а это до половины работы
-      ...(hw ? ['-hwaccel', 'auto'] : ['-skip_frame', 'nonref']),
+      ...(mode === 'hw' ? ['-hwaccel', 'auto'] : mode === 'skip' ? ['-skip_frame', 'noref'] : []),
       '-i', file, '-map', '0:v:0', '-an', '-sn', '-dn',
       '-vf', `fps=${fps},scale=${HL_FINE_W}:${HL_FINE_H}:flags=area,format=gray`, '-f', 'rawvideo', 'pipe:1',
     ], { windowsHide: true });
@@ -96,7 +98,8 @@ function scan(file: string, duration: number, hw: boolean, onProgress?: (p: numb
     proc.on('close', (code) => {
       signal?.removeEventListener('abort', onAbort);
       if (signal?.aborted) { reject(new FfmpegError(tx('Отменено'), err)); return; }
-      if (code !== 0 && !stats.length) { reject(new FfmpegError(err.trim().split(/\r?\n/).slice(-2).join('\n') || tx('ffmpeg: код {0}', code), err)); return; }
+      // сбой с ускорением — пробуем следующий способ (иначе разбор оборвался бы на середине); обычный — берём, что успели
+      if (code !== 0 && (mode !== 'plain' || !stats.length)) { reject(new FfmpegError(err.trim().split(/\r?\n/).slice(-2).join('\n') || tx('ffmpeg: код {0}', code), err)); return; }
       const hl = scoreFrames(stats, 1 / fps);
       onProgress?.(1);
       resolve(hl);

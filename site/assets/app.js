@@ -89,3 +89,17 @@ if (location.hostname === 'honeyjostar.github.io') {
     else video.pause();
   }), { threshold: 0.3 }).observe(video.parentElement);
 })();
+
+// приглашение от друга: ?ref=КОД — показываем, что ввести в Kadro
+(() => {
+  const ref = new URLSearchParams(location.search).get('ref');
+  if (!ref || !/^[A-Z0-9]{6}$/i.test(ref)) return;
+  const bar = document.createElement('div');
+  bar.className = 'ref-bar';
+  bar.setAttribute('role', 'status');
+  const en = document.documentElement.lang === 'en';
+  bar.innerHTML = en
+    ? `A friend invited you. Install Kadro and enter the code <b>KADRO-${ref.toUpperCase()}</b> in Settings → Friends to unlock the Creator pack.`
+    : `Тебя пригласил друг. Установи Kadro и введи код <b>KADRO-${ref.toUpperCase()}</b> в «Настройки» → «Друзья» — откроется «Набор создателя».`;
+  document.body.prepend(bar);
+})();

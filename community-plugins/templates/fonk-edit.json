@@ -1,0 +1,230 @@
+{
+  "id": "ws-fonk-edit",
+  "name": "Фонк-эдит",
+  "hint": "10 рваных склеек под фонк: тряска, RGB-сдвиг, ч/б вспышки",
+  "aspect": "9:16",
+  "author": "Kadro",
+  "license": "MIT",
+  "tags": [
+    "phonk",
+    "edit",
+    "fast"
+  ],
+  "swatch": "repeating-linear-gradient(100deg,#0b0b12 0 16px,#7b2dff 16px 19px,#0b0b12 19px 30px,#ff2d75 30px 32px)",
+  "slots": [
+    {
+      "duration": 0.9,
+      "effects": [
+        {
+          "type": "shake",
+          "amount": 0.5
+        },
+        {
+          "type": "rgbsplit",
+          "amount": 0.4
+        }
+      ],
+      "color": {
+        "preset": "neon",
+        "presetAmount": 0.5
+      },
+      "zoom": [
+        1.12,
+        1
+      ]
+    },
+    {
+      "duration": 0.5,
+      "effects": [
+        {
+          "type": "bwflash",
+          "amount": 0.6
+        }
+      ],
+      "color": {
+        "preset": "neon",
+        "presetAmount": 0.5
+      },
+      "zoom": [
+        1,
+        1.1
+      ]
+    },
+    {
+      "duration": 0.5,
+      "effects": [
+        {
+          "type": "shake",
+          "amount": 0.5
+        },
+        {
+          "type": "rgbsplit",
+          "amount": 0.4
+        }
+      ],
+      "color": {
+        "preset": "neon",
+        "presetAmount": 0.5
+      },
+      "zoom": [
+        1.12,
+        1
+      ]
+    },
+    {
+      "duration": 0.7,
+      "effects": [
+        {
+          "type": "bwflash",
+          "amount": 0.6
+        }
+      ],
+      "color": {
+        "preset": "neon",
+        "presetAmount": 0.5
+      },
+      "zoom": [
+        1,
+        1.1
+      ]
+    },
+    {
+      "duration": 0.5,
+      "effects": [
+        {
+          "type": "shake",
+          "amount": 0.5
+        },
+        {
+          "type": "rgbsplit",
+          "amount": 0.4
+        }
+      ],
+      "color": {
+        "preset": "neon",
+        "presetAmount": 0.5
+      },
+      "zoom": [
+        1.12,
+        1
+      ]
+    },
+    {
+      "duration": 0.5,
+      "effects": [
+        {
+          "type": "bwflash",
+          "amount": 0.6
+        }
+      ],
+      "color": {
+        "preset": "neon",
+        "presetAmount": 0.5
+      },
+      "zoom": [
+        1,
+        1.1
+      ]
+    },
+    {
+      "duration": 0.7,
+      "effects": [
+        {
+          "type": "shake",
+          "amount": 0.5
+        },
+        {
+          "type": "rgbsplit",
+          "amount": 0.4
+        }
+      ],
+      "color": {
+        "preset": "neon",
+        "presetAmount": 0.5
+      },
+      "zoom": [
+        1.12,
+        1
+      ]
+    },
+    {
+      "duration": 0.5,
+      "effects": [
+        {
+          "type": "bwflash",
+          "amount": 0.6
+        }
+      ],
+      "color": {
+        "preset": "neon",
+        "presetAmount": 0.5
+      },
+      "zoom": [
+        1,
+        1.1
+      ]
+    },
+    {
+      "duration": 0.5,
+      "effects": [
+        {
+          "type": "shake",
+          "amount": 0.5
+        },
+        {
+          "type": "rgbsplit",
+          "amount": 0.4
+        }
+      ],
+      "color": {
+        "preset": "neon",
+        "presetAmount": 0.5
+      },
+      "zoom": [
+        1.12,
+        1
+      ]
+    },
+    {
+      "duration": 1.2,
+      "effects": [
+        {
+          "type": "bwflash",
+          "amount": 0.6
+        }
+      ],
+      "color": {
+        "preset": "neon",
+        "presetAmount": 0.5
+      },
+      "zoom": [
+        1,
+        1.1
+      ]
+    }
+  ],
+  "texts": [
+    {
+      "start": 0,
+      "duration": 0.9,
+      "text": "ВАЙБ",
+      "preset": "outline",
+      "style": {
+        "font": "Rubik Mono One",
+        "size": 150,
+        "glow": "#7b2dff"
+      },
+      "anim": {
+        "in": {
+          "type": "zoom",
+          "dur": 0.2
+        },
+        "out": {
+          "type": "pop",
+          "dur": 0.15
+        }
+      },
+      "y": 0.5
+    }
+  ]
+}

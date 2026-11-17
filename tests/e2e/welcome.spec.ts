@@ -54,7 +54,8 @@ test('тема, формат, компьютер и модели ИИ — и б�
   await win.getByTestId('welcome-edit-games').click();
   await expect(win.getByTestId('welcome-edit-games')).not.toHaveClass(/on/);
   await win.getByTestId('welcome-source-tiktok').click();
-  await expect(win.getByTestId('welcome-consent')).toHaveCount(0);
+  // согласие на анонимную статистику — есть, но по умолчанию выключено
+  await expect(win.getByTestId('welcome-consent').locator('input')).not.toBeChecked();
   await win.getByTestId('welcome-next').click();
   // шаг 3: формат — уже 16:9 (по ответу), подсвечен на главном экране
   await expect(win.getByTestId('welcome-format-16-9')).toHaveClass(/active/);

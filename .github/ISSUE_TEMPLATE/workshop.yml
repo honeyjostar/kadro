@@ -1,0 +1,47 @@
+name: Прислать в Мастерскую
+description: Свой шаблон, переход, эффект или фон — для Мастерской Kadro
+title: "Мастерская: "
+labels: ["workshop"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо, что делишься! Подходящие работы появятся в Kadro: «Мастерская» — у всех, без обновления программы.
+        Шаблон: «Шаблоны» → «Мои шаблоны» → «В Мастерскую» — Kadro сохранит файл `.kadro-template.json`.
+        Переход, эффект или фон: файл `.glsl` из папки плагинов (как его сделать — docs/PLUGINS.md).
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Что это
+      options: [Шаблон, Переход, Эффект, Фон]
+    validations: { required: true }
+  - type: input
+    id: name
+    attributes:
+      label: Название
+      placeholder: "Например: Фонк-эдит"
+    validations: { required: true }
+  - type: textarea
+    id: about
+    attributes:
+      label: Что делает и для каких роликов
+      placeholder: "10 быстрых склеек под фонк, тряска и ч/б вспышки"
+    validations: { required: true }
+  - type: input
+    id: author
+    attributes:
+      label: Как подписать автора
+      placeholder: "Ник, канал или ссылка"
+  - type: textarea
+    id: file
+    attributes:
+      label: Файл
+      description: Перетащи сюда файл .kadro-template.json или .glsl (GitHub прикрепит его к заявке).
+    validations: { required: true }
+  - type: checkboxes
+    id: license
+    attributes:
+      label: Лицензия
+      options:
+        - label: Это моя работа, и я разрешаю распространять её под лицензией MIT в Kadro
+          required: true

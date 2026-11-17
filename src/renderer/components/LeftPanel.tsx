@@ -2,7 +2,7 @@ import { tx } from '../../shared/i18n';
 import { showsInMode } from '../../shared/uiMode';
 import { txj } from '../txj';
 import {
-  Clapperboard, Activity,
+  Clapperboard, Activity, Gamepad2, Lock, Puzzle, Send,
   Zap, AudioLines, BellRing, Blend, Volume2, Captions, Crop, Film, Image as ImageIcon, Layers, Mic, Move, Music, Palette, Plus,
   LayoutTemplate, Smile, Sparkles, SlidersHorizontal, Trash2, Type, Upload, Wand2, FolderOpen, Box, Shuffle, WandSparkles, MoreHorizontal, Search, SkipBack, ArrowRightToLine, Scissors, FileText, Languages, Play, Pause, FileUp, Download, Users, ZoomIn, ArrowLeftCircle, Speaker, Timer, Star, History, MonitorPlay,
 } from 'lucide-react';
@@ -21,7 +21,7 @@ import type { ModelInfo, TtsVoiceId, VoiceInfo } from '../../shared/ipc';
 import { DUB_PAIRS } from '../../shared/dub';
 import { CLONE_OFFSET, CLONE_OFFSETS } from '../../shared/clone';
 import { MEMES, type MemeId } from '../../shared/memes';
-import { STICKER_GROUPS, STICKER_MOTIONS } from '../../shared/stickers';
+import { MASCOT_STICKERS, STICKER_GROUPS, STICKER_MOTIONS } from '../../shared/stickers';
 import {
   addText, animAllCaptions, clipEnd, findClip, mainTrack, projectDuration, removeAsset, setTransition, styleAllCaptions, updateClip,
 } from '../../shared/timeline';
@@ -32,7 +32,7 @@ import type { EffectType, MediaAsset, MediaClip, PersonFx, StickerMotion, TextAn
 import {
   addAssetToTimeline, autoReframe, disableDenoise, disableRemoveBg, disableStab, enhanceVoice, importPaths, makeCaptions, pickAndImport, removeBackground, removePauses, translateCaptions,
   setVoiceEffect, stabilizeClip, retouchClip, startFromTemplate, saveAsTemplate, disableRetouch, startRecording, stopRecording, cancelRecording, voiceLevel,
-  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme, addSticker, addTextTheme,
+  loadDemoFiles, tryTemplate, autoVariant, importAudio, findOnTimeline, importSubtitles, exportSubtitles, dubProject, setPersonFx, addSubscribe, cloneSelf, applyMeme, addSticker, addTextTheme, openFriends,
   enhanceClip, disableEnhance, addAdjustmentLayer, beatPunch } from '../actions';
 import { aiAllowed, enhanceTarget } from '../../shared/enhance';
 import { useMenu, type MenuEntry } from './Menu';
@@ -55,6 +55,8 @@ import { noteUsed, useFavs } from '../favs';
 import { defaultVoice, VOICES } from '../../shared/voices';
 import { BackgroundsSection } from './Backgrounds';
 import { TEXT_THEMES } from '../../shared/textThemes';
+import { WORKSHOP_SUBMIT } from '../../shared/links';
+import { rewardsOpen } from '../../shared/rewards';
 import { emojiUrl } from '../emoji';
 
 export const TABS: { id: LeftTab; label: string; icon: ReactNode }[] = [
@@ -142,6 +144,9 @@ function TemplatesPanel() {
             <button className="btn block small" disabled={busy || !libCount} onClick={() => void run(() => startFromTemplate(t, 'library'))} data-testid="tpl-library">
               {txj('Из медиатеки{0}', libCount ? ` (${libCount})` : '')}</button>
             {hasDemo && <button className="btn ghost block small" disabled={busy} onClick={() => void run(() => tryTemplate(t))} data-testid="tpl-try">{tx('Пример')}</button>}
+            {t.custom && !t.id.startsWith('ws-') && (
+              <button className="btn ghost small" onClick={() => void api.exportTemplate(t.id).then((f) => { if (f) { getState().toast(tx('Файл шаблона сохранён — прикрепи его к заявке в открывшейся форме'), 'ok'); api.track('workshop/publish'); void api.openUrl(`${WORKSHOP_SUBMIT}&title=${encodeURIComponent(tx('Мастерская: {0}', t.name))}`); } })} data-testid="tpl-share"><Send size={13} />{tx('В Мастерскую')}</button>
+            )}
             {t.custom && <button className="btn ghost small" onClick={() => void api.deleteTemplate(t.id).then(refresh)}><Trash2 size={13} />{tx('Удалить шаблон')}</button>}
           </div>
         )}
@@ -159,6 +164,13 @@ function TemplatesPanel() {
           <div className="row-btns">
             <button className="btn primary small" disabled={busy} onClick={() => getState().setAutoOpen({ files: autoLast?.files ?? [], fresh: false })} data-testid="tpl-auto">{autoLast ? tx('Настроить…') : tx('Собрать…')}</button>
             {autoLast && <button className="btn small" disabled={busy} onClick={() => void run(autoVariant)} title={tx('Другие куски видео и переходы, те же файлы и стиль')} data-testid="tpl-auto-variant"><Shuffle size={13} />{tx('Ещё вариант')}</button>}
+          </div>
+        </div>
+        <div className="auto-card" data-testid="tpl-workshop-card">
+          <b><Puzzle size={15} />{tx('Мастерская')}</b>
+          <span className="hint small">{tx('Шаблоны, переходы и эффекты от сообщества — и место, куда прислать своё.')}</span>
+          <div className="row-btns">
+            <button className="btn small" onClick={() => getState().setPluginCatalogOpen(true)} data-testid="tpl-workshop">{tx('Открыть Мастерскую')}</button>
           </div>
         </div>
         <div className="auto-card" data-testid="tpl-ref-card">
@@ -575,6 +587,7 @@ function hexA(hex: string, a: number): string {
 
 function TextPanel() {
   const commit = useStore((s) => s.commit);
+  const rewardsOn = useStore((s) => rewardsOpen(s.rewards));
   const [fontCat, setFontCat] = useState<FontCat | 'all'>('all');
   const add = (style?: Partial<TextStyle>, text = tx('Текст')) => {
     let id = '';
@@ -606,7 +619,8 @@ function TextPanel() {
         <div className="section-title">{tx('Тематический текст')}</div>
         <div className="theme-grid" data-testid="text-themes">
           {TEXT_THEMES.map((t) => (
-            <button key={t.id} className={`theme-tile anim-${t.anim.in?.type ?? 'fade'}`} onClick={() => addTextTheme(t.id)} title={tx('Добавить: {0}', t.label)} data-testid={`theme-${t.id}`}>
+            <button key={t.id} className={`theme-tile anim-${t.anim.in?.type ?? 'fade'} ${t.reward ? 'reward' : ''} ${t.reward && !rewardsOn ? 'locked' : ''}`} onClick={() => addTextTheme(t.id)} title={t.reward && !rewardsOn ? tx('{0} — из «Набора создателя»', t.label) : tx('Добавить: {0}', t.label)} data-testid={`theme-${t.id}`}>
+              {t.reward && <span className="reward-tag">{rewardsOn ? '★' : <Lock size={11} />}</span>}
               <div className="theme-sample"><span style={{ ...textPreviewStyle(t.style, 1.6), fontSize: Math.max(11, Math.min(24, 150 / Math.max(5, t.text.length * (t.style.uppercase || /^[^a-zа-яё]*$/.test(t.text) ? 1.25 : 1)))) }}>{t.text}</span></div>
               <span className="label">{t.label}</span>
             </button>
@@ -1004,7 +1018,8 @@ const MEME_ICONS: Record<MemeId, ReactNode> = { drama: <ZoomIn size={18} />, tbc
 function StickersCard() {
   const [motion, setMotion] = useState<StickerMotion>('bounce');
   const [group, setGroup] = useState(STICKER_GROUPS[0].id);
-  const items = STICKER_GROUPS.find((g) => g.id === group)?.items ?? [];
+  const rewardsOn = useStore((s) => rewardsOpen(s.rewards));
+  const items = group === 'kadro' ? MASCOT_STICKERS.map((m) => m.glyph) : STICKER_GROUPS.find((g) => g.id === group)?.items ?? [];
   return (
     <div className="ai-card sticker-card" data-testid="stickers">
       <h4><Smile size={15} />{tx('Стикеры')}</h4>
@@ -1015,8 +1030,10 @@ function StickersCard() {
       </div>
       <div className="chips sticker-groups">
         {STICKER_GROUPS.map((g) => <button key={g.id} className={group === g.id ? 'active' : ''} onClick={() => setGroup(g.id)}>{g.label}</button>)}
+        <button className={`${group === 'kadro' ? 'active' : ''} reward-chip`} onClick={() => setGroup('kadro')} data-testid="sticker-group-kadro">{rewardsOn ? '★ ' : <Lock size={11} />}{tx('Маскот Kadro')}</button>
       </div>
-      <div className="sticker-grid" data-motion={motion}>
+      {group === 'kadro' && !rewardsOn && <p className="hint small reward-note">{tx('Стикеры с маскотом — из «Набора создателя».')} <button className="link" onClick={openFriends}>{tx('Как открыть')}</button></p>}
+      <div className={`sticker-grid ${group === 'kadro' && !rewardsOn ? 'locked' : ''}`} data-motion={motion}>
         {items.map((e) => (
           <button key={e} onClick={() => addSticker(e, motion)} title={tx('Добавить стикер')} data-testid="sticker">{emojiUrl(e) ? <img src={emojiUrl(e)!} alt={e} draggable={false} /> : <span>{e}</span>}</button>
         ))}
@@ -1472,6 +1489,13 @@ export function AiTools({ compact = false }: { compact?: boolean }) {
           <h4><Scissors size={15} />{tx('Нарезать в шортсы')}</h4>
           <p className="hint">{tx('Длинное видео → лучшие моменты → вертикальные ролики с субтитрами и крючком.')}</p>
           <button className="btn block" onClick={() => getState().setShortsOpen(true)} data-testid="ai-shorts">{tx('Найти моменты')}</button>
+        </div>
+      )}
+      {!compact && (
+        <div className="ai-card game-card">
+          <h4><Gamepad2 size={15} />{tx('Моменты из GTA 6 и других игр')}</h4>
+          <p className="hint">{tx('Погони, перестрелки, взрывы — по звуку и движению. Вертикальные клипы с размытым фоном или на весь экран.')}</p>
+          <button className="btn block" onClick={() => getState().setShortsOpen('game')} data-testid="ai-game">{tx('Нарезать игру')}</button>
         </div>
       )}
       {!compact && (

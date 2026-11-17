@@ -4,6 +4,9 @@ import { tx } from '../../shared/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { BG_GROUPS, BG_PRESETS, type BgGroup, type BgPreset } from '../../shared/backgrounds';
 import { addBackground } from '../actions';
+import { rewardsOpen } from '../../shared/rewards';
+import { useStore } from '../store';
+import { Lock } from 'lucide-react';
 import { glRunner } from '../engine/gl';
 import { glDef } from '../glRegistry';
 
@@ -49,6 +52,7 @@ export function BackgroundsSection() {
   const [group, setGroup] = useState<BgGroup>('calm');
   const [hover, setHover] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const open = useStore((s) => rewardsOpen(s.rewards));
   const list = BG_PRESETS.filter((b) => b.group === group);
   return (
     <div className="bg-section" data-testid="bg-section">
@@ -57,10 +61,11 @@ export function BackgroundsSection() {
       <div className="chips">{BG_GROUPS.map((g) => <button key={g.id} className={group === g.id ? 'active' : ''} onClick={() => setGroup(g.id)} data-testid={`bg-group-${g.id}`}>{g.label}</button>)}</div>
       <div className="bg-grid">
         {list.map((b) => (
-          <button key={b.id} className="bg-card" title={b.hint} disabled={busy} data-testid={`bg-${b.id}`}
+          <button key={b.id} className={`bg-card ${b.reward ? 'reward' : ''} ${b.reward && !open ? 'locked' : ''}`} title={b.reward && !open ? tx('{0} — из «Набора создателя»', b.hint) : b.hint} disabled={busy} data-testid={`bg-${b.id}`}
             onMouseEnter={() => setHover(b.id)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(b.id)} onBlur={() => setHover(null)}
             onClick={() => { setBusy(true); void addBackground(b.id).finally(() => setBusy(false)); }}>
             <BgPreview b={b} live={hover === b.id} />
+            {b.reward && <span className="reward-tag">{open ? <>★</> : <Lock size={11} />}</span>}
             <span className="bg-name">{b.label}</span>
           </button>
         ))}

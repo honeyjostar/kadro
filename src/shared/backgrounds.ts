@@ -13,9 +13,11 @@ export interface BgPreset {
   effect: Effect;
   /** как выглядит карточка (CSS) — пока не подгрузился живой предпросмотр */
   swatch: string;
+  /** из «Набора создателя» (открывается концовкой «Сделано в Kadro» или приглашением друга) */
+  reward?: boolean;
 }
 
-const fx = (key: string, params: Record<string, number> = {}): Effect => ({ type: `gl:${key}`, amount: 1, params });
+const fx = (key: string, params: Record<string, number | number[]> = {}): Effect => ({ type: `gl:${key}`, amount: 1, params });
 
 export const BG_GROUPS: { id: BgGroup; label: string }[] = [
   { id: 'calm', label: tx('Спокойные') },
@@ -39,6 +41,10 @@ export const BG_PRESETS: BgPreset[] = [
   { id: 'lava', label: tx('Лава-лампа'), hint: tx('Капли сливаются и расходятся'), group: 'split', effect: fx('bg_lava'), swatch: 'radial-gradient(circle at 40% 40%,#ffb43a 0 18%,transparent 19%),radial-gradient(circle at 65% 70%,#ff5a3f 0 14%,transparent 15%),#2a0838' },
   { id: 'orbit', label: tx('Залипалка'), hint: tx('Точки кружат по орбитам и складываются в узоры'), group: 'split', effect: fx('bg_orbit'), swatch: 'radial-gradient(circle,#ff5ab4 0 3%,transparent 4% 20%,#5ad2ff 21% 22%,transparent 23% 40%,#b45aff 41% 42%,transparent 43%),#05040c' },
   { id: 'runner', label: tx('Неоновая трасса'), hint: tx('Бесконечный забег — «геймплей» под видео с голосом'), group: 'split', effect: fx('bg_runner'), swatch: 'linear-gradient(#210047 0 45%,#06010e 46%),conic-gradient(from 180deg at 50% 46%,transparent 160deg,#00e5ff 170deg,transparent 175deg 185deg,#00e5ff 190deg,transparent 200deg)' },
+  // «Набор создателя»
+  { id: 'gold', label: tx('Золото'), hint: tx('Тёплое золото перетекает в бронзу — для премиальных роликов и итогов года'), group: 'calm', reward: true, effect: fx('bg_gradient', { color1: [1, 0.8, 0.36], color2: [0.32, 0.13, 0.02], speed: 0.7 }), swatch: 'linear-gradient(135deg,#ffcc5c,#52210a)' },
+  { id: 'kadro', label: tx('Цвета Kadro'), hint: tx('Розовый Kadro в глубоком фиолетовом'), group: 'neon', reward: true, effect: fx('bg_gradient', { color1: [1, 0.24, 0.5], color2: [0.07, 0.02, 0.13], speed: 1.2 }), swatch: 'linear-gradient(135deg,#ff3d7f,#12051f)' },
+  { id: 'aurora-pink', label: tx('Розовое сияние'), hint: tx('Северное сияние в розово-сиреневых тонах'), group: 'calm', reward: true, effect: fx('bg_aurora', { hue: 0.45 }), swatch: 'linear-gradient(#0a0212 10%,#ff5ad255 40%,#7a3dff44 60%,#0a0212 85%)' },
 ];
 export const bgPreset = (id: string): BgPreset | undefined => BG_PRESETS.find((b) => b.id === id);
 /** Длина фона по умолчанию (короткий ролик). */

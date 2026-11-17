@@ -9,10 +9,11 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { net, shell } from 'electron';
 import {
-  CATALOG_URL, MAX_PLUGIN_BYTES, kindOfSource, pluginDirName, safePluginFile, validEntry,
+  CATALOG_URL, MAX_PLUGIN_BYTES, kindOfSource, pluginDirName, safePluginFile, validEntry, workshopTemplateId,
   type CatalogEntry, type CatalogItem, type CatalogResult, type InstallResult, type PluginKind,
 } from '../shared/pluginCatalog';
 import { parseGlsl } from '../shared/gl/glsl';
+import { isTemplate } from '../shared/templates';
 
 export interface PluginFile { kind: 'transition' | 'effect'; file: string; src: string }
 
@@ -141,8 +142,13 @@ async function fetchText(url: string, limit: number, timeoutMs = 15_000): Promis
 
 let cache: { url: string; items: CatalogItem[] } | null = null;
 
+/** Куда ставится запись каталога: шейдер — в папку плагинов, шаблон — в «Мои шаблоны» под именем ws-<файл>.json. */
+function localFile(kind: PluginKind, fileName: string): string {
+  if (kind === 'template') return path.join(dataDir(), 'templates', `${workshopTemplateId(fileName)}.json`);
+  return path.join(pluginsDir(), pluginDirName(kind), fileName);
+}
 function localState(e: CatalogEntry): CatalogItem['state'] {
-  const f = path.join(pluginsDir(), pluginDirName(e.kind), e.file.split('/')[1]);
+  const f = localFile(e.kind, e.file.split('/')[1]);
   try { return sha256(fs.readFileSync(f)) === e.sha256 ? 'installed' : 'update'; } catch { return 'new'; }
 }
 
@@ -179,10 +185,19 @@ export async function loadCatalog(): Promise<CatalogResult> {
 
 /** Записать шейдер в папку плагинов (поверх старой версии с тем же именем). */
 function writePlugin(kind: PluginKind, fileName: string, src: string): string {
-  ensurePluginDirs();
-  const f = path.join(pluginsDir(), pluginDirName(kind), fileName);
+  if (kind === 'template') {
+    // шаблон из сети: только настоящий шаблон и только со своим id (иначе заменил бы чужой)
+    const t = JSON.parse(src) as unknown;
+    if (!isTemplate(t) || t.id !== workshopTemplateId(fileName)) throw new Error(tx('шаблон в непонятном формате'));
+  } else ensurePluginDirs();
+  const f = localFile(kind, fileName);
+  fs.mkdirSync(path.dirname(f), { recursive: true });
   fs.writeFileSync(f, src);
   return f;
+}
+/** Удалить шаблон, поставленный из Мастерской. */
+export function removeWorkshopTemplate(fileName: string): boolean {
+  try { fs.rmSync(localFile('template', fileName), { force: true }); return true; } catch { return false; }
 }
 
 /** Поставить плагины из каталога по id (из уже скачанного каталога — с проверкой SHA-256). */

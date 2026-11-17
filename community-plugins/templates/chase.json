@@ -1,0 +1,158 @@
+{
+  "id": "ws-chase",
+  "name": "Погоня",
+  "hint": "Игровой клип: наезды, тряска на ударах, вспышка и титр с объёмом",
+  "aspect": "9:16",
+  "author": "Kadro",
+  "license": "MIT",
+  "tags": [
+    "game",
+    "action",
+    "gameplay"
+  ],
+  "swatch": "linear-gradient(160deg,#0d1b2a 0%,#1b263b 50%,#e85d04 100%)",
+  "slots": [
+    {
+      "duration": 1.6,
+      "effects": [
+        {
+          "type": "flash",
+          "amount": 0.5
+        }
+      ],
+      "color": {
+        "preset": "film",
+        "presetAmount": 0.4
+      },
+      "zoom": [
+        1.15,
+        1
+      ]
+    },
+    {
+      "duration": 1.0,
+      "effects": [],
+      "color": {
+        "preset": "film",
+        "presetAmount": 0.4
+      },
+      "zoom": [
+        1,
+        1.12
+      ],
+      "transitionOut": {
+        "type": "zoomin",
+        "duration": 0.3
+      }
+    },
+    {
+      "duration": 0.8,
+      "effects": [
+        {
+          "type": "shake",
+          "amount": 0.45
+        }
+      ],
+      "color": {
+        "preset": "film",
+        "presetAmount": 0.4
+      },
+      "zoom": [
+        1.15,
+        1
+      ]
+    },
+    {
+      "duration": 0.8,
+      "effects": [
+        {
+          "type": "shake",
+          "amount": 0.45
+        }
+      ],
+      "color": {
+        "preset": "film",
+        "presetAmount": 0.4
+      },
+      "zoom": [
+        1,
+        1.12
+      ]
+    },
+    {
+      "duration": 1.2,
+      "effects": [
+        {
+          "type": "flash",
+          "amount": 0.5
+        }
+      ],
+      "color": {
+        "preset": "film",
+        "presetAmount": 0.4
+      },
+      "zoom": [
+        1.15,
+        1
+      ],
+      "transitionOut": {
+        "type": "zoomin",
+        "duration": 0.3
+      }
+    },
+    {
+      "duration": 0.8,
+      "effects": [
+        {
+          "type": "shake",
+          "amount": 0.45
+        }
+      ],
+      "color": {
+        "preset": "film",
+        "presetAmount": 0.4
+      },
+      "zoom": [
+        1,
+        1.12
+      ]
+    },
+    {
+      "duration": 2.0,
+      "effects": [],
+      "color": {
+        "preset": "film",
+        "presetAmount": 0.4
+      },
+      "zoom": [
+        1.15,
+        1
+      ]
+    }
+  ],
+  "texts": [
+    {
+      "start": 0.2,
+      "duration": 1.4,
+      "text": "ПОГОНЯ",
+      "preset": "yellow",
+      "style": {
+        "font": "Russo One",
+        "size": 140,
+        "depth": 10,
+        "depthColor": "#7a3a00"
+      },
+      "anim": {
+        "in": {
+          "type": "pop",
+          "dur": 0.3
+        },
+        "out": {
+          "type": "zoom",
+          "dur": 0.2
+        }
+      },
+      "y": 0.3
+    }
+  ]
+}

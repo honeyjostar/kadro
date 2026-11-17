@@ -7,3 +7,5 @@ export function isKadroUrl(url: unknown): url is string {
   if (typeof url !== 'string') return false;
   return /^https:\/\/github\.com\/honeyjostar\/kadro(\/|$)/.test(url) || url === TELEGRAM_CHANNEL;
 }
+/** Прислать своё в Мастерскую: форма на GitHub (файл прикрепляется к заявке). */
+export const WORKSHOP_SUBMIT = 'https://github.com/honeyjostar/kadro/issues/new?template=workshop.yml';

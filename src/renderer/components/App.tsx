@@ -109,6 +109,7 @@ export function App() {
       loaded.current = true;
     }).catch(() => { loaded.current = true; });
     // главный экран при запуске (можно выключить на нём самом)
+    void api.rewards().then((r) => getState().setRewards(r)).catch(() => undefined);
     api.homeInfo().then((i) => { getState().setDemo(i.demo); setSfxFiles(i.demo.sfx); (window as unknown as { __kadroEngine?: { setProject(p: unknown): void } }).__kadroEngine?.setProject(getState().project); if (i.autoOpen) getState().setHome(true); }).catch(() => undefined);
     return off;
   }, []);

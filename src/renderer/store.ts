@@ -88,7 +88,8 @@ interface State {
   autoOpen: AutoOpen | null;
   /** Открыто окно «Ролик по сценарию». */
   scriptOpen: boolean;
-  shortsOpen: boolean;
+  /** «Нарезать в шортсы»; 'game' — сразу режим «Игра» (виджет «Моменты из GTA 6 и других игр»). */
+  shortsOpen: boolean | 'game';
   /** «Где пролистнут»: найденные места (null — не проверяли) */
   retention: import('../shared/retention').RetIssue[] | null;
   /** Окно «Сообщить об ошибке» (текст — заготовка, например сообщение с экрана сбоя). */
@@ -110,6 +111,9 @@ interface State {
   keysOpen: boolean;
   /** Виджет «Нагрузка ПК» (процессор, память, видеокарта, температуры). */
   monOpen: boolean;
+  /** «Набор создателя» (стикеры маскота, эксклюзивные фоны и надписи) и код приглашения. */
+  rewards: import('../shared/rewards').Rewards | null;
+  setRewards: (r: import('../shared/rewards').Rewards | null) => void;
   setMonOpen: (b: boolean) => void;
   /** Обновления Kadro (состояние из главного процесса). */
   update: import('../shared/update').UpdateState | null;
@@ -172,7 +176,7 @@ interface State {
   setModel3dEdit: (e: { init: Model3D; clipId?: string } | null) => void;
   setAutoOpen: (o: AutoOpen | null) => void;
   setScriptOpen: (b: boolean) => void;
-  setShortsOpen: (b: boolean) => void;
+  setShortsOpen: (b: boolean | 'game') => void;
   setRetention: (r: import('../shared/retention').RetIssue[] | null) => void;
   setBugOpen: (b: { what: string } | null) => void;
   setPluginCatalogOpen: (b: boolean) => void;
@@ -270,6 +274,7 @@ export const useStore = create<State>((set, get) => ({
   setFollowDraw: (followDraw) => set({ followDraw, blurDraw: null }),
   refOpen: null,
   keysOpen: false,
+  rewards: null,
   monOpen: (() => { try { return localStorage.getItem('kadro.mon') === '1'; } catch { return false; } })(),
   update: null,
   coach: api.coach ?? null,
@@ -391,6 +396,7 @@ export const useStore = create<State>((set, get) => ({
   setBlurDraw: (blurDraw) => set({ blurDraw }),
   setRefOpen: (o) => set({ refOpen: o }),
   setKeysOpen: (b) => set({ keysOpen: b }),
+  setRewards: (r) => set({ rewards: r }),
   setMonOpen: (b) => { try { localStorage.setItem('kadro.mon', b ? '1' : '0'); } catch { /* без хранилища — только до перезапуска */ } set({ monOpen: b }); },
   setUpdate: (u) => set({ update: u }),
   setCoach: (c) => { api.setCoach(c); set({ coach: c, coachExported: c === 'active' ? false : get().coachExported }); },
