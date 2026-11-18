@@ -73,5 +73,15 @@ test('старый ноутбук: «Режим для слабого ПК» в�
   const a = await asset(K);
   expect(a.path).toBe(fhd60());
   expect(a.previewPath).not.toBe(a.path);
+  // видео с прозрачностью (группа, 3D, лого) — без копии, иначе пропала бы прозрачность
+  const alpha = path.join(MEDIA, 'alpha-1080x1920.webm');
+  if (!fs.existsSync(alpha)) execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=red@0.5:s=1080x1920:r=30:d=1,format=yuva420p',
+    '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuva420p', '-auto-alt-ref', '0', '-deadline', 'realtime', '-cpu-used', '8', alpha]);
+  await K.win.evaluate(() => (window as any).__kadro.actions.newProjectAction());
+  await importAt(K.win, [alpha], 'main', 0);
+  await K.win.waitForTimeout(1500);
+  const b = await asset(K);
+  expect(b.alpha).toBe(true);
+  expect(b.proxy).toBe('none');
   await K.app.close();
 });

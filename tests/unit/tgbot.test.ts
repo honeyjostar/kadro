@@ -21,9 +21,9 @@ describe('telegram-бот', () => {
     expect(videoOf({ photo: [{ file_id: 'e' }] })).toBeNull();
     expect(videoOf({ text: 'hi' })).toBeNull();
   });
-  it('кнопки: число видео в авто-ролике, три действия', () => {
+  it('кнопки: число видео в авто-ролике, четыре действия', () => {
     const k = taskKeyboard(3);
-    expect(k.inline_keyboard.map((r) => r[0].callback_data)).toEqual(['auto', 'subs', 'reach']);
+    expect(k.inline_keyboard.map((r) => r[0].callback_data)).toEqual(['auto', 'subs', 'shorts', 'reach']);
     expect(k.inline_keyboard[0][0].text).toContain('3');
   });
   it('отчёт проверки охватов: значки по уровню, без замечаний — «ничего не мешает»', () => {

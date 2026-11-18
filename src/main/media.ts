@@ -120,7 +120,10 @@ export async function analyze(file: string): Promise<{ asset: MediaAsset; plan: 
   const fps0 = parseRate(pr.video?.avg_frame_rate) || parseRate(pr.video?.r_frame_rate) || 30;
   // 2K/4K на слабом компьютере: плеер играет лёгкую копию 720p, экспорт — оригинал
   const mbps = pr.duration > 0 ? (pr.size * 8) / pr.duration / 1e6 : 0;
-  if (plan === 'none' && kind === 'video' && !isGif && (await lightCopyRule(w, h, fps0, { codec: pr.video?.codec_name, mbps }))) plan = 'video';
+  const tags = Object.fromEntries(Object.entries(pr.video?.tags ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
+  // видео с прозрачностью (группы, 3D, лого) — без лёгкой копии: копия в MP4 потеряла бы прозрачность
+  const alpha = kind === 'video' && ['vp8', 'vp9'].includes(pr.video?.codec_name ?? '') && tags.alpha_mode === '1';
+  if (plan === 'none' && kind === 'video' && !isGif && !alpha && (await lightCopyRule(w, h, fps0, { codec: pr.video?.codec_name, mbps }))) plan = 'video';
   const asset: MediaAsset = {
     id: uid('asset'),
     kind,
@@ -139,8 +142,7 @@ export async function analyze(file: string): Promise<{ asset: MediaAsset; plan: 
     rotation: rot,
     proxy: plan === 'none' ? 'none' : 'pending',
   };
-  const tags = Object.fromEntries(Object.entries(pr.video?.tags ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
-  if (kind === 'video' && ['vp8', 'vp9'].includes(pr.video?.codec_name ?? '') && tags.alpha_mode === '1') asset.alpha = true;
+  if (alpha) asset.alpha = true;
   if (kind === 'video' && isGif) asset.loop = true;
   return { asset, plan };
 }

@@ -817,7 +817,8 @@ function registerIpc(): void {
     version: app.getVersion(), platform: process.platform, dataDir: dataDir(),
   }));
   ipcMain.handle('hw:info', (_e, force?: boolean) => hardwareInfo(!!force));
-  ipcMain.handle('hw:basic', () => hardwareBasic());
+  // автотесты на слабой машине: «Режим для слабого ПК» сам не включается (если «железо» не задано тестом)
+  ipcMain.handle('hw:basic', () => (process.env.KADRO_NO_LOWEND && !process.env.KADRO_TEST_HW ? null : hardwareBasic()));
   ipcMain.handle('hw:driverPage', async (_e, vendor: string) => {
     const url = DRIVER_PAGES[vendor as keyof typeof DRIVER_PAGES];
     if (!url) return false;

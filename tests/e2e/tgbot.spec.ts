@@ -104,3 +104,13 @@ test('хозяин прислал видео: кнопки, проверка о�
   await expect.poll(() => tg.sent.find((s) => s.method === 'sendVideo')?.bytes ?? 0, { timeout: 180_000 }).toBeGreaterThan(10_000);
   expect(K.errors).toEqual([]);
 });
+
+test('шортсы из видео без речи — бот честно отвечает, что речи мало', async () => {
+  const kb = tg.sent.find((s) => s.body.reply_markup)!.body.reply_markup.inline_keyboard.map((r: any) => r[0].callback_data);
+  expect(kb).toEqual(['auto', 'subs', 'shorts', 'reach']);
+  tg.push(msg(OWNER, { video: { file_id: 'v3', file_size: 200_000, mime_type: 'video/mp4' } }));
+  await expect.poll(() => tg.sent.filter((s) => s.body.reply_markup).length, { timeout: 20_000 }).toBeGreaterThanOrEqual(3);
+  tg.push({ callback_query: { id: 'q3', from: { id: OWNER }, message: { message_id: 4, chat: { id: OWNER, type: 'private' } }, data: 'shorts' } });
+  await expect.poll(() => msgs(OWNER).join('\n'), { timeout: 20_000 }).toContain('режу шортсы');
+  await expect.poll(() => msgs(OWNER).join('\n'), { timeout: 150_000 }).toMatch(/мало речи|не скачалась|Не получилось/);
+});

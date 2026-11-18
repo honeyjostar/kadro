@@ -330,7 +330,7 @@ test('отмена экспорта не оставляет файла', async (
   fs.rmSync(out, { force: true });
   await win.getByTestId('export-open').click();
   await win.getByTestId('export-dialog').getByRole('button', { name: '4K', exact: true }).click();
-  await win.getByRole('button', { name: 'Процессор' }).click();
+  await win.getByRole('button', { name: 'Процессор', exact: true }).click();
   await win.getByTestId('export-start').click();
   await win.waitForTimeout(1500);
   await win.getByTestId('export-cancel').click();

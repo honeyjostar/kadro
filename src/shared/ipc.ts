@@ -117,7 +117,7 @@ export interface KadroApi {
   /** Процессор, память, видеокарты и их кодировщики (force — проверить заново). */
   hardware(force?: boolean): Promise<import('./hw').HwInfo>;
   /** процессор, память, видеокарты — быстро, без проверки кодировщиков */
-  hardwareBasic(): Promise<Pick<import('./hw').HwInfo, 'cpu' | 'threads' | 'ramGb' | 'gpus'>>;
+  hardwareBasic(): Promise<Pick<import('./hw').HwInfo, 'cpu' | 'threads' | 'ramGb' | 'gpus'> | null>;
   openDriverPage(vendor: 'nvidia' | 'amd' | 'intel'): Promise<boolean>;
   pickMedia(): Promise<string[]>;
   /** длительность и размер кадра видеофайла (с учётом поворота) */

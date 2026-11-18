@@ -20,9 +20,10 @@ export interface TgState {
 }
 
 /** Что сделать с присланными видео. */
-export type TgTaskKind = 'auto' | 'subs' | 'reach';
+export type TgTaskKind = 'auto' | 'subs' | 'shorts' | 'reach';
 export interface TgTask { id: string; kind: Exclude<TgTaskKind, 'reach'>; files: string[]; out: string }
-export interface TgResult { file?: string; error?: string; note?: string }
+/** file — один ролик; files — несколько (шортсы) */
+export interface TgResult { file?: string; files?: string[]; error?: string; note?: string }
 
 /** Telegram отдаёт ботам файлы до 20 МБ, принимает от них — до 50 МБ. */
 export const TG_DOWNLOAD_MAX = 20 * 1024 * 1024;
@@ -55,12 +56,13 @@ export function taskKeyboard(n: number): { inline_keyboard: { text: string; call
     inline_keyboard: [
       [{ text: n > 1 ? tx('🎬 Авто-ролик из {0} видео', n) : tx('🎬 Авто-ролик'), callback_data: 'auto' }],
       [{ text: tx('💬 Субтитры как у блогеров'), callback_data: 'subs' }],
+      [{ text: tx('✂️ Нарезать в шортсы'), callback_data: 'shorts' }],
       [{ text: tx('🛡 Проверка охватов'), callback_data: 'reach' }],
     ],
   };
 }
 
-export const tgHelp = () => tx('Пришли одно или несколько видео — обычным сообщением, не файлом (так Telegram их сожмёт, и бот сможет скачать: до 20 МБ). Потом выбери, что сделать: авто-ролик, субтитры или проверку охватов. Kadro сделает всё на твоём компьютере и пришлёт результат сюда. Компьютер должен быть включён, а Kadro — открыт (можно свернуть к часам).');
+export const tgHelp = () => tx('Пришли одно или несколько видео — обычным сообщением, не файлом (так Telegram их сожмёт, и бот сможет скачать: до 20 МБ). Потом выбери, что сделать: авто-ролик, субтитры, шортсы или проверку охватов. Kadro сделает всё на твоём компьютере и пришлёт результат сюда. Компьютер должен быть включён, а Kadro — открыт (можно свернуть к часам).');
 
 /** Короткий отчёт «Проверки охватов» для чата. */
 export function reachText(r: ReachReport): string {

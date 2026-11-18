@@ -157,15 +157,18 @@ async function onCallback(q: Record<string, unknown>): Promise<void> {
     }
     return;
   }
-  if (kind !== 'auto' && kind !== 'subs') return;
+  if (kind !== 'auto' && kind !== 'subs' && kind !== 'shorts') return;
   const id = `tg_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-  const out = path.join(deps.outDir(), `${kind === 'auto' ? 'auto' : 'subs'}_${stamp()}.mp4`);
+  const out = path.join(deps.outDir(), `${kind}_${stamp()}.mp4`);
   pending.set(id, chat);
   batch = { files: [], at: 0 };
-  deps.task({ id, kind, files, out });
+  // шортсы — из самого длинного (последнего) видео
+  deps.task({ id, kind, files: kind === 'shorts' ? files.slice(-1) : files, out });
   await send(chat, kind === 'auto'
     ? tx('Принял! Собираю авто-ролик на компьютере — пришлю сюда, как будет готов.')
-    : tx('Принял! Делаю субтитры на компьютере — пришлю сюда, как будет готово.'));
+    : kind === 'shorts'
+      ? tx('Принял! Ищу лучшие моменты и режу шортсы на компьютере — пришлю их сюда.')
+      : tx('Принял! Делаю субтитры на компьютере — пришлю сюда, как будет готово.'));
 }
 
 /** Окно Kadro доделало задачу: прислать ролик (или объяснить, что не так). */
@@ -173,18 +176,23 @@ export async function tgResult(id: string, r: TgResult): Promise<void> {
   const chat = pending.get(id);
   if (chat === undefined) return;
   pending.delete(id);
-  if (r.error || !r.file) { await send(chat, tx('Не получилось: {0}', r.error ?? tx('неизвестная ошибка'))); return; }
-  const size = fs.statSync(r.file).size;
-  if (size > TG_UPLOAD_MAX) {
-    await send(chat, tx('Ролик готов, но он больше 50 МБ — Telegram не даёт ботам отправлять такие файлы. Он на компьютере: {0}', r.file));
-    return;
+  const files = r.files?.length ? r.files : r.file ? [r.file] : [];
+  if (r.error || !files.length) { await send(chat, tx('Не получилось: {0}', r.error ?? tx('неизвестная ошибка'))); return; }
+  for (const [i, file] of files.entries()) {
+    const size = fs.statSync(file).size;
+    if (size > TG_UPLOAD_MAX) {
+      await send(chat, tx('Ролик готов, но он больше 50 МБ — Telegram не даёт ботам отправлять такие файлы. Он на компьютере: {0}', file));
+      continue;
+    }
+    const caption = files.length > 1 ? tx('✅ Шортс {0} из {1}', i + 1, files.length) : r.note ? `✅ ${r.note}` : tx('✅ Готово — смонтировано в Kadro');
+    try {
+      await call('sendChatAction', { chat_id: chat, action: 'upload_video' }).catch(() => undefined);
+      await sendVideo(chat, file, caption);
+    } catch (e) {
+      await send(chat, tx('Ролик готов, но отправить не получилось ({0}). Он на компьютере: {1}', e instanceof Error ? e.message : String(e), file));
+    }
   }
-  try {
-    await call('sendChatAction', { chat_id: chat, action: 'upload_video' }).catch(() => undefined);
-    await sendVideo(chat, r.file, r.note ? `✅ ${r.note}` : tx('✅ Готово — смонтировано в Kadro'));
-  } catch (e) {
-    await send(chat, tx('Ролик готов, но отправить не получилось ({0}). Он на компьютере: {1}', e instanceof Error ? e.message : String(e), r.file));
-  }
+  if (files.length > 1 && r.note) await send(chat, r.note);
 }
 
 // ---------- слушать бота ----------

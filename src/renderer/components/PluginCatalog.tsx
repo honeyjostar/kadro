@@ -186,7 +186,7 @@ function TemplateCard({ it, busy, onInstall, onRemove }: { it: CatalogItem; busy
     <div className={`catalog-card ${it.state}`} data-testid={`catalog-${it.id}`}>
       <div className="catalog-preview tpl-preview" style={{ background: t?.swatch ?? 'var(--raised)' }}>
         <span className="tpl-slots">{t?.slots.map((x, i) => <i key={i} style={{ flexGrow: x.duration }} />)}</span>
-        {t?.texts[0] && <span className="tpl-text">{t.texts[0].text}</span>}
+        {t?.texts[0] && <span className="tpl-text" data-user-text>{t.texts[0].text}</span>}
         <span className="catalog-kind"><LayoutTemplate size={11} /> {tx('шаблон')} · {t?.aspect}</span>
       </div>
       <div className="catalog-body">
